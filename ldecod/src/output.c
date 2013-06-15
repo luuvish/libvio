@@ -253,158 +253,6 @@ static void img2buf_endian (imgpel** imgX, unsigned char* buf, int size_x, int s
 }
 
 
-#if (PAIR_FIELDS_IN_OUTPUT)
-
-void clear_picture(VideoParameters *p_Vid, StorablePicture *p);
-
-/*!
- ************************************************************************
- * \brief
- *    output the pending frame buffer
- * \param p_out
- *    Output file
- ************************************************************************
- */
-void flush_pending_output(VideoParameters *p_Vid, int p_out)
-{
-  if (p_Vid->pending_output_state != FRAME)
-  {
-    write_out_picture(p_Vid, p_Vid->pending_output, p_out);
-  }
-
-  if (p_Vid->pending_output->imgY)
-  {
-    free_mem2Dpel (p_Vid->pending_output->imgY);
-    p_Vid->pending_output->imgY=NULL;
-  }
-  if (p_Vid->pending_output->imgUV)
-  {
-    free_mem3Dpel (p_Vid->pending_output->imgUV);
-    p_Vid->pending_output->imgUV=NULL;
-  }
-
-  p_Vid->pending_output_state = FRAME;
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    Writes out a storable picture
- *    If the picture is a field, the output buffers the picture and tries
- *    to pair it with the next field.
- * \param p
- *    Picture to be written
- * \param p_out
- *    Output file
- ************************************************************************
- */
-void write_picture(VideoParameters *p_Vid, StorablePicture *p, int p_out, int real_structure)
-{
-   int i, add;
-
-  if (real_structure==FRAME)
-  {
-    
-    flush_pending_output(p_Vid, p_out);
-    write_out_picture(p_Vid, p, p_out);
-    return;
-  }
-  if (real_structure == p_Vid->pending_output_state)
-  {
-    flush_pending_output(p_Vid, p_out);
-    write_picture(p_Vid, p, p_out, real_structure);
-    return;
-  }
-
-  if (p_Vid->pending_output_state == FRAME)
-  {
-    p_Vid->pending_output->size_x = p->size_x;
-    p_Vid->pending_output->size_y = p->size_y;
-    p_Vid->pending_output->size_x_cr = p->size_x_cr;
-    p_Vid->pending_output->size_y_cr = p->size_y_cr;
-    p_Vid->pending_output->chroma_format_idc = p->chroma_format_idc;
-
-    p_Vid->pending_output->frame_mbs_only_flag = p->frame_mbs_only_flag;
-    p_Vid->pending_output->frame_cropping_flag = p->frame_cropping_flag;
-    if (p_Vid->pending_output->frame_cropping_flag)
-    {
-      p_Vid->pending_output->frame_crop_left_offset = p->frame_crop_left_offset;
-      p_Vid->pending_output->frame_crop_right_offset = p->frame_crop_right_offset;
-      p_Vid->pending_output->frame_crop_top_offset = p->frame_crop_top_offset;
-      p_Vid->pending_output->frame_crop_bottom_offset = p->frame_crop_bottom_offset;
-    }
-
-    get_mem2Dpel (&(p_Vid->pending_output->imgY), p_Vid->pending_output->size_y, p_Vid->pending_output->size_x);
-    get_mem3Dpel (&(p_Vid->pending_output->imgUV), 2, p_Vid->pending_output->size_y_cr, p_Vid->pending_output->size_x_cr);
-
-    clear_picture(p_Vid, p_Vid->pending_output);
-
-    // copy first field
-    if (real_structure == TOP_FIELD)
-    {
-      add = 0;
-    }
-    else
-    {
-      add = 1;
-    }
-
-    for (i=0; i<p_Vid->pending_output->size_y; i+=2)
-    {
-      memcpy(p_Vid->pending_output->imgY[(i+add)], p->imgY[(i+add)], p->size_x * sizeof(imgpel));
-    }
-    for (i=0; i<p_Vid->pending_output->size_y_cr; i+=2)
-    {
-      memcpy(p_Vid->pending_output->imgUV[0][(i+add)], p->imgUV[0][(i+add)], p->size_x_cr * sizeof(imgpel));
-      memcpy(p_Vid->pending_output->imgUV[1][(i+add)], p->imgUV[1][(i+add)], p->size_x_cr * sizeof(imgpel));
-    }
-    p_Vid->pending_output_state = real_structure;
-  }
-  else
-  {
-    if (  (p_Vid->pending_output->size_x!=p->size_x) || (p_Vid->pending_output->size_y!= p->size_y)
-       || (p_Vid->pending_output->frame_mbs_only_flag != p->frame_mbs_only_flag)
-       || (p_Vid->pending_output->frame_cropping_flag != p->frame_cropping_flag)
-       || ( p_Vid->pending_output->frame_cropping_flag &&
-            (  (p_Vid->pending_output->frame_crop_left_offset   != p->frame_crop_left_offset)
-             ||(p_Vid->pending_output->frame_crop_right_offset  != p->frame_crop_right_offset)
-             ||(p_Vid->pending_output->frame_crop_top_offset    != p->frame_crop_top_offset)
-             ||(p_Vid->pending_output->frame_crop_bottom_offset != p->frame_crop_bottom_offset)
-            )
-          )
-       )
-    {
-      flush_pending_output(p_Vid, p_out);
-      write_picture (p_Vid, p, p_out, real_structure);
-      return;
-    }
-    // copy second field
-    if (real_structure == TOP_FIELD)
-    {
-      add = 0;
-    }
-    else
-    {
-      add = 1;
-    }
-
-    for (i=0; i<p_Vid->pending_output->size_y; i+=2)
-    {
-      memcpy(p_Vid->pending_output->imgY[(i+add)], p->imgY[(i+add)], p->size_x * sizeof(imgpel));
-    }
-    for (i=0; i<p_Vid->pending_output->size_y_cr; i+=2)
-    {
-      memcpy(p_Vid->pending_output->imgUV[0][(i+add)], p->imgUV[0][(i+add)], p->size_x_cr * sizeof(imgpel));
-      memcpy(p_Vid->pending_output->imgUV[1][(i+add)], p->imgUV[1][(i+add)], p->size_x_cr * sizeof(imgpel));
-    }
-
-    flush_pending_output(p_Vid, p_out);
-  }
-}
-
-#else
-
 /*!
  ************************************************************************
  * \brief
@@ -424,9 +272,6 @@ void write_picture(VideoParameters *p_Vid, StorablePicture *p, int p_out, int re
 {
   write_out_picture(p_Vid, p, p_out);
 }
-
-
-#endif
 
 static void allocate_p_dec_pic(VideoParameters *p_Vid, DecodedPicList *pDecPic, StorablePicture *p, int iLumaSize, int iFrameSize, int iLumaSizeX, int iLumaSizeY, int iChromaSizeX, int iChromaSizeY)
 {
@@ -675,13 +520,6 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
 void init_out_buffer(VideoParameters *p_Vid)
 {
   p_Vid->out_buffer = alloc_frame_store();  
-
-#if (PAIR_FIELDS_IN_OUTPUT)
-  p_Vid->pending_output = calloc (sizeof(StorablePicture), 1);
-  if (NULL==p_Vid->pending_output) no_mem_exit("init_out_buffer");
-  p_Vid->pending_output->imgUV = NULL;
-  p_Vid->pending_output->imgY  = NULL;
-#endif
 }
 
 /*!
@@ -694,10 +532,6 @@ void uninit_out_buffer(VideoParameters *p_Vid)
 {
   free_frame_store(p_Vid->out_buffer);
   p_Vid->out_buffer=NULL;
-#if (PAIR_FIELDS_IN_OUTPUT)
-  flush_pending_output(p_Vid, p_Vid->p_out);
-  free (p_Vid->pending_output);
-#endif
 }
 
 /*!

@@ -1373,11 +1373,6 @@ static void perform_mc_single_wp(Macroblock *currMB, ColorPlane pl, StorablePict
   imgpel no_ref_value = (imgpel) p_Vid->dc_pred_value_comp[pl];
   //
 
-#if ENABLE_DEC_STATS
-  p_Vid->dec_stats->histogram_mv[LIST_0][0][mv_array->mv_x]++;
-  p_Vid->dec_stats->histogram_mv[LIST_0][1][mv_array->mv_y]++;
-#endif
-
   check_motion_vector_range(mv_array, currSlice);
   vec1_x = i4 * mv_mul + mv_array->mv_x;
   vec1_y = (currMB->block_y_aff + j) * mv_mul + mv_array->mv_y;
@@ -1467,14 +1462,6 @@ static void perform_mc_single(Macroblock *currMB, ColorPlane pl, StorablePicture
   int **tmp_res = currSlice->tmp_res;
   int max_imgpel_value = p_Vid->max_pel_value_comp[pl];
   imgpel no_ref_value = (imgpel) p_Vid->dc_pred_value_comp[pl];
-  //
-#if ENABLE_DEC_STATS
-  p_Vid->dec_stats->histogram_mv[LIST_0][0][mv_array->mv_x]++;
-  p_Vid->dec_stats->histogram_mv[LIST_0][1][mv_array->mv_y]++;
-#endif
-
-  //if (iabs(mv_array->mv_x) > 4 * 126 || iabs(mv_array->mv_y) > 4 * 126)
-    //printf("motion vector %d %d\n", mv_array->mv_x, mv_array->mv_y);
 
   check_motion_vector_range(mv_array, currSlice);
   vec1_x = i4 * mv_mul + mv_array->mv_x;

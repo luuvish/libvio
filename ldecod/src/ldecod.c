@@ -290,12 +290,6 @@ static void free_img( VideoParameters *p_Vid)
       p_Vid->pNextPPS = NULL;
     }
 
-    // clear decoder statistics
-#if ENABLE_DEC_STATS
-    delete_dec_stats(p_Vid->dec_stats);
-    free (p_Vid->dec_stats);
-#endif
-
     free (p_Vid);
     p_Vid = NULL;
   }
@@ -394,12 +388,6 @@ static void init(VideoParameters *p_Vid)  //!< video parameters
   p_Vid->bDeblockEnable = 0x3;
   p_Vid->last_dec_view_id = -1;
   p_Vid->last_dec_layer_id = -1;
-
-#if ENABLE_DEC_STATS
-  if ((p_Vid->dec_stats = (DecStatParameters *) malloc (sizeof (DecStatParameters)))== NULL)
-    no_mem_exit ("init: p_Vid->dec_stats");
-  init_dec_stats(p_Vid->dec_stats);
-#endif
 }
 
 /*!
@@ -1279,9 +1267,6 @@ int FinitDecoder(DecodedPicList **ppDecPicList)
   flush_dpb(pDecoder->p_Vid->p_Dpb_layer[1]);
 #else
   flush_dpb(pDecoder->p_Vid->p_Dpb_layer[0]);
-#endif
-#if (PAIR_FIELDS_IN_OUTPUT)
-  flush_pending_output(pDecoder->p_Vid, pDecoder->p_Vid->p_out);
 #endif
   if (pDecoder->p_Inp->FileFormat == PAR_OF_ANNEXB)
   {

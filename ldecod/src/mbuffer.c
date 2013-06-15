@@ -42,54 +42,6 @@ static void gen_field_ref_ids        (VideoParameters *p_Vid, StorablePicture *p
 /*!
  ************************************************************************
  * \brief
- *    Print out list of pictures in DPB. Used for debug purposes.
- ************************************************************************
- */
-void dump_dpb(DecodedPictureBuffer *p_Dpb)
-{
-#if DUMP_DPB
-  unsigned i;
-
-  for (i=0; i<p_Dpb->used_size;i++)
-  {
-    printf("(");
-    printf("fn=%d  ", p_Dpb->fs[i]->frame_num);
-    if (p_Dpb->fs[i]->is_used & 1)
-    {
-      if (p_Dpb->fs[i]->top_field)
-        printf("T: poc=%d  ", p_Dpb->fs[i]->top_field->poc);
-      else
-        printf("T: poc=%d  ", p_Dpb->fs[i]->frame->top_poc);
-    }
-    if (p_Dpb->fs[i]->is_used & 2)
-    {
-      if (p_Dpb->fs[i]->bottom_field)
-        printf("B: poc=%d  ", p_Dpb->fs[i]->bottom_field->poc);
-      else
-        printf("B: poc=%d  ", p_Dpb->fs[i]->frame->bottom_poc);
-    }
-    if (p_Dpb->fs[i]->is_used == 3)
-      printf("F: poc=%d  ", p_Dpb->fs[i]->frame->poc);
-    printf("G: poc=%d)  ", p_Dpb->fs[i]->poc);
-    if (p_Dpb->fs[i]->is_reference) printf ("ref (%d) ", p_Dpb->fs[i]->is_reference);
-    if (p_Dpb->fs[i]->is_long_term) printf ("lt_ref (%d) ", p_Dpb->fs[i]->is_reference);
-    if (p_Dpb->fs[i]->is_output) printf ("out  ");
-    if (p_Dpb->fs[i]->is_used == 3)
-    {
-      if (p_Dpb->fs[i]->frame->non_existing) printf ("ne  ");
-    }
-#if (MVC_EXTENSION_ENABLE)
-    if (p_Dpb->fs[i]->is_reference) 
-      printf ("view_id (%d) ", p_Dpb->fs[i]->view_id);
-#endif
-    printf ("\n");
-  }
-#endif
-}
-
-/*!
- ************************************************************************
- * \brief
  *    Returns the size of the dpb depending on level and picture size
  *
  *
@@ -1056,24 +1008,6 @@ void init_lists_p_slice(Slice *currSlice)
   {
     currSlice->listX[1][i] = p_Vid->no_reference_picture;
   }
-
-#if PRINTREFLIST
-#if (MVC_EXTENSION_ENABLE)
-  // print out for debug purpose
-  if((p_Vid->profile_idc == MVC_HIGH || p_Vid->profile_idc == STEREO_HIGH) && currSlice->current_slice_nr==0)
-  {
-    if(currSlice->listXsize[0]>0)
-    {
-      printf("\n");
-      printf(" ** (CurViewID:%d %d) %s Ref Pic List 0 ****\n", currSlice->view_id, currSlice->ThisPOC, currSlice->structure==FRAME ? "FRM":(currSlice->structure==TOP_FIELD ? "TOP":"BOT"));
-      for(i=0; i<(unsigned int)(currSlice->listXsize[0]); i++)  //ref list 0
-      {
-        printf("   %2d -> POC: %4d PicNum: %4d ViewID: %d\n", i, currSlice->listX[0][i]->poc, currSlice->listX[0][i]->pic_num, currSlice->listX[0][i]->view_id);
-      }
-    }
-  }
-#endif
-#endif
 }
 
 
@@ -1282,33 +1216,6 @@ void init_lists_b_slice(Slice *currSlice)
   {
     currSlice->listX[1][i] = p_Vid->no_reference_picture;
   }
-
-#if PRINTREFLIST
-#if (MVC_EXTENSION_ENABLE)
-  // print out for debug purpose
-  if((p_Vid->profile_idc == MVC_HIGH || p_Vid->profile_idc == STEREO_HIGH) && currSlice->current_slice_nr==0)
-  {
-    if((currSlice->listXsize[0]>0) || (currSlice->listXsize[1]>0))
-      printf("\n");
-    if(currSlice->listXsize[0]>0)
-    {
-      printf(" ** (CurViewID:%d %d) %s Ref Pic List 0 ****\n", currSlice->view_id, currSlice->ThisPOC, currSlice->structure==FRAME ? "FRM":(currSlice->structure==TOP_FIELD ? "TOP":"BOT"));
-      for(i=0; i<(unsigned int)(currSlice->listXsize[0]); i++)  //ref list 0
-      {
-        printf("   %2d -> POC: %4d PicNum: %4d ViewID: %d\n", i, currSlice->listX[0][i]->poc, currSlice->listX[0][i]->pic_num, currSlice->listX[0][i]->view_id);
-      }
-    }
-    if(currSlice->listXsize[1]>0)
-    {
-      printf(" ** (CurViewID:%d %d) %s Ref Pic List 1 ****\n", currSlice->view_id, currSlice->ThisPOC, currSlice->structure==FRAME ? "FRM":(currSlice->structure==TOP_FIELD ? "TOP":"BOT"));
-      for(i=0; i<(unsigned int)(currSlice->listXsize[1]); i++)  //ref list 1
-      {
-        printf("   %2d -> POC: %4d PicNum: %4d ViewID: %d\n", i, currSlice->listX[1][i]->poc, currSlice->listX[1][i]->pic_num, currSlice->listX[1][i]->view_id);
-      }
-    }
-  }
-#endif
-#endif
 }
 
 /*!
@@ -1796,7 +1703,6 @@ void store_picture_in_dpb(DecodedPictureBuffer *p_Dpb, StorablePicture* p)
             insert_picture_in_dpb(p_Vid, p_Dpb->last_picture, p);
             update_ref_list(p_Dpb);
             update_ltref_list(p_Dpb);
-            dump_dpb(p_Dpb);
             p_Dpb->last_picture = NULL;
             return;
           }
@@ -1897,8 +1803,6 @@ void store_picture_in_dpb(DecodedPictureBuffer *p_Dpb, StorablePicture* p)
   update_ltref_list(p_Dpb);
 
   check_num_ref(p_Dpb);
-
-  dump_dpb(p_Dpb);
 }
 
 

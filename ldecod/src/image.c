@@ -1278,59 +1278,6 @@ void reorder_lists(Slice *currSlice)
   }
 
   free_ref_pic_list_reordering_buffer(currSlice);
-
-  if ( currSlice->slice_type == P_SLICE )
-  {
-#if PRINTREFLIST
-    unsigned int i;
-#if (MVC_EXTENSION_ENABLE)
-    // print out for debug purpose
-    if((p_Vid->profile_idc == MVC_HIGH || p_Vid->profile_idc == STEREO_HIGH) && currSlice->current_slice_nr==0)
-    {
-      if(currSlice->listXsize[0]>0)
-      {
-        printf("\n");
-        printf(" ** (FinalViewID:%d) %s Ref Pic List 0 ****\n", currSlice->view_id, currSlice->structure==FRAME ? "FRM":(currSlice->structure==TOP_FIELD ? "TOP":"BOT"));
-        for(i=0; i<(unsigned int)(currSlice->listXsize[0]); i++)  //ref list 0
-        {
-          printf("   %2d -> POC: %4d PicNum: %4d ViewID: %d\n", i, currSlice->listX[0][i]->poc, currSlice->listX[0][i]->pic_num, currSlice->listX[0][i]->view_id);
-        }
-      }
-    }
-#endif
-#endif
-  }
-  else if ( currSlice->slice_type == B_SLICE )
-  {
-#if PRINTREFLIST
-    unsigned int i;
-#if (MVC_EXTENSION_ENABLE)
-    // print out for debug purpose
-    if((p_Vid->profile_idc == MVC_HIGH || p_Vid->profile_idc == STEREO_HIGH) && currSlice->current_slice_nr==0)
-    {
-      if((currSlice->listXsize[0]>0) || (currSlice->listXsize[1]>0))
-        printf("\n");
-      if(currSlice->listXsize[0]>0)
-      {
-        printf(" ** (FinalViewID:%d) %s Ref Pic List 0 ****\n", currSlice->view_id, currSlice->structure==FRAME ? "FRM":(currSlice->structure==TOP_FIELD ? "TOP":"BOT"));
-        for(i=0; i<(unsigned int)(currSlice->listXsize[0]); i++)  //ref list 0
-        {
-          printf("   %2d -> POC: %4d PicNum: %4d ViewID: %d\n", i, currSlice->listX[0][i]->poc, currSlice->listX[0][i]->pic_num, currSlice->listX[0][i]->view_id);
-        }
-      }
-      if(currSlice->listXsize[1]>0)
-      {
-        printf(" ** (FinalViewID:%d) %s Ref Pic List 1 ****\n", currSlice->view_id, currSlice->structure==FRAME ? "FRM":(currSlice->structure==TOP_FIELD ? "TOP":"BOT"));
-        for(i=0; i<(unsigned int)(currSlice->listXsize[1]); i++)  //ref list 1
-        {
-          printf("   %2d -> POC: %4d PicNum: %4d ViewID: %d\n", i, currSlice->listX[1][i]->poc, currSlice->listX[1][i]->pic_num, currSlice->listX[1][i]->view_id);
-        }
-      }
-    }
-#endif
-
-#endif
-  }
 }
 
 
