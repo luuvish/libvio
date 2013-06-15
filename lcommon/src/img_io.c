@@ -11,7 +11,6 @@
  *     - Alexis Michael Tourapis         <alexismt@ieee.org>
  *************************************************************************************
  */
-#include "contributors.h"
 #include "global.h"
 #include "img_io.h"
 #include "report.h"

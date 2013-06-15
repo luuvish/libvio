@@ -14,8 +14,6 @@
  ***********************************************************************
  */
 
-#include "contributors.h"
-
 #include "global.h"
 #include "block.h"
 #include "blk_prediction.h"

@@ -12,7 +12,6 @@
 *************************************************************************************
 */
 
-#include "contributors.h"
 #include "global.h"
 #include "img_process.h"
 #include "io_image.h"

@@ -20,8 +20,6 @@
  ***********************************************************************
 */
 
-#include "contributors.h"
-
 #include <math.h>
 
 #include "block.h"
@@ -29,7 +27,6 @@
 #include "mbuffer.h"
 #include "mbuffer_mvc.h"
 #include "elements.h"
-//#include "errorconcealment.h"
 #include "macroblock.h"
 #include "fmo.h"
 #include "cabac.h"

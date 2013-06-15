@@ -11,8 +11,6 @@
  ***********************************************************************
 */
 
-#include "contributors.h"
-
 #include "global.h"
 #include "elements.h"
 #include "macroblock.h"

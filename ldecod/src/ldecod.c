@@ -42,10 +42,6 @@
  ***********************************************************************
  */
 
-#include "contributors.h"
-
-//#include <sys/stat.h>
-
 #include "global.h"
 #include "annexb.h"
 #include "image.h"
@@ -67,7 +63,6 @@
 #include "input.h"
 #include "output.h"
 #include "h264decoder.h"
-#include "dec_statistics.h"
 
 #define LOGFILE     "log.dec"
 #define DATADECFILE "dataDec.txt"

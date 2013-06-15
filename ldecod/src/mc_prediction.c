@@ -21,7 +21,6 @@
 #include "mb_access.h"
 #include "macroblock.h"
 #include "memalloc.h"
-#include "dec_statistics.h"
 
 int allocate_pred_mem(Slice *currSlice)
 {

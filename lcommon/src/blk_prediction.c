@@ -12,8 +12,6 @@
  *************************************************************************************
  */
 
-#include "contributors.h"
-
 #include <stdlib.h>
 #include <assert.h>
 #include <limits.h>

@@ -12,7 +12,7 @@
  */
 #ifndef _REPORT_H_
 #define _REPORT_H_
-#include "contributors.h"
+
 #include "global.h"
 #include "enc_statistics.h"
 

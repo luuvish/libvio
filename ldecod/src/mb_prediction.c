@@ -11,8 +11,6 @@
  *************************************************************************************
  */
 
-#include "contributors.h"
-
 #include "block.h"
 #include "global.h"
 #include "mbuffer.h"

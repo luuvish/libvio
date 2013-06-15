@@ -26,8 +26,6 @@
  ***********************************************************************
  */
 
-#include "contributors.h"
-
 #include <math.h>
 #include <limits.h>
 

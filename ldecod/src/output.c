@@ -12,8 +12,6 @@
  ************************************************************************
  */
 
-#include "contributors.h"
-
 #include "global.h"
 #include "mbuffer.h"
 #include "image.h"

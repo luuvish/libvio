@@ -20,8 +20,6 @@
  ***********************************************************************
 */
 
-#include "contributors.h"
-
 #include <math.h>
 
 #include "block.h"

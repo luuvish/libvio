@@ -11,8 +11,6 @@
  ***********************************************************************
  */
 
-#include "contributors.h"
-
 #include <sys/stat.h>
 
 #include "win32.h"

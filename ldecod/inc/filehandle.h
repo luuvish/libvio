@@ -12,8 +12,6 @@
  ***************************************************************************************
  */
 
-#include "contributors.h"
-
 #if TRACE
 extern void dectracebitcnt(int count);
 extern void tracebits     ( const char *trace_str, int len, int info, int value1);

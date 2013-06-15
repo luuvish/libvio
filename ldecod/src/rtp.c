@@ -92,7 +92,6 @@
 #include <netinet/in.h>
 #endif
 
-#include "contributors.h"
 #include "global.h"
 #include "errorconcealment.h"
 #include "rtp.h"
