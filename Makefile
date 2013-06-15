@@ -65,7 +65,7 @@ endif
 
 LIBS=   -lm $(STATIC)
 CFLAGS+=  -std=gnu99 -pedantic -ffloat-store -fno-strict-aliasing -fsigned-char $(STATIC)
-FLAGS=  $(CFLAGS) -Wall -I$(INCDIR) -I$(ADDINCDIR) -D __USE_LARGEFILE64 -D _FILE_OFFSET_BITS=64
+FLAGS=  $(CFLAGS) -Wall -I$(INCDIR) -I$(ADDINCDIR)
 
 ifeq ($(M32),1)
 FLAGS+=-m32
@@ -93,22 +93,7 @@ BIN=    $(BINDIR)/$(NAME)$(SUFFIX)
 
 .PHONY: default distclean clean tags depend
 
-default: messages objdir_mk depend bin 
-
-messages:
-ifeq ($(M32),1)
-	@echo 'Compiling with M32 support...'
-endif
-ifeq ($(DBG),1)
-	@echo 'Compiling with Debug support...'
-	@echo 'Note static compilation not supported in this mode.'
-endif
-ifeq ($(STC),1)
-	@echo 'Compiling with -static support...'
-endif
-ifeq ($(OPENMP),1)
-	@echo 'Compiling with -fopenmp support...'
-endif
+default: objdir_mk depend bin 
 
 clean:
 	@echo remove all objects
