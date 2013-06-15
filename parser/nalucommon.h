@@ -15,6 +15,10 @@
 #ifndef _NALUCOMMON_H_
 #define _NALUCOMMON_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "defines.h"
 
 #define MAXRBSPSIZE 64000
@@ -82,6 +86,10 @@ extern void FreeNALU(NALU_t *n);
 #if (MVC_EXTENSION_ENABLE)
 extern void nal_unit_header_svc_extension();
 extern void prefix_nal_unit_svc();
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

@@ -25,6 +25,11 @@
  */
 #ifndef _GLOBAL_H_
 #define _GLOBAL_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -57,7 +62,7 @@ struct pic_motion_params;
 typedef enum
 {
    DEC_OPENED = 0,
-   DEC_STOPPED,
+   DEC_STOPPED
 }DecoderStatus_e;
 
 typedef enum
@@ -1106,6 +1111,10 @@ static inline int is_MVC_profile(unsigned int profile_idc)
 #endif
   );
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

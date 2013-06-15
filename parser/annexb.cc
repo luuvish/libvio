@@ -12,10 +12,18 @@
  *************************************************************************************
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 #include "annexb.h"
 #include "memalloc.h" 
 #include "fast_memory.h"
+
+#ifdef __cplusplus
+}
+#endif
 
 static const int IOBUFFERSIZE = 512*1024; //65536;
 
@@ -316,7 +324,7 @@ void open_annex_b (char *fn, ANNEXB_t *annex_b)
   }
 
   annex_b->iIOBufferSize = IOBUFFERSIZE * sizeof (byte);
-  annex_b->iobuffer = malloc (annex_b->iIOBufferSize);
+  annex_b->iobuffer = (byte *)malloc(annex_b->iIOBufferSize);
   if (NULL == annex_b->iobuffer)
   {
     error ("open_annex_b: cannot allocate IO buffer",500);

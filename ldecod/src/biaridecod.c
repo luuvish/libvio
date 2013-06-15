@@ -39,7 +39,7 @@ DecodingEnvironmentPtr arideco_create_decoding_environment()
 {
   DecodingEnvironmentPtr dep;
 
-  if ((dep = calloc(1,sizeof(DecodingEnvironment))) == NULL)
+  if ((dep = (DecodingEnvironmentPtr)calloc(1,sizeof(DecodingEnvironment))) == NULL)
     no_mem_exit("arideco_create_decoding_environment: dep");
   return dep;
 }

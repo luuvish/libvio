@@ -20,6 +20,11 @@
 
 #ifndef _DEFINES_H_
 #define _DEFINES_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef TRACE
 #undef TRACE
 #endif
@@ -222,7 +227,7 @@ typedef enum {
 } I8x8PredModes;
 
 // Color components
-enum {
+typedef enum {
   Y_COMP = 0,    // Y Component
   U_COMP = 1,    // U Component
   V_COMP = 2,    // V Component
@@ -264,6 +269,10 @@ enum {
 #define MAX_PLANE       3
 #define IS_FREXT_PROFILE(profile_idc) ( profile_idc>=FREXT_HP || profile_idc == FREXT_CAVLC444 )
 #define HI_INTRA_ONLY_PROFILE         (((p_Vid->active_sps->profile_idc>=FREXT_Hi10P)&&(p_Vid->active_sps->constrained_set3_flag))||(p_Vid->active_sps->profile_idc==FREXT_CAVLC444)) 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

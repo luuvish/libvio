@@ -1110,8 +1110,9 @@ static void read_P8x8_macroblock(Macroblock *currMB, DataPartition *dP, SyntaxEl
     SetB8Mode (currMB, currSE->value1, i);
 
     //set NoMbPartLessThan8x8Flag for P8x8 mode
-    currMB->NoMbPartLessThan8x8Flag &= (currMB->b8mode[i] == 0 && currSlice->active_sps->direct_8x8_inference_flag) ||
-      (currMB->b8mode[i] == 4);
+    currMB->NoMbPartLessThan8x8Flag &= 
+      (Boolean)((currMB->b8mode[i] == 0 && currSlice->active_sps->direct_8x8_inference_flag) ||
+                (currMB->b8mode[i] == 4));
   }
   
   //--- init macroblock data ---

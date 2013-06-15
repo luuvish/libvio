@@ -14,6 +14,10 @@
 #ifndef _WIN32_H_
 #define _WIN32_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 # include <fcntl.h>
 # include <stdlib.h>
 # include <stdio.h>
@@ -90,8 +94,8 @@ typedef unsigned __int64   uint64;
 #  define INT64_MIN        (-9223372036854775807i64 - 1i64)
 # endif
 #else
-typedef long long int64;
-typedef unsigned long long  uint64;
+typedef int64_t int64;
+typedef uint64_t uint64;
 # define FORMAT_OFF_T "lld"
 # ifndef INT64_MIN
 #  define INT64_MIN        (-9223372036854775807LL - 1LL)
@@ -102,5 +106,9 @@ extern void   gettime(TIME_T* time);
 extern void   init_time(void);
 extern int64 timediff(TIME_T* start, TIME_T* end);
 extern int64 timenorm(int64 cur_time);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

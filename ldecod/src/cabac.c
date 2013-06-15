@@ -219,7 +219,7 @@ int check_next_mb_and_get_field_mode_CABAC_p_slice( Slice *currSlice,
 #endif
     readFieldModeInfo_CABAC( currMB, se,dep_dp);
     field = se->value1;
-    currSlice->mb_data[currSlice->current_mb_nr-1].mb_field = field;
+    currSlice->mb_data[currSlice->current_mb_nr-1].mb_field = (Boolean)field;
   }
 
   //reset
@@ -305,7 +305,7 @@ int check_next_mb_and_get_field_mode_CABAC_b_slice( Slice *currSlice,
 #endif
     readFieldModeInfo_CABAC( currMB, se,dep_dp);
     field = se->value1;
-    currSlice->mb_data[currSlice->current_mb_nr-1].mb_field = field;
+    currSlice->mb_data[currSlice->current_mb_nr-1].mb_field = (Boolean)field;
   }
 
   //reset

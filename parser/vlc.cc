@@ -13,9 +13,17 @@
  ************************************************************************
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 #include "vlc.h"
 #include "elements.h"
+
+#ifdef __cplusplus
+}
+#endif
 
 
 // A little trick to avoid those horrible #if TRACE all over the source code

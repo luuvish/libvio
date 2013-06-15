@@ -745,11 +745,11 @@ void AllocateFrameMemory (VideoParameters *p_Vid, InputParameters *p_Inp, FrameF
 {
   // Note that size seems to be ok even for v210 formats (wasteful yes, but should not 
   // create any issues with how we manage that format.
-  if (NULL == (p_Vid->buf = malloc (source->size * source->pic_unit_size_shift3)))
+  if (NULL == (p_Vid->buf = (byte *)malloc (source->size * source->pic_unit_size_shift3)))
     no_mem_exit("AllocateFrameMemory: p_Vid->buf");
   if (p_Inp->input_file1.is_interleaved)
   {
-    if (NULL == (p_Vid->ibuf = malloc (source->size * source->pic_unit_size_shift3)))
+    if (NULL == (p_Vid->ibuf = (byte *)malloc (source->size * source->pic_unit_size_shift3)))
       no_mem_exit("AllocateFrameMemory: p_Vid->ibuf");
   }
 }

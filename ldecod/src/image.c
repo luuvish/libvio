@@ -414,7 +414,7 @@ static void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParamete
     dec_picture->seiHasTone_mapping    = 1;
     dec_picture->tone_mapping_model_id = p_Vid->seiToneMapping->model_id;
     dec_picture->tonemapped_bit_depth  = p_Vid->seiToneMapping->sei_bit_depth;
-    dec_picture->tone_mapping_lut      = malloc(coded_data_bit_max * sizeof(int));
+    dec_picture->tone_mapping_lut      = (imgpel *)malloc(coded_data_bit_max * sizeof(int));
     if (NULL == dec_picture->tone_mapping_lut)
     {
       no_mem_exit("init_picture: tone_mapping_lut");
@@ -824,7 +824,7 @@ int decode_one_frame(DecoderParams *pDecoder)
     {
       //assert((int) p_Vid->pNextPPS->pic_parameter_set_id == p_Vid->pNextSlice->pic_parameter_set_id);
       MakePPSavailable (p_Vid, p_Vid->pNextPPS->pic_parameter_set_id, p_Vid->pNextPPS);
-      p_Vid->pNextPPS->Valid=0;
+      p_Vid->pNextPPS->Valid=(Boolean)0;
     }
 
     //get the first slice from currentslice;
@@ -893,7 +893,7 @@ int decode_one_frame(DecoderParams *pDecoder)
          Slice **tmpSliceList = (Slice **)realloc(p_Vid->ppSliceList, (p_Vid->iNumOfSlicesAllocated+MAX_NUM_DECSLICES)*sizeof(Slice*));
          if(!tmpSliceList)
          {
-           tmpSliceList = calloc((p_Vid->iNumOfSlicesAllocated+MAX_NUM_DECSLICES), sizeof(Slice*));
+           tmpSliceList = (Slice **)calloc((p_Vid->iNumOfSlicesAllocated+MAX_NUM_DECSLICES), sizeof(Slice*));
            memcpy(tmpSliceList, p_Vid->ppSliceList, p_Vid->iSliceNumOfCurrPic*sizeof(Slice*));
            //free;
            free(p_Vid->ppSliceList);
@@ -1171,7 +1171,7 @@ void find_snr(VideoParameters *p_Vid,
   framesize_in_bytes = (((int64) comp_size_x[0] * comp_size_y[0]) + ((int64) comp_size_x[1] * comp_size_y[1] ) * 2) * symbol_size_in_bytes;
 
   // KS: this buffer should actually be allocated only once, but this is still much faster than the previous version
-  buf = malloc ( comp_size_x[0] * comp_size_y[0] * symbol_size_in_bytes );
+  buf = (unsigned char *)malloc ( comp_size_x[0] * comp_size_y[0] * symbol_size_in_bytes );
 
   if (NULL == buf)
   {
@@ -1449,7 +1449,7 @@ process_nalu:
       currSlice->active_sps = p_Vid->active_sps;
       currSlice->active_pps = p_Vid->active_pps;
       currSlice->Transform8x8Mode = p_Vid->active_pps->transform_8x8_mode_flag;
-      currSlice->chroma444_not_separate = (p_Vid->active_sps->chroma_format_idc==YUV444)&&((p_Vid->separate_colour_plane_flag == 0));
+      currSlice->chroma444_not_separate = (Boolean)((p_Vid->active_sps->chroma_format_idc==YUV444)&&((p_Vid->separate_colour_plane_flag == 0)));
 
       BitsUsedByHeader += RestOfSliceHeader (currSlice);
 #if (MVC_EXTENSION_ENABLE)
@@ -1534,7 +1534,7 @@ process_nalu:
       currSlice->active_sps = p_Vid->active_sps;
       currSlice->active_pps = p_Vid->active_pps;
       currSlice->Transform8x8Mode = p_Vid->active_pps->transform_8x8_mode_flag;
-      currSlice->chroma444_not_separate = (p_Vid->active_sps->chroma_format_idc==YUV444)&&((p_Vid->separate_colour_plane_flag == 0));
+      currSlice->chroma444_not_separate = (Boolean)((p_Vid->active_sps->chroma_format_idc==YUV444)&&((p_Vid->separate_colour_plane_flag == 0)));
 
       BitsUsedByHeader += RestOfSliceHeader (currSlice);
 #if MVC_EXTENSION_ENABLE
@@ -2349,7 +2349,7 @@ void copy_dec_picture_JV( VideoParameters *p_Vid, StorablePicture *dst, Storable
   if( src->tone_mapping_lut )
   {
     int coded_data_bit_max = (1 << p_Vid->seiToneMapping->coded_data_bit_depth);
-    dst->tone_mapping_lut      = malloc(sizeof(int) * coded_data_bit_max);
+    dst->tone_mapping_lut      = (imgpel *)malloc(sizeof(int) * coded_data_bit_max);
     if (NULL == dst->tone_mapping_lut)
     {
       no_mem_exit("copy_dec_picture_JV: tone_mapping_lut");

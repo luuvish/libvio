@@ -17,6 +17,10 @@
 #ifndef _MEMALLOC_H_
 #define _MEMALLOC_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 #include "mbuffer.h"
 #include "distortion.h"
@@ -213,6 +217,10 @@ static inline void mem_free(void *a)
 {
   free_pointer(a);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

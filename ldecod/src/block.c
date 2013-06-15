@@ -774,10 +774,10 @@ void iTransform(Macroblock *currMB, ColorPlane pl, int smb)
             x_pos = subblk_offset_x[1][b8];
             y_pos = subblk_offset_y[1][b8];
 
-            itrans4x4(currMB, uv, *x_pos++, *y_pos++);
-            itrans4x4(currMB, uv, *x_pos++, *y_pos++);
-            itrans4x4(currMB, uv, *x_pos++, *y_pos++);
-            itrans4x4(currMB, uv, *x_pos  , *y_pos  );
+            itrans4x4(currMB, (ColorPlane)uv, *x_pos++, *y_pos++);
+            itrans4x4(currMB, (ColorPlane)uv, *x_pos++, *y_pos++);
+            itrans4x4(currMB, (ColorPlane)uv, *x_pos++, *y_pos++);
+            itrans4x4(currMB, (ColorPlane)uv, *x_pos  , *y_pos  );
           }
           sample_reconstruct (mb_rec, currSlice->mb_pred[uv], currSlice->mb_rres[uv], 0, 0, 
             p_Vid->mb_size[1][0], p_Vid->mb_size[1][1], currMB->p_Vid->max_pel_value_comp[uv], DQ_BITS);
@@ -799,10 +799,10 @@ void iTransform(Macroblock *currMB, ColorPlane pl, int smb)
               }
             }
 
-            itrans4x4_ls(currMB, uv, *x_pos++, *y_pos++);
-            itrans4x4_ls(currMB, uv, *x_pos++, *y_pos++);
-            itrans4x4_ls(currMB, uv, *x_pos++, *y_pos++);
-            itrans4x4_ls(currMB, uv, *x_pos  , *y_pos  );
+            itrans4x4_ls(currMB, (ColorPlane)uv, *x_pos++, *y_pos++);
+            itrans4x4_ls(currMB, (ColorPlane)uv, *x_pos++, *y_pos++);
+            itrans4x4_ls(currMB, (ColorPlane)uv, *x_pos++, *y_pos++);
+            itrans4x4_ls(currMB, (ColorPlane)uv, *x_pos  , *y_pos  );
           }
         }
         copy_image_data(curUV, mb_rec, currMB->pix_c_x, 0, p_Vid->mb_size[1][0], p_Vid->mb_size[1][1]);
@@ -818,7 +818,7 @@ void iTransform(Macroblock *currMB, ColorPlane pl, int smb)
         {
           for(ioff = 0; ioff < p_Vid->mb_cr_size_x ;ioff += BLOCK_SIZE)
           {
-            currMB->itrans_4x4(currMB, uv, ioff, joff);
+            currMB->itrans_4x4(currMB, (ColorPlane)uv, ioff, joff);
           }
         }
 

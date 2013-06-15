@@ -251,7 +251,7 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
       ContentLen += 1000;                     // Additional 1000 bytes for spaces and \0s
 
 
-      if ((content = malloc (ContentLen))==NULL) no_mem_exit("Configure: content");;
+      if ((content = (char *)malloc (ContentLen))==NULL) no_mem_exit("Configure: content");;
       content[0] = '\0';
 
       // concatenate all parameters identified before

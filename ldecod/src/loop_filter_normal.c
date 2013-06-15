@@ -949,7 +949,7 @@ static void perform_db_dep_normal(Macroblock   *MbQ, StorablePicture *p)
 
   seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
 
-  MbQ->DeblockCall = 1;
+  MbQ->DeblockCall = (Boolean)1;
   get_mb_pos (p_Vid, MbQ->mbAddrX, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);
 
   filterLeftMbEdgeFlag = (mb_x != 0);
@@ -1092,7 +1092,7 @@ static void perform_db_ind_normal(Macroblock *MbQ, StorablePicture *p)
 
   seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
 
-  MbQ->DeblockCall = 1;
+  MbQ->DeblockCall = (Boolean)1;
   //get_mb_pos (p_Vid, MbQ->mbAddrX, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);
 
   filterLeftMbEdgeFlag = (MbQ->pix_x != 0);
@@ -1415,7 +1415,7 @@ static void perform_db_normal(VideoParameters *p_Vid, StorablePicture *p, int Mb
   // return, if filter is disabled
   if (MbQ->DFDisableIdc == 1) 
   {
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
   else
   {
@@ -1423,7 +1423,7 @@ static void perform_db_normal(VideoParameters *p_Vid, StorablePicture *p, int Mb
       perform_db_dep_normal(MbQ, p);
     else
       perform_db_ind_normal(MbQ, p);
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
 }
 
@@ -1440,7 +1440,7 @@ static void get_db_strength_normal(VideoParameters *p_Vid, StorablePicture *p, i
   // return, if filter is disabled
   if (MbQ->DFDisableIdc == 1) 
   {
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
   else
   {
@@ -1452,7 +1452,7 @@ static void get_db_strength_normal(VideoParameters *p_Vid, StorablePicture *p, i
 
       int       mvlimit = (p->structure!=FRAME) ? 2 : 4;
 
-      MbQ->DeblockCall = 1;
+      MbQ->DeblockCall = (Boolean)1;
       //get_mb_pos (p_Vid, MbQAddr, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);            
 
       if (MbQ->DFDisableIdc==2)
@@ -1481,7 +1481,7 @@ static void get_db_strength_normal(VideoParameters *p_Vid, StorablePicture *p, i
       Slice  *currSlice = MbQ->p_Slice;
       int       mvlimit = (p->structure!=FRAME) ? 2 : 4;
 
-      MbQ->DeblockCall = 1;
+      MbQ->DeblockCall = (Boolean)1;
       //get_mb_pos (p_Vid, MbQAddr, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);
 
       filterLeftMbEdgeFlag = (MbQ->pix_x != 0);
@@ -1556,7 +1556,7 @@ static void get_db_strength_normal(VideoParameters *p_Vid, StorablePicture *p, i
         get_strength_hor(MbQ, 3, mvlimit, p);
       }
     }
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
 }
 

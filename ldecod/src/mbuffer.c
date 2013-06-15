@@ -200,20 +200,20 @@ void init_dpb(VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb, int type)
   p_Dpb->ref_frames_in_buffer = 0;
   p_Dpb->ltref_frames_in_buffer = 0;
 
-  p_Dpb->fs = calloc(p_Dpb->size, sizeof (FrameStore*));
+  p_Dpb->fs = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
   if (NULL==p_Dpb->fs)
     no_mem_exit("init_dpb: p_Dpb->fs");
 
-  p_Dpb->fs_ref = calloc(p_Dpb->size, sizeof (FrameStore*));
+  p_Dpb->fs_ref = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
   if (NULL==p_Dpb->fs_ref)
     no_mem_exit("init_dpb: p_Dpb->fs_ref");
 
-  p_Dpb->fs_ltref = calloc(p_Dpb->size, sizeof (FrameStore*));
+  p_Dpb->fs_ltref = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
   if (NULL==p_Dpb->fs_ltref)
     no_mem_exit("init_dpb: p_Dpb->fs_ltref");
 
 #if (MVC_EXTENSION_ENABLE)
-  p_Dpb->fs_ilref = calloc(1, sizeof (FrameStore*));
+  p_Dpb->fs_ilref = (FrameStore **)calloc(1, sizeof (FrameStore*));
   if (NULL==p_Dpb->fs_ilref)
     no_mem_exit("init_dpb: p_Dpb->fs_ilref");
 #endif
@@ -295,22 +295,22 @@ void re_init_dpb(VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb, int type)
       error ("DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n", 1000);
     }
 
-    p_Dpb->fs = realloc(p_Dpb->fs, iDpbSize * sizeof (FrameStore*));
+    p_Dpb->fs = (FrameStore **)realloc(p_Dpb->fs, iDpbSize * sizeof (FrameStore*));
     if (NULL==p_Dpb->fs)
       no_mem_exit("re_init_dpb: p_Dpb->fs");
 
-    p_Dpb->fs_ref = realloc(p_Dpb->fs_ref, iDpbSize * sizeof (FrameStore*));
+    p_Dpb->fs_ref = (FrameStore **)realloc(p_Dpb->fs_ref, iDpbSize * sizeof (FrameStore*));
     if (NULL==p_Dpb->fs_ref)
       no_mem_exit("re_init_dpb: p_Dpb->fs_ref");
 
-    p_Dpb->fs_ltref = realloc(p_Dpb->fs_ltref, iDpbSize * sizeof (FrameStore*));
+    p_Dpb->fs_ltref = (FrameStore **)realloc(p_Dpb->fs_ltref, iDpbSize * sizeof (FrameStore*));
     if (NULL==p_Dpb->fs_ltref)
       no_mem_exit("re_init_dpb: p_Dpb->fs_ltref");
 
 #if (MVC_EXTENSION_ENABLE)
     if(!p_Dpb->fs_ilref)
     {
-      p_Dpb->fs_ilref = calloc(1, sizeof (FrameStore*));
+      p_Dpb->fs_ilref = (FrameStore **)calloc(1, sizeof (FrameStore*));
       if (NULL==p_Dpb->fs_ilref)
         no_mem_exit("init_dpb: p_Dpb->fs_ilref");
     }
@@ -424,7 +424,7 @@ FrameStore* alloc_frame_store(void)
 {
   FrameStore *f;
 
-  f = calloc (1, sizeof(FrameStore));
+  f = (FrameStore *)calloc (1, sizeof(FrameStore));
   if (NULL==f)
     no_mem_exit("alloc_frame_store: f");
 
@@ -444,7 +444,7 @@ FrameStore* alloc_frame_store(void)
 
 void alloc_pic_motion(PicMotionParamsOld *motion, int size_y, int size_x)
 {
-  motion->mb_field = calloc (size_y * size_x, sizeof(byte));
+  motion->mb_field = (byte *)calloc (size_y * size_x, sizeof(byte));
   if (motion->mb_field == NULL)
     no_mem_exit("alloc_storable_picture: motion->mb_field");
 }
@@ -480,7 +480,7 @@ StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure
 
   //printf ("Allocating (%s) picture (x=%d, y=%d, x_cr=%d, y_cr=%d)\n", (type == FRAME)?"FRAME":(type == TOP_FIELD)?"TOP_FIELD":"BOTTOM_FIELD", size_x, size_y, size_x_cr, size_y_cr);
 
-  s = calloc (1, sizeof(StorablePicture));
+  s = (StorablePicture *)calloc (1, sizeof(StorablePicture));
   if (NULL==s)
     no_mem_exit("alloc_storable_picture: s");
 
@@ -566,7 +566,7 @@ StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure
     {
       for (i = 0; i < 2; i++)
       {
-        s->listX[j][i] = calloc(MAX_LIST_SIZE, sizeof (StorablePicture*)); // +1 for reordering
+        s->listX[j][i] = (StorablePicture **)calloc(MAX_LIST_SIZE, sizeof (StorablePicture*)); // +1 for reordering
         if (NULL==s->listX[j][i])
         no_mem_exit("alloc_storable_picture: s->listX[i]");
       }
@@ -955,10 +955,10 @@ void init_lists_p_slice(Slice *currSlice)
   }
   else
   {
-    fs_list0 = calloc(p_Dpb->size, sizeof (FrameStore*));
+    fs_list0 = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
     if (NULL==fs_list0)
       no_mem_exit("init_lists: fs_list0");
-    fs_listlt = calloc(p_Dpb->size, sizeof (FrameStore*));
+    fs_listlt = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
     if (NULL==fs_listlt)
       no_mem_exit("init_lists: fs_listlt");
 
@@ -1109,13 +1109,13 @@ void init_lists_b_slice(Slice *currSlice)
     }
     else
     {
-      fs_list0 = calloc(p_Dpb->size, sizeof (FrameStore*));
+      fs_list0 = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
       if (NULL==fs_list0)
         no_mem_exit("init_lists: fs_list0");
-      fs_list1 = calloc(p_Dpb->size, sizeof (FrameStore*));
+      fs_list1 = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
       if (NULL==fs_list1)
         no_mem_exit("init_lists: fs_list1");
-      fs_listlt = calloc(p_Dpb->size, sizeof (FrameStore*));
+      fs_listlt = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
       if (NULL==fs_listlt)
         no_mem_exit("init_lists: fs_listlt");
 
@@ -2510,14 +2510,14 @@ void alloc_ref_pic_list_reordering_buffer(Slice *currSlice)
   if (currSlice->slice_type != I_SLICE && currSlice->slice_type != SI_SLICE)
   {
     int size = currSlice->num_ref_idx_active[LIST_0] + 1;
-    if ((currSlice->modification_of_pic_nums_idc[LIST_0] = calloc(size ,sizeof(int)))==NULL) 
+    if ((currSlice->modification_of_pic_nums_idc[LIST_0] = (int *)calloc(size ,sizeof(int)))==NULL) 
        no_mem_exit("alloc_ref_pic_list_reordering_buffer: modification_of_pic_nums_idc_l0");
-    if ((currSlice->abs_diff_pic_num_minus1[LIST_0] = calloc(size,sizeof(int)))==NULL) 
+    if ((currSlice->abs_diff_pic_num_minus1[LIST_0] = (int *)calloc(size,sizeof(int)))==NULL) 
        no_mem_exit("alloc_ref_pic_list_reordering_buffer: abs_diff_pic_num_minus1_l0");
-    if ((currSlice->long_term_pic_idx[LIST_0] = calloc(size,sizeof(int)))==NULL) 
+    if ((currSlice->long_term_pic_idx[LIST_0] = (int *)calloc(size,sizeof(int)))==NULL) 
        no_mem_exit("alloc_ref_pic_list_reordering_buffer: long_term_pic_idx_l0");
 #if (MVC_EXTENSION_ENABLE)
-    if ((currSlice->abs_diff_view_idx_minus1[LIST_0] = calloc(size,sizeof(int)))==NULL) 
+    if ((currSlice->abs_diff_view_idx_minus1[LIST_0] = (int *)calloc(size,sizeof(int)))==NULL) 
        no_mem_exit("alloc_ref_pic_list_reordering_buffer: abs_diff_view_idx_minus1_l0");
 #endif
   }
@@ -2534,14 +2534,14 @@ void alloc_ref_pic_list_reordering_buffer(Slice *currSlice)
   if (currSlice->slice_type == B_SLICE)
   {
     int size = currSlice->num_ref_idx_active[LIST_1] + 1;
-    if ((currSlice->modification_of_pic_nums_idc[LIST_1] = calloc(size,sizeof(int)))==NULL) 
+    if ((currSlice->modification_of_pic_nums_idc[LIST_1] = (int *)calloc(size,sizeof(int)))==NULL) 
       no_mem_exit("alloc_ref_pic_list_reordering_buffer: modification_of_pic_nums_idc_l1");
-    if ((currSlice->abs_diff_pic_num_minus1[LIST_1] = calloc(size,sizeof(int)))==NULL) 
+    if ((currSlice->abs_diff_pic_num_minus1[LIST_1] = (int *)calloc(size,sizeof(int)))==NULL) 
       no_mem_exit("alloc_ref_pic_list_reordering_buffer: abs_diff_pic_num_minus1_l1");
-    if ((currSlice->long_term_pic_idx[LIST_1] = calloc(size,sizeof(int)))==NULL) 
+    if ((currSlice->long_term_pic_idx[LIST_1] = (int *)calloc(size,sizeof(int)))==NULL) 
       no_mem_exit("alloc_ref_pic_list_reordering_buffer: long_term_pic_idx_l1");
 #if (MVC_EXTENSION_ENABLE)
-    if ((currSlice->abs_diff_view_idx_minus1[LIST_1] = calloc(size,sizeof(int)))==NULL) 
+    if ((currSlice->abs_diff_view_idx_minus1[LIST_1] = (int *)calloc(size,sizeof(int)))==NULL) 
       no_mem_exit("alloc_ref_pic_list_reordering_buffer: abs_diff_view_idx_minus1_l1");
 #endif
   }

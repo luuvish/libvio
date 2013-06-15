@@ -15,6 +15,10 @@
 #ifndef _FAST_MEMORY_H_
 #define _FAST_MEMORY_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "typedefs.h"
 
 
@@ -32,6 +36,10 @@ static inline void fast_memset_zero(void *dst, int width)
 {
   memset(dst,0,width);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif 
 

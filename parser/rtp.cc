@@ -86,6 +86,10 @@
 
 */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(WIN32) || defined(WIN64)
 #include <Winsock2.h>
 #else
@@ -98,6 +102,10 @@
 #include "fmo.h"
 #include "sei.h"
 #include "memalloc.h"
+
+#ifdef __cplusplus
+}
+#endif
 
 int RTPReadPacket (RTPpacket_t *p, int bitstream);
 
@@ -158,11 +166,11 @@ int GetRTPNALU (VideoParameters *p_Vid, NALU_t *nalu, int BitStreamFile)
   RTPpacket_t *p;
   int ret;
 
-  if ((p=malloc (sizeof (RTPpacket_t)))== NULL)
+  if ((p=(RTPpacket_t *)malloc (sizeof (RTPpacket_t)))== NULL)
     no_mem_exit ("GetRTPNALU-1");
-  if ((p->packet=malloc (MAXRTPPACKETSIZE))== NULL)
+  if ((p->packet=(byte *)malloc (MAXRTPPACKETSIZE))== NULL)
     no_mem_exit ("GetRTPNALU-2");
-  if ((p->payload=malloc (MAXRTPPACKETSIZE))== NULL)
+  if ((p->payload=(byte *)malloc (MAXRTPPACKETSIZE))== NULL)
     no_mem_exit ("GetRTPNALU-3");
 
   ret = RTPReadPacket (p, BitStreamFile);

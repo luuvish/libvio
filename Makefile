@@ -37,12 +37,14 @@ OPENMP?= 0
 DEPEND= dependencies
 
 BINDIR= ../../../bin
-INCDIR= ldecod/inc
+INCDIR= lcommon/inc ldecod/inc parser decoder
 SRCDIR= ldecod/src
 OBJDIR= ldecod/obj
 
+PARSER= parser
+DECODE= decoder
+
 ADDSRCDIR= lcommon/src
-ADDINCDIR= lcommon/inc
 
 ifeq ($(STC),1)
 ifeq ($(DBG),1)  ### Do not use static compilation for Debug mode
@@ -64,8 +66,9 @@ else
 endif
 
 LIBS=   -lm $(STATIC)
-CFLAGS+=  -std=gnu99 -pedantic -ffloat-store -fno-strict-aliasing -fsigned-char $(STATIC)
-FLAGS=  $(CFLAGS) -Wall -I$(INCDIR) -I$(ADDINCDIR)
+#CFLAGS+=  -std=gnu99 -pedantic -ffloat-store -fno-strict-aliasing -fsigned-char $(STATIC)
+CFLAGS+=  -pedantic -ffloat-store -fno-strict-aliasing -fsigned-char $(STATIC)
+FLAGS=  $(CFLAGS) -Wall $(INCDIR:%=-I%)
 
 ifeq ($(M32),1)
 FLAGS+=-m32
@@ -86,9 +89,14 @@ endif
 
 OBJSUF= .o$(SUFFIX)
 
-SRC=    $(wildcard $(SRCDIR)/*.c) 
+SRC=    $(wildcard $(SRCDIR)/*.c)
 ADDSRC= $(wildcard $(ADDSRCDIR)/*.c)
-OBJ=    $(SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o$(SUFFIX)) $(ADDSRC:$(ADDSRCDIR)/%.c=$(OBJDIR)/%.o$(SUFFIX)) 
+PARSERSRC= $(wildcard $(PARSER)/*.cc)
+DECODESRC= $(wildcard $(DECODE)/*.cc)
+OBJ=    $(SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(ADDSRC:$(ADDSRCDIR)/%.c=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(PARSERSRC:$(PARSER)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(DECODESRC:$(DECODE)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
 BIN=    $(BINDIR)/$(NAME)$(SUFFIX)
 
 .PHONY: default distclean clean tags depend
@@ -117,8 +125,8 @@ bin:    $(OBJ)
 depend:
 	@echo
 	@echo 'checking dependencies'
-	@$(SHELL) -ec '$(CC) $(FLAGS) -MM $(CFLAGS) -I$(INCDIR) -I$(ADDINCDIR) $(SRC) $(ADDSRC)                  \
-         | sed '\''s@\(.*\)\.o[ :]@$(OBJDIR)/\1.o$(SUFFIX):@g'\''               \
+	@$(SHELL) -ec '$(CC) $(FLAGS) -MM $(CFLAGS) $(INCDIR:%=-I%) $(SRC) $(ADDSRC) $(PARSERSRC) $(DECODESRC) \
+         | sed '\''s@\(.*\)\.o[ :]@$(OBJDIR)/\1.o$(SUFFIX):@g'\'' \
          >$(DEPEND)'
 	@echo
 
@@ -127,6 +135,14 @@ $(OBJDIR)/%.o$(SUFFIX): $(SRCDIR)/%.c
 	@$(CC) -c -o $@ $(FLAGS) $<
 
 $(OBJDIR)/%.o$(SUFFIX): $(ADDSRCDIR)/%.c
+	@echo 'compiling object file "$@" ...'
+	@$(CC) -c -o $@ $(FLAGS) $<
+
+$(OBJDIR)/%.o$(SUFFIX): $(PARSER)/%.cc
+	@echo 'compiling object file "$@" ...'
+	@$(CC) -c -o $@ $(FLAGS) $<
+
+$(OBJDIR)/%.o$(SUFFIX): $(DECODE)/%.cc
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 

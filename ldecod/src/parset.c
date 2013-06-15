@@ -448,7 +448,7 @@ int InterpretPPS (VideoParameters *p_Vid, DataPartition *p, pic_parameter_set_rb
       else
         NumberBitsPerSliceGroupId = 1;
       pps->pic_size_in_map_units_minus1      = read_ue_v ("PPS: pic_size_in_map_units_minus1"               , s, &p_Dec->UsedBits);
-      if ((pps->slice_group_id = calloc (pps->pic_size_in_map_units_minus1+1, 1)) == NULL)
+      if ((pps->slice_group_id = (byte *)calloc (pps->pic_size_in_map_units_minus1+1, 1)) == NULL)
         no_mem_exit ("InterpretPPS: slice_group_id");
       for (i=0; i<=pps->pic_size_in_map_units_minus1; i++)
         pps->slice_group_id[i] = (byte) read_u_v (NumberBitsPerSliceGroupId, "slice_group_id[i]", s, &p_Dec->UsedBits);

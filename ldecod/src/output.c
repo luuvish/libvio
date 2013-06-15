@@ -278,7 +278,7 @@ static void allocate_p_dec_pic(VideoParameters *p_Vid, DecodedPicList *pDecPic, 
   if(pDecPic->pY)
     mem_free(pDecPic->pY);
   pDecPic->iBufSize = iFrameSize;
-  pDecPic->pY = mem_malloc(pDecPic->iBufSize);
+  pDecPic->pY = (byte *)mem_malloc(pDecPic->iBufSize);
   pDecPic->pU = pDecPic->pY+iLumaSize;
   pDecPic->pV = pDecPic->pU + ((iFrameSize-iLumaSize)>>1);
   //init;
@@ -390,7 +390,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
   
   if(rgb_output)
   {
-    buf = malloc (p->size_x * p->size_y * symbol_size_in_bytes);
+    buf = (unsigned char *)malloc (p->size_x * p->size_y * symbol_size_in_bytes);
     crop_left   = p->frame_crop_left_offset;
     crop_right  = p->frame_crop_right_offset;
     crop_top    = ( 2 - p->frame_mbs_only_flag ) * p->frame_crop_top_offset;
@@ -483,7 +483,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
       }
 
       // fake out U=V=128 to make a YUV 4:2:0 stream
-      buf = malloc (p->size_x*p->size_y*symbol_size_in_bytes);
+      buf = (unsigned char *)malloc (p->size_x*p->size_y*symbol_size_in_bytes);
       p_Vid->img2buf (p->imgUV[0], buf, p->size_x/2, p->size_y/2, symbol_size_in_bytes, crop_left/2, crop_right/2, crop_top/2, crop_bottom/2, pDecPic->iYBufStride/2);
 
       ret = write(p_out, buf, symbol_size_in_bytes * (p->size_y-crop_bottom-crop_top)/2 * (p->size_x-crop_right-crop_left)/2 );

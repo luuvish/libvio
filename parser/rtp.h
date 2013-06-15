@@ -11,6 +11,10 @@
 #ifndef _RTP_H_
 #define _RTP_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "nalucommon.h"
 
 #define MAXRTPPAYLOADLEN  (65536 - 40)    //!< Maximum payload size of an RTP packet */
@@ -42,5 +46,9 @@ void DumpRTPHeader (RTPpacket_t *p);
 int  GetRTPNALU  (VideoParameters *p_Vid, NALU_t *nalu, int BitStreamFile);
 void OpenRTPFile (char *fn, int *p_BitStreamFile);
 void CloseRTPFile(int *p_BitStreamFile);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

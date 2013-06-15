@@ -12,6 +12,10 @@
  ************************************************************************
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 #include "annexb.h"
 #include "nalu.h"
@@ -19,6 +23,10 @@
 #include "rtp.h"
 #if (MVC_EXTENSION_ENABLE)
 #include "vlc.h"
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 /*!

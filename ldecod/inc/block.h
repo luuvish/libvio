@@ -123,5 +123,6 @@ extern void copy_image_data_16x16 (imgpel  **imgBuf1, imgpel  **imgBuf2, int off
 extern void copy_image_data_8x8   (imgpel  **imgBuf1, imgpel  **imgBuf2, int off1, int off2);
 extern void copy_image_data_4x4   (imgpel  **imgBuf1, imgpel  **imgBuf2, int off1, int off2);
 extern int CheckVertMV(Macroblock *currMB, int vec1_y, int block_size_y);
+
 #endif
 

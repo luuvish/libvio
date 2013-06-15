@@ -867,7 +867,7 @@ void get_db_strength_mbaff(VideoParameters *p_Vid, StorablePicture *p, int MbQAd
   // return, if filter is disabled
   if (MbQ->DFDisableIdc == 1) 
   {
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
   else
   {
@@ -884,7 +884,7 @@ void get_db_strength_mbaff(VideoParameters *p_Vid, StorablePicture *p, int MbQAd
 
     seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
 
-    MbQ->DeblockCall = 1;
+    MbQ->DeblockCall = (Boolean)1;
     get_mb_pos (p_Vid, MbQAddr, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);
 
     if (MbQ->mb_type == I8MB)
@@ -956,7 +956,7 @@ void get_db_strength_mbaff(VideoParameters *p_Vid, StorablePicture *p, int MbQAd
       }
     }//end edge  
 
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
 }
 
@@ -974,7 +974,7 @@ void perform_db_mbaff(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
   // return, if filter is disabled
   if (MbQ->DFDisableIdc == 1) 
   {
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
   else
   {
@@ -994,7 +994,7 @@ void perform_db_mbaff(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
 
     seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
 
-    MbQ->DeblockCall = 1;
+    MbQ->DeblockCall = (Boolean)1;
     get_mb_pos (p_Vid, MbQAddr, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);
 
     if (MbQ->mb_type == I8MB)
@@ -1111,7 +1111,7 @@ void perform_db_mbaff(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         if (!edge && !MbQ->mb_field && MbQ->mixedModeEdgeFlag) //currSlice->mixedModeEdgeFlag) 
         {          
           // this is the extra horizontal edge between a frame macroblock pair and a field above it
-          MbQ->DeblockCall = 2;
+          MbQ->DeblockCall = (Boolean)2;
           p_Vid->GetStrengthHor(MbQ, 4, mvlimit, p); // Strength for 4 blks in 1 stripe
 
           //if( *((int*)Strength) )                      // only if one of the 4 Strength bytes is != 0
@@ -1136,12 +1136,12 @@ void perform_db_mbaff(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
               }
             }
           }
-          MbQ->DeblockCall = 1;
+          MbQ->DeblockCall = (Boolean)1;
         }
       }
     }//end edge  
 
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
 }
 

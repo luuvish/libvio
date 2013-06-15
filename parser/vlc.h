@@ -15,6 +15,10 @@
 #ifndef _VLC_H_
 #define _VLC_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //! gives CBP value from codeword number, both for intra and inter
 static const byte NCBP[2][48][2]=
 {
@@ -107,6 +111,10 @@ extern int ShowBits (byte buffer[],int totbitoffset,int bitcount, int numbits);
 
 extern int more_rbsp_data (byte buffer[],int totbitoffset,int bytecount);
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

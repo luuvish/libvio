@@ -12,6 +12,10 @@
 #ifndef _ANNEXB_H_
 #define _ANNEXB_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "nalucommon.h"
 
 typedef struct annex_b_struct 
@@ -36,5 +40,11 @@ extern void malloc_annex_b   (VideoParameters *p_Vid, ANNEXB_t **p_annex_b);
 extern void free_annex_b     (ANNEXB_t **p_annex_b);
 extern void init_annex_b     (ANNEXB_t *annex_b);
 extern void reset_annex_b    (ANNEXB_t *annex_b);
+
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
 

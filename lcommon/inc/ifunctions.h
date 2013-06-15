@@ -17,10 +17,14 @@
 #ifndef _IFUNCTIONS_H_
 #define _IFUNCTIONS_H_
 
-# if !(defined(WIN32) || defined(WIN64)) && (__STDC_VERSION__ < 199901L)
-  #define static
-  #define inline
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+//# if !(defined(WIN32) || defined(WIN64)) && (__STDC_VERSION__ < 199901L)
+//  #define static
+//  #define inline
+//#endif
 #include <math.h>
 #include <limits.h>
 
@@ -365,9 +369,13 @@ static inline int is_intra_mb(short mb_type)
   return (mb_type==SI4MB || mb_type==I4MB || mb_type==I16MB || mb_type==I8MB || mb_type==IPCM);
 }
 
-# if !(defined(WIN32) || defined(WIN64)) && (__STDC_VERSION__ < 199901L)
-  #undef static
-  #undef inline
+//# if !(defined(WIN32) || defined(WIN64)) && (__STDC_VERSION__ < 199901L)
+//  #undef static
+//  #undef inline
+//#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

@@ -14,6 +14,10 @@
 #ifndef _H264DECODER_H_
 #define _H264DECODER_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 
 typedef enum
@@ -37,10 +41,6 @@ typedef struct dec_set_t
   int time_incr;
   int bDecCompAdapt;
 } DecSet_t;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int OpenDecoder(InputParameters *p_Inp);
 int DecodeOneFrame(DecodedPicList **ppDecPic);

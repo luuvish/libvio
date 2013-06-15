@@ -196,7 +196,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
   // return, if filter is disabled
   if (MbQ->DFDisableIdc == 1) 
   {
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
   else
   {
@@ -218,7 +218,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
 
     seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
 
-    MbQ->DeblockCall = 1;
+    MbQ->DeblockCall = (Boolean)1;
     get_mb_pos (p_Vid, MbQAddr, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);
 
     if (MbQ->mb_type == I8MB)
@@ -338,7 +338,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         if (!edge && !MbQ->mb_field && MbQ->mixedModeEdgeFlag) //currSlice->mixedModeEdgeFlag) 
         {        
           // this is the extra horizontal edge between a frame macroblock pair and a field above it
-          MbQ->DeblockCall = 2;
+          MbQ->DeblockCall = (Boolean)2;
           get_strength_hor_MBAff(Strength, MbQ, MB_BLOCK_SIZE, mvlimit, p); // Strength for 4 blks in 1 stripe
 
           //if( *((int*)Strength) )                      // only if one of the 4 Strength bytes is != 0
@@ -363,12 +363,12 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
               }
             }
           }
-          MbQ->DeblockCall = 1;
+          MbQ->DeblockCall = (Boolean)1;
         }
       }
     }//end edge  
 
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
 }
 
@@ -385,7 +385,7 @@ static void get_db_strength(VideoParameters *p_Vid, StorablePicture *p, int MbQA
   // return, if filter is disabled
   if (MbQ->DFDisableIdc == 1) 
   {
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
   else
   {
@@ -402,7 +402,7 @@ static void get_db_strength(VideoParameters *p_Vid, StorablePicture *p, int MbQA
 
     seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
 
-    MbQ->DeblockCall = 1;
+    MbQ->DeblockCall = (Boolean)1;
     get_mb_pos (p_Vid, MbQAddr, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);
 
     if (MbQ->mb_type == I8MB)
@@ -475,7 +475,7 @@ static void get_db_strength(VideoParameters *p_Vid, StorablePicture *p, int MbQA
       }
     }//end edge
 
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
 }
 
@@ -487,7 +487,7 @@ static void perform_db(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
   // return, if filter is disabled
   if (MbQ->DFDisableIdc == 1) 
   {
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
   else
   {
@@ -507,7 +507,7 @@ static void perform_db(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
 
     seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
 
-    MbQ->DeblockCall = 1;
+    MbQ->DeblockCall = (Boolean)1;
     get_mb_pos (p_Vid, MbQAddr, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);
 
     if (MbQ->mb_type == I8MB)
@@ -625,7 +625,7 @@ static void perform_db(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         if (!edge && !MbQ->mb_field && MbQ->mixedModeEdgeFlag) //currSlice->mixedModeEdgeFlag) 
         {          
           // this is the extra horizontal edge between a frame macroblock pair and a field above it
-          MbQ->DeblockCall = 2;
+          MbQ->DeblockCall = (Boolean)2;
           p_Vid->GetStrengthHor(MbQ, 4, mvlimit, p); // Strength for 4 blks in 1 stripe
 
           //if( *((int*)Strength) )                      // only if one of the 4 Strength bytes is != 0
@@ -650,12 +650,12 @@ static void perform_db(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
               }
             }
           }
-          MbQ->DeblockCall = 1;
+          MbQ->DeblockCall = (Boolean)1;
         }
       }
     }//end edge  
 
-    MbQ->DeblockCall = 0;
+    MbQ->DeblockCall = (Boolean)0;
   }
 }
 

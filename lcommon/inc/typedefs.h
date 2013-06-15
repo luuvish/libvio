@@ -39,15 +39,20 @@ typedef int64  distblk;
 typedef int32  transpel;
 #endif
 
-//! Boolean Type
-#ifdef FALSE
-#  define Boolean int
-#else
-typedef enum {
-  FALSE,
-  TRUE
-} Boolean;
-#endif
+enum {
+	FALSE,
+	TRUE
+};
+#define Boolean int
+////! Boolean Type
+//#ifdef FALSE
+//#  define Boolean int
+//#else
+//typedef enum {
+//  FALSE,
+//  TRUE
+//} Boolean;
+//#endif
 
 #ifndef MAXINT64
 #define MAXINT64     0x7fffffffffffffff

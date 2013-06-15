@@ -63,6 +63,7 @@
 #include "input.h"
 #include "output.h"
 #include "h264decoder.h"
+#include "nalucommon.h"
 
 #define LOGFILE     "log.dec"
 #define DATADECFILE "dataDec.txt"
@@ -144,7 +145,7 @@ static void alloc_video_params( VideoParameters **p_Vid)
       no_mem_exit("alloc_video_params:p_Vid->p_LayerPar[i]");
     ((*p_Vid)->p_LayerPar[i])->layer_id = i;
   }
-  (*p_Vid)->global_init_done[0] = (*p_Vid)->global_init_done[1] = 0;
+  (*p_Vid)->global_init_done[0] = (*p_Vid)->global_init_done[1] = (Boolean)0;
 
 #if (ENABLE_OUTPUT_TONEMAPPING)  
   if (((*p_Vid)->seiToneMapping =  (ToneMappingSEI*)calloc(1, sizeof(ToneMappingSEI)))==NULL) 
@@ -751,7 +752,7 @@ Slice *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
   }
   for (i = 0; i < 6; i++)
   {
-    currSlice->listX[i] = calloc(MAX_LIST_SIZE, sizeof (StorablePicture*)); // +1 for reordering
+    currSlice->listX[i] = (StorablePicture **)calloc(MAX_LIST_SIZE, sizeof (StorablePicture*)); // +1 for reordering
     if (NULL==currSlice->listX[i])
       no_mem_exit("malloc_slice: currSlice->listX[i]");
   }
@@ -934,7 +935,7 @@ int init_global_buffers(VideoParameters *p_Vid, int layer_id)
     init_output(cps, ((cps->pic_unit_bitsize_on_disk+7) >> 3));
   else
     cps->img2buf = p_Vid->p_EncodePar[0]->img2buf;
-  p_Vid->global_init_done[layer_id] = 1;
+  p_Vid->global_init_done[layer_id] = (Boolean)1;
 
   return (memory_size);
 }
@@ -1026,7 +1027,7 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
   free_qp_matrices(cps);
 
 
-  p_Vid->global_init_done[layer_id] = 0;
+  p_Vid->global_init_done[layer_id] = (Boolean)0;
 }
 
 void free_global_buffers(VideoParameters *p_Vid)
