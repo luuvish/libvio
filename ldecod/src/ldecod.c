@@ -52,7 +52,6 @@
 #include "memalloc.h"
 #include "mc_prediction.h"
 #include "mbuffer.h"
-#include "leaky_bucket.h"
 #include "fmo.h"
 #include "output.h"
 #include "cabac.h"

@@ -991,13 +991,6 @@ typedef struct inp_par
   int  DecodeAllLayers;
 #endif
 
-#ifdef _LEAKYBUCKET_
-  unsigned long R_decoder;                //!< Decoder Rate in HRD Model
-  unsigned long B_decoder;                //!< Decoder Buffer size in HRD model
-  unsigned long F_decoder;                //!< Decoder Initial buffer fullness in HRD model
-  char LeakyBucketParamFile[FILE_NAME_SIZE];         //!< LeakyBucketParamFile
-#endif
-
   // picture error concealment
   int conceal_mode;
   int ref_poc_gap;

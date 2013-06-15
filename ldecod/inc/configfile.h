@@ -34,12 +34,6 @@ Mapping Map[] = {
     {"FileFormat",               &cfgparams.FileFormat,                   0,   0.0,                       1,  0.0,              1.0,                             },
     {"RefOffset",                &cfgparams.ref_offset,                   0,   0.0,                       1,  0.0,              256.0,                             },
     {"POCScale",                 &cfgparams.poc_scale,                    0,   2.0,                       1,  1.0,              10.0,                            },
-#ifdef _LEAKYBUCKET_
-    {"R_decoder",                &cfgparams.R_decoder,                    0,   500000.0,                  2,  0.0,              0.0,                             },
-    {"B_decoder",                &cfgparams.B_decoder,                    0,   104000.0,                  2,  0.0,              0.0,                             },
-    {"F_decoder",                &cfgparams.F_decoder,                    0,   73000.0,                   2,  0.0,              0.0,                             },
-    {"LeakyBucketParamFile",     &cfgparams.LeakyBucketParamFile,         1,   0.0,                       0,  0.0,              0.0,             FILE_NAME_SIZE, },
-#endif
     {"DisplayDecParams",         &cfgparams.bDisplayDecParams,            0,   1.0,                       1,  0.0,              1.0,                             },
     {"ConcealMode",              &cfgparams.conceal_mode,                 0,   0.0,                       1,  0.0,              2.0,                             },
     {"RefPOCGap",                &cfgparams.ref_poc_gap,                  0,   2.0,                       1,  0.0,              4.0,                             },
