@@ -1,10 +1,23 @@
-###
-###     Makefile for H.264/AVC decoder
-###
-###             generated for UNIX/LINUX environments
-###             by H. Schwarz, Limin Wang
-###
-
+# ===========================================================================
+#
+#   This confidential and proprietary software may be used only
+#  as authorized by a licensing agreement from Thumb o'Cat Inc.
+#  In the event of publication, the following notice is applicable:
+# 
+#       Copyright (C) 2013 - 2013 Thumb o'Cat
+#                     All right reserved.
+# 
+#   The entire notice above must be reproduced on all authorized copies.
+#
+# ===========================================================================
+#
+#  File      : Makefile
+#  Author(s) : Luuvish
+#  Version   : 1.0
+#  Revision  :
+#      1.0 June 15, 2013    first release
+#
+# ===========================================================================
 
 
 NAME=   h264dec
