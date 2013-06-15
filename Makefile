@@ -92,7 +92,9 @@ OBJSUF= .o$(SUFFIX)
 SRC=    $(wildcard $(SRCDIR)/*.c)
 ADDSRC= $(wildcard $(ADDSRCDIR)/*.c)
 PARSERSRC= $(wildcard $(PARSER)/*.cc)
+PARSERSRC+= $(wildcard $(PARSER)/*.c)
 DECODESRC= $(wildcard $(DECODE)/*.cc)
+DECODESRC+= $(wildcard $(DECODE)/*.c)
 OBJ=    $(SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(ADDSRC:$(ADDSRCDIR)/%.c=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(PARSERSRC:$(PARSER)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
@@ -138,7 +140,15 @@ $(OBJDIR)/%.o$(SUFFIX): $(ADDSRCDIR)/%.c
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
+$(OBJDIR)/%.o$(SUFFIX): $(PARSER)/%.c
+	@echo 'compiling object file "$@" ...'
+	@$(CC) -c -o $@ $(FLAGS) $<
+
 $(OBJDIR)/%.o$(SUFFIX): $(PARSER)/%.cc
+	@echo 'compiling object file "$@" ...'
+	@$(CC) -c -o $@ $(FLAGS) $<
+
+$(OBJDIR)/%.o$(SUFFIX): $(DECODE)/%.c
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
