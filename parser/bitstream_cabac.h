@@ -19,7 +19,12 @@
 #ifndef _CABAC_H_
 #define _CABAC_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
+#include "parser.h"
 
 extern MotionInfoContexts*  create_contexts_MotionInfo(void);
 extern TextureInfoContexts* create_contexts_TextureInfo(void);
@@ -59,5 +64,8 @@ extern void CheckAvailabilityOfNeighborsCABAC(Macroblock *currMB);
 
 extern void set_read_and_store_CBP(Macroblock **currMB, int chroma_format_idc);
 
-#endif  // _CABAC_H_
+#ifdef __cplusplus
+}
+#endif
 
+#endif /* _CABAC_H_ */

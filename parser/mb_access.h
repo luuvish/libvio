@@ -16,6 +16,10 @@
 #ifndef _MB_ACCESS_H_
 #define _MB_ACCESS_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern void CheckAvailabilityOfNeighbors(Macroblock *currMB);
 extern void CheckAvailabilityOfNeighborsMBAFF(Macroblock *currMB);
 extern void CheckAvailabilityOfNeighborsNormal(Macroblock *currMB);
@@ -30,4 +34,8 @@ extern void get_mb_block_pos_normal (BlockPos *PicPos, int mb_addr, short *x, sh
 extern void get_mb_block_pos_mbaff  (BlockPos *PicPos, int mb_addr, short *x, short *y);
 
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* _MB_ACCESS_H_ */

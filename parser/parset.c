@@ -13,14 +13,14 @@
  */
 
 #include "global.h"
+#include "bitstream_nal.h"
+#include "bitstream_cabac.h"
+#include "bitstream_vlc.h"
 #include "image.h"
 #include "parsetcommon.h"
 #include "parset.h"
-#include "nalu.h"
 #include "memalloc.h"
 #include "fmo.h"
-#include "cabac.h"
-#include "vlc.h"
 #include "mbuffer.h"
 #include "erc_api.h"
 

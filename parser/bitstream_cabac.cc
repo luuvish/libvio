@@ -12,13 +12,14 @@
  */
 
 #include "global.h"
-#include "cabac.h"
+#include "bitstream_vlc.h"
+#include "bitstream_cabac.h"
+#include "bitstream_elements.h"
+
 #include "memalloc.h"
-#include "elements.h"
 #include "image.h"
 #include "biaridecod.h"
 #include "mb_access.h"
-#include "vlc.h"
 
 #if TRACE
 int symbolCount = 0;

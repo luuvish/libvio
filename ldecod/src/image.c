@@ -32,8 +32,9 @@
 #include "global.h"
 #include "image.h"
 #include "fmo.h"
-#include "annexb.h"
-#include "nalu.h"
+#include "bitstream_nal.h"
+#include "bitstream_cabac.h"
+#include "bitstream_vlc.h"
 #include "parset.h"
 #include "header.h"
 
@@ -47,8 +48,6 @@
 
 #include "biaridecod.h"
 #include "context_ini.h"
-#include "cabac.h"
-#include "vlc.h"
 #include "quant.h"
 
 #include "errorconcealment.h"
@@ -1302,7 +1301,7 @@ int read_new_slice(Slice *currSlice)
 #if (MVC_EXTENSION_ENABLE)
     currSlice->svc_extension_flag = -1;
 #endif
-    if (0 == read_next_nalu(p_Vid, nalu))
+    if (0 == read_next_nalu(p_Vid->bitstream, nalu))
       return EOS;
 
 #if (MVC_EXTENSION_ENABLE)
@@ -1474,7 +1473,7 @@ process_nalu:
 
         current_header = SOP;
         //check zero_byte if it is also the first NAL unit in the access unit
-        CheckZeroByteVCL(p_Vid, nalu);
+        CheckZeroByteVCL(p_Vid->bitstream, nalu);
       }
       else
         current_header = SOS;
@@ -1551,7 +1550,7 @@ process_nalu:
 
         current_header = SOP;
         //check zero_byte if it is also the first NAL unit in the access unit
-        CheckZeroByteVCL(p_Vid, nalu);
+        CheckZeroByteVCL(p_Vid->bitstream, nalu);
       }
       else
         current_header = SOS;
@@ -1573,7 +1572,7 @@ process_nalu:
         error ("received data partition with CABAC, this is not allowed", 500);
 
       // continue with reading next DP
-      if (0 == read_next_nalu(p_Vid, nalu))
+      if (0 == read_next_nalu(p_Vid->bitstream, nalu))
         return current_header;
 
       if ( NALU_TYPE_DPB == nalu->nal_unit_type)
@@ -1602,7 +1601,7 @@ process_nalu:
             read_ue_v("NALU: DP_B redundant_pic_cnt", currStream, &p_Dec->UsedBits);
 
           // we're finished with DP_B, so let's continue with next DP
-          if (0 == read_next_nalu(p_Vid, nalu))
+          if (0 == read_next_nalu(p_Vid->bitstream, nalu))
             return current_header;
         }
       }

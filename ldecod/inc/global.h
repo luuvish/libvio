@@ -47,7 +47,8 @@ extern "C" {
 #include "distortion.h"
 #include "io_video.h"
 
-typedef struct bit_stream_dec Bitstream;
+#include "parser.h"
+
 
 #define ET_SIZE 300      //!< size of error text buffer
 extern char errortext[ET_SIZE]; //!< buffer for error message for exit with error()
@@ -86,18 +87,6 @@ typedef struct pix_pos
   short pos_x;
   short pos_y;
 } PixelPos;
-
-//! struct to characterize the state of the arithmetic coding engine
-typedef struct
-{
-  unsigned int    Drange;
-  unsigned int    Dvalue;
-  int             DbitsLeft;
-  byte            *Dcodestrm;
-  int             *Dcodestrm_len;
-} DecodingEnvironment;
-
-typedef DecodingEnvironment *DecodingEnvironmentPtr;
 
 // Motion Vector structure
 typedef struct
@@ -287,57 +276,6 @@ typedef struct macroblock_dec
   void (*read_comp_coeff_4x4_CAVLC)     (struct macroblock_dec *currMB, ColorPlane pl, int (*InvLevelScale4x4)[4], int qp_per, int cbp, byte **nzcoeff);
   void (*read_comp_coeff_8x8_CAVLC)     (struct macroblock_dec *currMB, ColorPlane pl, int (*InvLevelScale8x8)[8], int qp_per, int cbp, byte **nzcoeff);
 } Macroblock;
-
-//! Syntaxelement
-typedef struct syntaxelement_dec
-{
-  int           type;                  //!< type of syntax element for data part.
-  int           value1;                //!< numerical value of syntax element
-  int           value2;                //!< for blocked symbols, e.g. run/level
-  int           len;                   //!< length of code
-  int           inf;                   //!< info part of CAVLC code
-  unsigned int  bitpattern;            //!< CAVLC bitpattern
-  int           context;               //!< CABAC context
-  int           k;                     //!< CABAC context for coeff_count,uv
-
-#if TRACE
-  #define       TRACESTRING_SIZE 100           //!< size of trace string
-  char          tracestring[TRACESTRING_SIZE]; //!< trace string
-#endif
-
-  //! for mapping of CAVLC to syntaxElement
-  void  (*mapping)(int len, int info, int *value1, int *value2);
-  //! used for CABAC: refers to actual coding method of each individual syntax element type
-  void  (*reading)(struct macroblock_dec *currMB, struct syntaxelement_dec *, DecodingEnvironmentPtr);
-} SyntaxElement;
-
-
-//! Bitstream
-struct bit_stream_dec
-{
-  // CABAC Decoding
-  int           read_len;           //!< actual position in the codebuffer, CABAC only
-  int           code_len;           //!< overall codebuffer length, CABAC only
-  // CAVLC Decoding
-  int           frame_bitoffset;    //!< actual position in the codebuffer, bit-oriented, CAVLC only
-  int           bitstream_length;   //!< over codebuffer lnegth, byte oriented, CAVLC only
-  // ErrorConcealment
-  byte          *streamBuffer;      //!< actual codebuffer for read bytes
-  int           ei_flag;            //!< error indication, 0: no error, else unspecified error
-};
-
-//! DataPartition
-typedef struct datapartition_dec
-{
-
-  Bitstream           *bitstream;
-  DecodingEnvironment de_cabac;
-
-  int     (*readSyntaxElement)(struct macroblock_dec *currMB, struct syntaxelement_dec *, struct datapartition_dec *);
-          /*!< virtual function;
-               actual method depends on chosen data partition and
-               entropy coding method  */
-} DataPartition;
 
 typedef struct wp_params
 {
@@ -820,10 +758,6 @@ typedef struct video_par
 #endif
   int p_ref;                       //!< pointer to input original reference YUV file file
 
-  //FILE *p_log;                     //!< SNR file
-  int LastAccessUnitExists;
-  int NALUCount;
-
   // B pictures
   int  Bframe_ctr;
   int  frame_no;
@@ -853,15 +787,15 @@ typedef struct video_par
   struct video_par *erc_img;
   int ec_flag[SE_MAX_ELEMENTS];        //!< array to set errorconcealment
 
-  struct annex_b_struct *annex_b;
-
   struct frame_store *out_buffer;
 
   struct storable_picture *pending_output;
   int    pending_output_state;
   int    recovery_flag;
 
-  int BitStreamFile;
+
+    struct bitstream_t *bitstream;
+
 
   // report
   char cslice_type[9];  
@@ -897,9 +831,6 @@ typedef struct video_par
   int bDeblockEnable;
   int iPostProcess;
   int bFrameInit;
-#if _FLTDBG_
-  FILE *fpDbg;
-#endif
   pic_parameter_set_rbsp_t *pNextPPS;
   int last_dec_poc;
   int last_dec_view_id;
@@ -1056,12 +987,6 @@ extern int  init_global_buffers( VideoParameters *p_Vid, int layer_id );
 extern void free_global_buffers( VideoParameters *p_Vid);
 extern void free_layer_buffers( VideoParameters *p_Vid, int layer_id );
 
-extern int RBSPtoSODB(byte *streamBuffer, int last_byte_pos);
-extern int EBSPtoRBSP(byte *streamBuffer, int end_bytepos, int begin_bytepos);
-
-extern void FreePartition (DataPartition *dp, int n);
-extern DataPartition *AllocPartition(int n);
-
 extern void tracebits (const char *trace_str, int len, int info, int value1);
 extern void tracebits2(const char *trace_str, int len, int info);
 
@@ -1071,10 +996,6 @@ extern unsigned CeilLog2_sf( unsigned uiVal);
 // For 4:4:4 independent mode
 extern void change_plane_JV      ( VideoParameters *p_Vid, int nplane, Slice *pSlice);
 extern void make_frame_picture_JV( VideoParameters *p_Vid );
-
-#if (MVC_EXTENSION_ENABLE)
-extern void nal_unit_header_mvc_extension(NALUnitHeaderMVCExt_t *NaluHeaderMVCExt, struct bit_stream_dec *bitstream);
-#endif
 
 extern void FreeDecPicList ( DecodedPicList *pDecPicList );
 extern void ClearDecPicList( VideoParameters *p_Vid );

@@ -12,10 +12,10 @@
 */
 
 #include "global.h"
-#include "elements.h"
+#include "bitstream_elements.h"
+#include "bitstream_cabac.h"
+#include "bitstream_vlc.h"
 #include "macroblock.h"
-#include "cabac.h"
-#include "vlc.h"
 #include "transform.h"
 
 #if TRACE

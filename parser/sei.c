@@ -16,7 +16,7 @@
 #include "global.h"
 #include "memalloc.h"
 #include "sei.h"
-#include "vlc.h"
+#include "bitstream_vlc.h"
 #include "header.h"
 #include "mbuffer.h"
 #include "parset.h"

@@ -17,7 +17,14 @@
 #ifndef _CONTEXT_INI_
 #define _CONTEXT_INI_
 
-extern void  init_contexts  (Slice *currslice);
-
+#ifdef __cplusplus
+extern "C" {
 #endif
 
+extern void  init_contexts  (Slice *currslice);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _CONTEXT_INI_ */

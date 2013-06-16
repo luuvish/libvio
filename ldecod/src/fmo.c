@@ -15,7 +15,7 @@
  */
 
 #include "global.h"
-#include "elements.h"
+#include "bitstream_elements.h"
 #include "defines.h"
 #include "header.h"
 #include "fmo.h"
