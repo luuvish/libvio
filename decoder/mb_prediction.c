@@ -21,7 +21,7 @@
 #include "macroblock.h"
 #include "fmo.h"
 #include "image.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "biaridecod.h"
 #include "transform8x8.h"
 #include "transform.h"

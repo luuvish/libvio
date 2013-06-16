@@ -13,8 +13,8 @@
  *************************************************************************************
  */
 
-#ifndef _MB_ACCESS_H_
-#define _MB_ACCESS_H_
+#ifndef _NEIGHBOUR_H_
+#define _NEIGHBOUR_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,9 +33,14 @@ extern void get_mb_pos              (VideoParameters *p_Vid, int mb_addr, int mb
 extern void get_mb_block_pos_normal (BlockPos *PicPos, int mb_addr, short *x, short *y);
 extern void get_mb_block_pos_mbaff  (BlockPos *PicPos, int mb_addr, short *x, short *y);
 
+void get_neighbors(Macroblock *currMB, PixelPos *block, int mb_x, int mb_y, int blockshape_x);
+void check_dp_neighbors(Macroblock *currMB);
+
+int predict_nnz(Macroblock *currMB, int block_type, int i,int j);
+int predict_nnz_chroma(Macroblock *currMB, int i,int j);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _MB_ACCESS_H_ */
+#endif /* _NEIGHBOUR_H_ */

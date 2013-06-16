@@ -14,7 +14,7 @@
 
 #include "global.h"
 #include "mbuffer.h"
-#include "mb_access.h"
+#include "neighbour.h"
 
 /*!
  ************************************************************************
@@ -663,4 +663,238 @@ void get4x4NeighbourBase (Macroblock *currMB, int block_x, int block_y, int mb_s
     pix->x >>= 2;
     pix->y >>= 2;
   }
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    Get current block spatial neighbors
+ ************************************************************************
+ */
+void get_neighbors(Macroblock *currMB,       // <--  current Macroblock
+                   PixelPos   *block,     // <--> neighbor blocks
+                   int         mb_x,         // <--  block x position
+                   int         mb_y,         // <--  block y position
+                   int         blockshape_x  // <--  block width
+                   )
+{
+  int *mb_size = currMB->p_Vid->mb_size[IS_LUMA];
+  
+  get4x4Neighbour(currMB, mb_x - 1,            mb_y    , mb_size, block    );
+  get4x4Neighbour(currMB, mb_x,                mb_y - 1, mb_size, block + 1);
+  get4x4Neighbour(currMB, mb_x + blockshape_x, mb_y - 1, mb_size, block + 2);  
+
+  if (mb_y > 0)
+  {
+    if (mb_x < 8)  // first column of 8x8 blocks
+    {
+      if (mb_y == 8 )
+      {
+        if (blockshape_x == MB_BLOCK_SIZE)      
+          block[2].available  = 0;
+      }
+      else if (mb_x + blockshape_x == 8)
+      {
+        block[2].available = 0;
+      }
+    }
+    else if (mb_x + blockshape_x == MB_BLOCK_SIZE)
+    {
+      block[2].available = 0;
+    }
+  }
+
+  if (!block[2].available)
+  {
+    get4x4Neighbour(currMB, mb_x - 1, mb_y - 1, mb_size, block + 3);
+    block[2] = block[3];
+  }
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    Data partitioning: Check if neighboring macroblock is needed for 
+ *    CAVLC context decoding, and disable current MB if data partition
+ *    is missing.
+ ************************************************************************
+ */
+void check_dp_neighbors (Macroblock *currMB)
+{
+  VideoParameters *p_Vid = currMB->p_Vid;
+  PixelPos up, left;
+
+  p_Vid->getNeighbour(currMB, -1,  0, p_Vid->mb_size[1], &left);
+  p_Vid->getNeighbour(currMB,  0, -1, p_Vid->mb_size[1], &up);
+
+  if ((currMB->is_intra_block == FALSE) || (!(p_Vid->active_pps->constrained_intra_pred_flag)) )
+  {
+    if (left.available)
+    {
+      currMB->dpl_flag |= p_Vid->mb_data[left.mb_addr].dpl_flag;
+    }
+    if (up.available)
+    {
+      currMB->dpl_flag |= p_Vid->mb_data[up.mb_addr].dpl_flag;
+    }
+  }
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    Get the Prediction from the Neighboring Blocks for Number of 
+ *    Nonzero Coefficients
+ *
+ *    Luma Blocks
+ ************************************************************************
+ */
+int predict_nnz(Macroblock *currMB, int block_type, int i,int j)
+{
+  VideoParameters *p_Vid = currMB->p_Vid;
+  Slice *currSlice = currMB->p_Slice;
+
+  PixelPos pix;
+
+  int pred_nnz = 0;
+  int cnt      = 0;
+
+  // left block
+  get4x4Neighbour(currMB, i - 1, j, p_Vid->mb_size[IS_LUMA], &pix);
+
+  if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode == PAR_DP_3))
+  {
+    pix.available &= currSlice->intra_block[pix.mb_addr];
+    if (!pix.available)
+      ++cnt;
+  }
+
+  if (pix.available)
+  { 
+    switch (block_type)
+    {
+    case LUMA:
+      pred_nnz = p_Vid->nz_coeff [pix.mb_addr ][0][pix.y][pix.x];
+      ++cnt;
+      break;
+    case CB:
+      pred_nnz = p_Vid->nz_coeff [pix.mb_addr ][1][pix.y][pix.x];
+      ++cnt;
+      break;
+    case CR:
+      pred_nnz = p_Vid->nz_coeff [pix.mb_addr ][2][pix.y][pix.x];
+      ++cnt;
+      break;
+    default:
+      error("writeCoeff4x4_CAVLC: Invalid block type", 600);
+      break;
+    }
+  }
+
+  // top block
+  get4x4Neighbour(currMB, i, j - 1, p_Vid->mb_size[IS_LUMA], &pix);
+
+  if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode==PAR_DP_3))
+  {
+    pix.available &= currSlice->intra_block[pix.mb_addr];
+    if (!pix.available)
+      ++cnt;
+  }
+
+  if (pix.available)
+  {
+    switch (block_type)
+    {
+    case LUMA:
+      pred_nnz += p_Vid->nz_coeff [pix.mb_addr ][0][pix.y][pix.x];
+      ++cnt;
+      break;
+    case CB:
+      pred_nnz += p_Vid->nz_coeff [pix.mb_addr ][1][pix.y][pix.x];
+      ++cnt;
+      break;
+    case CR:
+      pred_nnz += p_Vid->nz_coeff [pix.mb_addr ][2][pix.y][pix.x];
+      ++cnt;
+      break;
+    default:
+      error("writeCoeff4x4_CAVLC: Invalid block type", 600);
+      break;
+    }
+  }
+
+  if (cnt==2)
+  {
+    ++pred_nnz;
+    pred_nnz >>= 1;
+  }
+
+  return pred_nnz;
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    Get the Prediction from the Neighboring Blocks for Number of 
+ *    Nonzero Coefficients
+ *
+ *    Chroma Blocks
+ ************************************************************************
+ */
+int predict_nnz_chroma(Macroblock *currMB, int i,int j)
+{
+  StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
+
+  if (dec_picture->chroma_format_idc != YUV444)
+  {
+    VideoParameters *p_Vid = currMB->p_Vid;    
+    Slice *currSlice = currMB->p_Slice;
+    PixelPos pix;
+    int pred_nnz = 0;
+    int cnt      = 0;
+
+    //YUV420 and YUV422
+    // left block
+    get4x4Neighbour(currMB, ((i&0x01)<<2) - 1, j, p_Vid->mb_size[IS_CHROMA], &pix);
+
+    if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode==PAR_DP_3))
+    {
+      pix.available &= currSlice->intra_block[pix.mb_addr];
+      if (!pix.available)
+        ++cnt;
+    }
+
+    if (pix.available)
+    {
+      pred_nnz = p_Vid->nz_coeff [pix.mb_addr ][1][pix.y][2 * (i>>1) + pix.x];
+      ++cnt;
+    }
+
+    // top block
+    get4x4Neighbour(currMB, ((i&0x01)<<2), j - 1, p_Vid->mb_size[IS_CHROMA], &pix);
+
+    if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode==PAR_DP_3))
+    {
+      pix.available &= currSlice->intra_block[pix.mb_addr];
+      if (!pix.available)
+        ++cnt;
+    }
+
+    if (pix.available)
+    {
+      pred_nnz += p_Vid->nz_coeff [pix.mb_addr ][1][pix.y][2 * (i>>1) + pix.x];
+      ++cnt;
+    }
+
+    if (cnt==2)
+    {
+      ++pred_nnz;
+      pred_nnz >>= 1;
+    }
+    return pred_nnz;
+  }
+  else
+    return 0;
 }

@@ -11,7 +11,7 @@
 #include "macroblock.h"
 #include "fmo.h"
 #include "image.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "biaridecod.h"
 #include "transform.h"
 #include "mc_prediction.h"

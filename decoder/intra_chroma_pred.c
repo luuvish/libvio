@@ -14,7 +14,7 @@
  */
 #include "global.h"
 #include "block.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "image.h"
 
 

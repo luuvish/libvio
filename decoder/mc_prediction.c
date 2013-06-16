@@ -18,7 +18,7 @@
 #include "block.h"
 #include "mc_prediction.h"
 #include "mbuffer.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "macroblock.h"
 #include "memalloc.h"
 

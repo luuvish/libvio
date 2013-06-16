@@ -40,7 +40,7 @@
 
 #include "sei.h"
 #include "output.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "memalloc.h"
 #include "macroblock.h"
 

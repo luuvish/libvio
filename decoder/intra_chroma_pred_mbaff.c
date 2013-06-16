@@ -14,7 +14,7 @@
  */
 #include "global.h"
 #include "block.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "image.h"
 
 static void intra_chroma_DC_single_mbaff(imgpel **curr_img, int up_avail, int left_avail, PixelPos up, PixelPos left[17], int blk_x, int blk_y, int *pred, int direction )

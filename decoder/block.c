@@ -18,7 +18,7 @@
 #include "block.h"
 #include "blk_prediction.h"
 #include "image.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "transform.h"
 #include "quant.h"
 #include "memalloc.h"

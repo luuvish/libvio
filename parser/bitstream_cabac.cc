@@ -19,11 +19,13 @@
 #include "memalloc.h"
 #include "image.h"
 #include "biaridecod.h"
-#include "mb_access.h"
+#include "neighbour.h"
 
 #if TRACE
 int symbolCount = 0;
 #endif
+
+#define IS_DIRECT(MB)   ((MB)->mb_type==0     && (currSlice->slice_type == B_SLICE ))
 
 static const short maxpos       [] = {15, 14, 63, 31, 31, 15,  3, 14,  7, 15, 15, 14, 63, 31, 31, 15, 15, 14, 63, 31, 31, 15};
 static const short c1isdc       [] = { 1,  0,  1,  1,  1,  1,  1,  0,  1,  1,  1,  0,  1,  1,  1,  1,  1,  0,  1,  1,  1,  1};

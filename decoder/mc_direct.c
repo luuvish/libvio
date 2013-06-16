@@ -18,8 +18,9 @@
 #include "block.h"
 #include "mc_prediction.h"
 #include "mbuffer.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "macroblock.h"
+#include "mb_read.h"
 #include "memalloc.h"
 
 static void update_direct_mv_info_temporal(Macroblock *currMB)

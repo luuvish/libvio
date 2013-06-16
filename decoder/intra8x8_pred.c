@@ -16,7 +16,7 @@
  */
 #include "global.h"
 #include "intra8x8_pred.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "image.h"
 
 // Notation for comments regarding prediction and predictors.

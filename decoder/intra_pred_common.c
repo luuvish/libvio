@@ -16,7 +16,7 @@
 #include "intra4x4_pred.h"
 #include "intra8x8_pred.h"
 #include "intra16x16_pred.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "image.h"
 
 

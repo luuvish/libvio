@@ -14,7 +14,7 @@
  */
 #include "global.h"
 #include "intra4x4_pred.h"
-#include "mb_access.h"
+#include "neighbour.h"
 #include "image.h"
 
 // Notation for comments regarding prediction and predictors.

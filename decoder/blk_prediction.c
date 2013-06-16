@@ -23,7 +23,7 @@
 #include "macroblock.h"
 #include "mc_prediction.h"
 #include "image.h"
-#include "mb_access.h"
+#include "neighbour.h"
 
 void compute_residue (imgpel **curImg, imgpel **mpr, int **mb_rres, int mb_x, int opix_x, int width, int height)
 {

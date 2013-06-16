@@ -16,6 +16,8 @@
 #include "bitstream_cabac.h"
 #include "bitstream_vlc.h"
 #include "macroblock.h"
+#include "mb_read.h"
+#include "neighbour.h"
 #include "transform.h"
 
 #if TRACE
@@ -29,6 +31,10 @@
 #define TRACE_PRINTF(s) 
 #define TRACE_STRING_P(s)
 #endif
+
+#define IS_I16MB(MB)    ((MB)->mb_type==I16MB  || (MB)->mb_type==IPCM)
+#define IS_DIRECT(MB)   ((MB)->mb_type==0     && (currSlice->slice_type == B_SLICE ))
+
 
 /*!
 ************************************************************************
@@ -366,19 +372,8 @@ static void readCompCoeff8x8_CABAC (Macroblock *currMB, SyntaxElement *currSE, C
           j = *pos_scan8x8++;
 
           tcoeffs[ j][boff_x + i] = rshift_rnd_sf((level * InvLevelScale8x8[j][i]) << qp_per, 6); // dequantization
-          //tcoeffs[ j][boff_x + i] = level;
         }
       }
-      /*
-      for (j = 0; j < 8; j++)
-      {
-      for (i = 0; i < 8; i++)
-      {
-      if (tcoeffs[ j][boff_x + i])
-      tcoeffs[ j][boff_x + i] = rshift_rnd_sf((tcoeffs[ j][boff_x + i] * InvLevelScale8x8[j][i]) << qp_per, 6); // dequantization
-      }
-      }
-      */
     }        
   }
 }
@@ -785,10 +780,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
         currSlice->cof[uv + 1][0][4] = currSlice->cofu[1];
         currSlice->cof[uv + 1][4][0] = currSlice->cofu[2];
         currSlice->cof[uv + 1][4][4] = currSlice->cofu[3];
-        //currSlice->fcf[uv + 1][0][0] = currSlice->cofu[0];
-        //currSlice->fcf[uv + 1][4][0] = currSlice->cofu[1];
-        //currSlice->fcf[uv + 1][0][4] = currSlice->cofu[2];
-        //currSlice->fcf[uv + 1][4][4] = currSlice->cofu[3];
       }
       else
       {
@@ -797,11 +788,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
         int **cof = currSlice->cof[uv + 1];
 
         ihadamard2x2(currSlice->cofu, temp);
-        
-        //currSlice->fcf[uv + 1][0][0] = temp[0];
-        //currSlice->fcf[uv + 1][0][4] = temp[1];
-        //currSlice->fcf[uv + 1][4][0] = temp[2];
-        //currSlice->fcf[uv + 1][4][4] = temp[3];
 
         cof[0][0] = (((temp[0] * scale_dc) << qp_per_uv[uv]) >> 5);
         cof[0][4] = (((temp[1] * scale_dc) << qp_per_uv[uv]) >> 5);
@@ -866,7 +852,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
               j0 = *pos_scan_4x4++;
 
               cof[(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0])<<qp_per_uv[uv], 4);
-              //currSlice->fcf[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
             }
           } //for(k=0;(k<16)&&(level!=0);++k)
         }
@@ -909,7 +894,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
               j0 = *pos_scan_4x4++;
 
               currSlice->cof[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
-              //currSlice->fcf[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
             }
           } 
         }
@@ -1886,34 +1870,28 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
 
 void set_read_CBP_and_coeffs_cabac(Slice *currSlice)
 {
-  switch (currSlice->p_Vid->active_sps->chroma_format_idc)
-  {
-  case YUV444:
-    if (currSlice->p_Vid->separate_colour_plane_flag == 0)
-    {
-      currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_444;
+    switch (currSlice->p_Vid->active_sps->chroma_format_idc) {
+    case YUV444:
+        if (currSlice->p_Vid->separate_colour_plane_flag == 0)
+            currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_444;
+        else
+            currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_400;
+        break;
+    case YUV422:
+        currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_422;
+        break;
+    case YUV420:
+        currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_420;
+        break;
+    case YUV400:
+        currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_400;
+        break;
+    default:
+        assert(1);
+        currSlice->read_CBP_and_coeffs_from_NAL = NULL;
+        break;
     }
-    else
-    {
-      currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_400;
-    }
-    break;
-  case YUV422:
-    currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_422;
-    break;
-  case YUV420:
-    currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_420;
-    break;
-  case YUV400:
-    currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_400;
-    break;
-  default:
-    assert (1);
-    currSlice->read_CBP_and_coeffs_from_NAL = NULL;
-    break;
-  }
 }
-
 
 /*!
 ************************************************************************
@@ -1924,15 +1902,11 @@ void set_read_CBP_and_coeffs_cabac(Slice *currSlice)
 */
 void set_read_comp_coeff_cabac(Macroblock *currMB)
 {
-  if (currMB->is_lossless == FALSE)
-  {
-    currMB->read_comp_coeff_4x4_CABAC = read_comp_coeff_4x4_CABAC;
-    currMB->read_comp_coeff_8x8_CABAC = read_comp_coeff_8x8_MB_CABAC;
-  }
-  else
-  {
-    currMB->read_comp_coeff_4x4_CABAC = read_comp_coeff_4x4_CABAC_ls;
-    currMB->read_comp_coeff_8x8_CABAC = read_comp_coeff_8x8_MB_CABAC_ls;
-  }
+    if (currMB->is_lossless == FALSE) {
+        currMB->read_comp_coeff_4x4_CABAC = read_comp_coeff_4x4_CABAC;
+        currMB->read_comp_coeff_8x8_CABAC = read_comp_coeff_8x8_MB_CABAC;
+    } else {
+        currMB->read_comp_coeff_4x4_CABAC = read_comp_coeff_4x4_CABAC_ls;
+        currMB->read_comp_coeff_8x8_CABAC = read_comp_coeff_8x8_MB_CABAC_ls;
+    }
 }
-

@@ -15,9 +15,10 @@
 #include "bitstream_elements.h"
 #include "bitstream_vlc.h"
 #include "macroblock.h"
+#include "mb_read.h"
 #include "fast_memory.h"
 #include "transform.h"
-#include "mb_access.h"
+#include "neighbour.h"
 
 #if TRACE
 #define TRACE_STRING(s) strncpy(currSE.tracestring, s, TRACESTRING_SIZE)
@@ -31,163 +32,9 @@
 #define TRACE_STRING_P(s)
 #endif
 
-/*!
- ************************************************************************
- * \brief
- *    Get the Prediction from the Neighboring Blocks for Number of 
- *    Nonzero Coefficients
- *
- *    Luma Blocks
- ************************************************************************
- */
-static int predict_nnz(Macroblock *currMB, int block_type, int i,int j)
-{
-  VideoParameters *p_Vid = currMB->p_Vid;
-  Slice *currSlice = currMB->p_Slice;
+#define IS_I16MB(MB)    ((MB)->mb_type==I16MB  || (MB)->mb_type==IPCM)
+#define IS_DIRECT(MB)   ((MB)->mb_type==0     && (currSlice->slice_type == B_SLICE ))
 
-  PixelPos pix;
-
-  int pred_nnz = 0;
-  int cnt      = 0;
-
-  // left block
-  get4x4Neighbour(currMB, i - 1, j, p_Vid->mb_size[IS_LUMA], &pix);
-
-  if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode == PAR_DP_3))
-  {
-    pix.available &= currSlice->intra_block[pix.mb_addr];
-    if (!pix.available)
-      ++cnt;
-  }
-
-  if (pix.available)
-  { 
-    switch (block_type)
-    {
-    case LUMA:
-      pred_nnz = p_Vid->nz_coeff [pix.mb_addr ][0][pix.y][pix.x];
-      ++cnt;
-      break;
-    case CB:
-      pred_nnz = p_Vid->nz_coeff [pix.mb_addr ][1][pix.y][pix.x];
-      ++cnt;
-      break;
-    case CR:
-      pred_nnz = p_Vid->nz_coeff [pix.mb_addr ][2][pix.y][pix.x];
-      ++cnt;
-      break;
-    default:
-      error("writeCoeff4x4_CAVLC: Invalid block type", 600);
-      break;
-    }
-  }
-
-  // top block
-  get4x4Neighbour(currMB, i, j - 1, p_Vid->mb_size[IS_LUMA], &pix);
-
-  if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode==PAR_DP_3))
-  {
-    pix.available &= currSlice->intra_block[pix.mb_addr];
-    if (!pix.available)
-      ++cnt;
-  }
-
-  if (pix.available)
-  {
-    switch (block_type)
-    {
-    case LUMA:
-      pred_nnz += p_Vid->nz_coeff [pix.mb_addr ][0][pix.y][pix.x];
-      ++cnt;
-      break;
-    case CB:
-      pred_nnz += p_Vid->nz_coeff [pix.mb_addr ][1][pix.y][pix.x];
-      ++cnt;
-      break;
-    case CR:
-      pred_nnz += p_Vid->nz_coeff [pix.mb_addr ][2][pix.y][pix.x];
-      ++cnt;
-      break;
-    default:
-      error("writeCoeff4x4_CAVLC: Invalid block type", 600);
-      break;
-    }
-  }
-
-  if (cnt==2)
-  {
-    ++pred_nnz;
-    pred_nnz >>= 1;
-  }
-
-  return pred_nnz;
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    Get the Prediction from the Neighboring Blocks for Number of 
- *    Nonzero Coefficients
- *
- *    Chroma Blocks
- ************************************************************************
- */
-static int predict_nnz_chroma(Macroblock *currMB, int i,int j)
-{
-  StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
-
-  if (dec_picture->chroma_format_idc != YUV444)
-  {
-    VideoParameters *p_Vid = currMB->p_Vid;    
-    Slice *currSlice = currMB->p_Slice;
-    PixelPos pix;
-    int pred_nnz = 0;
-    int cnt      = 0;
-
-    //YUV420 and YUV422
-    // left block
-    get4x4Neighbour(currMB, ((i&0x01)<<2) - 1, j, p_Vid->mb_size[IS_CHROMA], &pix);
-
-    if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode==PAR_DP_3))
-    {
-      pix.available &= currSlice->intra_block[pix.mb_addr];
-      if (!pix.available)
-        ++cnt;
-    }
-
-    if (pix.available)
-    {
-      pred_nnz = p_Vid->nz_coeff [pix.mb_addr ][1][pix.y][2 * (i>>1) + pix.x];
-      ++cnt;
-    }
-
-    // top block
-    get4x4Neighbour(currMB, ((i&0x01)<<2), j - 1, p_Vid->mb_size[IS_CHROMA], &pix);
-
-    if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode==PAR_DP_3))
-    {
-      pix.available &= currSlice->intra_block[pix.mb_addr];
-      if (!pix.available)
-        ++cnt;
-    }
-
-    if (pix.available)
-    {
-      pred_nnz += p_Vid->nz_coeff [pix.mb_addr ][1][pix.y][2 * (i>>1) + pix.x];
-      ++cnt;
-    }
-
-    if (cnt==2)
-    {
-      ++pred_nnz;
-      pred_nnz >>= 1;
-    }
-    return pred_nnz;
-  }
-  else
-    return 0;
-}
 
 /*!
  ************************************************************************
@@ -199,10 +46,10 @@ static int predict_nnz_chroma(Macroblock *currMB, int i,int j)
  *    contributions by James Au <james@ubvideo.com>
  ************************************************************************
  */
-void read_coeff_4x4_CAVLC (Macroblock *currMB, 
-                           int block_type,
-                           int i, int j, int levarr[16], int runarr[16],
-                           int *number_coefficients)
+static void read_coeff_4x4_CAVLC(Macroblock *currMB,
+                                 int block_type,
+                                 int i, int j, int levarr[16], int runarr[16],
+                                 int *number_coefficients)
 {
   Slice *currSlice = currMB->p_Slice;
   VideoParameters *p_Vid = currMB->p_Vid;
@@ -413,10 +260,10 @@ void read_coeff_4x4_CAVLC (Macroblock *currMB,
  *    contributions by James Au <james@ubvideo.com>
  ************************************************************************
  */
-void read_coeff_4x4_CAVLC_444 (Macroblock *currMB, 
-                               int block_type,
-                               int i, int j, int levarr[16], int runarr[16],
-                               int *number_coefficients)
+static void read_coeff_4x4_CAVLC_444(Macroblock *currMB,
+                                     int block_type,
+                                     int i, int j, int levarr[16], int runarr[16],
+                                     int *number_coefficients)
 {
   Slice *currSlice = currMB->p_Slice;
   VideoParameters *p_Vid = currMB->p_Vid;
@@ -676,7 +523,7 @@ void read_coeff_4x4_CAVLC_444 (Macroblock *currMB,
 *    from the NAL (CABAC Mode)
 ************************************************************************
 */
-static void read_comp_coeff_4x4_CAVLC (Macroblock *currMB, ColorPlane pl, int (*InvLevelScale4x4)[4], int qp_per, int cbp, byte **nzcoeff)
+static void read_comp_coeff_4x4_CAVLC(Macroblock *currMB, ColorPlane pl, int (*InvLevelScale4x4)[4], int qp_per, int cbp, byte **nzcoeff)
 {
   int block_y, block_x, b8;
   int i, j, k;
@@ -2002,18 +1849,10 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
         currSlice->cof[PLANE_U + uv][0][4] = currSlice->cofu[1];
         currSlice->cof[PLANE_U + uv][4][0] = currSlice->cofu[2];
         currSlice->cof[PLANE_U + uv][4][4] = currSlice->cofu[3];
-        //currSlice->fcf[PLANE_U + uv][0][0] = currSlice->cofu[0];
-        //currSlice->fcf[PLANE_U + uv][4][0] = currSlice->cofu[1];
-        //currSlice->fcf[PLANE_U + uv][0][4] = currSlice->cofu[2];
-        //currSlice->fcf[PLANE_U + uv][4][4] = currSlice->cofu[3];
       }
       else
       {
         ihadamard2x2(currSlice->cofu, temp);
-        //currSlice->fcf[PLANE_U + uv][0][0] = temp[0];
-        //currSlice->fcf[PLANE_U + uv][0][4] = temp[1];
-        //currSlice->fcf[PLANE_U + uv][4][0] = temp[2];
-        //currSlice->fcf[PLANE_U + uv][4][4] = temp[3];
 
         currSlice->cof[PLANE_U + uv][0][0] = (((temp[0] * InvLevelScale4x4[0][0])<<qp_per_uv[uv])>>5);
         currSlice->cof[PLANE_U + uv][0][4] = (((temp[1] * InvLevelScale4x4[0][0])<<qp_per_uv[uv])>>5);
@@ -2107,45 +1946,42 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
 */
 void set_read_comp_coeff_cavlc(Macroblock *currMB)
 {
-  if (currMB->is_lossless == FALSE)
-  {
-    currMB->read_comp_coeff_4x4_CAVLC = read_comp_coeff_4x4_CAVLC;
-    currMB->read_comp_coeff_8x8_CAVLC = read_comp_coeff_8x8_CAVLC;
-  }
-  else
-  {
-    currMB->read_comp_coeff_4x4_CAVLC = read_comp_coeff_4x4_CAVLC_ls;
-    currMB->read_comp_coeff_8x8_CAVLC = read_comp_coeff_8x8_CAVLC_ls;
-  }
+    if (currMB->is_lossless == FALSE) {
+        currMB->read_comp_coeff_4x4_CAVLC = read_comp_coeff_4x4_CAVLC;
+        currMB->read_comp_coeff_8x8_CAVLC = read_comp_coeff_8x8_CAVLC;
+    } else {
+        currMB->read_comp_coeff_4x4_CAVLC = read_comp_coeff_4x4_CAVLC_ls;
+        currMB->read_comp_coeff_8x8_CAVLC = read_comp_coeff_8x8_CAVLC_ls;
+    }
 }
-
 
 void set_read_CBP_and_coeffs_cavlc(Slice *currSlice)
 {
-  switch (currSlice->p_Vid->active_sps->chroma_format_idc)
-  {
-  case YUV444:
-    if (currSlice->p_Vid->separate_colour_plane_flag == 0)
-    {
-      currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_444;
-    }
+    if (currSlice->p_Vid->active_sps->chroma_format_idc == YUV444 &&
+        currSlice->p_Vid->separate_colour_plane_flag == 0)
+        currSlice->read_coeff_4x4_CAVLC = read_coeff_4x4_CAVLC_444;
     else
-    {
-      currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_400;
+        currSlice->read_coeff_4x4_CAVLC = read_coeff_4x4_CAVLC;
+
+    switch (currSlice->p_Vid->active_sps->chroma_format_idc) {
+    case YUV444:
+        if (currSlice->p_Vid->separate_colour_plane_flag == 0)
+            currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_444;
+        else
+            currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_400;
+        break;
+    case YUV422:
+        currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_422;
+        break;
+    case YUV420:
+        currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_420;
+        break;
+    case YUV400:
+        currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_400;
+        break;
+    default:
+        assert(1);
+        currSlice->read_CBP_and_coeffs_from_NAL = NULL;
+        break;
     }
-    break;
-  case YUV422:
-    currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_422;
-    break;
-  case YUV420:
-    currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_420;
-    break;
-  case YUV400:
-    currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_400;
-    break;
-  default:
-    assert (1);
-    currSlice->read_CBP_and_coeffs_from_NAL = NULL;
-    break;
-  }
 }
