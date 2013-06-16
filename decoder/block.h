@@ -18,6 +18,10 @@
 #ifndef _BLOCK_H_
 #define _BLOCK_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 #include "transform8x8.h"
 
@@ -124,5 +128,8 @@ extern void copy_image_data_8x8   (imgpel  **imgBuf1, imgpel  **imgBuf2, int off
 extern void copy_image_data_4x4   (imgpel  **imgBuf1, imgpel  **imgBuf2, int off1, int off2);
 extern int CheckVertMV(Macroblock *currMB, int vec1_y, int block_size_y);
 
+#ifdef __cplusplus
+}
 #endif
 
+#endif

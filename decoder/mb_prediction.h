@@ -15,6 +15,10 @@
 #ifndef _MB_PREDICTION_H_
 #define _MB_PREDICTION_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int mb_pred_intra4x4      (Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
 extern int mb_pred_intra16x16    (Macroblock *currMB, ColorPlane curr_plane, StorablePicture *dec_picture);
 extern int mb_pred_intra8x8      (Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
@@ -31,5 +35,9 @@ extern int mb_pred_b_d4x4temporal(Macroblock *currMB, ColorPlane curr_plane, img
 extern int mb_pred_b_d8x8temporal(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
 extern int mb_pred_b_inter8x8    (Macroblock *currMB, ColorPlane curr_plane, StorablePicture *dec_picture);
 extern int mb_pred_ipcm          (Macroblock *currMB);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

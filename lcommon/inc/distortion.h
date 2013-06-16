@@ -14,6 +14,10 @@
 #ifndef _DISTORTION_H_
 #define _DISTORTION_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Distortion data structure. Could be extended in the future to support
 // other data 
 typedef struct distortion_data
@@ -27,5 +31,8 @@ typedef struct distortion_data
   double   rd_cost;
 } DistortionData;
 
+#ifdef __cplusplus
+}
 #endif
 
+#endif

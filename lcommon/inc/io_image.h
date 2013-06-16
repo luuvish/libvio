@@ -14,6 +14,10 @@
 #ifndef _IO_IMAGE_H_
 #define _IO_IMAGE_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "defines.h"
 #include "frame.h"
 
@@ -41,5 +45,8 @@ typedef struct image_data
   int bot_stride[MAX_PLANE];
 } ImageData;
 
+#ifdef __cplusplus
+}
 #endif
 
+#endif

@@ -16,6 +16,10 @@
 #ifndef _MBUFFER_COMMON_H_
 #define _MBUFFER_COMMON_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*!
  ************************************************************************
  * \brief
@@ -221,5 +225,8 @@ extern int  is_used_for_reference        (FrameStore* fs);
 extern void get_smallest_poc(DecodedPictureBuffer *p_Dpb, int *poc,int * pos);
 extern int remove_unused_frame_from_dpb(DecodedPictureBuffer *p_Dpb);
 
+#ifdef __cplusplus
+}
 #endif
 
+#endif

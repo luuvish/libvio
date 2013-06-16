@@ -14,6 +14,10 @@
 #ifndef _TYPES_H_
 #define _TYPES_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /***********************************************************************
  * T y p e    d e f i n i t i o n s    f o r    T M L
  ***********************************************************************
@@ -199,5 +203,9 @@ typedef enum {
   WP_MCPREC_MINUS_PLUS0 = 8,
   WP_REGULAR =            9
 } weighted_prediction_types;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

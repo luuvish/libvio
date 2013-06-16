@@ -17,7 +17,15 @@
 #ifndef _TRANSFORM8X8_H_
 #define _TRANSFORM8X8_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern void itrans8x8   (Macroblock *currMB, ColorPlane pl, int ioff, int joff);
 extern void icopy8x8    (Macroblock *currMB, ColorPlane pl, int ioff, int joff);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

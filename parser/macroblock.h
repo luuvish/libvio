@@ -14,6 +14,10 @@
 #ifndef _MACROBLOCK_H_
 #define _MACROBLOCK_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 #include "mbuffer.h"
 #include "block.h"
@@ -147,6 +151,12 @@ extern int  decode_one_macroblock(Macroblock *currMB, StorablePicture *dec_pictu
 extern Boolean  exit_macroblock  (Slice *currSlice, int eos_bit);
 extern void update_qp            (Macroblock *currMB, int qp);
 
+extern void  check_dp_neighbors (Macroblock *currMB);
+extern void  read_delta_quant   (SyntaxElement *currSE, DataPartition *dP, Macroblock *currMB, const byte *partMap, int type);
 
+
+#ifdef __cplusplus
+}
 #endif
 
+#endif

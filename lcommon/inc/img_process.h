@@ -15,11 +15,16 @@
 #ifndef _IMG_PROCESS_H_
 #define _IMG_PROCESS_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern int  init_process_image ( VideoParameters *p_Vid, InputParameters *p_Inp );
 extern void clear_process_image( VideoParameters *p_Vid, InputParameters *p_Inp);
 extern void process_image      ( VideoParameters *p_Vid, InputParameters *p_Inp );
 
-
+#ifdef __cplusplus
+}
+#endif
 
 #endif

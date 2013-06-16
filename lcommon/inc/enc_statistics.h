@@ -15,6 +15,11 @@
 
 #ifndef _ENC_STATISTICS_H_
 #define _ENC_STATISTICS_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 
 struct stat_parameters
@@ -66,5 +71,9 @@ struct stat_parameters
 #endif
 };
 typedef struct stat_parameters StatParameters;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

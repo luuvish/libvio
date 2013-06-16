@@ -16,11 +16,19 @@
 #ifndef _INTRA8x8_PRED_H_
 #define _INTRA8x8_PRED_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 #include "mbuffer.h"
 
 extern int intra_pred_8x8_normal(Macroblock *currMB, ColorPlane pl, int ioff, int joff);
 extern int intra_pred_8x8_mbaff(Macroblock *currMB, ColorPlane pl, int ioff, int joff);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

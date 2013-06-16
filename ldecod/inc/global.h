@@ -40,7 +40,6 @@ extern "C" {
 #include "win32.h"
 #include "defines.h"
 #include "ifunctions.h"
-#include "parsetcommon.h"
 #include "types.h"
 #include "io_image.h"
 #include "frame.h"
@@ -48,6 +47,7 @@ extern "C" {
 #include "io_video.h"
 
 #include "parser.h"
+#include "parset.h"
 
 
 #define ET_SIZE 300      //!< size of error text buffer
@@ -993,9 +993,6 @@ extern void tracebits2(const char *trace_str, int len, int info);
 extern unsigned CeilLog2   ( unsigned uiVal);
 extern unsigned CeilLog2_sf( unsigned uiVal);
 
-// For 4:4:4 independent mode
-extern void change_plane_JV      ( VideoParameters *p_Vid, int nplane, Slice *pSlice);
-extern void make_frame_picture_JV( VideoParameters *p_Vid );
 
 extern void FreeDecPicList ( DecodedPicList *pDecPicList );
 extern void ClearDecPicList( VideoParameters *p_Vid );

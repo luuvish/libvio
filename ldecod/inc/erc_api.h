@@ -21,6 +21,10 @@
 #ifndef _ERC_API_H_
 #define _ERC_API_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "erc_globals.h"
 
 /*
@@ -153,6 +157,10 @@ extern void write_lost_ref_after_idr     (DecodedPictureBuffer *p_Dpb, int pos);
 
 extern int comp(const void *, const void *);
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

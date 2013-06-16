@@ -86,7 +86,7 @@ void FreeNALU(NALU_t *n);
 
 #if (MVC_EXTENSION_ENABLE)
 struct nalunitheadermvcext_tag;
-void nal_unit_header_mvc_extension(NALUnitHeaderMVCExt_t *NaluHeaderMVCExt, struct bit_stream_dec *bitstream);
+void nal_unit_header_mvc_extension(struct nalunitheadermvcext_tag *NaluHeaderMVCExt, struct bit_stream_dec *bitstream);
 void nal_unit_header_svc_extension();
 void prefix_nal_unit_svc();
 #endif

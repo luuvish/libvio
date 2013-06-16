@@ -36,6 +36,66 @@ extern void deblock_normal(VideoParameters *p_Vid, StorablePicture *p);
 extern void get_strength_ver_MBAff     (byte *Strength, Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p);
 extern void get_strength_hor_MBAff     (byte *Strength, Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p);
 
+/*!
+ ************************************************************************
+ * \brief
+ *    change target plane
+ *    for 4:4:4 Independent mode
+ ************************************************************************
+ */
+void change_plane_JV( VideoParameters *p_Vid, int nplane, Slice *pSlice)
+{
+  //Slice *currSlice = p_Vid->currentSlice;
+  //p_Vid->colour_plane_id = nplane;
+  p_Vid->mb_data = p_Vid->mb_data_JV[nplane];
+  p_Vid->dec_picture  = p_Vid->dec_picture_JV[nplane];
+  p_Vid->siblock = p_Vid->siblock_JV[nplane];
+  p_Vid->ipredmode = p_Vid->ipredmode_JV[nplane];
+  p_Vid->intra_block = p_Vid->intra_block_JV[nplane];
+  if(pSlice)
+  {
+    pSlice->mb_data = p_Vid->mb_data_JV[nplane];
+    pSlice->dec_picture  = p_Vid->dec_picture_JV[nplane];
+    pSlice->siblock = p_Vid->siblock_JV[nplane];
+    pSlice->ipredmode = p_Vid->ipredmode_JV[nplane];
+    pSlice->intra_block = p_Vid->intra_block_JV[nplane];
+  }
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    make frame picture from each plane data
+ *    for 4:4:4 Independent mode
+ ************************************************************************
+ */
+void make_frame_picture_JV(VideoParameters *p_Vid)
+{
+  int uv, line;
+  int nsize;
+  p_Vid->dec_picture = p_Vid->dec_picture_JV[0];
+  //copy;
+  if(p_Vid->dec_picture->used_for_reference) 
+  {
+    nsize = (p_Vid->dec_picture->size_y/BLOCK_SIZE)*(p_Vid->dec_picture->size_x/BLOCK_SIZE)*sizeof(PicMotionParams);
+    memcpy( &(p_Vid->dec_picture->JVmv_info[PLANE_Y][0][0]), &(p_Vid->dec_picture_JV[PLANE_Y]->mv_info[0][0]), nsize);
+    memcpy( &(p_Vid->dec_picture->JVmv_info[PLANE_U][0][0]), &(p_Vid->dec_picture_JV[PLANE_U]->mv_info[0][0]), nsize);
+    memcpy( &(p_Vid->dec_picture->JVmv_info[PLANE_V][0][0]), &(p_Vid->dec_picture_JV[PLANE_V]->mv_info[0][0]), nsize);
+  }
+
+  // This could be done with pointers and seems not necessary
+  for( uv=0; uv<2; uv++ )
+  {
+    for( line=0; line<p_Vid->height; line++ )
+    {
+      nsize = sizeof(imgpel) * p_Vid->width;
+      memcpy( p_Vid->dec_picture->imgUV[uv][line], p_Vid->dec_picture_JV[uv+1]->imgY[line], nsize );
+    }
+    free_storable_picture(p_Vid->dec_picture_JV[uv+1]);
+  }
+}
+
+
 #if (JM_PARALLEL_DEBLOCK == 0)
 /*!
  *****************************************************************************************

@@ -15,6 +15,10 @@
 #ifndef _IMG_IO_H_
 #define _IMG_IO_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "io_video.h"
 #include "io_raw.h"
 #include "io_tiff.h"
@@ -26,5 +30,8 @@ extern void OpenFiles                    (VideoDataFile *input_file);
 extern void CloseFiles                   (VideoDataFile *input_file);
 extern VideoFileType ParseVideoType      (VideoDataFile *input_file);
 
+#ifdef __cplusplus
+}
 #endif
 
+#endif

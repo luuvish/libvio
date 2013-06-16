@@ -31,9 +31,6 @@
 #define TRACE_STRING_P(s)
 #endif
 
-extern void  check_dp_neighbors (Macroblock *currMB);
-extern void  read_delta_quant   (SyntaxElement *currSE, DataPartition *dP, Macroblock *currMB, const byte *partMap, int type);
-
 /*!
  ************************************************************************
  * \brief

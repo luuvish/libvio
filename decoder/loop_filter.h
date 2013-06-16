@@ -18,6 +18,10 @@
 #ifndef _LOOP_FILTER_H_
 #define _LOOP_FILTER_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 
 
@@ -64,5 +68,9 @@ static inline int compare_mvs(const MotionVector *mv0, const MotionVector *mv1, 
 {
   return ((iabs( mv0->mv_x - mv1->mv_x) >= 4) | (iabs( mv0->mv_y - mv1->mv_y) >= mvlimit));
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

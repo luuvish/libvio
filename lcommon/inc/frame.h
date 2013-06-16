@@ -12,6 +12,10 @@
 #ifndef _FRAME_H_
 #define _FRAME_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
   CM_UNKNOWN = -1,
   CM_YUV     =  0,
@@ -62,5 +66,9 @@ typedef struct frame_format
   int         pic_unit_size_on_disk;         //!< picture sample unit size on storage medium
   int         pic_unit_size_shift3;          //!< pic_unit_size_on_disk >> 3
 } FrameFormat;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

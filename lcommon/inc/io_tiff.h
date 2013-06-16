@@ -18,7 +18,14 @@
 // See TIFF 6.0 Specification
 // http://partners.adobe.com/public/developer/tiff/index.html
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern int ReadTIFFImage (InputParameters *p_Inp, VideoDataFile *input_file, int FrameNoInFile, FrameFormat *source, unsigned char *buf);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

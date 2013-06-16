@@ -14,6 +14,10 @@
 #ifndef _IO_VIDEO_H_
 #define _IO_VIDEO_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "frame.h"
 
 typedef struct video_size {
@@ -59,5 +63,8 @@ typedef struct video_data_file
   //char   compressor[8];    
 } VideoDataFile;
 
+#ifdef __cplusplus
+}
 #endif
 
+#endif

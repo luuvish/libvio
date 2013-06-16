@@ -21,6 +21,10 @@
 #ifndef _MBUFFERDEC_H_
 #define _MBUFFERDEC_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 
 #define MAX_LIST_SIZE 33
@@ -253,5 +257,10 @@ extern void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int i
 extern void process_picture_in_dpb_s(VideoParameters *p_Vid, StorablePicture *p_pic);
 extern StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePicture *p_pic );
 extern void store_proc_picture_in_dpb(DecodedPictureBuffer *p_Dpb, StorablePicture* p);
+
+
+#ifdef __cplusplus
+}
 #endif
 
+#endif

@@ -14,6 +14,10 @@
 #ifndef _QUANT_H_
 #define _QUANT_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // exported variables
 static const int dequant_coef8[6][8][8] =
 {
@@ -164,6 +168,10 @@ extern void free_qp_matrices(CodingParameters *cps);
 extern void assign_quant_params   (Slice *currslice);
 extern void CalculateQuant4x4Param(Slice *currslice);
 extern void CalculateQuant8x8Param(Slice *currslice);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

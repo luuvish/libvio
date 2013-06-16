@@ -14,6 +14,14 @@
 #ifndef _MV_PREDICTION_H_
 #define _MV_PREDICTION_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern void init_motion_vector_prediction(Macroblock *currMB, int mb_aff_frame_flag);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

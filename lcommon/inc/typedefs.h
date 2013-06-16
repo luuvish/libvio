@@ -16,6 +16,10 @@
 #ifndef _TYPEDEFS_H_
 #define _TYPEDEFS_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "win32.h"
 
 typedef unsigned char  byte;     //!< byte type definition
@@ -73,6 +77,10 @@ enum {
 #define MAXINT64     0x7fffffffffffffff
 #define MININT64     (-MAXINT64)
 */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 
