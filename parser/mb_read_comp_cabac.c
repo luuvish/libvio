@@ -510,396 +510,336 @@ static void read_comp_coeff_8x8_MB_CABAC_ls (Macroblock *currMB, SyntaxElement *
  */
 static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
 {
-  int i,j;
-  int level;
-  int cbp;
-  SyntaxElement currSE;
-  DataPartition *dP = NULL;
-  Slice *currSlice = currMB->p_Slice;
-  const byte *partMap = assignSE2partition[currSlice->dp_mode];
-  int i0, j0;
+    int i,j;
+    int level;
+    int cbp;
+    SyntaxElement currSE;
+    DataPartition *dP = NULL;
+    Slice *currSlice = currMB->p_Slice;
+    const byte *partMap = assignSE2partition[currSlice->dp_mode];
+    int i0, j0;
 
-  int qp_per, qp_rem;
-  VideoParameters *p_Vid = currMB->p_Vid;
-  int smb = ((p_Vid->type==SP_SLICE) && (currMB->is_intra_block == FALSE)) || (p_Vid->type == SI_SLICE && currMB->mb_type == SI4MB);
+    int qp_per, qp_rem;
+    VideoParameters *p_Vid = currMB->p_Vid;
+    int smb = (p_Vid->type == SP_SLICE && currMB->is_intra_block == FALSE) ||
+              (p_Vid->type == SI_SLICE && currMB->mb_type == SI4MB);
 
-  int qp_per_uv[2];
-  int qp_rem_uv[2];
+    int qp_per_uv[2];
+    int qp_rem_uv[2];
 
-  int intra = (currMB->is_intra_block == TRUE);  
+    int intra = (currMB->is_intra_block == TRUE);
 
-  StorablePicture *dec_picture = currSlice->dec_picture;
-  int yuv = dec_picture->chroma_format_idc - 1;
+    StorablePicture *dec_picture = currSlice->dec_picture;
+    int yuv = dec_picture->chroma_format_idc - 1;
 
-  int (*InvLevelScale4x4)[4] = NULL;
+    int (*InvLevelScale4x4)[4] = NULL;
 
-  // select scan type
-  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field)) ? SNGL_SCAN : FIELD_SCAN;
-  const byte *pos_scan_4x4 = pos_scan4x4[0];
+    // select scan type
+    const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field)) ? SNGL_SCAN : FIELD_SCAN;
+    const byte *pos_scan_4x4 = pos_scan4x4[0];
 
-  if (!IS_I16MB (currMB))
-  {
-    int need_transform_size_flag;
-    //=====   C B P   =====
-    //---------------------
-    currSE.type = (currMB->mb_type == I4MB || currMB->mb_type == SI4MB || currMB->mb_type == I8MB) 
-      ? SE_CBP_INTRA
-      : SE_CBP_INTER;
+    if (!IS_I16MB(currMB)) {
+        int need_transform_size_flag;
+        //=====   C B P   =====
+        //---------------------
+        currSE.type = (currMB->mb_type == I4MB || currMB->mb_type == SI4MB || currMB->mb_type == I8MB)
+                      ? SE_CBP_INTRA : SE_CBP_INTER;
+        dP = &(currSlice->partArr[partMap[currSE.type]]);
+        if (dP->bitstream->ei_flag) {
+            currSE.mapping = (currMB->mb_type == I4MB || currMB->mb_type == SI4MB || currMB->mb_type == I8MB)
+                             ? currSlice->linfo_cbp_intra : currSlice->linfo_cbp_inter;
+        } else {
+            currSE.reading = read_CBP_CABAC;
+        }
 
-    dP = &(currSlice->partArr[partMap[currSE.type]]);
-
-    if (dP->bitstream->ei_flag)
-    {
-      currSE.mapping = (currMB->mb_type == I4MB || currMB->mb_type == SI4MB || currMB->mb_type == I8MB)
-        ? currSlice->linfo_cbp_intra
-        : currSlice->linfo_cbp_inter;
-    }
-    else
-    {
-      currSE.reading = read_CBP_CABAC;
-    }
-
-    TRACE_STRING("coded_block_pattern");
-    dP->readSyntaxElement(currMB, &currSE, dP);
-    currMB->cbp = cbp = currSE.value1;
-
-    //============= Transform size flag for INTER MBs =============
-    //-------------------------------------------------------------
-    need_transform_size_flag = (((currMB->mb_type >= 1 && currMB->mb_type <= 3)||
-      (IS_DIRECT(currMB) && p_Vid->active_sps->direct_8x8_inference_flag) ||
-      (currMB->NoMbPartLessThan8x8Flag))
-      && currMB->mb_type != I8MB && currMB->mb_type != I4MB
-      && (currMB->cbp&15)
-      && currSlice->Transform8x8Mode);
-
-    if (need_transform_size_flag)
-    {
-      currSE.type   =  SE_HEADER;
-      dP = &(currSlice->partArr[partMap[SE_HEADER]]);
-      currSE.reading = readMB_transform_size_flag_CABAC;
-      TRACE_STRING("transform_size_8x8_flag");
-
-      // read CAVLC transform_size_8x8_flag
-      if (dP->bitstream->ei_flag)
-      {
-        currSE.len = 1;
-        readSyntaxElement_FLC(&currSE, dP->bitstream);
-      } 
-      else
-      {
+        TRACE_STRING("coded_block_pattern");
         dP->readSyntaxElement(currMB, &currSE, dP);
-      }
-      currMB->luma_transform_size_8x8_flag = (Boolean) currSE.value1;
-    }
+        currMB->cbp = cbp = currSE.value1;
 
-    //=====   DQUANT   =====
-    //----------------------
-    // Delta quant only if nonzero coeffs
-    if (cbp !=0)
-    {
-      read_delta_quant(&currSE, dP, currMB, partMap, ((currMB->is_intra_block == FALSE)) ? SE_DELTA_QUANT_INTER : SE_DELTA_QUANT_INTRA);
+        //============= Transform size flag for INTER MBs =============
+        //-------------------------------------------------------------
+        need_transform_size_flag =
+            ((currMB->mb_type >= 1 && currMB->mb_type <= 3) ||
+             (IS_DIRECT(currMB) && p_Vid->active_sps->direct_8x8_inference_flag) ||
+             currMB->NoMbPartLessThan8x8Flag) &&
+            (currMB->mb_type != I8MB) && (currMB->mb_type != I4MB) &&
+            (currMB->cbp & 15) && currSlice->Transform8x8Mode;
 
-      if (currSlice->dp_mode)
-      {
-        if ((currMB->is_intra_block == FALSE) && currSlice->dpC_NotPresent ) 
-          currMB->dpl_flag = 1;
+        if (need_transform_size_flag) {
+            currSE.type    = SE_HEADER;
+            currSE.reading = readMB_transform_size_flag_CABAC;
+            dP = &(currSlice->partArr[partMap[SE_HEADER]]);
+            TRACE_STRING("transform_size_8x8_flag");
 
-        if( intra && currSlice->dpB_NotPresent )
-        {
-          currMB->ei_flag = 1;
-          currMB->dpl_flag = 1;
+            // read CAVLC transform_size_8x8_flag
+            if (dP->bitstream->ei_flag) {
+                currSE.len = 1;
+                readSyntaxElement_FLC(&currSE, dP->bitstream);
+            } else
+                dP->readSyntaxElement(currMB, &currSE, dP);
+
+            currMB->luma_transform_size_8x8_flag = (Boolean)currSE.value1;
         }
 
-        // check for prediction from neighbours
-        check_dp_neighbors (currMB);
-        if (currMB->dpl_flag)
-        {
-          cbp = 0; 
-          currMB->cbp = cbp;
-        }
-      }
-    }
-  }
-  else // read DC coeffs for new intra modes
-  {
-    cbp = currMB->cbp;
-  
-    read_delta_quant(&currSE, dP, currMB, partMap, SE_DELTA_QUANT_INTRA);
+        //=====   DQUANT   =====
+        //----------------------
+        // Delta quant only if nonzero coeffs
+        if (cbp != 0) {
+            read_delta_quant(&currSE, dP, currMB, partMap,
+                currMB->is_intra_block == FALSE ? SE_DELTA_QUANT_INTER : SE_DELTA_QUANT_INTRA);
 
-    if (currSlice->dp_mode)
-    {  
-      if (currSlice->dpB_NotPresent)
-      {
-        currMB->ei_flag  = 1;
-        currMB->dpl_flag = 1;
-      }
-      check_dp_neighbors (currMB);
-      if (currMB->dpl_flag)
-      {
-        currMB->cbp = cbp = 0; 
-      }
-    }
-
-    if (!currMB->dpl_flag)
-    {
-      int **cof = currSlice->cof[0];
-      int k;
-      pos_scan_4x4 = pos_scan4x4[0];
-
-      currSE.type = SE_LUM_DC_INTRA;
-      dP = &(currSlice->partArr[partMap[currSE.type]]);
-
-      currSE.context      = LUMA_16DC;
-      currSE.type         = SE_LUM_DC_INTRA;
-
-      if (dP->bitstream->ei_flag)
-      {
-        currSE.mapping = linfo_levrun_inter;
-      }
-      else
-      {
-        currSE.reading = readRunLevel_CABAC;
-      }
-
-      level = 1;                            // just to get inside the loop
-
-      for(k = 0; (k < 17) && (level != 0); ++k)
-      {
-#if TRACE
-        snprintf(currSE.tracestring, TRACESTRING_SIZE, "DC luma 16x16 ");
-#endif
-        dP->readSyntaxElement(currMB, &currSE, dP);
-        level = currSE.value1;
-
-        if (level != 0)    /* leave if level == 0 */
-        {
-          pos_scan_4x4 += (2 * currSE.value2);
-
-          i0 = ((*pos_scan_4x4++) << 2);
-          j0 = ((*pos_scan_4x4++) << 2);
-
-          cof[j0][i0] = level;// add new intra DC coeff
-          //currSlice->fcf[0][j0][i0] = level;// add new intra DC coeff
-        }
-      }
-
-      if(currMB->is_lossless == FALSE)
-        itrans_2(currMB, (ColorPlane) currSlice->colour_plane_id);// transform new intra DC
-    }
-  }
-
-  update_qp(currMB, currSlice->qp);
-
-  qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
-  qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
-
-  // luma coefficients
-  //======= Other Modes & CABAC ========
-  //------------------------------------          
-  if (cbp)
-  {
-    if(currMB->luma_transform_size_8x8_flag) 
-    {
-      //======= 8x8 transform size & CABAC ========
-      currMB->read_comp_coeff_8x8_CABAC (currMB, &currSE, PLANE_Y); 
-    }
-    else
-    {
-      InvLevelScale4x4 = intra? currSlice->InvLevelScale4x4_Intra[currSlice->colour_plane_id][qp_rem] : currSlice->InvLevelScale4x4_Inter[currSlice->colour_plane_id][qp_rem];
-      currMB->read_comp_coeff_4x4_CABAC (currMB, &currSE, PLANE_Y, InvLevelScale4x4, qp_per, cbp);        
-    }
-  }
-
-  //init quant parameters for chroma 
-  for(i=0; i < 2; ++i)
-  {
-    qp_per_uv[i] = p_Vid->qp_per_matrix[ currMB->qp_scaled[i + 1] ];
-    qp_rem_uv[i] = p_Vid->qp_rem_matrix[ currMB->qp_scaled[i + 1] ];
-  }
-
-  //========================== CHROMA DC ============================
-  //-----------------------------------------------------------------
-  // chroma DC coeff
-  if(cbp>15)
-  {
-    CBPStructure  *s_cbp = &currMB->s_cbp[0];
-    int uv, ll, k, coef_ctr;
-
-    for (ll = 0; ll < 3; ll += 2)
-    {
-      uv = ll >> 1;
-
-      InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]] : currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
-      //===================== CHROMA DC YUV420 ======================
-      memset(currSlice->cofu, 0, 4 *sizeof(int));
-      coef_ctr=-1;
-
-      level = 1;
-      currMB->is_v_block  = ll;
-      currSE.context      = CHROMA_DC;
-      currSE.type         = (intra ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER);
-
-      dP = &(currSlice->partArr[partMap[currSE.type]]);
-
-      if (dP->bitstream->ei_flag)
-        currSE.mapping = linfo_levrun_c2x2;
-      else
-        currSE.reading = readRunLevel_CABAC;
-
-      for(k = 0; (k < (p_Vid->num_cdc_coeff + 1))&&(level!=0);++k)
-      {
-#if TRACE
-        snprintf(currSE.tracestring, TRACESTRING_SIZE, "2x2 DC Chroma ");
-#endif
-
-        dP->readSyntaxElement(currMB, &currSE, dP);
-        level = currSE.value1;
-
-        if (level != 0)
-        {
-          s_cbp->blk |= 0xf0000 << (ll<<1) ;
-          coef_ctr += currSE.value2 + 1;
-
-          // Bug: currSlice->cofu has only 4 entries, hence coef_ctr MUST be <4 (which is
-          // caught by the assert().  If it is bigger than 4, it starts patching the
-          // p_Vid->predmode pointer, which leads to bugs later on.
-          //
-          // This assert() should be left in the code, because it captures a very likely
-          // bug early when testing in error prone environments (or when testing NAL
-          // functionality).
-
-          assert (coef_ctr < p_Vid->num_cdc_coeff);
-          currSlice->cofu[coef_ctr] = level;
-        }
-      }
-
-
-      if (smb || (currMB->is_lossless == TRUE)) // check to see if MB type is SPred or SIntra4x4
-      {        
-        currSlice->cof[uv + 1][0][0] = currSlice->cofu[0];
-        currSlice->cof[uv + 1][0][4] = currSlice->cofu[1];
-        currSlice->cof[uv + 1][4][0] = currSlice->cofu[2];
-        currSlice->cof[uv + 1][4][4] = currSlice->cofu[3];
-      }
-      else
-      {
-        int temp[4];
-        int scale_dc = InvLevelScale4x4[0][0];
-        int **cof = currSlice->cof[uv + 1];
-
-        ihadamard2x2(currSlice->cofu, temp);
-
-        cof[0][0] = (((temp[0] * scale_dc) << qp_per_uv[uv]) >> 5);
-        cof[0][4] = (((temp[1] * scale_dc) << qp_per_uv[uv]) >> 5);
-        cof[4][0] = (((temp[2] * scale_dc) << qp_per_uv[uv]) >> 5);
-        cof[4][4] = (((temp[3] * scale_dc) << qp_per_uv[uv]) >> 5);
-      }          
-    }      
-  }
-
-  //========================== CHROMA AC ============================
-  //-----------------------------------------------------------------
-  // chroma AC coeff, all zero fram start_scan
-  if (cbp >31)
-  {
-    currSE.context      = CHROMA_AC;
-    currSE.type         = (currMB->is_intra_block ? SE_CHR_AC_INTRA : SE_CHR_AC_INTER);
-
-    dP = &(currSlice->partArr[partMap[currSE.type]]);
-
-    if (dP->bitstream->ei_flag)
-      currSE.mapping = linfo_levrun_inter;
-    else
-      currSE.reading = readRunLevel_CABAC;
-
-    if(currMB->is_lossless == FALSE)
-    {
-      int b4, b8, uv, k;
-      int **cof;
-      CBPStructure  *s_cbp = &currMB->s_cbp[0];
-      for (b8=0; b8 < p_Vid->num_blk8x8_uv; ++b8)
-      {
-        currMB->is_v_block = uv = (b8 > ((p_Vid->num_uv_blocks) - 1 ));
-        InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]] : currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
-        cof = currSlice->cof[uv + 1];
-
-        for (b4 = 0; b4 < 4; ++b4)
-        {
-          i = cofuv_blk_x[yuv][b8][b4];
-          j = cofuv_blk_y[yuv][b8][b4];
-
-          currMB->subblock_y = subblk_offset_y[yuv][b8][b4];
-          currMB->subblock_x = subblk_offset_x[yuv][b8][b4];
-
-          pos_scan_4x4 = pos_scan4x4[1];
-          level = 1;
-
-          for(k = 0; (k < 16) && (level != 0);++k)
-          {
-#if TRACE
-            snprintf(currSE.tracestring, TRACESTRING_SIZE, "AC Chroma ");
-#endif
-
-            dP->readSyntaxElement(currMB, &currSE, dP);
-            level = currSE.value1;
-
-            if (level != 0)
-            {
-              s_cbp->blk |= i64_power2(cbp_blk_chroma[b8][b4]);
-              pos_scan_4x4 += (currSE.value2 << 1);
-
-              i0 = *pos_scan_4x4++;
-              j0 = *pos_scan_4x4++;
-
-              cof[(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0])<<qp_per_uv[uv], 4);
+            if (currSlice->dp_mode) {
+                if (currMB->is_intra_block == FALSE && currSlice->dpC_NotPresent)
+                    currMB->dpl_flag = 1;
+                if (intra && currSlice->dpB_NotPresent) {
+                    currMB->ei_flag  = 1;
+                    currMB->dpl_flag = 1;
+                }
+                check_dp_neighbors(currMB);
+                if (currMB->dpl_flag)
+                    currMB->cbp = cbp = 0;
             }
-          } //for(k=0;(k<16)&&(level!=0);++k)
         }
-      }
-    }
-    else
-    {
-      CBPStructure  *s_cbp = &currMB->s_cbp[0];
-      int b4, b8, k;
-      int uv;
-      for (b8=0; b8 < p_Vid->num_blk8x8_uv; ++b8)
-      {
-        currMB->is_v_block = uv = (b8 > ((p_Vid->num_uv_blocks) - 1 ));
+    } else { // read DC coeffs for new intra modes
+        cbp = currMB->cbp;
+        read_delta_quant(&currSE, dP, currMB, partMap, SE_DELTA_QUANT_INTRA);
 
-        for (b4=0; b4 < 4; ++b4)
-        {
-          i = cofuv_blk_x[yuv][b8][b4];
-          j = cofuv_blk_y[yuv][b8][b4];
-
-          pos_scan_4x4 = pos_scan4x4[1];
-          level=1;
-
-          currMB->subblock_y = subblk_offset_y[yuv][b8][b4];
-          currMB->subblock_x = subblk_offset_x[yuv][b8][b4];
-
-          for(k=0;(k<16)&&(level!=0);++k)
-          {
-#if TRACE
-            snprintf(currSE.tracestring, TRACESTRING_SIZE, "AC Chroma ");
-#endif
-            dP->readSyntaxElement(currMB, &currSE, dP);
-            level = currSE.value1;
-
-            if (level != 0)
-            {
-              s_cbp->blk |= i64_power2(cbp_blk_chroma[b8][b4]);
-              pos_scan_4x4 += (currSE.value2 << 1);
-
-              i0 = *pos_scan_4x4++;
-              j0 = *pos_scan_4x4++;
-
-              currSlice->cof[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
+        if (currSlice->dp_mode) {
+            if (currSlice->dpB_NotPresent) {
+                currMB->ei_flag  = 1;
+                currMB->dpl_flag = 1;
             }
-          } 
+            check_dp_neighbors(currMB);
+            if (currMB->dpl_flag)
+                currMB->cbp = cbp = 0; 
         }
-      } 
-    } //for (b4=0; b4 < 4; b4++)      
-  }  
+
+        if (!currMB->dpl_flag) {
+            int **cof = currSlice->cof[0];
+            int k;
+            pos_scan_4x4 = pos_scan4x4[0];
+
+            currSE.context = LUMA_16DC;
+            currSE.type    = SE_LUM_DC_INTRA;
+            dP = &(currSlice->partArr[partMap[currSE.type]]);
+
+            if (dP->bitstream->ei_flag)
+                currSE.mapping = linfo_levrun_inter;
+            else
+                currSE.reading = readRunLevel_CABAC;
+
+            level = 1; // just to get inside the loop
+
+            for (k = 0; k < 17 && level != 0; ++k) {
+#if TRACE
+                snprintf(currSE.tracestring, TRACESTRING_SIZE, "DC luma 16x16 ");
+#endif
+                dP->readSyntaxElement(currMB, &currSE, dP);
+                level = currSE.value1;
+
+                if (level != 0) { /* leave if level == 0 */
+                    pos_scan_4x4 += 2 * currSE.value2;
+
+                    i0 = (*pos_scan_4x4++) << 2;
+                    j0 = (*pos_scan_4x4++) << 2;
+
+                    cof[j0][i0] = level; // add new intra DC coeff
+                }
+            }
+
+            if (currMB->is_lossless == FALSE)
+                itrans_2(currMB, (ColorPlane)currSlice->colour_plane_id); // transform new intra DC
+        }
+    }
+
+    update_qp(currMB, currSlice->qp);
+
+    qp_per = p_Vid->qp_per_matrix[currMB->qp_scaled[currSlice->colour_plane_id]];
+    qp_rem = p_Vid->qp_rem_matrix[currMB->qp_scaled[currSlice->colour_plane_id]];
+
+    // luma coefficients
+    //======= Other Modes & CABAC ========
+    //------------------------------------          
+    if (cbp) {
+        if (currMB->luma_transform_size_8x8_flag)
+            //======= 8x8 transform size & CABAC ========
+            currMB->read_comp_coeff_8x8_CABAC(currMB, &currSE, PLANE_Y); 
+        else {
+            InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[currSlice->colour_plane_id][qp_rem]
+                                     : currSlice->InvLevelScale4x4_Inter[currSlice->colour_plane_id][qp_rem];
+            currMB->read_comp_coeff_4x4_CABAC(currMB, &currSE, PLANE_Y, InvLevelScale4x4, qp_per, cbp);        
+        }
+    }
+
+    //init quant parameters for chroma 
+    for (i = 0; i < 2; ++i) {
+        qp_per_uv[i] = p_Vid->qp_per_matrix[currMB->qp_scaled[i + 1]];
+        qp_rem_uv[i] = p_Vid->qp_rem_matrix[currMB->qp_scaled[i + 1]];
+    }
+
+    //========================== CHROMA DC ============================
+    //-----------------------------------------------------------------
+    // chroma DC coeff
+    if (cbp > 15) {
+        CBPStructure *s_cbp = &currMB->s_cbp[0];
+        int uv, ll, k, coef_ctr;
+
+        for (ll = 0; ll < 3; ll += 2) {
+            uv = ll >> 1;
+
+            InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]]
+                                     : currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
+            //===================== CHROMA DC YUV420 ======================
+            memset(currSlice->cofu, 0, 4 * sizeof(int));
+            coef_ctr = -1;
+
+            level = 1;
+            currMB->is_v_block = ll;
+            currSE.context     = CHROMA_DC;
+            currSE.type        = intra ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER;
+            dP = &(currSlice->partArr[partMap[currSE.type]]);
+
+            if (dP->bitstream->ei_flag)
+                currSE.mapping = linfo_levrun_c2x2;
+            else
+                currSE.reading = readRunLevel_CABAC;
+
+            for (k = 0; k < p_Vid->num_cdc_coeff + 1 && level != 0; ++k) {
+#if TRACE
+                snprintf(currSE.tracestring, TRACESTRING_SIZE, "2x2 DC Chroma ");
+#endif
+
+                dP->readSyntaxElement(currMB, &currSE, dP);
+                level = currSE.value1;
+
+                if (level != 0) {
+                    s_cbp->blk |= 0xf0000 << (ll << 1);
+                    coef_ctr += currSE.value2 + 1;
+
+                    // Bug: currSlice->cofu has only 4 entries, hence coef_ctr MUST be <4 (which is
+                    // caught by the assert().  If it is bigger than 4, it starts patching the
+                    // p_Vid->predmode pointer, which leads to bugs later on.
+                    //
+                    // This assert() should be left in the code, because it captures a very likely
+                    // bug early when testing in error prone environments (or when testing NAL
+                    // functionality).
+
+                    assert(coef_ctr < p_Vid->num_cdc_coeff);
+                    currSlice->cofu[coef_ctr] = level;
+                }
+            }
+
+            if (smb || currMB->is_lossless == TRUE) { // check to see if MB type is SPred or SIntra4x4
+                currSlice->cof[uv + 1][0][0] = currSlice->cofu[0];
+                currSlice->cof[uv + 1][0][4] = currSlice->cofu[1];
+                currSlice->cof[uv + 1][4][0] = currSlice->cofu[2];
+                currSlice->cof[uv + 1][4][4] = currSlice->cofu[3];
+            } else {
+                int temp[4];
+                int scale_dc = InvLevelScale4x4[0][0];
+                int **cof = currSlice->cof[uv + 1];
+
+                ihadamard2x2(currSlice->cofu, temp);
+
+                cof[0][0] = (((temp[0] * scale_dc) << qp_per_uv[uv]) >> 5);
+                cof[0][4] = (((temp[1] * scale_dc) << qp_per_uv[uv]) >> 5);
+                cof[4][0] = (((temp[2] * scale_dc) << qp_per_uv[uv]) >> 5);
+                cof[4][4] = (((temp[3] * scale_dc) << qp_per_uv[uv]) >> 5);
+            }
+        }
+    }
+
+    //========================== CHROMA AC ============================
+    //-----------------------------------------------------------------
+    // chroma AC coeff, all zero fram start_scan
+    if (cbp > 31) {
+        currSE.context = CHROMA_AC;
+        currSE.type    = currMB->is_intra_block ? SE_CHR_AC_INTRA : SE_CHR_AC_INTER;
+        dP = &(currSlice->partArr[partMap[currSE.type]]);
+
+        if (dP->bitstream->ei_flag)
+            currSE.mapping = linfo_levrun_inter;
+        else
+            currSE.reading = readRunLevel_CABAC;
+
+        if (currMB->is_lossless == FALSE) {
+            int b4, b8, uv, k;
+            int **cof;
+            CBPStructure *s_cbp = &currMB->s_cbp[0];
+            for (b8 = 0; b8 < p_Vid->num_blk8x8_uv; ++b8) {
+                currMB->is_v_block = uv = b8 > (p_Vid->num_uv_blocks - 1);
+                InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]]
+                                         : currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
+                cof = currSlice->cof[uv + 1];
+
+                for (b4 = 0; b4 < 4; ++b4) {
+                    i = cofuv_blk_x[yuv][b8][b4];
+                    j = cofuv_blk_y[yuv][b8][b4];
+
+                    currMB->subblock_y = subblk_offset_y[yuv][b8][b4];
+                    currMB->subblock_x = subblk_offset_x[yuv][b8][b4];
+
+                    pos_scan_4x4 = pos_scan4x4[1];
+                    level = 1;
+
+                    for (k = 0; k < 16 && level != 0; ++k) {
+#if TRACE
+                        snprintf(currSE.tracestring, TRACESTRING_SIZE, "AC Chroma ");
+#endif
+
+                        dP->readSyntaxElement(currMB, &currSE, dP);
+                        level = currSE.value1;
+
+                        if (level != 0) {
+                            s_cbp->blk |= i64_power2(cbp_blk_chroma[b8][b4]);
+                            pos_scan_4x4 += currSE.value2 << 1;
+
+                            i0 = *pos_scan_4x4++;
+                            j0 = *pos_scan_4x4++;
+
+                            cof[(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0])<<qp_per_uv[uv], 4);
+                        }
+                    }
+                }
+            }
+        } else {
+            CBPStructure *s_cbp = &currMB->s_cbp[0];
+            int b4, b8, k;
+            int uv;
+            for (b8 = 0; b8 < p_Vid->num_blk8x8_uv; ++b8) {
+                currMB->is_v_block = uv = b8 > (p_Vid->num_uv_blocks - 1);
+
+                for (b4 = 0; b4 < 4; ++b4) {
+                    i = cofuv_blk_x[yuv][b8][b4];
+                    j = cofuv_blk_y[yuv][b8][b4];
+
+                    pos_scan_4x4 = pos_scan4x4[1];
+                    level = 1;
+
+                    currMB->subblock_y = subblk_offset_y[yuv][b8][b4];
+                    currMB->subblock_x = subblk_offset_x[yuv][b8][b4];
+
+                    for (k = 0; k < 16 && level != 0; ++k) {
+#if TRACE
+                        snprintf(currSE.tracestring, TRACESTRING_SIZE, "AC Chroma ");
+#endif
+                        dP->readSyntaxElement(currMB, &currSE, dP);
+                        level = currSE.value1;
+
+                        if (level != 0) {
+                            s_cbp->blk |= i64_power2(cbp_blk_chroma[b8][b4]);
+                            pos_scan_4x4 += currSE.value2 << 1;
+
+                            i0 = *pos_scan_4x4++;
+                            j0 = *pos_scan_4x4++;
+
+                            currSlice->cof[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 
@@ -1868,6 +1808,14 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
   } //if (dec_picture->chroma_format_idc != YUV400)  
 }
 
+/*!
+************************************************************************
+* \brief
+*    setup coefficient reading functions for CABAC
+*
+************************************************************************
+*/
+
 void set_read_CBP_and_coeffs_cabac(Slice *currSlice)
 {
     switch (currSlice->p_Vid->active_sps->chroma_format_idc) {
@@ -1893,13 +1841,6 @@ void set_read_CBP_and_coeffs_cabac(Slice *currSlice)
     }
 }
 
-/*!
-************************************************************************
-* \brief
-*    setup coefficient reading functions for CABAC
-*
-************************************************************************
-*/
 void set_read_comp_coeff_cabac(Macroblock *currMB)
 {
     if (currMB->is_lossless == FALSE) {
