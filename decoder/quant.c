@@ -14,6 +14,7 @@
  */
 
 #include "global.h"
+#include "slice.h"
 #include "memalloc.h"
 #include "block.h"
 #include "image.h"

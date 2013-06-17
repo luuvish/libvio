@@ -13,6 +13,7 @@
  *************************************************************************************
  */
 #include "global.h"
+#include "slice.h"
 #include "intra4x4_pred.h"
 #include "neighbour.h"
 #include "image.h"

@@ -23,7 +23,7 @@
 
 #include "global.h"
 #include "erc_api.h"
-#include "header.h"
+#include "slice.h"
 #include "image.h"
 #include "mbuffer.h"
 #include "mbuffer_common.h"
@@ -2498,63 +2498,6 @@ void dpb_combine_field(VideoParameters *p_Vid, FrameStore *fs)
   }
 }
 
-
-/*!
- ************************************************************************
- * \brief
- *    Allocate memory for buffering of reference picture reordering commands
- ************************************************************************
- */
-void alloc_ref_pic_list_reordering_buffer(Slice *currSlice)
-{
-  if (currSlice->slice_type != I_SLICE && currSlice->slice_type != SI_SLICE)
-  {
-    int size = currSlice->num_ref_idx_active[LIST_0] + 1;
-    if ((currSlice->modification_of_pic_nums_idc[LIST_0] = (int *)calloc(size ,sizeof(int)))==NULL) 
-       no_mem_exit("alloc_ref_pic_list_reordering_buffer: modification_of_pic_nums_idc_l0");
-    if ((currSlice->abs_diff_pic_num_minus1[LIST_0] = (int *)calloc(size,sizeof(int)))==NULL) 
-       no_mem_exit("alloc_ref_pic_list_reordering_buffer: abs_diff_pic_num_minus1_l0");
-    if ((currSlice->long_term_pic_idx[LIST_0] = (int *)calloc(size,sizeof(int)))==NULL) 
-       no_mem_exit("alloc_ref_pic_list_reordering_buffer: long_term_pic_idx_l0");
-#if (MVC_EXTENSION_ENABLE)
-    if ((currSlice->abs_diff_view_idx_minus1[LIST_0] = (int *)calloc(size,sizeof(int)))==NULL) 
-       no_mem_exit("alloc_ref_pic_list_reordering_buffer: abs_diff_view_idx_minus1_l0");
-#endif
-  }
-  else
-  {
-    currSlice->modification_of_pic_nums_idc[LIST_0] = NULL;
-    currSlice->abs_diff_pic_num_minus1[LIST_0] = NULL;
-    currSlice->long_term_pic_idx[LIST_0] = NULL;
-#if (MVC_EXTENSION_ENABLE)
-    currSlice->abs_diff_view_idx_minus1[LIST_0] = NULL;
-#endif
-  }
-
-  if (currSlice->slice_type == B_SLICE)
-  {
-    int size = currSlice->num_ref_idx_active[LIST_1] + 1;
-    if ((currSlice->modification_of_pic_nums_idc[LIST_1] = (int *)calloc(size,sizeof(int)))==NULL) 
-      no_mem_exit("alloc_ref_pic_list_reordering_buffer: modification_of_pic_nums_idc_l1");
-    if ((currSlice->abs_diff_pic_num_minus1[LIST_1] = (int *)calloc(size,sizeof(int)))==NULL) 
-      no_mem_exit("alloc_ref_pic_list_reordering_buffer: abs_diff_pic_num_minus1_l1");
-    if ((currSlice->long_term_pic_idx[LIST_1] = (int *)calloc(size,sizeof(int)))==NULL) 
-      no_mem_exit("alloc_ref_pic_list_reordering_buffer: long_term_pic_idx_l1");
-#if (MVC_EXTENSION_ENABLE)
-    if ((currSlice->abs_diff_view_idx_minus1[LIST_1] = (int *)calloc(size,sizeof(int)))==NULL) 
-      no_mem_exit("alloc_ref_pic_list_reordering_buffer: abs_diff_view_idx_minus1_l1");
-#endif
-  }
-  else
-  {
-    currSlice->modification_of_pic_nums_idc[LIST_1] = NULL;
-    currSlice->abs_diff_pic_num_minus1[LIST_1] = NULL;
-    currSlice->long_term_pic_idx[LIST_1] = NULL;
-#if (MVC_EXTENSION_ENABLE)
-    currSlice->abs_diff_view_idx_minus1[LIST_1] = NULL;
-#endif
-  }
-}
 
 
 /*!

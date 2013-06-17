@@ -13,10 +13,11 @@
 
 #include "block.h"
 #include "global.h"
+#include "slice.h"
 #include "mbuffer.h"
 #include "bitstream_elements.h"
 #include "bitstream_cabac.h"
-#include "bitstream_vlc.h"
+#include "bitstream.h"
 #include "errorconcealment.h"
 #include "macroblock.h"
 #include "fmo.h"

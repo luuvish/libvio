@@ -143,13 +143,14 @@ static const unsigned char cofuv_blk_y[3][8][4] = {
     { 2, 2, 3, 3}}
 };
 
+struct slice_t;
 
-void setup_read_macroblock(Slice *currSlice);
+void setup_read_macroblock(struct slice_t *currSlice);
 
 void read_delta_quant(SyntaxElement *currSE, DataPartition *dP, Macroblock *currMB, const byte *partMap, int type);
 
-void set_read_CBP_and_coeffs_cavlc(Slice *currSlice);
-void set_read_CBP_and_coeffs_cabac(Slice *currSlice);
+void set_read_CBP_and_coeffs_cavlc(struct slice_t *currSlice);
+void set_read_CBP_and_coeffs_cabac(struct slice_t *currSlice);
 void set_read_comp_coeff_cavlc(Macroblock *currMB);
 void set_read_comp_coeff_cabac(Macroblock *currMB);
 

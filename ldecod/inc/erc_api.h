@@ -143,13 +143,15 @@ struct concealment_node {
     struct concealment_node *next;
 };
 
+struct slice_t;
+
 extern struct concealment_node * init_node(StorablePicture* , int );
 extern void print_node( struct concealment_node * );
 extern void print_list( struct concealment_node * );
 extern void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int , PictureStructure );
 
 extern void conceal_non_ref_pics(DecodedPictureBuffer *p_Dpb, int diff);
-extern void conceal_lost_frames (DecodedPictureBuffer *p_Dpb, Slice *pSlice);
+extern void conceal_lost_frames (DecodedPictureBuffer *p_Dpb, struct slice_t *pSlice);
 
 extern void sliding_window_poc_management(DecodedPictureBuffer *p_Dpb, StorablePicture *p);
 extern void write_lost_non_ref_pic       (DecodedPictureBuffer *p_Dpb, int poc, int p_out);

@@ -252,8 +252,8 @@ typedef struct {
 
 #endif
 
-struct slice;
 struct video_par;
+struct slice_t;
 
 pic_parameter_set_rbsp_t *AllocPPS (void);
 seq_parameter_set_rbsp_t *AllocSPS (void);
@@ -271,7 +271,7 @@ void CleanUpPPS(struct video_par *p_Vid);
 void activate_sps (struct video_par *p_Vid, seq_parameter_set_rbsp_t *sps);
 void activate_pps (struct video_par *p_Vid, pic_parameter_set_rbsp_t *pps);
 
-void UseParameterSet (struct slice *currSlice);
+void UseParameterSet (struct slice_t *currSlice);
 
 #if (MVC_EXTENSION_ENABLE)
 void ProcessSubsetSPS (struct video_par *p_Vid, NALU_t *nalu);

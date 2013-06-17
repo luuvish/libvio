@@ -13,6 +13,7 @@
  */
 
 #include "global.h"
+#include "slice.h"
 #include "mbuffer.h"
 #include "neighbour.h"
 

@@ -17,7 +17,7 @@
 #include "global.h"
 #include "bitstream_elements.h"
 #include "defines.h"
-#include "header.h"
+#include "slice.h"
 #include "fmo.h"
 #include "fast_memory.h"
 

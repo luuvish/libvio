@@ -26,43 +26,105 @@ extern "C" {
 #include "global.h"
 #include "parser.h"
 
-extern MotionInfoContexts*  create_contexts_MotionInfo(void);
-extern TextureInfoContexts* create_contexts_TextureInfo(void);
-extern void delete_contexts_MotionInfo(MotionInfoContexts *enco_ctx);
-extern void delete_contexts_TextureInfo(TextureInfoContexts *enco_ctx);
+/***********************************************************************
+ * D a t a    t y p e s   f o r  C A B A C
+ ***********************************************************************
+ */
 
-extern void cabac_new_slice(Slice *currSlice);
+//! struct for context management
+typedef struct {
+    uint16        state; // index into state-table CP
+    unsigned char MPS;   // Least Probable Symbol 0/1 CP
+    unsigned char dummy; // for alignment
+} BiContextType;
 
-extern void readMB_typeInfo_CABAC_i_slice   (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void readMB_typeInfo_CABAC_p_slice   (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void readMB_typeInfo_CABAC_b_slice   (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void readB8_typeInfo_CABAC_p_slice   (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void readB8_typeInfo_CABAC_b_slice   (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void readIntraPredMode_CABAC         (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void readRefFrame_CABAC              (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void read_MVD_CABAC                  (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void read_mvd_CABAC_mbaff            (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void read_CBP_CABAC                  (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void readRunLevel_CABAC              (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void read_dQuant_CABAC               (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void readCIPredMode_CABAC            (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void read_skip_flag_CABAC_p_slice    (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void read_skip_flag_CABAC_b_slice    (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void readFieldModeInfo_CABAC         (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-extern void readMB_transform_size_flag_CABAC(Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+typedef BiContextType *BiContextTypePtr;
 
-extern void readIPCM_CABAC(Slice *currSlice, struct datapartition_dec *dP);
 
-extern int  cabac_startcode_follows(Slice *currSlice, int eos_bit);
+/**********************************************************************
+ * C O N T E X T S   F O R   T M L   S Y N T A X   E L E M E N T S
+ **********************************************************************
+ */
 
-extern int  readSyntaxElement_CABAC         (Macroblock *currMB, SyntaxElement *se, DataPartition *this_dataPart);
+#define NUM_MB_TYPE_CTX  11
+#define NUM_B8_TYPE_CTX  9
+#define NUM_MV_RES_CTX   10
+#define NUM_REF_NO_CTX   6
+#define NUM_DELTA_QP_CTX 4
+#define NUM_MB_AFF_CTX 4
+#define NUM_TRANSFORM_SIZE_CTX 3
 
-extern int check_next_mb_and_get_field_mode_CABAC_p_slice( Slice *currSlice, SyntaxElement *se, DataPartition  *act_dp);
-extern int check_next_mb_and_get_field_mode_CABAC_b_slice( Slice *currSlice, SyntaxElement *se, DataPartition  *act_dp);
+// structures that will be declared somewhere else
+struct storable_picture;
+struct datapartition_dec;
+struct syntaxelement_dec;
 
-extern void CheckAvailabilityOfNeighborsCABAC(Macroblock *currMB);
+typedef struct motion_info_context_t {
+    BiContextType mb_type_contexts [3][NUM_MB_TYPE_CTX];
+    BiContextType b8_type_contexts [2][NUM_B8_TYPE_CTX];
+    BiContextType mv_res_contexts  [2][NUM_MV_RES_CTX];
+    BiContextType ref_no_contexts  [2][NUM_REF_NO_CTX];
+    BiContextType delta_qp_contexts   [NUM_DELTA_QP_CTX];
+    BiContextType mb_aff_contexts     [NUM_MB_AFF_CTX];
+} MotionInfoContexts;
 
-extern void set_read_and_store_CBP(Macroblock **currMB, int chroma_format_idc);
+#define NUM_IPR_CTX    2
+#define NUM_CIPR_CTX   4
+#define NUM_CBP_CTX    4
+#define NUM_BCBP_CTX   4
+#define NUM_MAP_CTX   15
+#define NUM_LAST_CTX  15
+#define NUM_ONE_CTX    5
+#define NUM_ABS_CTX    5
+
+typedef struct texture_info_context_t {
+    BiContextType transform_size_contexts   [NUM_TRANSFORM_SIZE_CTX];
+    BiContextType ipr_contexts              [NUM_IPR_CTX];
+    BiContextType cipr_contexts             [NUM_CIPR_CTX];
+    BiContextType cbp_contexts           [3][NUM_CBP_CTX];
+    BiContextType bcbp_contexts             [NUM_BLOCK_TYPES][NUM_BCBP_CTX];
+    BiContextType map_contexts           [2][NUM_BLOCK_TYPES][NUM_MAP_CTX];
+    BiContextType last_contexts          [2][NUM_BLOCK_TYPES][NUM_LAST_CTX];
+    BiContextType one_contexts              [NUM_BLOCK_TYPES][NUM_ONE_CTX];
+    BiContextType abs_contexts              [NUM_BLOCK_TYPES][NUM_ABS_CTX];
+} TextureInfoContexts;
+
+//*********************** end of data type definition for CABAC *******************
+
+struct slice_t;
+
+MotionInfoContexts*  create_contexts_MotionInfo(void);
+TextureInfoContexts* create_contexts_TextureInfo(void);
+void delete_contexts_MotionInfo(MotionInfoContexts *enco_ctx);
+void delete_contexts_TextureInfo(TextureInfoContexts *enco_ctx);
+
+void cabac_new_slice(struct slice_t *currSlice);
+
+void readRefFrame_CABAC(Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void read_MVD_CABAC( Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void read_mvd_CABAC_mbaff( Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+
+void read_CBP_CABAC                  (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void readRunLevel_CABAC              (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void read_dQuant_CABAC               (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void readCIPredMode_CABAC            (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void read_skip_flag_CABAC_p_slice    (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void read_skip_flag_CABAC_b_slice    (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void readFieldModeInfo_CABAC         (Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void readMB_transform_size_flag_CABAC(Macroblock *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+
+void readIPCM_CABAC(struct slice_t *currSlice, struct datapartition_dec *dP);
+
+int  cabac_startcode_follows(struct slice_t *currSlice, int eos_bit);
+
+int  readSyntaxElement_CABAC         (Macroblock *currMB, SyntaxElement *se, DataPartition *this_dataPart);
+
+int  check_next_mb_and_get_field_mode_CABAC_p_slice(struct slice_t *currSlice, SyntaxElement *se, DataPartition  *act_dp);
+int  check_next_mb_and_get_field_mode_CABAC_b_slice(struct slice_t *currSlice, SyntaxElement *se, DataPartition  *act_dp);
+
+void CheckAvailabilityOfNeighborsCABAC(Macroblock *currMB);
+
+void set_read_and_store_CBP(Macroblock **currMB, int chroma_format_idc);
 
 #ifdef __cplusplus
 }

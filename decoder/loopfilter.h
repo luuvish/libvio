@@ -17,8 +17,10 @@ extern "C" {
 #include "global.h"
 #include "mbuffer.h"
 
+struct slice_t;
+
 // For 4:4:4 independent mode
-extern void change_plane_JV      ( VideoParameters *p_Vid, int nplane, Slice *pSlice);
+extern void change_plane_JV      ( VideoParameters *p_Vid, int nplane, struct slice_t *pSlice);
 extern void make_frame_picture_JV( VideoParameters *p_Vid );
 
 extern void DeblockPicture(VideoParameters *p_Vid, StorablePicture *p) ;

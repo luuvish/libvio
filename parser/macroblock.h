@@ -22,12 +22,13 @@ extern "C" {
 #include "mbuffer.h"
 #include "block.h"
 
+struct slice_t;
 
-extern void setup_slice_methods(Slice *currSlice);
+extern void setup_slice_methods(struct slice_t *currSlice);
 
-extern void start_macroblock     (Slice *currSlice, Macroblock **currMB);
+extern void start_macroblock     (struct slice_t *currSlice, Macroblock **currMB);
 extern int  decode_one_macroblock(Macroblock *currMB, StorablePicture *dec_picture);
-extern Boolean  exit_macroblock  (Slice *currSlice, int eos_bit);
+extern Boolean  exit_macroblock  (struct slice_t *currSlice, int eos_bit);
 extern void update_qp            (Macroblock *currMB, int qp);
 
 

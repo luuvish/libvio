@@ -13,6 +13,7 @@
  *************************************************************************************
  */
 #include "global.h"
+#include "slice.h"
 #include "intra4x4_pred.h"
 #include "intra8x8_pred.h"
 #include "intra16x16_pred.h"

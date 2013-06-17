@@ -12,8 +12,9 @@
 */
 
 #include "global.h"
+#include "slice.h"
 #include "bitstream_elements.h"
-#include "bitstream_vlc.h"
+#include "bitstream.h"
 #include "macroblock.h"
 #include "mb_read.h"
 #include "fast_memory.h"
@@ -34,6 +35,580 @@
 
 #define IS_I16MB(MB)    ((MB)->mb_type==I16MB  || (MB)->mb_type==IPCM)
 #define IS_DIRECT(MB)   ((MB)->mb_type==0     && (currSlice->slice_type == B_SLICE ))
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *  Reads bits from the bitstream buffer (Threshold based)
+ *
+ * \param inf
+ *    bytes to extract numbits from with bitoffset already applied
+ * \param numbits
+ *    number of bits to read
+ *
+ ************************************************************************
+ */
+
+static inline int ShowBitsThres (int inf, int numbits)
+{
+  return ((inf) >> ((sizeof(byte) * 24) - (numbits)));
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    code from bitstream (2d tables)
+ ************************************************************************
+ */
+
+static int code_from_bitstream_2d(SyntaxElement *sym,
+                                  Bitstream *currStream,
+                                  const byte *lentab,
+                                  const byte *codtab,
+                                  int tabwidth,
+                                  int tabheight,
+                                  int *code)
+{
+  int i, j;
+  const byte *len = &lentab[0], *cod = &codtab[0];
+
+  int *frame_bitoffset = &currStream->frame_bitoffset;
+  byte *buf            = &currStream->streamBuffer[*frame_bitoffset >> 3];
+
+  //Apply bitoffset to three bytes (maximum that may be traversed by ShowBitsThres)
+  unsigned int inf = ((*buf) << 16) + (*(buf + 1) << 8) + *(buf + 2); //Even at the end of a stream we will still be pulling out of allocated memory as alloc is done by MAX_CODED_FRAME_SIZE
+  inf <<= (*frame_bitoffset & 0x07);                                  //Offset is constant so apply before extracting different numbers of bits
+  inf  &= 0xFFFFFF;                                                   //Arithmetic shift so wipe any sign which may be extended inside ShowBitsThres
+  
+  // this VLC decoding method is not optimized for speed
+  for (j = 0; j < tabheight; j++) 
+  {
+    for (i = 0; i < tabwidth; i++)
+    {
+      if ((*len == 0) || (ShowBitsThres(inf, (int) *len) != *cod))
+      {
+        ++len;
+        ++cod;
+      }
+      else
+      {
+        sym->len = *len;
+        *frame_bitoffset += *len; // move bitstream pointer
+        *code = *cod;             
+        sym->value1 = i;
+        sym->value2 = j;        
+        return 0;                 // found code and return 
+      }
+    }
+  }
+  return -1;  // failed to find code
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    read NumCoeff/TrailingOnes codeword from UVLC-partition
+ ************************************************************************
+ */
+
+static int readSyntaxElement_NumCoeffTrailingOnes(SyntaxElement *sym,  
+                                           Bitstream *currStream,
+                                           char *type)
+{
+  int frame_bitoffset        = currStream->frame_bitoffset;
+  int BitstreamLengthInBytes = currStream->bitstream_length;
+  int BitstreamLengthInBits  = (BitstreamLengthInBytes << 3) + 7;
+  byte *buf                  = currStream->streamBuffer;
+
+  static const byte lentab[3][4][17] =
+  {
+    {   // 0702
+      { 1, 6, 8, 9,10,11,13,13,13,14,14,15,15,16,16,16,16},
+      { 0, 2, 6, 8, 9,10,11,13,13,14,14,15,15,15,16,16,16},
+      { 0, 0, 3, 7, 8, 9,10,11,13,13,14,14,15,15,16,16,16},
+      { 0, 0, 0, 5, 6, 7, 8, 9,10,11,13,14,14,15,15,16,16},
+    },
+    {
+      { 2, 6, 6, 7, 8, 8, 9,11,11,12,12,12,13,13,13,14,14},
+      { 0, 2, 5, 6, 6, 7, 8, 9,11,11,12,12,13,13,14,14,14},
+      { 0, 0, 3, 6, 6, 7, 8, 9,11,11,12,12,13,13,13,14,14},
+      { 0, 0, 0, 4, 4, 5, 6, 6, 7, 9,11,11,12,13,13,13,14},
+    },
+    {
+      { 4, 6, 6, 6, 7, 7, 7, 7, 8, 8, 9, 9, 9,10,10,10,10},
+      { 0, 4, 5, 5, 5, 5, 6, 6, 7, 8, 8, 9, 9, 9,10,10,10},
+      { 0, 0, 4, 5, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9,10,10,10},
+      { 0, 0, 0, 4, 4, 4, 4, 4, 5, 6, 7, 8, 8, 9,10,10,10},
+    },
+  };
+
+  static const byte codtab[3][4][17] =
+  {
+    {
+      { 1, 5, 7, 7, 7, 7,15,11, 8,15,11,15,11,15,11, 7,4},
+      { 0, 1, 4, 6, 6, 6, 6,14,10,14,10,14,10, 1,14,10,6},
+      { 0, 0, 1, 5, 5, 5, 5, 5,13, 9,13, 9,13, 9,13, 9,5},
+      { 0, 0, 0, 3, 3, 4, 4, 4, 4, 4,12,12, 8,12, 8,12,8},
+    },
+    {
+      { 3,11, 7, 7, 7, 4, 7,15,11,15,11, 8,15,11, 7, 9,7},
+      { 0, 2, 7,10, 6, 6, 6, 6,14,10,14,10,14,10,11, 8,6},
+      { 0, 0, 3, 9, 5, 5, 5, 5,13, 9,13, 9,13, 9, 6,10,5},
+      { 0, 0, 0, 5, 4, 6, 8, 4, 4, 4,12, 8,12,12, 8, 1,4},
+    },
+    {
+      {15,15,11, 8,15,11, 9, 8,15,11,15,11, 8,13, 9, 5,1},
+      { 0,14,15,12,10, 8,14,10,14,14,10,14,10, 7,12, 8,4},
+      { 0, 0,13,14,11, 9,13, 9,13,10,13, 9,13, 9,11, 7,3},
+      { 0, 0, 0,12,11,10, 9, 8,13,12,12,12, 8,12,10, 6,2},
+    },
+  };
+
+  int retval = 0, code;
+  int vlcnum = sym->value1;
+  // vlcnum is the index of Table used to code coeff_token
+  // vlcnum==3 means (8<=nC) which uses 6bit FLC
+
+  if (vlcnum == 3)
+  {
+    // read 6 bit FLC
+    code = ShowBits(buf, frame_bitoffset, BitstreamLengthInBits, 6);
+    currStream->frame_bitoffset += 6;
+    sym->value2 = (code & 3);
+    sym->value1 = (code >> 2);
+
+    if (!sym->value1 && sym->value2 == 3)
+    {
+      // #c = 0, #t1 = 3 =>  #c = 0
+      sym->value2 = 0;
+    }
+    else
+      sym->value1++;
+
+    sym->len = 6;
+  }
+  else
+  {
+    retval = code_from_bitstream_2d(sym, currStream, lentab[vlcnum][0], codtab[vlcnum][0], 17, 4, &code);
+    if (retval)
+    {
+      printf("ERROR: failed to find NumCoeff/TrailingOnes\n");
+      exit(-1);
+    }
+  }
+
+#if TRACE
+  snprintf(sym->tracestring, TRACESTRING_SIZE, "%s # c & tr.1s vlc=%d #c=%d #t1=%d",
+           type, vlcnum, sym->value1, sym->value2);
+  tracebits2(sym->tracestring, sym->len, code);
+#endif
+
+  return retval;
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    read NumCoeff/TrailingOnes codeword from UVLC-partition ChromaDC
+ ************************************************************************
+ */
+static int readSyntaxElement_NumCoeffTrailingOnesChromaDC(VideoParameters *p_Vid, SyntaxElement *sym,  Bitstream *currStream)
+{
+  static const byte lentab[3][4][17] =
+  {
+    //YUV420
+    {{ 2, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 1, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 0, 3, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 0, 0, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+    //YUV422
+    {{ 1, 7, 7, 9, 9,10,11,12,13, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 2, 7, 7, 9,10,11,12,12, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 0, 3, 7, 7, 9,10,11,12, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 0, 0, 5, 6, 7, 7,10,11, 0, 0, 0, 0, 0, 0, 0, 0}},
+    //YUV444
+    {{ 1, 6, 8, 9,10,11,13,13,13,14,14,15,15,16,16,16,16},
+    { 0, 2, 6, 8, 9,10,11,13,13,14,14,15,15,15,16,16,16},
+    { 0, 0, 3, 7, 8, 9,10,11,13,13,14,14,15,15,16,16,16},
+    { 0, 0, 0, 5, 6, 7, 8, 9,10,11,13,14,14,15,15,16,16}}
+  };
+
+  static const byte codtab[3][4][17] =
+  {
+    //YUV420
+    {{ 1, 7, 4, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 1, 6, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+    //YUV422
+    {{ 1,15,14, 7, 6, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 1,13,12, 5, 6, 6, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 0, 1,11,10, 4, 5, 5, 4, 0, 0, 0, 0, 0, 0, 0, 0},
+    { 0, 0, 0, 1, 1, 9, 8, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0}},
+    //YUV444
+    {{ 1, 5, 7, 7, 7, 7,15,11, 8,15,11,15,11,15,11, 7, 4},
+    { 0, 1, 4, 6, 6, 6, 6,14,10,14,10,14,10, 1,14,10, 6},
+    { 0, 0, 1, 5, 5, 5, 5, 5,13, 9,13, 9,13, 9,13, 9, 5},
+    { 0, 0, 0, 3, 3, 4, 4, 4, 4, 4,12,12, 8,12, 8,12, 8}}
+
+  };
+
+  int code;
+  int yuv = p_Vid->active_sps->chroma_format_idc - 1;
+  int retval = code_from_bitstream_2d(sym, currStream, &lentab[yuv][0][0], &codtab[yuv][0][0], 17, 4, &code);
+
+  if (retval)
+  {
+    printf("ERROR: failed to find NumCoeff/TrailingOnes ChromaDC\n");
+    exit(-1);
+  }
+
+#if TRACE
+  snprintf(sym->tracestring, TRACESTRING_SIZE, "ChrDC # c & tr.1s  #c=%d #t1=%d",
+    sym->value1, sym->value2);
+  tracebits2(sym->tracestring, sym->len, code);
+
+#endif
+
+  return retval;
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    read Level VLC0 codeword from UVLC-partition
+ ************************************************************************
+ */
+static int readSyntaxElement_Level_VLC0(SyntaxElement *sym, Bitstream *currStream)
+{
+  int frame_bitoffset        = currStream->frame_bitoffset;
+  int BitstreamLengthInBytes = currStream->bitstream_length;
+  int BitstreamLengthInBits  = (BitstreamLengthInBytes << 3) + 7;
+  byte *buf                  = currStream->streamBuffer;
+  int len = 1, sign = 0, level = 0, code = 1;
+
+  while (!ShowBits(buf, frame_bitoffset++, BitstreamLengthInBits, 1))
+    len++;
+
+  if (len < 15)
+  {
+    sign  = (len - 1) & 1;
+    level = ((len - 1) >> 1) + 1;
+  }
+  else if (len == 15)
+  {
+    // escape code
+    code <<= 4;
+    code |= ShowBits(buf, frame_bitoffset, BitstreamLengthInBits, 4);
+    len  += 4;
+    frame_bitoffset += 4;
+    sign = (code & 0x01);
+    level = ((code >> 1) & 0x07) + 8;
+  }
+  else if (len >= 16)
+  {
+    // escape code
+    int addbit = (len - 16);
+    int offset = (2048 << addbit) - 2032;
+    len   -= 4;
+    code   = ShowBits(buf, frame_bitoffset, BitstreamLengthInBits, len);
+    sign   = (code & 0x01);
+    frame_bitoffset += len;    
+    level = (code >> 1) + offset;
+
+    code |= (1 << (len)); // for display purpose only
+    len += addbit + 16;
+ }
+
+  sym->inf = (sign) ? -level : level ;
+  sym->len = len;
+
+#if TRACE
+  tracebits2(sym->tracestring, sym->len, code);
+#endif
+
+  currStream->frame_bitoffset = frame_bitoffset;
+  return 0;
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    read Level VLC codeword from UVLC-partition
+ ************************************************************************
+ */
+static int readSyntaxElement_Level_VLCN(SyntaxElement *sym, int vlc, Bitstream *currStream)
+{
+  int frame_bitoffset        = currStream->frame_bitoffset;
+  int BitstreamLengthInBytes = currStream->bitstream_length;
+  int BitstreamLengthInBits  = (BitstreamLengthInBytes << 3) + 7;
+  byte *buf                  = currStream->streamBuffer;
+
+  int levabs, sign;
+  int len = 1;
+  int code = 1, sb;
+
+  int shift = vlc - 1;
+
+  // read pre zeros
+  while (!ShowBits(buf, frame_bitoffset ++, BitstreamLengthInBits, 1))
+    len++;
+
+  frame_bitoffset -= len;
+
+  if (len < 16)
+  {
+    levabs = ((len - 1) << shift) + 1;
+
+    // read (vlc-1) bits -> suffix
+    if (shift)
+    {
+      sb =  ShowBits(buf, frame_bitoffset + len, BitstreamLengthInBits, shift);
+      code = (code << (shift) )| sb;
+      levabs += sb;
+      len += (shift);
+    }
+
+    // read 1 bit -> sign
+    sign = ShowBits(buf, frame_bitoffset + len, BitstreamLengthInBits, 1);
+    code = (code << 1)| sign;
+    len ++;
+  }
+  else // escape
+  {
+    int addbit = len - 5;
+    int offset = (1 << addbit) + (15 << shift) - 2047;
+
+    sb = ShowBits(buf, frame_bitoffset + len, BitstreamLengthInBits, addbit);
+    code = (code << addbit ) | sb;
+    len   += addbit;
+
+    levabs = sb + offset;
+    
+    // read 1 bit -> sign
+    sign = ShowBits(buf, frame_bitoffset + len, BitstreamLengthInBits, 1);
+
+    code = (code << 1)| sign;
+
+    len++;
+  }
+
+  sym->inf = (sign)? -levabs : levabs;
+  sym->len = len;
+
+  currStream->frame_bitoffset = frame_bitoffset + len;
+
+#if TRACE
+  tracebits2(sym->tracestring, sym->len, code);
+#endif
+
+  return 0;
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    read Total Zeros codeword from UVLC-partition
+ ************************************************************************
+ */
+static int readSyntaxElement_TotalZeros(SyntaxElement *sym,  Bitstream *currStream)
+{
+  static const byte lentab[TOTRUN_NUM][16] =
+  {
+
+    { 1,3,3,4,4,5,5,6,6,7,7,8,8,9,9,9},
+    { 3,3,3,3,3,4,4,4,4,5,5,6,6,6,6},
+    { 4,3,3,3,4,4,3,3,4,5,5,6,5,6},
+    { 5,3,4,4,3,3,3,4,3,4,5,5,5},
+    { 4,4,4,3,3,3,3,3,4,5,4,5},
+    { 6,5,3,3,3,3,3,3,4,3,6},
+    { 6,5,3,3,3,2,3,4,3,6},
+    { 6,4,5,3,2,2,3,3,6},
+    { 6,6,4,2,2,3,2,5},
+    { 5,5,3,2,2,2,4},
+    { 4,4,3,3,1,3},
+    { 4,4,2,1,3},
+    { 3,3,1,2},
+    { 2,2,1},
+    { 1,1},
+  };
+
+  static const byte codtab[TOTRUN_NUM][16] =
+  {
+    {1,3,2,3,2,3,2,3,2,3,2,3,2,3,2,1},
+    {7,6,5,4,3,5,4,3,2,3,2,3,2,1,0},
+    {5,7,6,5,4,3,4,3,2,3,2,1,1,0},
+    {3,7,5,4,6,5,4,3,3,2,2,1,0},
+    {5,4,3,7,6,5,4,3,2,1,1,0},
+    {1,1,7,6,5,4,3,2,1,1,0},
+    {1,1,5,4,3,3,2,1,1,0},
+    {1,1,1,3,3,2,2,1,0},
+    {1,0,1,3,2,1,1,1,},
+    {1,0,1,3,2,1,1,},
+    {0,1,1,2,1,3},
+    {0,1,1,1,1},
+    {0,1,1,1},
+    {0,1,1},
+    {0,1},
+  };
+
+  int code;
+  int vlcnum = sym->value1;
+  int retval = code_from_bitstream_2d(sym, currStream, &lentab[vlcnum][0], &codtab[vlcnum][0], 16, 1, &code);
+
+  if (retval)
+  {
+    printf("ERROR: failed to find Total Zeros !cdc\n");
+    exit(-1);
+  }
+
+#if TRACE
+  tracebits2(sym->tracestring, sym->len, code);
+#endif
+
+  return retval;
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    read Total Zeros Chroma DC codeword from UVLC-partition
+ ************************************************************************
+ */
+static int readSyntaxElement_TotalZerosChromaDC(VideoParameters *p_Vid, SyntaxElement *sym,  Bitstream *currStream)
+{
+  static const byte lentab[3][TOTRUN_NUM][16] =
+  {
+    //YUV420
+   {{ 1,2,3,3},
+    { 1,2,2},
+    { 1,1}},
+    //YUV422
+   {{ 1,3,3,4,4,4,5,5},
+    { 3,2,3,3,3,3,3},
+    { 3,3,2,2,3,3},
+    { 3,2,2,2,3},
+    { 2,2,2,2},
+    { 2,2,1},
+    { 1,1}},
+    //YUV444
+   {{ 1,3,3,4,4,5,5,6,6,7,7,8,8,9,9,9},
+    { 3,3,3,3,3,4,4,4,4,5,5,6,6,6,6},
+    { 4,3,3,3,4,4,3,3,4,5,5,6,5,6},
+    { 5,3,4,4,3,3,3,4,3,4,5,5,5},
+    { 4,4,4,3,3,3,3,3,4,5,4,5},
+    { 6,5,3,3,3,3,3,3,4,3,6},
+    { 6,5,3,3,3,2,3,4,3,6},
+    { 6,4,5,3,2,2,3,3,6},
+    { 6,6,4,2,2,3,2,5},
+    { 5,5,3,2,2,2,4},
+    { 4,4,3,3,1,3},
+    { 4,4,2,1,3},
+    { 3,3,1,2},
+    { 2,2,1},
+    { 1,1}}
+  };
+
+  static const byte codtab[3][TOTRUN_NUM][16] =
+  {
+    //YUV420
+   {{ 1,1,1,0},
+    { 1,1,0},
+    { 1,0}},
+    //YUV422
+   {{ 1,2,3,2,3,1,1,0},
+    { 0,1,1,4,5,6,7},
+    { 0,1,1,2,6,7},
+    { 6,0,1,2,7},
+    { 0,1,2,3},
+    { 0,1,1},
+    { 0,1}},
+    //YUV444
+   {{1,3,2,3,2,3,2,3,2,3,2,3,2,3,2,1},
+    {7,6,5,4,3,5,4,3,2,3,2,3,2,1,0},
+    {5,7,6,5,4,3,4,3,2,3,2,1,1,0},
+    {3,7,5,4,6,5,4,3,3,2,2,1,0},
+    {5,4,3,7,6,5,4,3,2,1,1,0},
+    {1,1,7,6,5,4,3,2,1,1,0},
+    {1,1,5,4,3,3,2,1,1,0},
+    {1,1,1,3,3,2,2,1,0},
+    {1,0,1,3,2,1,1,1,},
+    {1,0,1,3,2,1,1,},
+    {0,1,1,2,1,3},
+    {0,1,1,1,1},
+    {0,1,1,1},
+    {0,1,1},
+    {0,1}}
+  };
+
+  int code;
+  int yuv = p_Vid->active_sps->chroma_format_idc - 1;
+  int vlcnum = sym->value1;
+  int retval = code_from_bitstream_2d(sym, currStream, &lentab[yuv][vlcnum][0], &codtab[yuv][vlcnum][0], 16, 1, &code);
+
+  if (retval)
+  {
+    printf("ERROR: failed to find Total Zeros\n");
+    exit(-1);
+  }
+
+#if TRACE
+  tracebits2(sym->tracestring, sym->len, code);
+#endif
+
+  return retval;
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    read  Run codeword from UVLC-partition
+ ************************************************************************
+ */
+static int readSyntaxElement_Run(SyntaxElement *sym, Bitstream *currStream)
+{
+  static const byte lentab[TOTRUN_NUM][16] =
+  {
+    {1,1},
+    {1,2,2},
+    {2,2,2,2},
+    {2,2,2,3,3},
+    {2,2,3,3,3,3},
+    {2,3,3,3,3,3,3},
+    {3,3,3,3,3,3,3,4,5,6,7,8,9,10,11},
+  };
+
+  static const byte codtab[TOTRUN_NUM][16] =
+  {
+    {1,0},
+    {1,1,0},
+    {3,2,1,0},
+    {3,2,1,1,0},
+    {3,2,3,2,1,0},
+    {3,0,1,3,2,5,4},
+    {7,6,5,4,3,2,1,1,1,1,1,1,1,1,1},
+  };
+  int code;
+  int vlcnum = sym->value1;
+  int retval = code_from_bitstream_2d(sym, currStream, &lentab[vlcnum][0], &codtab[vlcnum][0], 16, 1, &code);
+
+  if (retval)
+  {
+    printf("ERROR: failed to find Run\n");
+    exit(-1);
+  }
+
+#if TRACE
+  tracebits2(sym->tracestring, sym->len, code);
+#endif
+
+  return retval;
+}
 
 
 /*!
@@ -1637,37 +2212,20 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
  */
 static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
 {
-    int i,j,k;
     int mb_nr = currMB->mbAddrX;
     int cbp;
     SyntaxElement currSE;
-    DataPartition *dP = NULL;
+    VideoParameters *p_Vid = currMB->p_Vid;
     Slice *currSlice = currMB->p_Slice;
+    DataPartition *dP = NULL;
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
-    int coef_ctr, i0, j0, b8;
-    int ll;
-    int levarr[16], runarr[16], numcoeff;
 
     int qp_per, qp_rem;
-    VideoParameters *p_Vid = currMB->p_Vid;
-    int smb = (p_Vid->type == SP_SLICE && currMB->is_intra_block == FALSE) ||
-              (p_Vid->type == SI_SLICE && currMB->mb_type == SI4MB);
-
-    int uv; 
     int qp_per_uv[2];
     int qp_rem_uv[2];
 
-    int intra = (currMB->is_intra_block == TRUE);
-    int temp[4];
-
-    int b4;
-
-    int need_transform_size_flag;
-
-    int (*InvLevelScale4x4)[4] = NULL;
-    int (*InvLevelScale8x8)[8] = NULL;
     // select scan type
-    const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field)) ? SNGL_SCAN : FIELD_SCAN;
+    const byte (*pos_scan4x4)[2] = p_Vid->structure == FRAME && !currMB->mb_field ? SNGL_SCAN : FIELD_SCAN;
     const byte *pos_scan_4x4 = pos_scan4x4[0];
 
     // read CBP if not new intra mode
@@ -1686,7 +2244,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
 
         //============= Transform size flag for INTER MBs =============
         //-------------------------------------------------------------
-        need_transform_size_flag =
+        int need_transform_size_flag =
             ((currMB->mb_type >= 1 && currMB->mb_type <= 3) ||
              (IS_DIRECT(currMB) && p_Vid->active_sps->direct_8x8_inference_flag) ||
              currMB->NoMbPartLessThan8x8Flag) &&
@@ -1709,6 +2267,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
         //----------------------
         // Delta quant only if nonzero coeffs
         if (cbp != 0) {
+            int intra = currMB->is_intra_block == TRUE;
             read_delta_quant(&currSE, dP, currMB, partMap,
                 currMB->is_intra_block == FALSE ? SE_DELTA_QUANT_INTER : SE_DELTA_QUANT_INTRA);
 
@@ -1739,6 +2298,8 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
         }
 
         if (!currMB->dpl_flag) {
+            int k, i0, j0;
+            int levarr[16], runarr[16], numcoeff;
             pos_scan_4x4 = pos_scan4x4[0];
 
             currSlice->read_coeff_4x4_CAVLC(currMB, LUMA_INTRA16x16DC, 0, 0, levarr, runarr, &numcoeff);
@@ -1764,23 +2325,27 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
     qp_per = p_Vid->qp_per_matrix[currMB->qp_scaled[currSlice->colour_plane_id]];
     qp_rem = p_Vid->qp_rem_matrix[currMB->qp_scaled[currSlice->colour_plane_id]];
 
+    int i;
     //init quant parameters for chroma 
     for (i = 0; i < 2; ++i) {
         qp_per_uv[i] = p_Vid->qp_per_matrix[currMB->qp_scaled[i + 1]];
         qp_rem_uv[i] = p_Vid->qp_rem_matrix[currMB->qp_scaled[i + 1]];
     }
 
-    InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[currSlice->colour_plane_id][qp_rem]
-                             : currSlice->InvLevelScale4x4_Inter[currSlice->colour_plane_id][qp_rem];
-    InvLevelScale8x8 = intra ? currSlice->InvLevelScale8x8_Intra[currSlice->colour_plane_id][qp_rem]
-                             : currSlice->InvLevelScale8x8_Inter[currSlice->colour_plane_id][qp_rem];
-
     // luma coefficients
     if (cbp) {
-        if (!currMB->luma_transform_size_8x8_flag) // 4x4 transform
+        int intra = currMB->is_intra_block == TRUE;
+        if (!currMB->luma_transform_size_8x8_flag) { // 4x4 transform
+            int (*InvLevelScale4x4)[4] = NULL;
+            InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[currSlice->colour_plane_id][qp_rem]
+                                     : currSlice->InvLevelScale4x4_Inter[currSlice->colour_plane_id][qp_rem];
             currMB->read_comp_coeff_4x4_CAVLC(currMB, PLANE_Y, InvLevelScale4x4, qp_per, cbp, p_Vid->nz_coeff[mb_nr][PLANE_Y]);
-        else // 8x8 transform
+        } else { // 8x8 transform
+            int (*InvLevelScale8x8)[8] = NULL;
+            InvLevelScale8x8 = intra ? currSlice->InvLevelScale8x8_Intra[currSlice->colour_plane_id][qp_rem]
+                                     : currSlice->InvLevelScale8x8_Inter[currSlice->colour_plane_id][qp_rem];
             currMB->read_comp_coeff_8x8_CAVLC(currMB, PLANE_Y, InvLevelScale8x8, qp_per, cbp, p_Vid->nz_coeff[mb_nr][PLANE_Y]);
+        }
     } else
         fast_memset(p_Vid->nz_coeff[mb_nr][0][0], 0, BLOCK_PIXELS * sizeof(byte));
 
@@ -1788,6 +2353,13 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
     //-----------------------------------------------------------------
     // chroma DC coeff
     if (cbp > 15) {
+        int ll, uv;
+        int k;
+        int coef_ctr;
+        int (*InvLevelScale4x4)[4] = NULL;
+        int intra = currMB->is_intra_block == TRUE;
+        int levarr[16], runarr[16], numcoeff;
+
         for (ll = 0; ll < 3; ll += 2) {
             uv = ll >> 1;
 
@@ -1807,12 +2379,15 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
                 }
             }
 
+            int smb = (p_Vid->type == SP_SLICE && currMB->is_intra_block == FALSE) ||
+                      (p_Vid->type == SI_SLICE && currMB->mb_type == SI4MB);
             if (smb || currMB->is_lossless == TRUE) { // check to see if MB type is SPred or SIntra4x4
                 currSlice->cof[PLANE_U + uv][0][0] = currSlice->cofu[0];
                 currSlice->cof[PLANE_U + uv][0][4] = currSlice->cofu[1];
                 currSlice->cof[PLANE_U + uv][4][0] = currSlice->cofu[2];
                 currSlice->cof[PLANE_U + uv][4][4] = currSlice->cofu[3];
             } else {
+                int temp[4];
                 ihadamard2x2(currSlice->cofu, temp);
 
                 currSlice->cof[PLANE_U + uv][0][0] = ((temp[0] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;
@@ -1829,6 +2404,14 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
     if (cbp <= 31)
         fast_memset(p_Vid->nz_coeff[mb_nr][1][0], 0, 2 * BLOCK_PIXELS * sizeof(byte));
     else {
+        int b8, b4;
+        int uv;
+        int k, i, j;
+        int coef_ctr, i0, j0;
+        int (*InvLevelScale4x4)[4] = NULL;
+        int intra = currMB->is_intra_block == TRUE;
+        int levarr[16], runarr[16], numcoeff;
+
         for (b8 = 0; b8 < p_Vid->num_blk8x8_uv; ++b8) {
             currMB->is_v_block = uv = b8 > (p_Vid->num_uv_blocks - 1);
             if (currMB->is_lossless == FALSE)

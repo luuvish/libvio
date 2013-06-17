@@ -19,7 +19,7 @@
 #include "bitstream_nal.h"
 #include "memalloc.h"
 #if (MVC_EXTENSION_ENABLE)
-#include "bitstream_vlc.h"
+#include "bitstream.h"
 #endif
 
 /*!

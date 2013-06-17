@@ -56,6 +56,28 @@ void open_bitstream(struct bitstream_t **bitstream,
 void close_bitstream(struct bitstream_t *bitstream);
 void reset_bitstream(struct bitstream_t *bitstream);
 
+struct datapartition_dec;
+struct syntaxelement_dec;
+struct macroblock_dec;
+
+int read_se_v (char *tracestring, Bitstream *bitstream, int *used_bits);
+int read_ue_v (char *tracestring, Bitstream *bitstream, int *used_bits);
+Boolean read_u_1 (char *tracestring, Bitstream *bitstream, int *used_bits);
+int read_u_v (int LenInBits, char *tracestring, Bitstream *bitstream, int *used_bits);
+int read_i_v (int LenInBits, char *tracestring, Bitstream *bitstream, int *used_bits);
+
+// CAVLC mapping
+void linfo_ue(int len, int info, int *value1, int *dummy);
+void linfo_se(int len, int info, int *value1, int *dummy);
+
+int  readSyntaxElement_VLC (struct syntaxelement_dec *sym, Bitstream *currStream);
+int  readSyntaxElement_UVLC(struct macroblock_dec *currMB, struct syntaxelement_dec *sym, struct datapartition_dec *dp);
+int  readSyntaxElement_FLC(struct syntaxelement_dec *sym, Bitstream *currStream);
+int  GetBits  (byte buffer[],int totbitoffset,int *info, int bitcount, int numbits);
+int  ShowBits (byte buffer[],int totbitoffset,int bitcount, int numbits);
+
+int  more_rbsp_data (byte buffer[],int totbitoffset,int bytecount);
+
 #ifdef __cplusplus
 }
 #endif

@@ -15,6 +15,7 @@
  */
 
 #include "global.h"
+#include "slice.h"
 #include "block.h"
 #include "blk_prediction.h"
 #include "image.h"

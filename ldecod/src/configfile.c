@@ -62,6 +62,7 @@
 
 #include "global.h"
 #include "memalloc.h"
+#include "bitstream_cabac.h"
 #include "config_common.h"
 #include "configfile.h"
 #define MAX_ITEMS_TO_PARSE  10000

@@ -18,7 +18,7 @@
 #include <limits.h>
 
 #include "global.h"
-#include "header.h"
+#include "slice.h"
 #include "image.h"
 #include "mbuffer_common.h"
 #include "mbuffer.h"

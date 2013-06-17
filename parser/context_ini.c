@@ -17,6 +17,8 @@
 
 #include "defines.h"
 #include "global.h"
+#include "slice.h"
+#include "bitstream_cabac.h"
 #include "biaridecod.h"
 #include "ctx_tables.h"
 

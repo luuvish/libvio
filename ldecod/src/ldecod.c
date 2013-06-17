@@ -43,6 +43,7 @@
  */
 
 #include "global.h"
+#include "slice.h"
 #include "bitstream_nal.h"
 #include "bitstream_cabac.h"
 #include "image.h"
@@ -77,6 +78,38 @@ static void init        (VideoParameters *p_Vid);
 static void free_slice  (Slice *currSlice);
 
 void init_frext(VideoParameters *p_Vid);
+
+/*!
+ ************************************************************************
+ * \brief
+ *    calculate Ceil(Log2(uiVal))
+ ************************************************************************
+ */
+unsigned CeilLog2( unsigned uiVal)
+{
+  unsigned uiTmp = uiVal-1;
+  unsigned uiRet = 0;
+
+  while( uiTmp != 0 )
+  {
+    uiTmp >>= 1;
+    uiRet++;
+  }
+  return uiRet;
+}
+
+unsigned CeilLog2_sf( unsigned uiVal)
+{
+  unsigned uiTmp = uiVal-1;
+  unsigned uiRet = 0;
+
+  while( uiTmp > 0 )
+  {
+    uiTmp >>= 1;
+    uiRet++;
+  }
+  return uiRet;
+}
 
 /*!
  ************************************************************************

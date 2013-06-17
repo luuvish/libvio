@@ -15,6 +15,7 @@
  *************************************************************************************
  */
 #include "global.h"
+#include "slice.h"
 #include "intra16x16_pred.h"
 #include "neighbour.h"
 #include "image.h"

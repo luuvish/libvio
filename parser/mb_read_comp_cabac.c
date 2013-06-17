@@ -12,9 +12,10 @@
 */
 
 #include "global.h"
+#include "slice.h"
 #include "bitstream_elements.h"
 #include "bitstream_cabac.h"
-#include "bitstream_vlc.h"
+#include "bitstream.h"
 #include "macroblock.h"
 #include "mb_read.h"
 #include "neighbour.h"
@@ -34,6 +35,92 @@
 
 #define IS_I16MB(MB)    ((MB)->mb_type==I16MB  || (MB)->mb_type==IPCM)
 #define IS_DIRECT(MB)   ((MB)->mb_type==0     && (currSlice->slice_type == B_SLICE ))
+
+
+//! for the linfo_levrun_inter routine
+static const byte NTAB1[4][8][2] = {
+  {{1,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0}},
+  {{1,1},{1,2},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0}},
+  {{2,0},{1,3},{1,4},{1,5},{0,0},{0,0},{0,0},{0,0}},
+  {{3,0},{2,1},{2,2},{1,6},{1,7},{1,8},{1,9},{4,0}},
+};
+
+static const byte LEVRUN1[16] = {
+  4,2,2,1,1,1,1,1,1,1,0,0,0,0,0,0,
+};
+
+//! for the linfo_levrun__c2x2 routine
+static const byte LEVRUN3[4] = { 2, 1, 0, 0 };
+
+static const byte NTAB3[2][2][2] = {
+  {{1,0},{0,0}},
+  {{2,0},{1,1}},
+};
+
+/*!
+ ************************************************************************
+ * \par Input:
+ *    length and info
+ * \par Output:
+ *    level, run
+ ************************************************************************
+ */
+static void linfo_levrun_inter(int len, int info, int *level, int *irun)
+{
+  //assert (((len >> 1) - 5) < 32);
+
+  if (len <= 9)
+  {
+    int l2     = imax(0,(len >> 1)-1);
+    int inf    = info >> 1;
+
+    *level = NTAB1[l2][inf][0];
+    *irun  = NTAB1[l2][inf][1];
+    if ((info & 0x01) == 1)
+      *level = -*level;                   // make sign
+  }
+  else                                  // if len > 9, skip using the array
+  {
+    *irun  = (info & 0x1e) >> 1;
+    *level = LEVRUN1[*irun] + (info >> 5) + ( 1 << ((len >> 1) - 5));
+    if ((info & 0x01) == 1)
+      *level = -*level;
+  }
+  
+  if (len == 1) // EOB
+    *level = 0;
+}
+
+/*!
+ ************************************************************************
+ * \par Input:
+ *    length and info
+ * \par Output:
+ *    level, run
+ ************************************************************************
+ */
+static void linfo_levrun_c2x2(int len, int info, int *level, int *irun)
+{
+  if (len<=5)
+  {
+    int l2     = imax(0, (len >> 1) - 1);
+    int inf    = info >> 1;
+    *level = NTAB3[l2][inf][0];
+    *irun  = NTAB3[l2][inf][1];
+    if ((info & 0x01) == 1)
+      *level = -*level;                 // make sign
+  }
+  else                                  // if len > 5, skip using the array
+  {
+    *irun  = (info & 0x06) >> 1;
+    *level = LEVRUN3[*irun] + (info >> 3) + (1 << ((len >> 1) - 3));
+    if ((info & 0x01) == 1)
+      *level = -*level;
+  }
+  
+  if (len == 1) // EOB
+    *level = 0;
+}
 
 
 /*!
@@ -762,79 +849,45 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
         else
             currSE.reading = readRunLevel_CABAC;
 
-        if (currMB->is_lossless == FALSE) {
-            int b4, b8, uv, k;
-            int **cof;
-            CBPStructure *s_cbp = &currMB->s_cbp[0];
-            for (b8 = 0; b8 < p_Vid->num_blk8x8_uv; ++b8) {
-                currMB->is_v_block = uv = b8 > (p_Vid->num_uv_blocks - 1);
+        int b4, b8, uv, k;
+        int **cof;
+        CBPStructure *s_cbp = &currMB->s_cbp[0];
+
+        for (b8 = 0; b8 < p_Vid->num_blk8x8_uv; ++b8) {
+            currMB->is_v_block = uv = b8 > (p_Vid->num_uv_blocks - 1);
+            cof = currSlice->cof[uv + 1];
+            if (currMB->is_lossless == FALSE)
                 InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]]
                                          : currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
-                cof = currSlice->cof[uv + 1];
 
-                for (b4 = 0; b4 < 4; ++b4) {
-                    i = cofuv_blk_x[yuv][b8][b4];
-                    j = cofuv_blk_y[yuv][b8][b4];
+            for (b4 = 0; b4 < 4; ++b4) {
+                i = cofuv_blk_x[yuv][b8][b4];
+                j = cofuv_blk_y[yuv][b8][b4];
 
-                    currMB->subblock_y = subblk_offset_y[yuv][b8][b4];
-                    currMB->subblock_x = subblk_offset_x[yuv][b8][b4];
+                pos_scan_4x4 = pos_scan4x4[1];
+                level = 1;
 
-                    pos_scan_4x4 = pos_scan4x4[1];
-                    level = 1;
+                currMB->subblock_y = subblk_offset_y[yuv][b8][b4];
+                currMB->subblock_x = subblk_offset_x[yuv][b8][b4];
 
-                    for (k = 0; k < 16 && level != 0; ++k) {
+                for (k = 0; k < 16 && level != 0; ++k) {
 #if TRACE
-                        snprintf(currSE.tracestring, TRACESTRING_SIZE, "AC Chroma ");
+                    snprintf(currSE.tracestring, TRACESTRING_SIZE, "AC Chroma ");
 #endif
+                    dP->readSyntaxElement(currMB, &currSE, dP);
+                    level = currSE.value1;
 
-                        dP->readSyntaxElement(currMB, &currSE, dP);
-                        level = currSE.value1;
+                    if (level != 0) {
+                        s_cbp->blk |= i64_power2(cbp_blk_chroma[b8][b4]);
+                        pos_scan_4x4 += currSE.value2 << 1;
 
-                        if (level != 0) {
-                            s_cbp->blk |= i64_power2(cbp_blk_chroma[b8][b4]);
-                            pos_scan_4x4 += currSE.value2 << 1;
+                        i0 = *pos_scan_4x4++;
+                        j0 = *pos_scan_4x4++;
 
-                            i0 = *pos_scan_4x4++;
-                            j0 = *pos_scan_4x4++;
-
+                        if (currMB->is_lossless == FALSE)
                             cof[(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0])<<qp_per_uv[uv], 4);
-                        }
-                    }
-                }
-            }
-        } else {
-            CBPStructure *s_cbp = &currMB->s_cbp[0];
-            int b4, b8, k;
-            int uv;
-            for (b8 = 0; b8 < p_Vid->num_blk8x8_uv; ++b8) {
-                currMB->is_v_block = uv = b8 > (p_Vid->num_uv_blocks - 1);
-
-                for (b4 = 0; b4 < 4; ++b4) {
-                    i = cofuv_blk_x[yuv][b8][b4];
-                    j = cofuv_blk_y[yuv][b8][b4];
-
-                    pos_scan_4x4 = pos_scan4x4[1];
-                    level = 1;
-
-                    currMB->subblock_y = subblk_offset_y[yuv][b8][b4];
-                    currMB->subblock_x = subblk_offset_x[yuv][b8][b4];
-
-                    for (k = 0; k < 16 && level != 0; ++k) {
-#if TRACE
-                        snprintf(currSE.tracestring, TRACESTRING_SIZE, "AC Chroma ");
-#endif
-                        dP->readSyntaxElement(currMB, &currSE, dP);
-                        level = currSE.value1;
-
-                        if (level != 0) {
-                            s_cbp->blk |= i64_power2(cbp_blk_chroma[b8][b4]);
-                            pos_scan_4x4 += currSE.value2 << 1;
-
-                            i0 = *pos_scan_4x4++;
-                            j0 = *pos_scan_4x4++;
-
-                            currSlice->cof[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
-                        }
+                        else
+                            cof[(j<<2) + j0][(i<<2) + i0] = level;
                     }
                 }
             }

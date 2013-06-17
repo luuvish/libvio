@@ -37,7 +37,9 @@ typedef struct tone_mapping_struct_s {
 } ToneMappingSEI;
 #endif
 
-void parse_sei(byte *payload, int size, VideoParameters *p_Vid, Slice *pSlice);
+struct slice_t;
+
+void parse_sei(byte *payload, int size, VideoParameters *p_Vid, struct slice_t *pSlice);
 
 #if (ENABLE_OUTPUT_TONEMAPPING)
 void tone_map               (imgpel **imgX, imgpel *lut, int size_x, int size_y);

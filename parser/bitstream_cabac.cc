@@ -12,7 +12,8 @@
  */
 
 #include "global.h"
-#include "bitstream_vlc.h"
+#include "slice.h"
+#include "bitstream.h"
 #include "bitstream_cabac.h"
 #include "bitstream_elements.h"
 
@@ -43,7 +44,111 @@ static const short max_c2       [] = { 4,  4,  4,  4,  4,  4,  3,  4,  3,  3,  4
 static unsigned int unary_bin_decode             ( DecodingEnvironmentPtr dep_dp, BiContextTypePtr ctx, int ctx_offset);
 static unsigned int unary_bin_max_decode         ( DecodingEnvironmentPtr dep_dp, BiContextTypePtr ctx, int ctx_offset, unsigned int max_symbol);
 static unsigned int unary_exp_golomb_level_decode( DecodingEnvironmentPtr dep_dp, BiContextTypePtr ctx);
-static unsigned int unary_exp_golomb_mv_decode   ( DecodingEnvironmentPtr dep_dp, BiContextTypePtr ctx, unsigned int max_bin);
+
+/*!
+ ************************************************************************
+ * \brief
+ *    Exp Golomb binarization and decoding of a symbol
+ *    with prob. of 0.5
+ ************************************************************************
+ */
+static unsigned int exp_golomb_decode_eq_prob( DecodingEnvironmentPtr dep_dp,
+                                              int k)
+{
+  unsigned int l;
+  int symbol = 0;
+  int binary_symbol = 0;
+
+  do
+  {
+    l = biari_decode_symbol_eq_prob(dep_dp);
+    if (l == 1)
+    {
+      symbol += (1<<k);
+      ++k;
+    }
+  }
+  while (l!=0);
+
+  while (k--)                             //next binary part
+    if (biari_decode_symbol_eq_prob(dep_dp)==1)
+      binary_symbol |= (1<<k);
+
+  return (unsigned int) (symbol + binary_symbol);
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    Exp-Golomb decoding for LEVELS
+ ***********************************************************************
+ */
+static unsigned int unary_exp_golomb_level_decode( DecodingEnvironmentPtr dep_dp,
+                                                  BiContextTypePtr ctx)
+{
+  unsigned int symbol = biari_decode_symbol(dep_dp, ctx );
+
+  if (symbol==0)
+    return 0;
+  else
+  {
+    unsigned int l, k = 1;
+    unsigned int exp_start = 13;
+
+    symbol = 0;
+
+    do
+    {
+      l=biari_decode_symbol(dep_dp, ctx);
+      ++symbol;
+      ++k;
+    }
+    while((l != 0) && (k != exp_start));
+    if (l!=0)
+      symbol += exp_golomb_decode_eq_prob(dep_dp,0)+1;
+    return symbol;
+  }
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    Exp-Golomb decoding for Motion Vectors
+ ***********************************************************************
+ */
+static unsigned int unary_exp_golomb_mv_decode(DecodingEnvironmentPtr dep_dp,
+                                               BiContextTypePtr ctx,
+                                               unsigned int max_bin)
+{
+  unsigned int symbol = biari_decode_symbol(dep_dp, ctx );
+
+  if (symbol == 0)
+    return 0;
+  else
+  {
+    unsigned int exp_start = 8;
+    unsigned int l,k = 1;
+    unsigned int bin = 1;
+
+    symbol=0;
+
+    ++ctx;
+    do
+    {
+      l=biari_decode_symbol(dep_dp, ctx);
+      if ((++bin)==2) ctx++;
+      if (bin==max_bin) 
+        ++ctx;
+      ++symbol;
+      ++k;
+    }
+    while((l!=0) && (k!=exp_start));
+    if (l!=0)
+      symbol += exp_golomb_decode_eq_prob(dep_dp,3) + 1;
+    return symbol;
+  }
+}
+
 
 void CheckAvailabilityOfNeighborsCABAC(Macroblock *currMB)
 {
@@ -333,253 +438,7 @@ int check_next_mb_and_get_field_mode_CABAC_b_slice( Slice *currSlice,
   return skip;
 }
 
-/*!
- ************************************************************************
- * \brief
- *    This function is used to arithmetically decode the motion
- *    vector data of a B-frame MB.
- ************************************************************************
- */
-void read_MVD_CABAC( Macroblock *currMB, 
-                    SyntaxElement *se,
-                    DecodingEnvironmentPtr dep_dp)
-{  
-  int *mb_size = currMB->p_Vid->mb_size[IS_LUMA];
-  Slice *currSlice = currMB->p_Slice;
-  MotionInfoContexts *ctx = currSlice->mot_ctx;
-  int i = currMB->subblock_x;
-  int j = currMB->subblock_y;
-  int a = 0;
-  //int act_ctx;
-  int act_sym;  
-  int list_idx = se->value2 & 0x01;
-  int k = (se->value2 >> 1); // MVD component
 
-  PixelPos block_a, block_b;
-
-  get4x4NeighbourBase(currMB, i - 1, j    , mb_size, &block_a);
-  get4x4NeighbourBase(currMB, i    , j - 1, mb_size, &block_b);
-  if (block_a.available)
-  {
-    a = iabs(currSlice->mb_data[block_a.mb_addr].mvd[list_idx][block_a.y][block_a.x][k]);
-  }
-  if (block_b.available)
-  {
-    a += iabs(currSlice->mb_data[block_b.mb_addr].mvd[list_idx][block_b.y][block_b.x][k]);
-  }
-
-  //a += b;
-
-  if (a < 3)
-    a = 5 * k;
-  else if (a > 32)
-    a = 5 * k + 3;
-  else
-    a = 5 * k + 2;
-
-  se->context = a;
-
-  act_sym = biari_decode_symbol(dep_dp, ctx->mv_res_contexts[0] + a );
-
-  if (act_sym != 0)
-  {
-    a = 5 * k;
-    act_sym = unary_exp_golomb_mv_decode(dep_dp, ctx->mv_res_contexts[1] + a, 3) + 1;
-
-    if(biari_decode_symbol_eq_prob(dep_dp))
-      act_sym = -act_sym;
-  }
-  se->value1 = act_sym;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    This function is used to arithmetically decode the motion
- *    vector data of a B-frame MB.
- ************************************************************************
- */
-void read_mvd_CABAC_mbaff( Macroblock *currMB, 
-                    SyntaxElement *se,
-                    DecodingEnvironmentPtr dep_dp)
-{
-  VideoParameters *p_Vid = currMB->p_Vid;
-  Slice *currSlice = currMB->p_Slice;
-  MotionInfoContexts *ctx = currSlice->mot_ctx;
-  int i = currMB->subblock_x;
-  int j = currMB->subblock_y;
-  int a = 0, b = 0;
-  int act_ctx;
-  int act_sym;  
-  int list_idx = se->value2 & 0x01;
-  int k = (se->value2 >> 1); // MVD component
-
-  PixelPos block_a, block_b;
-
-  get4x4NeighbourBase(currMB, i - 1, j    , p_Vid->mb_size[IS_LUMA], &block_a);
-  if (block_a.available)
-  {
-    a = iabs(currSlice->mb_data[block_a.mb_addr].mvd[list_idx][block_a.y][block_a.x][k]);
-    if (currSlice->mb_aff_frame_flag && (k==1))
-    {
-      if ((currMB->mb_field==0) && (currSlice->mb_data[block_a.mb_addr].mb_field==1))
-        a *= 2;
-      else if ((currMB->mb_field==1) && (currSlice->mb_data[block_a.mb_addr].mb_field==0))
-        a /= 2;
-    }
-  }
-
-  get4x4NeighbourBase(currMB, i    , j - 1, p_Vid->mb_size[IS_LUMA], &block_b);
-  if (block_b.available)
-  {
-    b = iabs(currSlice->mb_data[block_b.mb_addr].mvd[list_idx][block_b.y][block_b.x][k]);
-    if (currSlice->mb_aff_frame_flag && (k==1))
-    {
-      if ((currMB->mb_field==0) && (currSlice->mb_data[block_b.mb_addr].mb_field==1))
-        b *= 2;
-      else if ((currMB->mb_field==1) && (currSlice->mb_data[block_b.mb_addr].mb_field==0))
-        b /= 2;
-    }
-  }
-  a += b;
-
-  if (a < 3)
-    act_ctx = 5 * k;
-  else if (a > 32)
-    act_ctx = 5 * k + 3;
-  else
-    act_ctx = 5 * k + 2;
-
-  se->context = act_ctx;
-
-  act_sym = biari_decode_symbol(dep_dp,&ctx->mv_res_contexts[0][act_ctx] );
-
-  if (act_sym != 0)
-  {
-    act_ctx = 5 * k;
-    act_sym = unary_exp_golomb_mv_decode(dep_dp, ctx->mv_res_contexts[1] + act_ctx, 3) + 1;
-
-    if(biari_decode_symbol_eq_prob(dep_dp))
-      act_sym = -act_sym;
-  }
-  se->value1 = act_sym;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    This function is used to arithmetically decode the 8x8 block type.
- ************************************************************************
- */
-void readB8_typeInfo_CABAC_p_slice (Macroblock *currMB, 
-                                    SyntaxElement *se,
-                                    DecodingEnvironmentPtr dep_dp)
-{
-  Slice *currSlice = currMB->p_Slice;
-  int act_sym = 0;
-
-  MotionInfoContexts *ctx = currSlice->mot_ctx;
-  BiContextType *b8_type_contexts = &ctx->b8_type_contexts[0][1];
-
-  if (biari_decode_symbol (dep_dp, b8_type_contexts++))
-    act_sym = 0;
-  else
-  {
-    if (biari_decode_symbol (dep_dp, ++b8_type_contexts))
-    {
-      act_sym = (biari_decode_symbol (dep_dp, ++b8_type_contexts))? 2: 3;
-    }
-    else
-    {
-      act_sym = 1;
-    }
-  } 
-
-  se->value1 = act_sym;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    This function is used to arithmetically decode the 8x8 block type.
- ************************************************************************
- */
-void readB8_typeInfo_CABAC_b_slice (Macroblock *currMB, 
-                                    SyntaxElement *se,
-                                    DecodingEnvironmentPtr dep_dp)
-{
-  Slice *currSlice = currMB->p_Slice;
-  int act_sym = 0;
-
-  MotionInfoContexts *ctx = currSlice->mot_ctx;
-  BiContextType *b8_type_contexts = ctx->b8_type_contexts[1];
-
-  if (biari_decode_symbol (dep_dp, b8_type_contexts++))
-  {
-    if (biari_decode_symbol (dep_dp, b8_type_contexts++))
-    {
-      if (biari_decode_symbol (dep_dp, b8_type_contexts++))
-      {
-        if (biari_decode_symbol (dep_dp, b8_type_contexts))
-        {
-          act_sym = 10;
-          if (biari_decode_symbol (dep_dp, b8_type_contexts)) 
-            act_sym++;
-        }
-        else
-        {
-          act_sym = 6;
-          if (biari_decode_symbol (dep_dp, b8_type_contexts)) 
-            act_sym += 2;
-          if (biari_decode_symbol (dep_dp, b8_type_contexts)) 
-            act_sym++;
-        }
-      }
-      else
-      {
-        act_sym = 2;
-        if (biari_decode_symbol (dep_dp, b8_type_contexts)) 
-          act_sym += 2;
-        if (biari_decode_symbol (dep_dp, b8_type_contexts)) 
-          act_sym ++;
-      }
-    }
-    else
-    {
-      act_sym = (biari_decode_symbol (dep_dp, ++b8_type_contexts)) ? 1: 0;
-    }
-    ++act_sym;
-  }
-  else
-  {
-    act_sym = 0;
-  }
-
-  se->value1 = act_sym;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
-}
 
 /*!
  ************************************************************************
@@ -667,406 +526,6 @@ void readMB_transform_size_flag_CABAC( Macroblock *currMB,
 /*!
  ************************************************************************
  * \brief
- *    This function is used to arithmetically decode the macroblock
- *    type info of a given MB.
- ************************************************************************
- */
-void readMB_typeInfo_CABAC_i_slice(Macroblock *currMB,  
-                           SyntaxElement *se,
-                           DecodingEnvironmentPtr dep_dp)
-{
-  Slice *currSlice = currMB->p_Slice;
-  MotionInfoContexts *ctx = currSlice->mot_ctx;
-
-  int a = 0, b = 0;
-  int act_ctx;
-  int act_sym;
-  int mode_sym;
-  int curr_mb_type = 0;
-
-  if(currSlice->slice_type == I_SLICE)  // INTRA-frame
-  {
-    if (currMB->mb_up != NULL)
-      b = (((currMB->mb_up)->mb_type != I4MB && currMB->mb_up->mb_type != I8MB) ? 1 : 0 );
-
-    if (currMB->mb_left != NULL)
-      a = (((currMB->mb_left)->mb_type != I4MB && currMB->mb_left->mb_type != I8MB) ? 1 : 0 );
-
-    act_ctx = a + b;
-    act_sym = biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx);
-    se->context = act_ctx; // store context
-
-    if (act_sym==0) // 4x4 Intra
-    {
-      curr_mb_type = act_sym;
-    }
-    else // 16x16 Intra
-    {
-      mode_sym = biari_decode_final(dep_dp);
-      if(mode_sym == 1)
-      {
-        curr_mb_type = 25;
-      }
-      else
-      {
-        act_sym = 1;
-        act_ctx = 4;
-        mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx ); // decoding of AC/no AC
-        act_sym += mode_sym*12;
-        act_ctx = 5;
-        // decoding of cbp: 0,1,2
-        mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
-        if (mode_sym!=0)
-        {
-          act_ctx=6;
-          mode_sym = biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
-          act_sym+=4;
-          if (mode_sym!=0)
-            act_sym+=4;
-        }
-        // decoding of I pred-mode: 0,1,2,3
-        act_ctx = 7;
-        mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
-        act_sym += mode_sym*2;
-        act_ctx = 8;
-        mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
-        act_sym += mode_sym;
-        curr_mb_type = act_sym;
-      }
-    }
-  }
-  else if(currSlice->slice_type == SI_SLICE)  // SI-frame
-  {
-    // special ctx's for SI4MB
-    if (currMB->mb_up != NULL)
-      b = (( (currMB->mb_up)->mb_type != SI4MB) ? 1 : 0 );
-
-    if (currMB->mb_left != NULL)
-      a = (( (currMB->mb_left)->mb_type != SI4MB) ? 1 : 0 );
-
-    act_ctx = a + b;
-    act_sym = biari_decode_symbol(dep_dp, ctx->mb_type_contexts[1] + act_ctx);
-    se->context = act_ctx; // store context
-
-    if (act_sym==0) //  SI 4x4 Intra
-    {
-      curr_mb_type = 0;
-    }
-    else // analog INTRA_IMG
-    {
-      if (currMB->mb_up != NULL)
-        b = (( (currMB->mb_up)->mb_type != I4MB) ? 1 : 0 );
-
-      if (currMB->mb_left != NULL)
-        a = (( (currMB->mb_left)->mb_type != I4MB) ? 1 : 0 );
-
-      act_ctx = a + b;
-      act_sym = biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx);
-      se->context = act_ctx; // store context
-
-      if (act_sym==0) // 4x4 Intra
-      {
-        curr_mb_type = 1;
-      }
-      else // 16x16 Intra
-      {
-        mode_sym = biari_decode_final(dep_dp);
-        if( mode_sym==1 )
-        {
-          curr_mb_type = 26;
-        }
-        else
-        {
-          act_sym = 2;
-          act_ctx = 4;
-          mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx ); // decoding of AC/no AC
-          act_sym += mode_sym*12;
-          act_ctx = 5;
-          // decoding of cbp: 0,1,2
-          mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
-          if (mode_sym!=0)
-          {
-            act_ctx=6;
-            mode_sym = biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
-            act_sym+=4;
-            if (mode_sym!=0)
-              act_sym+=4;
-          }
-          // decoding of I pred-mode: 0,1,2,3
-          act_ctx = 7;
-          mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
-          act_sym += mode_sym*2;
-          act_ctx = 8;
-          mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
-          act_sym += mode_sym;
-          curr_mb_type = act_sym;
-        }
-      }
-    }
-  }
-
-  se->value1 = curr_mb_type;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    This function is used to arithmetically decode the macroblock
- *    type info of a given MB.
- ************************************************************************
- */
-void readMB_typeInfo_CABAC_p_slice(Macroblock *currMB,  
-                           SyntaxElement *se,
-                           DecodingEnvironmentPtr dep_dp)
-{
-  Slice *currSlice = currMB->p_Slice;
-  MotionInfoContexts *ctx = currSlice->mot_ctx;
-
-  int act_ctx;
-  int act_sym;
-  int mode_sym;
-  int curr_mb_type;
-  BiContextType *mb_type_contexts = ctx->mb_type_contexts[1];
-
-  if (biari_decode_symbol(dep_dp, &mb_type_contexts[4] ))
-  {
-    if (biari_decode_symbol(dep_dp, &mb_type_contexts[7] ))   
-      act_sym = 7;
-    else                                                              
-      act_sym = 6;
-  }
-  else
-  {
-    if (biari_decode_symbol(dep_dp, &mb_type_contexts[5] ))
-    {
-      if (biari_decode_symbol(dep_dp, &mb_type_contexts[7] )) 
-        act_sym = 2;
-      else
-        act_sym = 3;
-    }
-    else
-    {
-      if (biari_decode_symbol(dep_dp, &mb_type_contexts[6] ))
-        act_sym = 4;
-      else                                                            
-        act_sym = 1;
-    }
-  }
-
-  if (act_sym <= 6)
-  {
-    curr_mb_type = act_sym;
-  }
-  else  // additional info for 16x16 Intra-mode
-  {
-    mode_sym = biari_decode_final(dep_dp);
-    if( mode_sym==1 )
-    {
-      curr_mb_type = 31;
-    }
-    else
-    {
-      act_ctx = 8;
-      mode_sym =  biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx ); // decoding of AC/no AC
-      act_sym += mode_sym*12;
-
-      // decoding of cbp: 0,1,2
-      act_ctx = 9;
-      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
-      if (mode_sym != 0)
-      {
-        act_sym+=4;
-        mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
-        if (mode_sym != 0)
-          act_sym+=4;
-      }
-
-      // decoding of I pred-mode: 0,1,2,3
-      act_ctx = 10;
-      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
-      act_sym += mode_sym*2;
-      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
-      act_sym += mode_sym;
-      curr_mb_type = act_sym;
-    }
-  }
-
-  se->value1 = curr_mb_type;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    This function is used to arithmetically decode the macroblock
- *    type info of a given MB.
- ************************************************************************
- */
-void readMB_typeInfo_CABAC_b_slice(Macroblock *currMB,  
-                           SyntaxElement *se,
-                           DecodingEnvironmentPtr dep_dp)
-{
-  Slice *currSlice = currMB->p_Slice;
-  MotionInfoContexts *ctx = currSlice->mot_ctx;
-
-  int a = 0, b = 0;
-  int act_ctx;
-  int act_sym;
-  int mode_sym;
-  int curr_mb_type;
-  BiContextType *mb_type_contexts = ctx->mb_type_contexts[2];
-
-  if (currMB->mb_up != NULL)
-    b = (( (currMB->mb_up)->mb_type != 0) ? 1 : 0 );
-
-  if (currMB->mb_left != NULL)
-    a = (( (currMB->mb_left)->mb_type != 0) ? 1 : 0 );
-
-  act_ctx = a + b;
-
-  if (biari_decode_symbol (dep_dp, &mb_type_contexts[act_ctx]))
-  {
-    if (biari_decode_symbol (dep_dp, &mb_type_contexts[4]))
-    {
-      if (biari_decode_symbol (dep_dp, &mb_type_contexts[5]))
-      {
-        act_sym = 12;
-        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
-          act_sym += 8;
-        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
-          act_sym += 4;
-        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
-          act_sym += 2;
-
-        if      (act_sym == 24)  
-          act_sym=11;
-        else if (act_sym == 26)  
-          act_sym = 22;
-        else
-        {
-          if (act_sym == 22)     
-            act_sym = 23;
-          if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
-            act_sym += 1;
-        }
-      }
-      else
-      {
-        act_sym = 3;
-        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
-          act_sym += 4;
-        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
-          act_sym += 2;
-        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
-          act_sym += 1;
-      }
-    }
-    else
-    {
-      if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
-        act_sym=2;
-      else
-        act_sym=1;
-    }
-  }
-  else
-  {
-    act_sym = 0;
-  }
-
-
-  if (act_sym <= 23)
-  {
-    curr_mb_type = act_sym;
-  }
-  else  // additional info for 16x16 Intra-mode
-  {
-    mode_sym = biari_decode_final(dep_dp);
-    if( mode_sym == 1 )
-    {
-      curr_mb_type = 48;
-    }
-    else
-    {
-      mb_type_contexts = ctx->mb_type_contexts[1];
-      act_ctx = 8;
-      mode_sym =  biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx ); // decoding of AC/no AC
-      act_sym += mode_sym*12;
-
-      // decoding of cbp: 0,1,2
-      act_ctx = 9;
-      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
-      if (mode_sym != 0)
-      {
-        act_sym+=4;
-        mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
-        if (mode_sym != 0)
-          act_sym+=4;
-      }
-
-      // decoding of I pred-mode: 0,1,2,3
-      act_ctx = 10;
-      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
-      act_sym += mode_sym*2;
-      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
-      act_sym += mode_sym;
-      curr_mb_type = act_sym;
-    }
-  }
-
-  se->value1 = curr_mb_type;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
-}
-
-/*!
- ************************************************************************
- * \brief
- *    This function is used to arithmetically decode a pair of
- *    intra prediction modes of a given MB.
- ************************************************************************
- */
-void readIntraPredMode_CABAC( Macroblock *currMB, 
-                              SyntaxElement *se,
-                              DecodingEnvironmentPtr dep_dp)
-{
-  Slice *currSlice = currMB->p_Slice;
-  TextureInfoContexts *ctx     = currSlice->tex_ctx;
-  // use_most_probable_mode
-  int act_sym = biari_decode_symbol(dep_dp, ctx->ipr_contexts);
-
-  // remaining_mode_selector
-  if (act_sym == 1)
-    se->value1 = -1;
-  else
-  {
-    se->value1  = (biari_decode_symbol(dep_dp, ctx->ipr_contexts + 1)     );
-    se->value1 |= (biari_decode_symbol(dep_dp, ctx->ipr_contexts + 1) << 1);
-    se->value1 |= (biari_decode_symbol(dep_dp, ctx->ipr_contexts + 1) << 2);
-  }
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
-}
-/*!
- ************************************************************************
- * \brief
  *    This function is used to arithmetically decode the reference
  *    parameter of a given MB.
  ************************************************************************
@@ -1137,6 +596,149 @@ void readRefFrame_CABAC(Macroblock *currMB,
   fflush(p_Dec->p_trace);
 #endif
 }
+
+/*!
+ ************************************************************************
+ * \brief
+ *    This function is used to arithmetically decode the motion
+ *    vector data of a B-frame MB.
+ ************************************************************************
+ */
+void read_MVD_CABAC( Macroblock *currMB, 
+                    SyntaxElement *se,
+                    DecodingEnvironmentPtr dep_dp)
+{  
+  int *mb_size = currMB->p_Vid->mb_size[IS_LUMA];
+  Slice *currSlice = currMB->p_Slice;
+  MotionInfoContexts *ctx = currSlice->mot_ctx;
+  int i = currMB->subblock_x;
+  int j = currMB->subblock_y;
+  int a = 0;
+  //int act_ctx;
+  int act_sym;  
+  int list_idx = se->value2 & 0x01;
+  int k = (se->value2 >> 1); // MVD component
+
+  PixelPos block_a, block_b;
+
+  get4x4NeighbourBase(currMB, i - 1, j    , mb_size, &block_a);
+  get4x4NeighbourBase(currMB, i    , j - 1, mb_size, &block_b);
+  if (block_a.available)
+  {
+    a = iabs(currSlice->mb_data[block_a.mb_addr].mvd[list_idx][block_a.y][block_a.x][k]);
+  }
+  if (block_b.available)
+  {
+    a += iabs(currSlice->mb_data[block_b.mb_addr].mvd[list_idx][block_b.y][block_b.x][k]);
+  }
+
+  //a += b;
+
+  if (a < 3)
+    a = 5 * k;
+  else if (a > 32)
+    a = 5 * k + 3;
+  else
+    a = 5 * k + 2;
+
+  se->context = a;
+
+  act_sym = biari_decode_symbol(dep_dp, ctx->mv_res_contexts[0] + a );
+
+  if (act_sym != 0)
+  {
+    a = 5 * k;
+    act_sym = unary_exp_golomb_mv_decode(dep_dp, ctx->mv_res_contexts[1] + a, 3) + 1;
+
+    if(biari_decode_symbol_eq_prob(dep_dp))
+      act_sym = -act_sym;
+  }
+  se->value1 = act_sym;
+
+#if TRACE
+  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
+  fflush(p_Dec->p_trace);
+#endif
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    This function is used to arithmetically decode the motion
+ *    vector data of a B-frame MB.
+ ************************************************************************
+ */
+void read_mvd_CABAC_mbaff( Macroblock *currMB, 
+                    SyntaxElement *se,
+                    DecodingEnvironmentPtr dep_dp)
+{
+  VideoParameters *p_Vid = currMB->p_Vid;
+  Slice *currSlice = currMB->p_Slice;
+  MotionInfoContexts *ctx = currSlice->mot_ctx;
+  int i = currMB->subblock_x;
+  int j = currMB->subblock_y;
+  int a = 0, b = 0;
+  int act_ctx;
+  int act_sym;  
+  int list_idx = se->value2 & 0x01;
+  int k = (se->value2 >> 1); // MVD component
+
+  PixelPos block_a, block_b;
+
+  get4x4NeighbourBase(currMB, i - 1, j    , p_Vid->mb_size[IS_LUMA], &block_a);
+  if (block_a.available)
+  {
+    a = iabs(currSlice->mb_data[block_a.mb_addr].mvd[list_idx][block_a.y][block_a.x][k]);
+    if (currSlice->mb_aff_frame_flag && (k==1))
+    {
+      if ((currMB->mb_field==0) && (currSlice->mb_data[block_a.mb_addr].mb_field==1))
+        a *= 2;
+      else if ((currMB->mb_field==1) && (currSlice->mb_data[block_a.mb_addr].mb_field==0))
+        a /= 2;
+    }
+  }
+
+  get4x4NeighbourBase(currMB, i    , j - 1, p_Vid->mb_size[IS_LUMA], &block_b);
+  if (block_b.available)
+  {
+    b = iabs(currSlice->mb_data[block_b.mb_addr].mvd[list_idx][block_b.y][block_b.x][k]);
+    if (currSlice->mb_aff_frame_flag && (k==1))
+    {
+      if ((currMB->mb_field==0) && (currSlice->mb_data[block_b.mb_addr].mb_field==1))
+        b *= 2;
+      else if ((currMB->mb_field==1) && (currSlice->mb_data[block_b.mb_addr].mb_field==0))
+        b /= 2;
+    }
+  }
+  a += b;
+
+  if (a < 3)
+    act_ctx = 5 * k;
+  else if (a > 32)
+    act_ctx = 5 * k + 3;
+  else
+    act_ctx = 5 * k + 2;
+
+  se->context = act_ctx;
+
+  act_sym = biari_decode_symbol(dep_dp,&ctx->mv_res_contexts[0][act_ctx] );
+
+  if (act_sym != 0)
+  {
+    act_ctx = 5 * k;
+    act_sym = unary_exp_golomb_mv_decode(dep_dp, ctx->mv_res_contexts[1] + act_ctx, 3) + 1;
+
+    if(biari_decode_symbol_eq_prob(dep_dp))
+      act_sym = -act_sym;
+  }
+  se->value1 = act_sym;
+
+#if TRACE
+  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
+  fflush(p_Dec->p_trace);
+#endif
+}
+
 
 
 /*!
@@ -2265,113 +1867,8 @@ int cabac_startcode_follows(Slice *currSlice, int eos_bit)
   return (bit == 1 ? 1 : 0);
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Exp Golomb binarization and decoding of a symbol
- *    with prob. of 0.5
- ************************************************************************
- */
-static unsigned int exp_golomb_decode_eq_prob( DecodingEnvironmentPtr dep_dp,
-                                              int k)
-{
-  unsigned int l;
-  int symbol = 0;
-  int binary_symbol = 0;
-
-  do
-  {
-    l = biari_decode_symbol_eq_prob(dep_dp);
-    if (l == 1)
-    {
-      symbol += (1<<k);
-      ++k;
-    }
-  }
-  while (l!=0);
-
-  while (k--)                             //next binary part
-    if (biari_decode_symbol_eq_prob(dep_dp)==1)
-      binary_symbol |= (1<<k);
-
-  return (unsigned int) (symbol + binary_symbol);
-}
 
 
-/*!
- ************************************************************************
- * \brief
- *    Exp-Golomb decoding for LEVELS
- ***********************************************************************
- */
-static unsigned int unary_exp_golomb_level_decode( DecodingEnvironmentPtr dep_dp,
-                                                  BiContextTypePtr ctx)
-{
-  unsigned int symbol = biari_decode_symbol(dep_dp, ctx );
-
-  if (symbol==0)
-    return 0;
-  else
-  {
-    unsigned int l, k = 1;
-    unsigned int exp_start = 13;
-
-    symbol = 0;
-
-    do
-    {
-      l=biari_decode_symbol(dep_dp, ctx);
-      ++symbol;
-      ++k;
-    }
-    while((l != 0) && (k != exp_start));
-    if (l!=0)
-      symbol += exp_golomb_decode_eq_prob(dep_dp,0)+1;
-    return symbol;
-  }
-}
-
-
-
-
-/*!
- ************************************************************************
- * \brief
- *    Exp-Golomb decoding for Motion Vectors
- ***********************************************************************
- */
-static unsigned int unary_exp_golomb_mv_decode(DecodingEnvironmentPtr dep_dp,
-                                               BiContextTypePtr ctx,
-                                               unsigned int max_bin)
-{
-  unsigned int symbol = biari_decode_symbol(dep_dp, ctx );
-
-  if (symbol == 0)
-    return 0;
-  else
-  {
-    unsigned int exp_start = 8;
-    unsigned int l,k = 1;
-    unsigned int bin = 1;
-
-    symbol=0;
-
-    ++ctx;
-    do
-    {
-      l=biari_decode_symbol(dep_dp, ctx);
-      if ((++bin)==2) ctx++;
-      if (bin==max_bin) 
-        ++ctx;
-      ++symbol;
-      ++k;
-    }
-    while((l!=0) && (k!=exp_start));
-    if (l!=0)
-      symbol += exp_golomb_decode_eq_prob(dep_dp,3) + 1;
-    return symbol;
-  }
-}
 
 
 /*!

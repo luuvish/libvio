@@ -24,11 +24,12 @@
 
 #include "block.h"
 #include "global.h"
+#include "slice.h"
 #include "mbuffer.h"
 #include "mbuffer_mvc.h"
 #include "bitstream_elements.h"
 #include "bitstream_cabac.h"
-#include "bitstream_vlc.h"
+#include "bitstream.h"
 #include "macroblock.h"
 #include "mb_read.h"
 #include "fmo.h"
@@ -54,6 +55,570 @@
 #define TRACE_PRINTF(s) 
 #define TRACE_STRING_P(s)
 #endif
+
+#define IS_DIRECT(MB)   ((MB)->mb_type==0     && (currSlice->slice_type == B_SLICE ))
+
+/*!
+ ************************************************************************
+ * \brief
+ *    read next VLC codeword for 4x4 Intra Prediction Mode and
+ *    map it to the corresponding Intra Prediction Direction
+ ************************************************************************
+ */
+static int GetVLCSymbol_IntraMode (byte buffer[],int totbitoffset,int *info, int bytecount)
+{
+  int byteoffset = (totbitoffset >> 3);        // byte from start of buffer
+  int bitoffset   = (7 - (totbitoffset & 0x07)); // bit from start of byte
+  byte *cur_byte  = &(buffer[byteoffset]);
+  int ctr_bit     = (*cur_byte & (0x01 << bitoffset));      // control bit for current bit posision
+
+  //First bit
+  if (ctr_bit)
+  {
+    *info = 0;
+    return 1;
+  }
+
+  if (byteoffset >= bytecount) 
+  {
+    return -1;
+  }
+  else
+  {
+    int inf = (*(cur_byte) << 8) + *(cur_byte + 1);
+    inf <<= (sizeof(byte) * 8) - bitoffset;
+    inf = inf & 0xFFFF;
+    inf >>= (sizeof(byte) * 8) * 2 - 3;
+
+    *info = inf;
+    return 4;           // return absolute offset in bit from start of frame
+  } 
+}
+
+static int readSyntaxElement_Intra4x4PredictionMode(SyntaxElement *sym, Bitstream   *currStream)
+{
+  sym->len = GetVLCSymbol_IntraMode (currStream->streamBuffer, currStream->frame_bitoffset, &(sym->inf), currStream->bitstream_length);
+
+  if (sym->len == -1)
+    return -1;
+
+  currStream->frame_bitoffset += sym->len;
+  sym->value1       = (sym->len == 1) ? -1 : sym->inf;
+
+#if TRACE
+  tracebits2(sym->tracestring, sym->len, sym->value1);
+#endif
+
+  return 1;
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    This function is used to arithmetically decode the macroblock
+ *    type info of a given MB.
+ ************************************************************************
+ */
+static void readMB_typeInfo_CABAC_i_slice(Macroblock *currMB,  
+                           SyntaxElement *se,
+                           DecodingEnvironmentPtr dep_dp)
+{
+  Slice *currSlice = currMB->p_Slice;
+  MotionInfoContexts *ctx = currSlice->mot_ctx;
+
+  int a = 0, b = 0;
+  int act_ctx;
+  int act_sym;
+  int mode_sym;
+  int curr_mb_type = 0;
+
+  if(currSlice->slice_type == I_SLICE)  // INTRA-frame
+  {
+    if (currMB->mb_up != NULL)
+      b = (((currMB->mb_up)->mb_type != I4MB && currMB->mb_up->mb_type != I8MB) ? 1 : 0 );
+
+    if (currMB->mb_left != NULL)
+      a = (((currMB->mb_left)->mb_type != I4MB && currMB->mb_left->mb_type != I8MB) ? 1 : 0 );
+
+    act_ctx = a + b;
+    act_sym = biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx);
+    se->context = act_ctx; // store context
+
+    if (act_sym==0) // 4x4 Intra
+    {
+      curr_mb_type = act_sym;
+    }
+    else // 16x16 Intra
+    {
+      mode_sym = biari_decode_final(dep_dp);
+      if(mode_sym == 1)
+      {
+        curr_mb_type = 25;
+      }
+      else
+      {
+        act_sym = 1;
+        act_ctx = 4;
+        mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx ); // decoding of AC/no AC
+        act_sym += mode_sym*12;
+        act_ctx = 5;
+        // decoding of cbp: 0,1,2
+        mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
+        if (mode_sym!=0)
+        {
+          act_ctx=6;
+          mode_sym = biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
+          act_sym+=4;
+          if (mode_sym!=0)
+            act_sym+=4;
+        }
+        // decoding of I pred-mode: 0,1,2,3
+        act_ctx = 7;
+        mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
+        act_sym += mode_sym*2;
+        act_ctx = 8;
+        mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
+        act_sym += mode_sym;
+        curr_mb_type = act_sym;
+      }
+    }
+  }
+  else if(currSlice->slice_type == SI_SLICE)  // SI-frame
+  {
+    // special ctx's for SI4MB
+    if (currMB->mb_up != NULL)
+      b = (( (currMB->mb_up)->mb_type != SI4MB) ? 1 : 0 );
+
+    if (currMB->mb_left != NULL)
+      a = (( (currMB->mb_left)->mb_type != SI4MB) ? 1 : 0 );
+
+    act_ctx = a + b;
+    act_sym = biari_decode_symbol(dep_dp, ctx->mb_type_contexts[1] + act_ctx);
+    se->context = act_ctx; // store context
+
+    if (act_sym==0) //  SI 4x4 Intra
+    {
+      curr_mb_type = 0;
+    }
+    else // analog INTRA_IMG
+    {
+      if (currMB->mb_up != NULL)
+        b = (( (currMB->mb_up)->mb_type != I4MB) ? 1 : 0 );
+
+      if (currMB->mb_left != NULL)
+        a = (( (currMB->mb_left)->mb_type != I4MB) ? 1 : 0 );
+
+      act_ctx = a + b;
+      act_sym = biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx);
+      se->context = act_ctx; // store context
+
+      if (act_sym==0) // 4x4 Intra
+      {
+        curr_mb_type = 1;
+      }
+      else // 16x16 Intra
+      {
+        mode_sym = biari_decode_final(dep_dp);
+        if( mode_sym==1 )
+        {
+          curr_mb_type = 26;
+        }
+        else
+        {
+          act_sym = 2;
+          act_ctx = 4;
+          mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx ); // decoding of AC/no AC
+          act_sym += mode_sym*12;
+          act_ctx = 5;
+          // decoding of cbp: 0,1,2
+          mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
+          if (mode_sym!=0)
+          {
+            act_ctx=6;
+            mode_sym = biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
+            act_sym+=4;
+            if (mode_sym!=0)
+              act_sym+=4;
+          }
+          // decoding of I pred-mode: 0,1,2,3
+          act_ctx = 7;
+          mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
+          act_sym += mode_sym*2;
+          act_ctx = 8;
+          mode_sym =  biari_decode_symbol(dep_dp, ctx->mb_type_contexts[0] + act_ctx );
+          act_sym += mode_sym;
+          curr_mb_type = act_sym;
+        }
+      }
+    }
+  }
+
+  se->value1 = curr_mb_type;
+
+#if TRACE
+  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
+  fflush(p_Dec->p_trace);
+#endif
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    This function is used to arithmetically decode the macroblock
+ *    type info of a given MB.
+ ************************************************************************
+ */
+static void readMB_typeInfo_CABAC_p_slice(Macroblock *currMB,  
+                           SyntaxElement *se,
+                           DecodingEnvironmentPtr dep_dp)
+{
+  Slice *currSlice = currMB->p_Slice;
+  MotionInfoContexts *ctx = currSlice->mot_ctx;
+
+  int act_ctx;
+  int act_sym;
+  int mode_sym;
+  int curr_mb_type;
+  BiContextType *mb_type_contexts = ctx->mb_type_contexts[1];
+
+  if (biari_decode_symbol(dep_dp, &mb_type_contexts[4] ))
+  {
+    if (biari_decode_symbol(dep_dp, &mb_type_contexts[7] ))   
+      act_sym = 7;
+    else                                                              
+      act_sym = 6;
+  }
+  else
+  {
+    if (biari_decode_symbol(dep_dp, &mb_type_contexts[5] ))
+    {
+      if (biari_decode_symbol(dep_dp, &mb_type_contexts[7] )) 
+        act_sym = 2;
+      else
+        act_sym = 3;
+    }
+    else
+    {
+      if (biari_decode_symbol(dep_dp, &mb_type_contexts[6] ))
+        act_sym = 4;
+      else                                                            
+        act_sym = 1;
+    }
+  }
+
+  if (act_sym <= 6)
+  {
+    curr_mb_type = act_sym;
+  }
+  else  // additional info for 16x16 Intra-mode
+  {
+    mode_sym = biari_decode_final(dep_dp);
+    if( mode_sym==1 )
+    {
+      curr_mb_type = 31;
+    }
+    else
+    {
+      act_ctx = 8;
+      mode_sym =  biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx ); // decoding of AC/no AC
+      act_sym += mode_sym*12;
+
+      // decoding of cbp: 0,1,2
+      act_ctx = 9;
+      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
+      if (mode_sym != 0)
+      {
+        act_sym+=4;
+        mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
+        if (mode_sym != 0)
+          act_sym+=4;
+      }
+
+      // decoding of I pred-mode: 0,1,2,3
+      act_ctx = 10;
+      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
+      act_sym += mode_sym*2;
+      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
+      act_sym += mode_sym;
+      curr_mb_type = act_sym;
+    }
+  }
+
+  se->value1 = curr_mb_type;
+
+#if TRACE
+  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
+  fflush(p_Dec->p_trace);
+#endif
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    This function is used to arithmetically decode the macroblock
+ *    type info of a given MB.
+ ************************************************************************
+ */
+static void readMB_typeInfo_CABAC_b_slice(Macroblock *currMB,  
+                           SyntaxElement *se,
+                           DecodingEnvironmentPtr dep_dp)
+{
+  Slice *currSlice = currMB->p_Slice;
+  MotionInfoContexts *ctx = currSlice->mot_ctx;
+
+  int a = 0, b = 0;
+  int act_ctx;
+  int act_sym;
+  int mode_sym;
+  int curr_mb_type;
+  BiContextType *mb_type_contexts = ctx->mb_type_contexts[2];
+
+  if (currMB->mb_up != NULL)
+    b = (( (currMB->mb_up)->mb_type != 0) ? 1 : 0 );
+
+  if (currMB->mb_left != NULL)
+    a = (( (currMB->mb_left)->mb_type != 0) ? 1 : 0 );
+
+  act_ctx = a + b;
+
+  if (biari_decode_symbol (dep_dp, &mb_type_contexts[act_ctx]))
+  {
+    if (biari_decode_symbol (dep_dp, &mb_type_contexts[4]))
+    {
+      if (biari_decode_symbol (dep_dp, &mb_type_contexts[5]))
+      {
+        act_sym = 12;
+        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
+          act_sym += 8;
+        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
+          act_sym += 4;
+        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
+          act_sym += 2;
+
+        if      (act_sym == 24)  
+          act_sym=11;
+        else if (act_sym == 26)  
+          act_sym = 22;
+        else
+        {
+          if (act_sym == 22)     
+            act_sym = 23;
+          if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
+            act_sym += 1;
+        }
+      }
+      else
+      {
+        act_sym = 3;
+        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
+          act_sym += 4;
+        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
+          act_sym += 2;
+        if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
+          act_sym += 1;
+      }
+    }
+    else
+    {
+      if (biari_decode_symbol (dep_dp, &mb_type_contexts[6])) 
+        act_sym=2;
+      else
+        act_sym=1;
+    }
+  }
+  else
+  {
+    act_sym = 0;
+  }
+
+
+  if (act_sym <= 23)
+  {
+    curr_mb_type = act_sym;
+  }
+  else  // additional info for 16x16 Intra-mode
+  {
+    mode_sym = biari_decode_final(dep_dp);
+    if( mode_sym == 1 )
+    {
+      curr_mb_type = 48;
+    }
+    else
+    {
+      mb_type_contexts = ctx->mb_type_contexts[1];
+      act_ctx = 8;
+      mode_sym =  biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx ); // decoding of AC/no AC
+      act_sym += mode_sym*12;
+
+      // decoding of cbp: 0,1,2
+      act_ctx = 9;
+      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
+      if (mode_sym != 0)
+      {
+        act_sym+=4;
+        mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
+        if (mode_sym != 0)
+          act_sym+=4;
+      }
+
+      // decoding of I pred-mode: 0,1,2,3
+      act_ctx = 10;
+      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
+      act_sym += mode_sym*2;
+      mode_sym = biari_decode_symbol(dep_dp, mb_type_contexts + act_ctx );
+      act_sym += mode_sym;
+      curr_mb_type = act_sym;
+    }
+  }
+
+  se->value1 = curr_mb_type;
+
+#if TRACE
+  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
+  fflush(p_Dec->p_trace);
+#endif
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    This function is used to arithmetically decode the 8x8 block type.
+ ************************************************************************
+ */
+static void readB8_typeInfo_CABAC_p_slice (Macroblock *currMB, 
+                                    SyntaxElement *se,
+                                    DecodingEnvironmentPtr dep_dp)
+{
+  Slice *currSlice = currMB->p_Slice;
+  int act_sym = 0;
+
+  MotionInfoContexts *ctx = currSlice->mot_ctx;
+  BiContextType *b8_type_contexts = &ctx->b8_type_contexts[0][1];
+
+  if (biari_decode_symbol (dep_dp, b8_type_contexts++))
+    act_sym = 0;
+  else
+  {
+    if (biari_decode_symbol (dep_dp, ++b8_type_contexts))
+    {
+      act_sym = (biari_decode_symbol (dep_dp, ++b8_type_contexts))? 2: 3;
+    }
+    else
+    {
+      act_sym = 1;
+    }
+  } 
+
+  se->value1 = act_sym;
+
+#if TRACE
+  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
+  fflush(p_Dec->p_trace);
+#endif
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    This function is used to arithmetically decode the 8x8 block type.
+ ************************************************************************
+ */
+static void readB8_typeInfo_CABAC_b_slice (Macroblock *currMB, 
+                                    SyntaxElement *se,
+                                    DecodingEnvironmentPtr dep_dp)
+{
+  Slice *currSlice = currMB->p_Slice;
+  int act_sym = 0;
+
+  MotionInfoContexts *ctx = currSlice->mot_ctx;
+  BiContextType *b8_type_contexts = ctx->b8_type_contexts[1];
+
+  if (biari_decode_symbol (dep_dp, b8_type_contexts++))
+  {
+    if (biari_decode_symbol (dep_dp, b8_type_contexts++))
+    {
+      if (biari_decode_symbol (dep_dp, b8_type_contexts++))
+      {
+        if (biari_decode_symbol (dep_dp, b8_type_contexts))
+        {
+          act_sym = 10;
+          if (biari_decode_symbol (dep_dp, b8_type_contexts)) 
+            act_sym++;
+        }
+        else
+        {
+          act_sym = 6;
+          if (biari_decode_symbol (dep_dp, b8_type_contexts)) 
+            act_sym += 2;
+          if (biari_decode_symbol (dep_dp, b8_type_contexts)) 
+            act_sym++;
+        }
+      }
+      else
+      {
+        act_sym = 2;
+        if (biari_decode_symbol (dep_dp, b8_type_contexts)) 
+          act_sym += 2;
+        if (biari_decode_symbol (dep_dp, b8_type_contexts)) 
+          act_sym ++;
+      }
+    }
+    else
+    {
+      act_sym = (biari_decode_symbol (dep_dp, ++b8_type_contexts)) ? 1: 0;
+    }
+    ++act_sym;
+  }
+  else
+  {
+    act_sym = 0;
+  }
+
+  se->value1 = act_sym;
+
+#if TRACE
+  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
+  fflush(p_Dec->p_trace);
+#endif
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    This function is used to arithmetically decode a pair of
+ *    intra prediction modes of a given MB.
+ ************************************************************************
+ */
+static void readIntraPredMode_CABAC( Macroblock *currMB, 
+                              SyntaxElement *se,
+                              DecodingEnvironmentPtr dep_dp)
+{
+  Slice *currSlice = currMB->p_Slice;
+  TextureInfoContexts *ctx     = currSlice->tex_ctx;
+  // use_most_probable_mode
+  int act_sym = biari_decode_symbol(dep_dp, ctx->ipr_contexts);
+
+  // remaining_mode_selector
+  if (act_sym == 1)
+    se->value1 = -1;
+  else
+  {
+    se->value1  = (biari_decode_symbol(dep_dp, ctx->ipr_contexts + 1)     );
+    se->value1 |= (biari_decode_symbol(dep_dp, ctx->ipr_contexts + 1) << 1);
+    se->value1 |= (biari_decode_symbol(dep_dp, ctx->ipr_contexts + 1) << 2);
+  }
+
+#if TRACE
+  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
+  fflush(p_Dec->p_trace);
+#endif
+}
+
+
 
 
 /*!
@@ -2493,300 +3058,258 @@ static void read_one_macroblock_b_slice_cavlc(Macroblock *currMB)
  */
 static void read_one_macroblock_b_slice_cabac(Macroblock *currMB)
 {
-  Slice *currSlice = currMB->p_Slice;
-  VideoParameters *p_Vid = currMB->p_Vid;
-  int mb_nr = currMB->mbAddrX; 
-  SyntaxElement currSE;
+    Slice *currSlice = currMB->p_Slice;
+    VideoParameters *p_Vid = currMB->p_Vid;
+    int mb_nr = currMB->mbAddrX; 
+    SyntaxElement currSE;
 
-  DataPartition *dP;
-  const byte *partMap = assignSE2partition[currSlice->dp_mode];
+    DataPartition *dP;
+    const byte *partMap = assignSE2partition[currSlice->dp_mode];
 
-  if (currSlice->mb_aff_frame_flag == 0)
-  {
-    StorablePicture *dec_picture = currSlice->dec_picture;
-    PicMotionParamsOld *motion = &dec_picture->motion;
+    if (currSlice->mb_aff_frame_flag == 0) {
+        StorablePicture *dec_picture = currSlice->dec_picture;
+        PicMotionParamsOld *motion = &dec_picture->motion;
 
-    currMB->mb_field = FALSE;
+        currMB->mb_field = FALSE;
 
-    update_qp(currMB, currSlice->qp);
-    currSE.type = SE_MBTYPE;
+        update_qp(currMB, currSlice->qp);
+        currSE.type = SE_MBTYPE;
 
-    //  read MB mode *****************************************************************
-    dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);
+        //  read MB mode *****************************************************************
+        dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);
 
-    if (dP->bitstream->ei_flag)   
-      currSE.mapping = linfo_ue;
+        if (dP->bitstream->ei_flag)   
+            currSE.mapping = linfo_ue;
 
-    CheckAvailabilityOfNeighborsCABAC(currMB);
-    TRACE_STRING("mb_skip_flag");
-    currSE.reading = read_skip_flag_CABAC_b_slice;
-    dP->readSyntaxElement(currMB, &currSE, dP);
+        CheckAvailabilityOfNeighborsCABAC(currMB);
+        TRACE_STRING("mb_skip_flag");
+        currSE.reading = read_skip_flag_CABAC_b_slice;
+        dP->readSyntaxElement(currMB, &currSE, dP);
 
-    currMB->mb_type   = (short) currSE.value1;
-    currMB->skip_flag = (char) (!(currSE.value1));
+        currMB->mb_type   = (short)currSE.value1;
+        currMB->skip_flag = (char)(!currSE.value1);
+        currMB->cbp       = currSE.value2;
 
-    currMB->cbp = currSE.value2;
+        if (!dP->bitstream->ei_flag)
+            currMB->ei_flag = 0;
 
-    if (!dP->bitstream->ei_flag)
-      currMB->ei_flag = 0;
+        if (currSE.value1 == 0 && currSE.value2 == 0)
+            currSlice->cod_counter=0;   
 
-    if (currSE.value1 == 0 && currSE.value2 == 0)
-      currSlice->cod_counter=0;   
+        // read MB type
+        if (currMB->mb_type != 0) {
+            currSE.reading = readMB_typeInfo_CABAC_b_slice;
+            TRACE_STRING("mb_type");
+            dP->readSyntaxElement(currMB, &currSE, dP);
+            currMB->mb_type = (short) currSE.value1;
+            if (!dP->bitstream->ei_flag)
+                currMB->ei_flag = 0;
+        }
 
-    // read MB type
-    if (currMB->mb_type != 0 )
-    {
-      currSE.reading = readMB_typeInfo_CABAC_b_slice;
-      TRACE_STRING("mb_type");
-      dP->readSyntaxElement(currMB, &currSE, dP);
-      currMB->mb_type = (short) currSE.value1;
-      if(!dP->bitstream->ei_flag)
-        currMB->ei_flag = 0;
+        motion->mb_field[mb_nr] = (byte) FALSE;
+        currMB->block_y_aff = currMB->block_y;
+        currSlice->siblock[currMB->mb.y][currMB->mb.x] = 0;
+        currSlice->interpret_mb_mode(currMB);
+    } else {
+        Macroblock *topMB = NULL;
+        int  prevMbSkipped = 0;
+        int  check_bottom, read_bottom, read_top;  
+        StorablePicture *dec_picture = currSlice->dec_picture;
+        PicMotionParamsOld *motion = &dec_picture->motion;
+
+        if (mb_nr & 0x01) {
+            topMB = &p_Vid->mb_data[mb_nr - 1];
+            prevMbSkipped = topMB->skip_flag;
+        } else
+            prevMbSkipped = 0;
+
+        currMB->mb_field = (mb_nr & 0x01) == 0 ? FALSE : p_Vid->mb_data[mb_nr - 1].mb_field;
+
+        update_qp(currMB, currSlice->qp);
+        currSE.type = SE_MBTYPE;
+
+        //  read MB mode *****************************************************************
+        dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);
+
+        if (dP->bitstream->ei_flag)   
+            currSE.mapping = linfo_ue;
+
+        // read MB skip_flag
+        if ((mb_nr & 0x01) == 0 || prevMbSkipped)
+            field_flag_inference(currMB);
+
+        CheckAvailabilityOfNeighborsCABAC(currMB);
+        TRACE_STRING("mb_skip_flag");
+        currSE.reading = read_skip_flag_CABAC_b_slice;
+        dP->readSyntaxElement(currMB, &currSE, dP);
+
+        currMB->mb_type   = (short)currSE.value1;
+        currMB->skip_flag = (char)(!currSE.value1);
+        currMB->cbp = currSE.value2;
+
+        if (!dP->bitstream->ei_flag)
+            currMB->ei_flag = 0;
+
+        if (currSE.value1 == 0 && currSE.value2 == 0)
+            currSlice->cod_counter = 0;
+
+        // read MB AFF
+        check_bottom = read_bottom = read_top = 0;
+        if ((mb_nr & 0x01) == 0) {
+            check_bottom = currMB->skip_flag;
+            read_top = !check_bottom;
+        } else
+            read_bottom = topMB->skip_flag && !currMB->skip_flag;
+
+        if (read_bottom || read_top) {
+            TRACE_STRING("mb_field_decoding_flag");
+            currSE.reading = readFieldModeInfo_CABAC;
+            dP->readSyntaxElement(currMB, &currSE, dP);
+            currMB->mb_field = (Boolean)currSE.value1;
+        }
+        if (check_bottom)
+            check_next_mb_and_get_field_mode_CABAC_b_slice(currSlice, &currSE, dP);
+
+        //update the list offset;
+        currMB->list_offset = currMB->mb_field ? (mb_nr & 0x01 ? 4 : 2) : 0;
+        CheckAvailabilityOfNeighborsCABAC(currMB);
+
+        // read MB type
+        if (currMB->mb_type != 0) {
+            currSE.reading = readMB_typeInfo_CABAC_b_slice;
+            TRACE_STRING("mb_type");
+            dP->readSyntaxElement(currMB, &currSE, dP);
+            currMB->mb_type = (short)currSE.value1;
+            if (!dP->bitstream->ei_flag)
+                currMB->ei_flag = 0;
+        }
+
+        motion->mb_field[mb_nr] = (byte)currMB->mb_field;
+
+        currMB->block_y_aff = currMB->mb_field ?
+            (mb_nr & 0x01 ? (currMB->block_y - 4) >> 1 : currMB->block_y >> 1) : currMB->block_y;
+
+        currSlice->siblock[currMB->mb.y][currMB->mb.x] = 0;
+
+        currSlice->interpret_mb_mode(currMB);
+
+        if (currMB->mb_field) {
+            currSlice->num_ref_idx_active[LIST_0] <<= 1;
+            currSlice->num_ref_idx_active[LIST_1] <<= 1;
+        }
     }
 
-    motion->mb_field[mb_nr] = (byte) FALSE;
-    currMB->block_y_aff = currMB->block_y;
-    currSlice->siblock[currMB->mb.y][currMB->mb.x] = 0;
-    currSlice->interpret_mb_mode(currMB);
-  }
-  else
-  {
-    Macroblock *topMB = NULL;
-    int  prevMbSkipped = 0;
-    int  check_bottom, read_bottom, read_top;  
-    StorablePicture *dec_picture = currSlice->dec_picture;
-    PicMotionParamsOld *motion = &dec_picture->motion;
+    if (currMB->mb_type == IPCM)
+        read_i_pcm_macroblock(currMB, partMap);
+    else if (currMB->mb_type == I4MB)
+        read_intra4x4_macroblock_cabac(currMB, partMap);
+    else if (currMB->mb_type == P8x8) {
+        dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);
+        currSE.type = SE_MBTYPE;      
 
-    if (mb_nr&0x01)
-    {
-      topMB= &p_Vid->mb_data[mb_nr-1];
-      prevMbSkipped = topMB->skip_flag;
-    }
-    else
-      prevMbSkipped = 0;
+        if (dP->bitstream->ei_flag) 
+            currSE.mapping = linfo_ue;
+        else
+            currSE.reading = readB8_typeInfo_CABAC_b_slice;
 
-    currMB->mb_field = ((mb_nr&0x01) == 0)? FALSE : p_Vid->mb_data[mb_nr-1].mb_field;
+        read_P8x8_macroblock(currMB, dP, &currSE);
+    } else if (currMB->mb_type == BSKIP_DIRECT) {
+        //init NoMbPartLessThan8x8Flag
+        currMB->NoMbPartLessThan8x8Flag = !currSlice->active_sps->direct_8x8_inference_flag ? FALSE : TRUE;
 
-    update_qp(currMB, currSlice->qp);
-    currSE.type = SE_MBTYPE;
+        //============= Transform Size Flag for INTRA MBs =============
+        //-------------------------------------------------------------
+        //transform size flag for INTRA_4x4 and INTRA_8x8 modes
+        currMB->luma_transform_size_8x8_flag = FALSE;
 
-    //  read MB mode *****************************************************************
-    dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);
+        if (p_Vid->active_pps->constrained_intra_pred_flag)
+            currSlice->intra_block[mb_nr] = 0;
 
-    if (dP->bitstream->ei_flag)   
-      currSE.mapping = linfo_ue;
+        //--- init macroblock data ---
+        init_macroblock_direct(currMB);
 
-    // read MB skip_flag
-    if (((mb_nr&0x01) == 0||prevMbSkipped))
-      field_flag_inference(currMB);
-
-    CheckAvailabilityOfNeighborsCABAC(currMB);
-    TRACE_STRING("mb_skip_flag");
-    currSE.reading = read_skip_flag_CABAC_b_slice;
-    dP->readSyntaxElement(currMB, &currSE, dP);
-
-    currMB->mb_type   = (short) currSE.value1;
-    currMB->skip_flag = (char) (!(currSE.value1));
-
-    currMB->cbp = currSE.value2;
-
-    if (!dP->bitstream->ei_flag)
-      currMB->ei_flag = 0;
-
-    if (currSE.value1 == 0 && currSE.value2 == 0)
-      currSlice->cod_counter=0;
-
-    // read MB AFF
-    check_bottom=read_bottom=read_top=0;
-    if ((mb_nr & 0x01) == 0)
-    {
-      check_bottom =  currMB->skip_flag;
-      read_top = !check_bottom;
-    }
-    else
-    {
-      read_bottom = (topMB->skip_flag && (!currMB->skip_flag));
-    }
-
-    if (read_bottom || read_top)
-    {
-      TRACE_STRING("mb_field_decoding_flag");
-      currSE.reading = readFieldModeInfo_CABAC;
-      dP->readSyntaxElement(currMB, &currSE, dP);
-      currMB->mb_field = (Boolean) currSE.value1;
-    }
-    if (check_bottom)
-      check_next_mb_and_get_field_mode_CABAC_b_slice(currSlice, &currSE, dP);
-
-    //update the list offset;
-    currMB->list_offset = (currMB->mb_field)? ((mb_nr&0x01)? 4: 2): 0;
-    //if (currMB->mb_type != 0 )
-    CheckAvailabilityOfNeighborsCABAC(currMB);
-
-    // read MB type
-    if (currMB->mb_type != 0 )
-    {
-      currSE.reading = readMB_typeInfo_CABAC_b_slice;
-      TRACE_STRING("mb_type");
-      dP->readSyntaxElement(currMB, &currSE, dP);
-      currMB->mb_type = (short) currSE.value1;
-      if(!dP->bitstream->ei_flag)
-        currMB->ei_flag = 0;
-    }
-
-
-    motion->mb_field[mb_nr] = (byte) currMB->mb_field;
-
-    currMB->block_y_aff = (currMB->mb_field) ? (mb_nr&0x01) ? (currMB->block_y - 4)>>1 : currMB->block_y >> 1 : currMB->block_y;
-
-    currSlice->siblock[currMB->mb.y][currMB->mb.x] = 0;
-
-    currSlice->interpret_mb_mode(currMB);
-
-    if(currMB->mb_field)
-    {
-      currSlice->num_ref_idx_active[LIST_0] <<=1;
-      currSlice->num_ref_idx_active[LIST_1] <<=1;
-    }
-  }
-
-  if(currMB->mb_type == IPCM)
-  {
-    read_i_pcm_macroblock(currMB, partMap);
-  }
-  else if (currMB->mb_type == I4MB)
-  {
-    read_intra4x4_macroblock_cabac(currMB, partMap);
-  }
-  else if (currMB->mb_type == P8x8)
-  {
-    dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);
-    currSE.type = SE_MBTYPE;      
-
-    if (dP->bitstream->ei_flag) 
-      currSE.mapping = linfo_ue;
-    else
-      currSE.reading = readB8_typeInfo_CABAC_b_slice;
-
-    read_P8x8_macroblock(currMB, dP, &currSE);
-  }
-  else if (currMB->mb_type == BSKIP_DIRECT)
-  {
-    //init NoMbPartLessThan8x8Flag
-    currMB->NoMbPartLessThan8x8Flag = (!(currSlice->active_sps->direct_8x8_inference_flag))? FALSE: TRUE;
-
-    //============= Transform Size Flag for INTRA MBs =============
-    //-------------------------------------------------------------
-    //transform size flag for INTRA_4x4 and INTRA_8x8 modes
-    currMB->luma_transform_size_8x8_flag = FALSE;
-
-    if(p_Vid->active_pps->constrained_intra_pred_flag)
-    {
-      currSlice->intra_block[mb_nr] = 0;
-    }
-
-    //--- init macroblock data ---
-    init_macroblock_direct(currMB);
-
-    if (currSlice->cod_counter >= 0)
-    {
-      currSlice->is_reset_coeff = TRUE;
-      currMB->cbp = 0;
-      currSlice->cod_counter = -1;
-    }
-    else
-    {
-      // read CBP and Coeffs  ***************************************************************
-      currSlice->read_CBP_and_coeffs_from_NAL (currMB);
-    }      
-  }
-  else if (currMB->is_intra_block == TRUE) // all other intra modes
-  {
-    read_intra_macroblock(currMB);
-  }
-  else // all other remaining modes
-  {
-    read_inter_macroblock(currMB);
-  }
-
-  return;
+        if (currSlice->cod_counter >= 0) {
+            currSlice->is_reset_coeff = TRUE;
+            currMB->cbp = 0;
+            currSlice->cod_counter = -1;
+        } else
+            // read CBP and Coeffs  ***************************************************************
+            currSlice->read_CBP_and_coeffs_from_NAL(currMB);
+    } else if (currMB->is_intra_block == TRUE) // all other intra modes
+        read_intra_macroblock(currMB);
+    else // all other remaining modes
+        read_inter_macroblock(currMB);
 }
 
 
 void setup_read_macroblock(Slice *currSlice)
 {
-  if (currSlice->p_Vid->active_pps->entropy_coding_mode_flag == (Boolean) CABAC)
-  {
-    switch (currSlice->slice_type)
-    {
+    if (currSlice->p_Vid->active_pps->entropy_coding_mode_flag == (Boolean)CABAC) {
+        switch (currSlice->slice_type) {
+        case P_SLICE:
+        case SP_SLICE:
+            currSlice->read_one_macroblock = read_one_macroblock_p_slice_cabac;
+            break;
+        case B_SLICE:
+            currSlice->read_one_macroblock = read_one_macroblock_b_slice_cabac;
+            break;
+        case I_SLICE:
+        case SI_SLICE:
+            currSlice->read_one_macroblock = read_one_macroblock_i_slice_cabac;
+            break;
+        default:
+            printf("Unsupported slice type\n");
+            break;
+        }
+    } else {
+        switch (currSlice->slice_type) {
+        case P_SLICE:
+        case SP_SLICE:
+            currSlice->read_one_macroblock = read_one_macroblock_p_slice_cavlc;
+            break;
+        case B_SLICE:
+            currSlice->read_one_macroblock = read_one_macroblock_b_slice_cavlc;
+            break;
+        case I_SLICE:
+        case SI_SLICE:
+            currSlice->read_one_macroblock = read_one_macroblock_i_slice_cavlc;
+            break;
+        default:
+            printf("Unsupported slice type\n");
+            break;
+        }
+    }
+
+    switch (currSlice->slice_type) {
     case P_SLICE: 
+        currSlice->read_motion_info_from_NAL = read_motion_info_from_NAL_p_slice;
+        break;
     case SP_SLICE:
-      currSlice->read_one_macroblock = read_one_macroblock_p_slice_cabac;
-      break;
+        currSlice->read_motion_info_from_NAL = read_motion_info_from_NAL_p_slice;
+        break;
     case B_SLICE:
-      currSlice->read_one_macroblock = read_one_macroblock_b_slice_cabac;
-      break;
+        currSlice->read_motion_info_from_NAL = read_motion_info_from_NAL_b_slice;
+        break;
     case I_SLICE: 
+        currSlice->read_motion_info_from_NAL = NULL;
+        break;
     case SI_SLICE: 
-      currSlice->read_one_macroblock = read_one_macroblock_i_slice_cabac;
-      break;
+        currSlice->read_motion_info_from_NAL = NULL;
+        break;
     default:
-      printf("Unsupported slice type\n");
-      break;
+        printf("Unsupported slice type\n");
+        break;
     }
-  }
-  else
-  {
-    switch (currSlice->slice_type)
-    {
-    case P_SLICE: 
-    case SP_SLICE:
-      currSlice->read_one_macroblock = read_one_macroblock_p_slice_cavlc;
-      break;
-    case B_SLICE:
-      currSlice->read_one_macroblock = read_one_macroblock_b_slice_cavlc;
-      break;
-    case I_SLICE: 
-    case SI_SLICE:     
-      currSlice->read_one_macroblock = read_one_macroblock_i_slice_cavlc;
-      break;
+
+    switch (currSlice->p_Vid->active_pps->entropy_coding_mode_flag) {
+    case CABAC:
+        set_read_CBP_and_coeffs_cabac(currSlice);
+        break;
+    case CAVLC:
+        set_read_CBP_and_coeffs_cavlc(currSlice);
+        break;
     default:
-      printf("Unsupported slice type\n");
-      break;
+        printf("Unsupported entropy coding mode\n");
+        break;
     }
-  }
-
-  switch (currSlice->slice_type) {
-  case P_SLICE: 
-    currSlice->read_motion_info_from_NAL = read_motion_info_from_NAL_p_slice;
-    break;
-  case SP_SLICE:
-    currSlice->read_motion_info_from_NAL = read_motion_info_from_NAL_p_slice;
-    break;
-  case B_SLICE:
-    currSlice->read_motion_info_from_NAL = read_motion_info_from_NAL_b_slice;
-    break;
-  case I_SLICE: 
-    currSlice->read_motion_info_from_NAL = NULL;
-    break;
-  case SI_SLICE: 
-    currSlice->read_motion_info_from_NAL = NULL;
-    break;
-  default:
-    printf("Unsupported slice type\n");
-    break;
-  }
-
-  switch(currSlice->p_Vid->active_pps->entropy_coding_mode_flag)
-  {
-  case CABAC:
-    set_read_CBP_and_coeffs_cabac(currSlice);
-    break;
-  case CAVLC:
-    set_read_CBP_and_coeffs_cavlc(currSlice);
-    break;
-  default:
-    printf("Unsupported entropy coding mode\n");
-    break;
-  }
 }

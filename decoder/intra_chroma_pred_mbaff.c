@@ -13,6 +13,7 @@
  *************************************************************************************
  */
 #include "global.h"
+#include "slice.h"
 #include "block.h"
 #include "neighbour.h"
 #include "image.h"

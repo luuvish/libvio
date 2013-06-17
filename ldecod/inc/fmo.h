@@ -21,7 +21,9 @@
 extern "C" {
 #endif
 
-extern int fmo_init (VideoParameters *p_Vid, Slice *pSlice);
+struct slice_t;
+
+extern int fmo_init (VideoParameters *p_Vid, struct slice_t *pSlice);
 extern int FmoFinit (VideoParameters *p_Vid);
 
 extern int FmoGetNumberOfSliceGroup(VideoParameters *p_Vid);

@@ -159,15 +159,17 @@ static const int A[4][4] = {
   { 20, 25, 20, 25}
 };
 
+struct slice_t;
+
 // exported functions
 // quantization initialization
 extern void init_qp_process (CodingParameters *cps);
 extern void free_qp_matrices(CodingParameters *cps);
 
 // For Q-matrix
-extern void assign_quant_params   (Slice *currslice);
-extern void CalculateQuant4x4Param(Slice *currslice);
-extern void CalculateQuant8x8Param(Slice *currslice);
+extern void assign_quant_params   (struct slice_t *currslice);
+extern void CalculateQuant4x4Param(struct slice_t *currslice);
+extern void CalculateQuant8x8Param(struct slice_t *currslice);
 
 #ifdef __cplusplus
 }

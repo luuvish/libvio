@@ -26,6 +26,7 @@ extern "C" {
 #endif
 
 #include "global.h"
+#include "bitstream_cabac.h"
 
 #define MAX_LIST_SIZE 33
 //! definition of pic motion parameters
@@ -43,6 +44,8 @@ typedef struct pic_motion_params
   //byte                   mb_field;    //!< field macroblock indicator
   byte                     slice_no;
 } PicMotionParams;
+
+struct DecRefPicMarking_s;
 
 //! definition a picture (field or frame)
 typedef struct storable_picture
@@ -107,7 +110,7 @@ typedef struct storable_picture
   int         qp;
   int         chroma_qp_offset[2];
   int         slice_qp_delta;
-  DecRefPicMarking_t *dec_ref_pic_marking_buffer;                    //!< stores the memory management control operations
+  struct DecRefPicMarking_s *dec_ref_pic_marking_buffer;                    //!< stores the memory management control operations
 
   // picture error concealment
   int         concealed_pic; //indicates if this is a concealed picture
@@ -213,7 +216,7 @@ extern void              free_frame_store (FrameStore* f);
 extern StorablePicture*  alloc_storable_picture(VideoParameters *p_Vid, PictureStructure type, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output);
 extern void              free_storable_picture (StorablePicture* p);
 extern void              store_picture_in_dpb(DecodedPictureBuffer *p_Dpb, StorablePicture* p);
-extern StorablePicture*  get_short_term_pic (Slice *currSlice, DecodedPictureBuffer *p_Dpb, int picNum);
+extern StorablePicture*  get_short_term_pic (struct slice_t *currSlice, DecodedPictureBuffer *p_Dpb, int picNum);
 
 #if (MVC_EXTENSION_ENABLE)
 extern void             idr_memory_management(DecodedPictureBuffer *p_Dpb, StorablePicture* p);
@@ -225,29 +228,30 @@ extern void             append_interview_list(DecodedPictureBuffer *p_Dpb,
                                               int curr_view_id, int anchor_pic_flag);
 #endif
 
+struct slice_t;
+
 extern void unmark_for_reference(FrameStore* fs);
 extern void unmark_for_long_term_reference(FrameStore* fs);
 extern void remove_frame_from_dpb(DecodedPictureBuffer *p_Dpb, int pos);
 
 extern void             flush_dpb(DecodedPictureBuffer *p_Dpb);
-extern void             init_lists_p_slice (Slice *currSlice);
-extern void             init_lists_b_slice (Slice *currSlice);
-extern void             init_lists_i_slice (Slice *currSlice);
-extern void             update_pic_num     (Slice *currSlice);
+extern void             init_lists_p_slice (struct slice_t *currSlice);
+extern void             init_lists_b_slice (struct slice_t *currSlice);
+extern void             init_lists_i_slice (struct slice_t *currSlice);
+extern void             update_pic_num     (struct slice_t *currSlice);
 
 extern void             dpb_split_field      (VideoParameters *p_Vid, FrameStore *fs);
 extern void             dpb_combine_field    (VideoParameters *p_Vid, FrameStore *fs);
 extern void             dpb_combine_field_yuv(VideoParameters *p_Vid, FrameStore *fs);
 
-extern void             reorder_ref_pic_list(Slice *currSlice, int cur_list);
+extern void             reorder_ref_pic_list(struct slice_t *currSlice, int cur_list);
 
-extern void             init_mbaff_lists     (VideoParameters *p_Vid, Slice *currSlice);
-extern void             alloc_ref_pic_list_reordering_buffer(Slice *currSlice);
-extern void             free_ref_pic_list_reordering_buffer(Slice *currSlice);
+extern void             init_mbaff_lists     (VideoParameters *p_Vid, struct slice_t *currSlice);
+extern void             free_ref_pic_list_reordering_buffer(struct slice_t *currSlice);
 
-extern void             fill_frame_num_gap(VideoParameters *p_Vid, Slice *pSlice);
+extern void             fill_frame_num_gap(VideoParameters *p_Vid, struct slice_t *pSlice);
 
-extern void compute_colocated (Slice *currSlice, StorablePicture **listX[6]);
+extern void compute_colocated (struct slice_t *currSlice, StorablePicture **listX[6]);
 
 
 extern int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, seq_parameter_set_rbsp_t *sps);

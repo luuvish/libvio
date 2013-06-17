@@ -18,14 +18,15 @@ extern "C" {
 
 #include "mbuffer.h"
 
-extern void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_Inp);
+struct slice_t;
+
+extern void init_picture(VideoParameters *p_Vid, struct slice_t *currSlice, InputParameters *p_Inp);
 
 extern void calculate_frame_no(VideoParameters *p_Vid, StorablePicture *p);
 extern void find_snr          (VideoParameters *p_Vid, StorablePicture *p, int *p_ref);
-extern int  picture_order     ( Slice *pSlice );
 
-extern void decode_one_slice  (Slice *currSlice);
-extern int  read_new_slice    (Slice *currSlice);
+extern void decode_one_slice  (struct slice_t *currSlice);
+extern int  read_new_slice    (struct slice_t *currSlice);
 extern void exit_picture      (VideoParameters *p_Vid, StorablePicture **dec_picture);
 extern int  decode_one_frame  (DecoderParams *pDecoder);
 
@@ -42,8 +43,8 @@ extern int GetVOIdx(VideoParameters *p_Vid, int iViewId);
 extern int get_maxViewIdx(VideoParameters *p_Vid, int view_id, int anchor_pic_flag, int listidx);
 #endif
 
-extern void init_slice(VideoParameters *p_Vid, Slice *currSlice);
-extern void decode_slice(Slice *currSlice, int current_header);
+extern void init_slice(VideoParameters *p_Vid, struct slice_t *currSlice);
+extern void decode_slice(struct slice_t *currSlice, int current_header);
 
 #ifdef __cplusplus
 }

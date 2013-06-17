@@ -15,6 +15,7 @@
  *************************************************************************************
  */
 #include "global.h"
+#include "slice.h"
 #include "block.h"
 #include "mc_prediction.h"
 #include "mbuffer.h"

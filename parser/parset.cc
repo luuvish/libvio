@@ -13,9 +13,11 @@
  */
 
 #include "global.h"
+#include "slice.h"
+#include "bitstream_elements.h"
 #include "bitstream_nal.h"
 #include "bitstream_cabac.h"
-#include "bitstream_vlc.h"
+#include "bitstream.h"
 #include "image.h"
 #include "parset.h"
 #include "memalloc.h"
@@ -1532,6 +1534,24 @@ void activate_pps(VideoParameters *p_Vid, pic_parameter_set_rbsp_t *pps)
     p_Vid->active_pps = pps;
   }
 }
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    Check if there are symbols for the next MB
+ ************************************************************************
+ */
+static int uvlc_startcode_follows(Slice *currSlice, int dummy)
+{
+  byte            dp_Nr = assignSE2partition[currSlice->dp_mode][SE_MBTYPE];
+  DataPartition     *dP = &(currSlice->partArr[dp_Nr]);
+  Bitstream *currStream = dP->bitstream;
+  byte             *buf = currStream->streamBuffer;
+
+  return (!(more_rbsp_data(buf, currStream->frame_bitoffset,currStream->bitstream_length)));
+}
+
 
 void UseParameterSet (Slice *currSlice)
 {
