@@ -45,11 +45,10 @@
 #include "macroblock.h"
 #include "mb.h"
 
-#include "loopfilter.h"
+#include "loop_filter.h"
 
 #include "biaridecod.h"
 #include "context_ini.h"
-#include "quant.h"
 
 #include "errorconcealment.h"
 #include "erc_api.h"

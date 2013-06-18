@@ -18,7 +18,7 @@
 #include "slice.h"
 #include "macroblock.h"
 #include "mbuffer.h"
-#include "block.h"
+#include "transform.h"
 #include "inter_prediction_mc.h"
 #include "neighbour.h"
 

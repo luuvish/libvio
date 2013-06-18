@@ -18,7 +18,7 @@
 #include "slice.h"
 #include "macroblock.h"
 #include "mbuffer.h"
-#include "block.h"
+#include "transform.h"
 #include "inter_prediction_mc.h"
 
 //! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4

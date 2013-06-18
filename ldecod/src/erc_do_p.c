@@ -20,6 +20,7 @@
 
 #include "global.h"
 #include "slice.h"
+#include "transform.h"
 #include "mbuffer.h"
 #include "memalloc.h"
 #include "erc_do.h"

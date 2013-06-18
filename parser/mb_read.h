@@ -20,7 +20,7 @@ extern "C" {
 
 #include "global.h"
 #include "mbuffer.h"
-#include "block.h"
+#include "transform.h"
 
 //! single scan pattern
 static const byte SNGL_SCAN[16][2] = {

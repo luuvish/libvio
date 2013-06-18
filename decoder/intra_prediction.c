@@ -15,7 +15,7 @@
 #include "mbuffer.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "block.h"
+#include "transform.h"
 #include "intra_prediction.h"
 #include "intra_prediction_common.h"
 

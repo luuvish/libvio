@@ -20,7 +20,7 @@ extern "C" {
 
 #include "global.h"
 #include "mbuffer.h"
-#include "block.h"
+#include "transform.h"
 
 struct slice_t;
 struct video_par;

@@ -15,7 +15,7 @@
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "block.h"
+#include "transform.h"
 #include "neighbour.h"
 #include "image.h"
 

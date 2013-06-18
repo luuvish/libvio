@@ -11,7 +11,7 @@
  *************************************************************************************
  */
 
-#include "block.h"
+#include "transform.h"
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"

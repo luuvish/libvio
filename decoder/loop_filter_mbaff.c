@@ -25,8 +25,8 @@
 #include "macroblock.h"
 #include "image.h"
 #include "neighbour.h"
-#include "loopfilter.h"
 #include "loop_filter.h"
+#include "loop_filter_common.h"
 
 //static void get_strength_ver_MBAff     (Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p);
 //static void get_strength_hor_MBAff     (Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p);

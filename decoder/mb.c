@@ -1,7 +1,6 @@
 
 #include <math.h>
 
-#include "block.h"
 #include "global.h"
 #include "slice.h"
 #include "mbuffer.h"
@@ -15,7 +14,6 @@
 #include "neighbour.h"
 #include "biaridecod.h"
 #include "transform.h"
-#include "quant.h"
 #include "mv_prediction.h"
 #include "inter_prediction.h"
 #include "intra_prediction.h"

@@ -25,8 +25,8 @@
 #include "macroblock.h"
 #include "image.h"
 #include "neighbour.h"
-#include "loopfilter.h"
 #include "loop_filter.h"
+#include "loop_filter_common.h"
 
 static void DeblockMb      (VideoParameters *p_Vid, StorablePicture *p, int MbQAddr);
 static void perform_db     (VideoParameters *p_Vid, StorablePicture *p, int MbQAddr);
@@ -117,7 +117,6 @@ void DeblockPicture(VideoParameters *p_Vid, StorablePicture *p)
   }
   else
   {
-   // deblock_normal( p_Vid, p);
     
     for (i = 0; i < p->PicSizeInMbs; ++i)
     {
