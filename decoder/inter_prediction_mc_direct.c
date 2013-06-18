@@ -16,13 +16,16 @@
  */
 #include "global.h"
 #include "slice.h"
-#include "block.h"
-#include "mc_prediction.h"
-#include "mbuffer.h"
-#include "neighbour.h"
 #include "macroblock.h"
-#include "mb_read.h"
-#include "memalloc.h"
+#include "mbuffer.h"
+#include "block.h"
+#include "inter_prediction_mc.h"
+
+//! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
+static const int BLOCK_STEP[8][2] = {
+    {0, 0}, {4, 4}, {4, 2}, {2, 4},
+    {2, 2}, {2, 1}, {1, 2}, {1, 1}
+};
 
 static void update_direct_mv_info_temporal(Macroblock *currMB)
 {

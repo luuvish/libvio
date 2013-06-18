@@ -37,10 +37,10 @@
 #include "neighbour.h"
 #include "biaridecod.h"
 #include "transform.h"
-#include "mc_prediction.h"
 #include "quant.h"
 #include "mv_prediction.h"
-#include "mb_prediction.h"
+#include "inter_prediction.h"
+#include "intra_prediction.h"
 #include "fast_memory.h"
 #include "filehandle.h"
 
@@ -48,7 +48,6 @@
 
 
 extern void update_direct_types                (Slice *currSlice);
-extern void set_intra_prediction_modes         (Slice *currSlice);
 
 void set_chroma_qp(Macroblock* currMB)
 {
@@ -487,12 +486,12 @@ static void interpret_mb_mode_SI(Macroblock *currMB)
 void setup_slice_methods(Slice *currSlice)
 {
   setup_read_macroblock (currSlice);
+  setup_decode_mb(currSlice);
 
   switch (currSlice->slice_type)
   {
   case P_SLICE: 
     currSlice->interpret_mb_mode         = interpret_mb_mode_P;
-    currSlice->decode_one_component      = decode_one_component_p_slice;
     currSlice->update_direct_mv_info     = NULL;
 #if (MVC_EXTENSION_ENABLE)
     currSlice->init_lists                = currSlice->view_id ? init_lists_p_slice_mvc : init_lists_p_slice;
@@ -502,7 +501,6 @@ void setup_slice_methods(Slice *currSlice)
     break;
   case SP_SLICE:
     currSlice->interpret_mb_mode         = interpret_mb_mode_P;
-    currSlice->decode_one_component      = decode_one_component_sp_slice;
     currSlice->update_direct_mv_info     = NULL;
 #if (MVC_EXTENSION_ENABLE)
     currSlice->init_lists                = currSlice->view_id ? init_lists_p_slice_mvc : init_lists_p_slice;
@@ -512,7 +510,6 @@ void setup_slice_methods(Slice *currSlice)
     break;
   case B_SLICE:
     currSlice->interpret_mb_mode         = interpret_mb_mode_B;
-    currSlice->decode_one_component      = decode_one_component_b_slice;
     update_direct_types(currSlice);
 #if (MVC_EXTENSION_ENABLE)
     currSlice->init_lists                = currSlice->view_id ? init_lists_b_slice_mvc : init_lists_b_slice;
@@ -522,7 +519,6 @@ void setup_slice_methods(Slice *currSlice)
     break;
   case I_SLICE: 
     currSlice->interpret_mb_mode         = interpret_mb_mode_I;
-    currSlice->decode_one_component      = decode_one_component_i_slice;
     currSlice->update_direct_mv_info     = NULL;
 #if (MVC_EXTENSION_ENABLE)
     currSlice->init_lists                = currSlice->view_id ? init_lists_i_slice_mvc : init_lists_i_slice;
@@ -532,7 +528,6 @@ void setup_slice_methods(Slice *currSlice)
     break;
   case SI_SLICE: 
     currSlice->interpret_mb_mode         = interpret_mb_mode_SI;
-    currSlice->decode_one_component      = decode_one_component_i_slice;
     currSlice->update_direct_mv_info     = NULL;
 #if (MVC_EXTENSION_ENABLE)
     currSlice->init_lists                = currSlice->view_id ? init_lists_i_slice_mvc : init_lists_i_slice;

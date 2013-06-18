@@ -44,11 +44,11 @@
 
 #include "global.h"
 #include "slice.h"
+#include "macroblock.h"
 #include "bitstream_nal.h"
 #include "bitstream_cabac.h"
 #include "image.h"
 #include "memalloc.h"
-#include "mc_prediction.h"
 #include "mbuffer.h"
 #include "fmo.h"
 #include "output.h"
@@ -141,6 +141,28 @@ static void reset_dpb( VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb )
   p_Dpb->p_Vid = p_Vid;
   p_Dpb->init_done = 0;
 }
+
+
+int allocate_pred_mem(Slice *currSlice)
+{
+  int alloc_size = 0;
+  alloc_size += get_mem2Dpel(&currSlice->tmp_block_l0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  alloc_size += get_mem2Dpel(&currSlice->tmp_block_l1, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  alloc_size += get_mem2Dpel(&currSlice->tmp_block_l2, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  alloc_size += get_mem2Dpel(&currSlice->tmp_block_l3, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  alloc_size += get_mem2Dint(&currSlice->tmp_res, MB_BLOCK_SIZE + 5, MB_BLOCK_SIZE + 5);
+  return (alloc_size);
+}
+
+void free_pred_mem(Slice *currSlice)
+{
+  free_mem2Dint(currSlice->tmp_res);
+  free_mem2Dpel(currSlice->tmp_block_l0);
+  free_mem2Dpel(currSlice->tmp_block_l1);
+  free_mem2Dpel(currSlice->tmp_block_l2);
+  free_mem2Dpel(currSlice->tmp_block_l3);
+}
+
 /*!
  ***********************************************************************
  * \brief

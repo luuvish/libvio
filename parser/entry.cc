@@ -29,8 +29,6 @@
 #include "mbuffer_mvc.h"
 #include "fast_memory.h"
 
-#include "mc_prediction.h"
-
 /*!
  ************************************************************************
  * \brief

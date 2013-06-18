@@ -180,7 +180,7 @@ extern void free_top_bot_planes(imgpel **imgTopField, imgpel **imgBotField);
 extern void free_mem2Dwp   (WPParams **array2D);
 
 extern void copy2DImage(imgpel **dst_img, imgpel **src_img, int size_x, int size_y);
-extern void no_mem_exit(char *where);
+extern void no_mem_exit(const char *where);
 extern int  malloc_mem2Dpel_2SLayers(imgpel ***buf0, int imgtype0, imgpel ***buf1, int imgtype1, int height, int width);
 extern int  malloc_mem3Dpel_2SLayers(imgpel ****buf0, int imgtype0, imgpel ****buf1, int imgtype1, int frames, int height, int width);
 

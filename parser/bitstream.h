@@ -60,11 +60,11 @@ struct datapartition_dec;
 struct syntaxelement_dec;
 struct macroblock_dec;
 
-int read_se_v (char *tracestring, Bitstream *bitstream, int *used_bits);
-int read_ue_v (char *tracestring, Bitstream *bitstream, int *used_bits);
-Boolean read_u_1 (char *tracestring, Bitstream *bitstream, int *used_bits);
-int read_u_v (int LenInBits, char *tracestring, Bitstream *bitstream, int *used_bits);
-int read_i_v (int LenInBits, char *tracestring, Bitstream *bitstream, int *used_bits);
+int read_se_v (const char *tracestring, Bitstream *bitstream, int *used_bits);
+int read_ue_v (const char *tracestring, Bitstream *bitstream, int *used_bits);
+Boolean read_u_1 (const char *tracestring, Bitstream *bitstream, int *used_bits);
+int read_u_v (int LenInBits, const char *tracestring, Bitstream *bitstream, int *used_bits);
+int read_i_v (int LenInBits, const char *tracestring, Bitstream *bitstream, int *used_bits);
 
 // CAVLC mapping
 void linfo_ue(int len, int info, int *value1, int *dummy);

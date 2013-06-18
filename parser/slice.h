@@ -16,6 +16,7 @@ extern "C" {
 
 struct motion_info_context_t;
 struct texture_info_context_t;
+struct macroblock_dec;
 
 /*! Buffer structure for decoded referenc picture marking commands */
 typedef struct DecRefPicMarking_s
@@ -209,31 +210,31 @@ typedef struct slice_t {
     int                       ref_flag[17]; //!< 0: i-th previous frame is incorrect
 
     int                       erc_mvperMB;
-    Macroblock               *mb_data;
+    struct macroblock_dec     *mb_data;
     struct storable_picture  *dec_picture;
     int                     **siblock;
     byte                    **ipredmode;
     char                     *intra_block;
     char                      chroma_vector_adjustment[6][32];
 
-    void (*read_CBP_and_coeffs_from_NAL)(Macroblock *currMB);
-    int  (*decode_one_component     )(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, struct storable_picture *dec_picture);
+    void (*read_CBP_and_coeffs_from_NAL)(struct macroblock_dec *currMB);
+    int  (*decode_one_component     )(struct macroblock_dec *currMB, ColorPlane curr_plane, imgpel **currImg, struct storable_picture *dec_picture);
     int  (*readSlice                )(struct video_par *, struct inp_par *);  
     int  (*nal_startcode_follows    )(struct slice_t *, int );
-    void (*read_motion_info_from_NAL)(Macroblock *currMB);
-    void (*read_one_macroblock      )(Macroblock *currMB);
-    void (*interpret_mb_mode        )(Macroblock *currMB);
+    void (*read_motion_info_from_NAL)(struct macroblock_dec *currMB);
+    void (*read_one_macroblock      )(struct macroblock_dec *currMB);
+    void (*interpret_mb_mode        )(struct macroblock_dec *currMB);
     void (*init_lists               )(struct slice_t *currSlice);
 
-    void (*intra_pred_chroma)(Macroblock *currMB);
-    int  (*intra_pred_4x4)   (Macroblock *currMB, ColorPlane pl, int ioff, int joff,int i4,int j4);
-    int  (*intra_pred_8x8)   (Macroblock *currMB, ColorPlane pl, int ioff, int joff);
-    int  (*intra_pred_16x16) (Macroblock *currMB, ColorPlane pl, int predmode);
+    void (*intra_pred_chroma)(struct macroblock_dec *currMB);
+    int  (*intra_pred_4x4)   (struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff,int i4,int j4);
+    int  (*intra_pred_8x8)   (struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
+    int  (*intra_pred_16x16) (struct macroblock_dec *currMB, ColorPlane pl, int predmode);
 
     void (*linfo_cbp_intra      )(int len, int info, int *cbp, int *dummy);
     void (*linfo_cbp_inter      )(int len, int info, int *cbp, int *dummy);    
-    void (*update_direct_mv_info)(Macroblock *currMB);
-    void (*read_coeff_4x4_CAVLC )(Macroblock *currMB, int block_type, int i, int j, int levarr[16], int runarr[16], int *number_coefficients);
+    void (*update_direct_mv_info)(struct macroblock_dec *currMB);
+    void (*read_coeff_4x4_CAVLC )(struct macroblock_dec *currMB, int block_type, int i, int j, int levarr[16], int runarr[16], int *number_coefficients);
 } Slice;
 
 

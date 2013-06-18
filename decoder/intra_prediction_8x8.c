@@ -16,7 +16,8 @@
  */
 #include "global.h"
 #include "slice.h"
-#include "intra8x8_pred.h"
+#include "macroblock.h"
+#include "intra_prediction_common.h"
 #include "neighbour.h"
 #include "image.h"
 

@@ -43,6 +43,7 @@
 #include "neighbour.h"
 #include "memalloc.h"
 #include "macroblock.h"
+#include "mb.h"
 
 #include "loopfilter.h"
 
@@ -56,7 +57,6 @@
 #include "mbuffer_mvc.h"
 #include "fast_memory.h"
 
-#include "mc_prediction.h"
 extern int testEndian(void);
 void reorder_lists(Slice *currSlice);
 

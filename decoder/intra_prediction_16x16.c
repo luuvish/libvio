@@ -8,15 +8,14 @@
  * \author
  *      Main contributors (see contributors.h for copyright, 
  *                         address and affiliation details)
- *      - Yuri Vatis
- *      - Jan Muenster
  *      - Alexis Michael Tourapis  <alexismt@ieee.org>
  *
  *************************************************************************************
  */
 #include "global.h"
 #include "slice.h"
-#include "intra16x16_pred.h"
+#include "macroblock.h"
+#include "intra_prediction_common.h"
 #include "neighbour.h"
 #include "image.h"
 
@@ -26,7 +25,7 @@
  *    makes and returns 16x16 DC prediction mode
  *
  * \return
- *    DECODING_OK   decoding of intraprediction mode was successful            \n
+ *    DECODING_OK   decoding of intra_prediction mode was successful            \n
  *
  ***********************************************************************
  */
@@ -116,7 +115,7 @@ static int intra16x16_dc_pred(Macroblock *currMB, ColorPlane pl)
  *    makes and returns 16x16 vertical prediction mode
  *
  * \return
- *    DECODING_OK   decoding of intraprediction mode was successful            \n
+ *    DECODING_OK   decoding of intra prediction mode was successful            \n
  *
  ***********************************************************************
  */
@@ -133,8 +132,7 @@ static int intra16x16_vert_pred(Macroblock *currMB, ColorPlane pl)
 
   int up_avail;
 
-  //getNonAffNeighbour(currMB,    0,   -1, p_Vid->mb_size[IS_LUMA], &b);
-  p_Vid->getNeighbour(currMB,    0,   -1, p_Vid->mb_size[IS_LUMA], &b);
+  getNonAffNeighbour(currMB,    0,   -1, p_Vid->mb_size[IS_LUMA], &b);
 
   if (!p_Vid->active_pps->constrained_intra_pred_flag)
   {
@@ -170,7 +168,7 @@ static int intra16x16_vert_pred(Macroblock *currMB, ColorPlane pl)
  *    makes and returns 16x16 horizontal prediction mode
  *
  * \return
- *    DECODING_OK   decoding of intraprediction mode was successful            \n
+ *    DECODING_OK   decoding of intra prediction mode was successful            \n
  *
  ***********************************************************************
  */
@@ -178,11 +176,7 @@ static int intra16x16_hor_pred(Macroblock *currMB, ColorPlane pl)
 {
   Slice *currSlice = currMB->p_Slice;
   VideoParameters *p_Vid = currMB->p_Vid;
-#if (IMGTYPE == 0)
   int j;
-#else
-  int i, j;
-#endif
 
   imgpel **imgY = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
   imgpel **mb_pred = &(currSlice->mb_pred[pl][0]); 
@@ -212,11 +206,16 @@ static int intra16x16_hor_pred(Macroblock *currMB, ColorPlane pl)
 
   for(j = 0; j < MB_BLOCK_SIZE; ++j)
   {
+#if (IMGTYPE == 0)
     imgpel *prd = mb_pred[j];
     prediction = imgY[pos_y++][pos_x];
-#if (IMGTYPE == 0)
+
     memset(prd, prediction, MB_BLOCK_SIZE * sizeof(imgpel));
 #else
+    int i;
+    imgpel *prd = mb_pred[j];
+    prediction = imgY[pos_y++][pos_x];
+
     for(i = 0; i < MB_BLOCK_SIZE; i += 4)
     {
       *prd++= prediction; // store predicted 16x16 block
@@ -237,7 +236,7 @@ static int intra16x16_hor_pred(Macroblock *currMB, ColorPlane pl)
  *    makes and returns 16x16 horizontal prediction mode
  *
  * \return
- *    DECODING_OK   decoding of intraprediction mode was successful            \n
+ *    DECODING_OK   decoding of intra prediction mode was successful            \n
  *
  ***********************************************************************
  */
@@ -319,11 +318,11 @@ static int intra16x16_plane_pred(Macroblock *currMB, ColorPlane pl)
  *    makes and returns 16x16 intra prediction blocks 
  *
  * \return
- *    DECODING_OK   decoding of intraprediction mode was successful            \n
+ *    DECODING_OK   decoding of intra prediction mode was successful            \n
  *    SEARCH_SYNC   search next sync element as errors while decoding occured
  ***********************************************************************
  */
-int intrapred_16x16_normal(Macroblock *currMB,  //!< Current Macroblock
+int intra_pred_16x16_normal(Macroblock *currMB,  //!< Current Macroblock
                            ColorPlane pl,       //!< Current colorplane (for 4:4:4)                         
                            int predmode)        //!< prediction mode
 {

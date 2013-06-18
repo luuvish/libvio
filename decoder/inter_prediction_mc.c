@@ -16,32 +16,11 @@
  */
 #include "global.h"
 #include "slice.h"
-#include "block.h"
-#include "mc_prediction.h"
-#include "mbuffer.h"
-#include "neighbour.h"
 #include "macroblock.h"
-#include "memalloc.h"
-
-int allocate_pred_mem(Slice *currSlice)
-{
-  int alloc_size = 0;
-  alloc_size += get_mem2Dpel(&currSlice->tmp_block_l0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-  alloc_size += get_mem2Dpel(&currSlice->tmp_block_l1, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-  alloc_size += get_mem2Dpel(&currSlice->tmp_block_l2, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-  alloc_size += get_mem2Dpel(&currSlice->tmp_block_l3, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-  alloc_size += get_mem2Dint(&currSlice->tmp_res, MB_BLOCK_SIZE + 5, MB_BLOCK_SIZE + 5);
-  return (alloc_size);
-}
-
-void free_pred_mem(Slice *currSlice)
-{
-  free_mem2Dint(currSlice->tmp_res);
-  free_mem2Dpel(currSlice->tmp_block_l0);
-  free_mem2Dpel(currSlice->tmp_block_l1);
-  free_mem2Dpel(currSlice->tmp_block_l2);
-  free_mem2Dpel(currSlice->tmp_block_l3);
-}
+#include "mbuffer.h"
+#include "block.h"
+#include "inter_prediction_mc.h"
+#include "neighbour.h"
 
 static const int COEF[6] = { 1, -5, 20, 20, -5, 1 };
 
@@ -1134,83 +1113,6 @@ static void get_block_chroma(StorablePicture *curr_ref, int x_pos, int y_pos, in
   }
 }
 
-void intra_cr_decoding(Macroblock *currMB, int yuv)
-{
-  VideoParameters *p_Vid = currMB->p_Vid;
-  Slice *currSlice = currMB->p_Slice;
-  StorablePicture *dec_picture = currSlice->dec_picture;
-  imgpel **curUV;
-  int uv;
-  int b8,b4;
-  int ioff, joff;
-  int i,j;
-
-  currSlice->intra_pred_chroma(currMB);// last argument is ignored, computes needed data for both uv channels
-
-  for(uv = 0; uv < 2; uv++)
-  {
-    currMB->itrans_4x4 = (currMB->is_lossless == FALSE) ? itrans4x4 : itrans4x4_ls;
-
-    curUV = dec_picture->imgUV[uv];
-
-    if(currMB->is_lossless)
-    {
-      if ((currMB->c_ipred_mode == VERT_PRED_8)||(currMB->c_ipred_mode == HOR_PRED_8))
-        Inv_Residual_trans_Chroma(currMB, uv) ;
-      else
-      {
-        for(j=0;j<p_Vid->mb_cr_size_y;j++)
-          for(i=0;i<p_Vid->mb_cr_size_x;i++)
-            currSlice->mb_rres [uv+1][j][i]=currSlice->cof[uv+1][j][i];
-      }
-    }
-
-    if ((!(currMB->mb_type == SI4MB) && (currMB->cbp >> 4)) )
-    {
-      for (b8 = 0; b8 < (p_Vid->num_uv_blocks); b8++)
-      {
-        for(b4 = 0; b4 < 4; b4++)
-        {
-          joff = subblk_offset_y[yuv][b8][b4];          
-          ioff = subblk_offset_x[yuv][b8][b4];          
-
-          currMB->itrans_4x4(currMB, (ColorPlane) (uv + 1), ioff, joff);
-
-          copy_image_data_4x4(&curUV[currMB->pix_c_y + joff], &(currSlice->mb_rec[uv + 1][joff]), currMB->pix_c_x + ioff, ioff);
-        }
-      }
-      currSlice->is_reset_coeff_cr = FALSE;
-    }
-    else if (currMB->mb_type == SI4MB)
-    {
-      itrans_sp_cr(currMB, uv);
-
-      for (joff  = 0; joff < 8; joff += 4)
-      {
-        for(ioff = 0; ioff < 8;ioff+=4)
-        {          
-          currMB->itrans_4x4(currMB, (ColorPlane) (uv + 1), ioff, joff);
-        
-          copy_image_data_4x4(&curUV[currMB->pix_c_y + joff], &(currSlice->mb_rec[uv + 1][joff]), currMB->pix_c_x + ioff, ioff);
-        }
-      }
-      currSlice->is_reset_coeff_cr = FALSE;
-    }
-    else
-    {      
-      for (b8 = 0; b8 < (p_Vid->num_uv_blocks); b8++)
-      {
-        for(b4 = 0; b4 < 4; b4++)
-        {
-          joff = subblk_offset_y[yuv][b8][b4];
-          ioff = subblk_offset_x[yuv][b8][b4];          
-
-          copy_image_data_4x4(&curUV[currMB->pix_c_y + joff], &(currSlice->mb_pred[uv + 1][joff]), currMB->pix_c_x + ioff, ioff);
-        }
-      }
-    }
-  }
-}
 
 static inline void set_direct_references(const PixelPos *mb, char *l0_rFrame, char *l1_rFrame, PicMotionParams **mv_info)
 {
@@ -1341,6 +1243,20 @@ static inline int check_vert_mv(int llimit, int vec1_y,int rlimit)
   else
     return 0;
 }
+
+int CheckVertMV(Macroblock *currMB, int vec1_y, int block_size_y)
+{
+  VideoParameters *p_Vid = currMB->p_Vid;  
+  StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
+  int y_pos = vec1_y>>2;
+  int maxold_y = (currMB->mb_field) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;
+
+  if(y_pos < (-p_Vid->iLumaPadY + 2) || y_pos > (maxold_y + p_Vid->iLumaPadY - block_size_y - 2))
+    return 1;
+  else
+    return 0;
+}
+
 
 static void perform_mc_single_wp(Macroblock *currMB, ColorPlane pl, StorablePicture *dec_picture, int pred_dir, int i, int j, int block_size_x, int block_size_y)
 {

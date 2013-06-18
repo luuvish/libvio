@@ -1793,7 +1793,7 @@ void free_mem5Dint(int *****array5D)
  *    string indicating which memory allocation failed
  ************************************************************************
  */
-void no_mem_exit(char *where)
+void no_mem_exit(const char *where)
 {
    snprintf(errortext, ET_SIZE, "Could not allocate memory: %s",where);
    error (errortext, 100);

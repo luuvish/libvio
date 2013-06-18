@@ -13,6 +13,7 @@
  */
 
 #include "global.h"
+#include "macroblock.h"
 #include "mbuffer.h"
 
 /*!

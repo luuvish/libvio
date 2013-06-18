@@ -20,24 +20,26 @@
 extern "C" {
 #endif
 
-extern void CheckAvailabilityOfNeighbors(Macroblock *currMB);
-extern void CheckAvailabilityOfNeighborsMBAFF(Macroblock *currMB);
-extern void CheckAvailabilityOfNeighborsNormal(Macroblock *currMB);
+struct macroblock_dec;
 
-extern void getAffNeighbour         (Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
-extern void getNonAffNeighbour      (Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
-extern void get4x4Neighbour         (Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
-extern void get4x4NeighbourBase     (Macroblock *currMB, int block_x, int block_y, int mb_size[2], PixelPos *pix);
-extern Boolean mb_is_available      (int mbAddr, Macroblock *currMB);
+extern void CheckAvailabilityOfNeighbors(struct macroblock_dec *currMB);
+extern void CheckAvailabilityOfNeighborsMBAFF(struct macroblock_dec *currMB);
+extern void CheckAvailabilityOfNeighborsNormal(struct macroblock_dec *currMB);
+
+extern void getAffNeighbour         (struct macroblock_dec *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
+extern void getNonAffNeighbour      (struct macroblock_dec *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
+extern void get4x4Neighbour         (struct macroblock_dec *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
+extern void get4x4NeighbourBase     (struct macroblock_dec *currMB, int block_x, int block_y, int mb_size[2], PixelPos *pix);
+extern Boolean mb_is_available      (int mbAddr, struct macroblock_dec *currMB);
 extern void get_mb_pos              (VideoParameters *p_Vid, int mb_addr, int mb_size[2], short *x, short *y);
 extern void get_mb_block_pos_normal (BlockPos *PicPos, int mb_addr, short *x, short *y);
 extern void get_mb_block_pos_mbaff  (BlockPos *PicPos, int mb_addr, short *x, short *y);
 
-void get_neighbors(Macroblock *currMB, PixelPos *block, int mb_x, int mb_y, int blockshape_x);
-void check_dp_neighbors(Macroblock *currMB);
+void get_neighbors(struct macroblock_dec *currMB, PixelPos *block, int mb_x, int mb_y, int blockshape_x);
+void check_dp_neighbors(struct macroblock_dec *currMB);
 
-int predict_nnz(Macroblock *currMB, int block_type, int i,int j);
-int predict_nnz_chroma(Macroblock *currMB, int i,int j);
+int predict_nnz(struct macroblock_dec *currMB, int block_type, int i,int j);
+int predict_nnz_chroma(struct macroblock_dec *currMB, int i,int j);
 
 #ifdef __cplusplus
 }

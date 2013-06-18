@@ -22,10 +22,8 @@ extern "C" {
 #include "mbuffer.h"
 #include "block.h"
 
-int decode_one_component_i_slice (Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
-int decode_one_component_p_slice (Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
-int decode_one_component_b_slice (Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
-int decode_one_component_sp_slice(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
+void setup_decode_mb(Slice *currSlice);
+int  decode_one_macroblock(Macroblock *currMB, StorablePicture *dec_picture);
 
 #ifdef __cplusplus
 }

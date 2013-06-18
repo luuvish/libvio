@@ -1,6 +1,6 @@
 /*!
  *************************************************************************************
- * \file intra4x4_pred_normal.c
+ * \file intra4x4_pred.c
  *
  * \brief
  *    Functions for intra 4x4 prediction
@@ -14,7 +14,8 @@
  */
 #include "global.h"
 #include "slice.h"
-#include "intra4x4_pred.h"
+#include "macroblock.h"
+#include "intra_prediction_common.h"
 #include "neighbour.h"
 #include "image.h"
 
@@ -28,6 +29,21 @@
 //  K i j k l
 //  L m n o p
 //
+
+// Predictor array index definitions
+#define P_X (PredPel[0])
+#define P_A (PredPel[1])
+#define P_B (PredPel[2])
+#define P_C (PredPel[3])
+#define P_D (PredPel[4])
+#define P_E (PredPel[5])
+#define P_F (PredPel[6])
+#define P_G (PredPel[7])
+#define P_H (PredPel[8])
+#define P_I (PredPel[9])
+#define P_J (PredPel[10])
+#define P_K (PredPel[11])
+#define P_L (PredPel[12])
 
 /*!
  ***********************************************************************
@@ -314,29 +330,28 @@ static int intra4x4_diag_down_right_pred(Macroblock *currMB,    //!< current mac
   else
   {
     imgpel PredPixel[7];
+    imgpel PredPel[13];
     imgpel **img_pred = &imgY[pix_a.pos_y];
     int pix_x = pix_a.pos_x;
     imgpel *pred_pel = &imgY[pix_b.pos_y][pix_b.pos_x];
     // form predictor pels
-    imgpel p_a = *pred_pel++;
-    imgpel p_b = *pred_pel++;
-    imgpel p_c = *pred_pel++;
-    imgpel p_d = *pred_pel  ;
+    // P_A through P_D
+    memcpy(&PredPel[1], pred_pel, BLOCK_SIZE * sizeof(imgpel));
 
-    imgpel p_i = *(*(img_pred++) + pix_x);
-    imgpel p_j = *(*(img_pred++) + pix_x);
-    imgpel p_k = *(*(img_pred++) + pix_x);
-    imgpel p_l = *(*(img_pred  ) + pix_x);
+    P_I = *(*(img_pred++) + pix_x);
+    P_J = *(*(img_pred++) + pix_x);
+    P_K = *(*(img_pred++) + pix_x);
+    P_L = *(*(img_pred  ) + pix_x);
 
-    imgpel p_x = imgY[pix_d.pos_y][pix_d.pos_x];
+    P_X = imgY[pix_d.pos_y][pix_d.pos_x];
     
-    PredPixel[0] = (imgpel) ((p_l + 2*p_k + p_j + 2) >> 2);
-    PredPixel[1] = (imgpel) ((p_k + 2*p_j + p_i + 2) >> 2);
-    PredPixel[2] = (imgpel) ((p_j + 2*p_i + p_x + 2) >> 2);
-    PredPixel[3] = (imgpel) ((p_i + 2*p_x + p_a + 2) >> 2);
-    PredPixel[4] = (imgpel) ((p_x + 2*p_a + p_b + 2) >> 2);
-    PredPixel[5] = (imgpel) ((p_a + 2*p_b + p_c + 2) >> 2);
-    PredPixel[6] = (imgpel) ((p_b + 2*p_c + p_d + 2) >> 2);
+    PredPixel[0] = (imgpel) ((P_L + (P_K << 1) + P_J + 2) >> 2);
+    PredPixel[1] = (imgpel) ((P_K + (P_J << 1) + P_I + 2) >> 2);
+    PredPixel[2] = (imgpel) ((P_J + (P_I << 1) + P_X + 2) >> 2);
+    PredPixel[3] = (imgpel) ((P_I + (P_X << 1) + P_A + 2) >> 2);
+    PredPixel[4] = (imgpel) ((P_X + 2*P_A + P_B + 2) >> 2);
+    PredPixel[5] = (imgpel) ((P_A + 2*P_B + P_C + 2) >> 2);
+    PredPixel[6] = (imgpel) ((P_B + 2*P_C + P_D + 2) >> 2);
 
     memcpy(&mb_pred[joff++][ioff], &PredPixel[3], 4 * sizeof(imgpel));
     memcpy(&mb_pred[joff++][ioff], &PredPixel[2], 4 * sizeof(imgpel));
@@ -370,8 +385,8 @@ static int intra4x4_diag_down_left_pred(Macroblock *currMB,    //!< current macr
   int block_available_up;
   int block_available_up_right;
 
-  p_Vid->getNeighbour(currMB, ioff    , joff - 1, p_Vid->mb_size[IS_LUMA], &pix_b);
-  p_Vid->getNeighbour(currMB, ioff + 4, joff - 1, p_Vid->mb_size[IS_LUMA], &pix_c);
+  getNonAffNeighbour(currMB, ioff    , joff - 1, p_Vid->mb_size[IS_LUMA], &pix_b);
+  getNonAffNeighbour(currMB, ioff + 4, joff - 1, p_Vid->mb_size[IS_LUMA], &pix_c);
 
   pix_c.available = pix_c.available && !((ioff==4) && ((joff==4)||(joff==12)));
 
@@ -393,36 +408,36 @@ static int intra4x4_diag_down_left_pred(Macroblock *currMB,    //!< current macr
     imgpel **imgY = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
     imgpel **mb_pred = currSlice->mb_pred[pl];    
 
-    imgpel p_e, p_f, p_g, p_h;
     imgpel PredPixel[8];
+    imgpel PredPel[25];
     imgpel *pred_pel = &imgY[pix_b.pos_y][pix_b.pos_x];
 
     // form predictor pels
-    imgpel p_a = *pred_pel++;
-    imgpel p_b = *pred_pel++;
-    imgpel p_c = *pred_pel++;
-    imgpel p_d = *pred_pel  ;
+    // P_A through P_D
+    memcpy(&PredPel[1], pred_pel, BLOCK_SIZE * sizeof(imgpel));
 
+
+    // P_E through P_H
     if (block_available_up_right)
     {
-      pred_pel = &imgY[pix_c.pos_y][pix_c.pos_x];
-      p_e = *pred_pel++;
-      p_f = *pred_pel++;
-      p_g = *pred_pel++;
-      p_h = *pred_pel  ;
+      memcpy(&PredPel[5], &imgY[pix_c.pos_y][pix_c.pos_x], BLOCK_SIZE * sizeof(imgpel));
     }
     else
     {
-      p_e = p_f = p_g = p_h = p_d;
+#if (IMGTYPE == 0)
+      memset(&PredPel[5], PredPel[4], BLOCK_SIZE * sizeof(imgpel));
+#else
+      P_E = P_F = P_G = P_H = P_D;
+#endif
     }
 
-    PredPixel[0] = (imgpel) ((p_a + p_c + 2*(p_b) + 2) >> 2);
-    PredPixel[1] = (imgpel) ((p_b + p_d + 2*(p_c) + 2) >> 2);
-    PredPixel[2] = (imgpel) ((p_c + p_e + 2*(p_d) + 2) >> 2);
-    PredPixel[3] = (imgpel) ((p_d + p_f + 2*(p_e) + 2) >> 2);
-    PredPixel[4] = (imgpel) ((p_e + p_g + 2*(p_f) + 2) >> 2);
-    PredPixel[5] = (imgpel) ((p_f + p_h + 2*(p_g) + 2) >> 2);
-    PredPixel[6] = (imgpel) ((p_g + 3*(p_h) + 2) >> 2);
+    PredPixel[0] = (imgpel) ((P_A + P_C + 2*(P_B) + 2) >> 2);
+    PredPixel[1] = (imgpel) ((P_B + P_D + 2*(P_C) + 2) >> 2);
+    PredPixel[2] = (imgpel) ((P_C + P_E + 2*(P_D) + 2) >> 2);
+    PredPixel[3] = (imgpel) ((P_D + P_F + 2*(P_E) + 2) >> 2);
+    PredPixel[4] = (imgpel) ((P_E + P_G + 2*(P_F) + 2) >> 2);
+    PredPixel[5] = (imgpel) ((P_F + P_H + 2*(P_G) + 2) >> 2);
+    PredPixel[6] = (imgpel) ((P_G + 3*(P_H) + 2) >> 2);
 
     memcpy(&mb_pred[joff++][ioff], &PredPixel[0], 4 * sizeof(imgpel));
     memcpy(&mb_pred[joff++][ioff], &PredPixel[1], 4 * sizeof(imgpel));
@@ -480,32 +495,32 @@ static int intra4x4_vert_right_pred(Macroblock *currMB,    //!< current macroblo
     imgpel **imgY = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
     imgpel **mb_pred = currSlice->mb_pred[pl];    
     imgpel PredPixel[10];
+    imgpel PredPel[13];
 
     imgpel **img_pred = &imgY[pix_a.pos_y];
     int pix_x = pix_a.pos_x;
     imgpel *pred_pel = &imgY[pix_b.pos_y][pix_b.pos_x];
     // form predictor pels
-    imgpel p_a = *pred_pel++;
-    imgpel p_b = *pred_pel++;
-    imgpel p_c = *pred_pel++;
-    imgpel p_d = *pred_pel  ;
+    // P_A through P_D
+    memcpy(&PredPel[1], pred_pel, BLOCK_SIZE * sizeof(imgpel));
 
-    imgpel p_i = *(*(img_pred++) + pix_x);
-    imgpel p_j = *(*(img_pred++) + pix_x);
-    imgpel p_k = *(*(img_pred++) + pix_x);
 
-    imgpel p_x = imgY[pix_d.pos_y][pix_d.pos_x];
+    P_I = *(*(img_pred++) + pix_x);
+    P_J = *(*(img_pred++) + pix_x);
+    P_K = *(*(img_pred++) + pix_x);
+
+    P_X = imgY[pix_d.pos_y][pix_d.pos_x];
     
-    PredPixel[0] = (imgpel) ((p_x + 2*p_i + p_j + 2) >> 2);
-    PredPixel[1] = (imgpel) ((p_x + p_a + 1) >> 1);
-    PredPixel[2] = (imgpel) ((p_a + p_b + 1) >> 1);
-    PredPixel[3] = (imgpel) ((p_b + p_c + 1) >> 1);
-    PredPixel[4] = (imgpel) ((p_c + p_d + 1) >> 1);
-    PredPixel[5] = (imgpel) ((p_i + 2*p_j + p_k + 2) >> 2);
-    PredPixel[6] = (imgpel) ((p_i + 2*p_x + p_a + 2) >> 2);
-    PredPixel[7] = (imgpel) ((p_x + 2*p_a + p_b + 2) >> 2);
-    PredPixel[8] = (imgpel) ((p_a + 2*p_b + p_c + 2) >> 2);
-    PredPixel[9] = (imgpel) ((p_b + 2*p_c + p_d + 2) >> 2);
+    PredPixel[0] = (imgpel) ((P_X + (P_I << 1) + P_J + 2) >> 2);
+    PredPixel[1] = (imgpel) ((P_X + P_A + 1) >> 1);
+    PredPixel[2] = (imgpel) ((P_A + P_B + 1) >> 1);
+    PredPixel[3] = (imgpel) ((P_B + P_C + 1) >> 1);
+    PredPixel[4] = (imgpel) ((P_C + P_D + 1) >> 1);
+    PredPixel[5] = (imgpel) ((P_I + (P_J << 1) + P_K + 2) >> 2);
+    PredPixel[6] = (imgpel) ((P_I + (P_X << 1) + P_A + 2) >> 2);
+    PredPixel[7] = (imgpel) ((P_X + 2*P_A + P_B + 2) >> 2);
+    PredPixel[8] = (imgpel) ((P_A + 2*P_B + P_C + 2) >> 2);
+    PredPixel[9] = (imgpel) ((P_B + 2*P_C + P_D + 2) >> 2);
 
     memcpy(&mb_pred[joff++][ioff], &PredPixel[1], 4 * sizeof(imgpel));
     memcpy(&mb_pred[joff++][ioff], &PredPixel[6], 4 * sizeof(imgpel));
@@ -541,8 +556,8 @@ static int intra4x4_vert_left_pred(Macroblock *currMB,    //!< current macrobloc
   int block_available_up;
   int block_available_up_right;
 
-  p_Vid->getNeighbour(currMB, ioff    , joff -1 , p_Vid->mb_size[IS_LUMA], &pix_b);
-  p_Vid->getNeighbour(currMB, ioff +4 , joff -1 , p_Vid->mb_size[IS_LUMA], &pix_c);
+  getNonAffNeighbour(currMB, ioff    , joff -1 , p_Vid->mb_size[IS_LUMA], &pix_b);
+  getNonAffNeighbour(currMB, ioff +4 , joff -1 , p_Vid->mb_size[IS_LUMA], &pix_c);
 
   pix_c.available = pix_c.available && !((ioff==4) && ((joff==4)||(joff==12)));
   
@@ -560,41 +575,43 @@ static int intra4x4_vert_left_pred(Macroblock *currMB,    //!< current macrobloc
 
   if (!block_available_up)
     printf ("warning: Intra_4x4_Vertical_Left prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+  else
   {
     imgpel PredPixel[10];
+    imgpel PredPel[13];
     imgpel **imgY = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
     imgpel **mb_pred = currSlice->mb_pred[pl];    
     imgpel *pred_pel = &imgY[pix_b.pos_y][pix_b.pos_x];
 
     // form predictor pels
-    imgpel p_a = *pred_pel++;
-    imgpel p_b = *pred_pel++;
-    imgpel p_c = *pred_pel++;
-    imgpel p_d = *pred_pel  ;
-    imgpel p_e, p_f, p_g;
+    // P_A through P_D
+    memcpy(&PredPel[1], pred_pel, BLOCK_SIZE * sizeof(imgpel));
 
+
+    // P_E through P_H
     if (block_available_up_right)
     {
-      imgpel *pred_pel = &imgY[pix_c.pos_y][pix_c.pos_x];
-      p_e = *pred_pel++;
-      p_f = *pred_pel++;
-      p_g = *pred_pel++;
+      memcpy(&PredPel[5], &imgY[pix_c.pos_y][pix_c.pos_x], BLOCK_SIZE * sizeof(imgpel));
     }
     else
     {
-      p_e = p_f = p_g = p_d;
+#if (IMGTYPE == 0)
+      memset(&PredPel[5], PredPel[4], BLOCK_SIZE * sizeof(imgpel));
+#else
+      P_E = P_F = P_G = P_H = P_D;
+#endif
     }
 
-    PredPixel[0] = (imgpel) ((p_a + p_b + 1) >> 1);
-    PredPixel[1] = (imgpel) ((p_b + p_c + 1) >> 1);
-    PredPixel[2] = (imgpel) ((p_c + p_d + 1) >> 1);
-    PredPixel[3] = (imgpel) ((p_d + p_e + 1) >> 1);
-    PredPixel[4] = (imgpel) ((p_e + p_f + 1) >> 1);
-    PredPixel[5] = (imgpel) ((p_a + 2*p_b + p_c + 2) >> 2);
-    PredPixel[6] = (imgpel) ((p_b + 2*p_c + p_d + 2) >> 2);
-    PredPixel[7] = (imgpel) ((p_c + 2*p_d + p_e + 2) >> 2);
-    PredPixel[8] = (imgpel) ((p_d + 2*p_e + p_f + 2) >> 2);
-    PredPixel[9] = (imgpel) ((p_e + 2*p_f + p_g + 2) >> 2);
+    PredPixel[0] = (imgpel) ((P_A + P_B + 1) >> 1);
+    PredPixel[1] = (imgpel) ((P_B + P_C + 1) >> 1);
+    PredPixel[2] = (imgpel) ((P_C + P_D + 1) >> 1);
+    PredPixel[3] = (imgpel) ((P_D + P_E + 1) >> 1);
+    PredPixel[4] = (imgpel) ((P_E + P_F + 1) >> 1);
+    PredPixel[5] = (imgpel) ((P_A + 2*P_B + P_C + 2) >> 2);
+    PredPixel[6] = (imgpel) ((P_B + 2*P_C + P_D + 2) >> 2);
+    PredPixel[7] = (imgpel) ((P_C + 2*P_D + P_E + 2) >> 2);
+    PredPixel[8] = (imgpel) ((P_D + 2*P_E + P_F + 2) >> 2);
+    PredPixel[9] = (imgpel) ((P_E + 2*P_F + P_G + 2) >> 2);
 
     memcpy(&mb_pred[joff++][ioff], &PredPixel[0], 4 * sizeof(imgpel));
     memcpy(&mb_pred[joff++][ioff], &PredPixel[5], 4 * sizeof(imgpel));
@@ -642,6 +659,7 @@ static int intra4x4_hor_up_pred(Macroblock *currMB,    //!< current macroblock
   else
   {
     imgpel PredPixel[10];
+    imgpel PredPel[13];
     imgpel **imgY = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
     imgpel **mb_pred = currSlice->mb_pred[pl];    
 
@@ -649,21 +667,21 @@ static int intra4x4_hor_up_pred(Macroblock *currMB,    //!< current macroblock
     int pix_x = pix_a.pos_x;
 
     // form predictor pels
-    imgpel p_i = *(*(img_pred++) + pix_x);
-    imgpel p_j = *(*(img_pred++) + pix_x);
-    imgpel p_k = *(*(img_pred++) + pix_x);
-    imgpel p_l = *(*(img_pred  ) + pix_x);
+    P_I = *(*(img_pred++) + pix_x);
+    P_J = *(*(img_pred++) + pix_x);
+    P_K = *(*(img_pred++) + pix_x);
+    P_L = *(*(img_pred  ) + pix_x);
 
-    PredPixel[0] = (imgpel) ((p_i + p_j + 1) >> 1);
-    PredPixel[1] = (imgpel) ((p_i + 2*p_j + p_k + 2) >> 2);
-    PredPixel[2] = (imgpel) ((p_j + p_k + 1) >> 1);
-    PredPixel[3] = (imgpel) ((p_j + 2*p_k + p_l + 2) >> 2);
-    PredPixel[4] = (imgpel) ((p_k + p_l + 1) >> 1);
-    PredPixel[5] = (imgpel) ((p_k + 2*p_l + p_l + 2) >> 2);
-    PredPixel[6] = (imgpel) p_l;
-    PredPixel[7] = (imgpel) p_l;
-    PredPixel[8] = (imgpel) p_l;
-    PredPixel[9] = (imgpel) p_l;
+    PredPixel[0] = (imgpel) ((P_I + P_J + 1) >> 1);
+    PredPixel[1] = (imgpel) ((P_I + (P_J << 1) + P_K + 2) >> 2);
+    PredPixel[2] = (imgpel) ((P_J + P_K + 1) >> 1);
+    PredPixel[3] = (imgpel) ((P_J + (P_K << 1) + P_L + 2) >> 2);
+    PredPixel[4] = (imgpel) ((P_K + P_L + 1) >> 1);
+    PredPixel[5] = (imgpel) ((P_K + (P_L << 1) + P_L + 2) >> 2);
+    PredPixel[6] = (imgpel) P_L;
+    PredPixel[7] = (imgpel) P_L;
+    PredPixel[8] = (imgpel) P_L;
+    PredPixel[9] = (imgpel) P_L;
 
     memcpy(&mb_pred[joff++][ioff], &PredPixel[0], 4 * sizeof(imgpel));
     memcpy(&mb_pred[joff++][ioff], &PredPixel[2], 4 * sizeof(imgpel));
@@ -720,6 +738,7 @@ static int intra4x4_hor_down_pred(Macroblock *currMB,    //!< current macroblock
   else
   {
     imgpel PredPixel[10];
+    imgpel PredPel[13];
     imgpel **imgY = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
     imgpel **mb_pred = currSlice->mb_pred[pl];    
 
@@ -728,27 +747,27 @@ static int intra4x4_hor_down_pred(Macroblock *currMB,    //!< current macroblock
     imgpel *pred_pel = &imgY[pix_b.pos_y][pix_b.pos_x];
 
     // form predictor pels
-    imgpel p_a = *pred_pel++;
-    imgpel p_b = *pred_pel++;
-    imgpel p_c = *pred_pel++;
+    // P_A through P_D
+    memcpy(&PredPel[1], pred_pel, BLOCK_SIZE * sizeof(imgpel));
 
-    imgpel p_i = *(*(img_pred++) + pix_x);
-    imgpel p_j = *(*(img_pred++) + pix_x);
-    imgpel p_k = *(*(img_pred++) + pix_x);
-    imgpel p_l = *(*(img_pred  ) + pix_x);
 
-    imgpel p_x = imgY[pix_d.pos_y][pix_d.pos_x];
+    P_I = *(*(img_pred++) + pix_x);
+    P_J = *(*(img_pred++) + pix_x);
+    P_K = *(*(img_pred++) + pix_x);
+    P_L = *(*(img_pred  ) + pix_x);
 
-    PredPixel[0] = (imgpel) ((p_k + p_l + 1) >> 1);
-    PredPixel[1] = (imgpel) ((p_j + 2*p_k + p_l + 2) >> 2);
-    PredPixel[2] = (imgpel) ((p_j + p_k + 1) >> 1);
-    PredPixel[3] = (imgpel) ((p_i + 2*p_j + p_k + 2) >> 2);
-    PredPixel[4] = (imgpel) ((p_i + p_j + 1) >> 1);
-    PredPixel[5] = (imgpel) ((p_x + 2*p_i + p_j + 2) >> 2);
-    PredPixel[6] = (imgpel) ((p_x + p_i + 1) >> 1);
-    PredPixel[7] = (imgpel) ((p_i + 2*p_x + p_a + 2) >> 2);
-    PredPixel[8] = (imgpel) ((p_x + 2*p_a + p_b + 2) >> 2);
-    PredPixel[9] = (imgpel) ((p_a + 2*p_b + p_c + 2) >> 2);
+    P_X = imgY[pix_d.pos_y][pix_d.pos_x];
+
+    PredPixel[0] = (imgpel) ((P_K + P_L + 1) >> 1);
+    PredPixel[1] = (imgpel) ((P_J + (P_K << 1) + P_L + 2) >> 2);
+    PredPixel[2] = (imgpel) ((P_J + P_K + 1) >> 1);
+    PredPixel[3] = (imgpel) ((P_I + (P_J << 1) + P_K + 2) >> 2);
+    PredPixel[4] = (imgpel) ((P_I + P_J + 1) >> 1);
+    PredPixel[5] = (imgpel) ((P_X + (P_I << 1) + P_J + 2) >> 2);
+    PredPixel[6] = (imgpel) ((P_X + P_I + 1) >> 1);
+    PredPixel[7] = (imgpel) ((P_I + (P_X << 1) + P_A + 2) >> 2);
+    PredPixel[8] = (imgpel) ((P_X + 2*P_A + P_B + 2) >> 2);
+    PredPixel[9] = (imgpel) ((P_A + 2*P_B + P_C + 2) >> 2);
 
     memcpy(&mb_pred[joff++][ioff], &PredPixel[6], 4 * sizeof(imgpel));
     memcpy(&mb_pred[joff++][ioff], &PredPixel[4], 4 * sizeof(imgpel));
@@ -770,12 +789,12 @@ static int intra4x4_hor_down_pred(Macroblock *currMB,    //!< current macroblock
  *    SEARCH_SYNC   search next sync element as errors while decoding occured
  ***********************************************************************
  */
-int intra4x4_pred_normal(Macroblock *currMB,    //!< current macroblock
-                         ColorPlane pl,         //!< current image plane
-                         int ioff,              //!< pixel offset X within MB
-                         int joff,              //!< pixel offset Y within MB
-                         int img_block_x,       //!< location of block X, multiples of 4
-                         int img_block_y)       //!< location of block Y, multiples of 4
+int intra_pred_4x4_normal(Macroblock *currMB,    //!< current macroblock
+                          ColorPlane pl,         //!< current image plane
+                          int ioff,              //!< pixel offset X within MB
+                          int joff,              //!< pixel offset Y within MB
+                          int img_block_x,       //!< location of block X, multiples of 4
+                          int img_block_y)       //!< location of block Y, multiples of 4
 {
   VideoParameters *p_Vid = currMB->p_Vid;
   byte predmode = p_Vid->ipredmode[img_block_y][img_block_x];

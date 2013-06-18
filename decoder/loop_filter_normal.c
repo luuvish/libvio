@@ -22,6 +22,7 @@
 
 #include "global.h"
 #include "slice.h"
+#include "macroblock.h"
 #include "image.h"
 #include "neighbour.h"
 #include "loopfilter.h"

@@ -57,6 +57,7 @@ struct pic_motion_params_old;
 struct pic_motion_params;
 
 struct slice_t;
+struct macroblock_dec;
 
 /***********************************************************************
  * T y p e    d e f i n i t i o n s    f o r    J M
@@ -99,105 +100,6 @@ typedef struct {
  * N e w   D a t a    t y p e s   f o r    T M L
  ***********************************************************************
  */
-
-//! cbp structure
-typedef struct cbp_s
-{
-  int64         blk     ;
-  int64         bits    ;
-  int64         bits_8x8;
-} CBPStructure;
-
-//! Macroblock
-typedef struct macroblock_dec {
-    struct slice_t        *p_Slice;                    //!< pointer to the current slice
-    struct video_par      *p_Vid;                      //!< pointer to VideoParameters
-    struct inp_par        *p_Inp;
-    int                    mbAddrX;                    //!< current MB address
-    int                    mbAddrA, mbAddrB, mbAddrC, mbAddrD;
-    Boolean                mbAvailA, mbAvailB, mbAvailC, mbAvailD;
-    BlockPos               mb;
-    int                    block_x;
-    int                    block_y;
-    int                    block_y_aff;
-    int                    pix_x;
-    int                    pix_y;
-    int                    pix_c_x;
-    int                    pix_c_y;
-
-    int                    subblock_x;
-    int                    subblock_y;
-
-    int                    qp;                    //!< QP luma
-    int                    qpc[2];                //!< QP chroma
-    int                    qp_scaled[MAX_PLANE];  //!< QP scaled for all comps.
-    Boolean                is_lossless;
-    Boolean                is_intra_block;
-    Boolean                is_v_block;
-    Boolean                DeblockCall;
-
-    short                  slice_nr;
-    char                   ei_flag;             //!< error indicator flag that enables concealment
-    char                   dpl_flag;            //!< error indicator flag that signals a missing data partition
-    short                  delta_quant;         //!< for rate control
-    short                  list_offset;
-
-    struct macroblock_dec *mb_up;   //!< pointer to neighboring MB (CABAC)
-    struct macroblock_dec *mb_left; //!< pointer to neighboring MB (CABAC)
-
-    struct macroblock_dec *mbup;   // neighbors for loopfilter
-    struct macroblock_dec *mbleft; // neighbors for loopfilter
-
-    // some storage of macroblock syntax elements for global access
-    short                  mb_type;
-    short                  mvd[2][BLOCK_MULTIPLE][BLOCK_MULTIPLE][2]; //!< indices correspond to [forw,backw][block_y][block_x][x,y]
-    int                    cbp;
-    CBPStructure           s_cbp[3];
-
-    int                    i16mode;
-    char                   b8mode[4];
-    char                   b8pdir[4];
-    char                   ipmode_DPCM;
-    char                   c_ipred_mode;       //!< chroma intra prediction mode
-    char                   skip_flag;
-    short                  DFDisableIdc;
-    short                  DFAlphaC0Offset;
-    short                  DFBetaOffset;
-
-    Boolean                mb_field;
-    //Flag for MBAFF deblocking;
-    byte                   mixedModeEdgeFlag;
-
-    // deblocking strength indices
-    byte                   strength_ver[4][4];
-    byte                   strength_hor[4][16];
-
-    Boolean                luma_transform_size_8x8_flag;
-    Boolean                NoMbPartLessThan8x8Flag;
-
-    void (*itrans_4x4)(struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
-    void (*itrans_8x8)(struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
-
-    void (*GetMVPredictor)(struct macroblock_dec *currMB, PixelPos *block, 
-        MotionVector *pmv, short ref_frame, struct pic_motion_params **mv_info,
-        int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
-
-    int  (*read_and_store_CBP_block_bit)(struct macroblock_dec *currMB,
-        DecodingEnvironmentPtr dep_dp, int type);
-    char (*readRefPictureIdx)           (struct macroblock_dec *currMB,
-        struct syntaxelement_dec *currSE, struct datapartition_dec *dP,
-        char b8mode, int list);
-
-    void (*read_comp_coeff_4x4_CABAC)(struct macroblock_dec *currMB,
-        struct syntaxelement_dec *currSE, ColorPlane pl, int (*InvLevelScale4x4)[4], int qp_per, int cbp);
-    void (*read_comp_coeff_8x8_CABAC)(struct macroblock_dec *currMB,
-        struct syntaxelement_dec *currSE, ColorPlane pl);
-
-    void (*read_comp_coeff_4x4_CAVLC)(struct macroblock_dec *currMB,
-        ColorPlane pl, int (*InvLevelScale4x4)[4], int qp_per, int cbp, byte **nzcoeff);
-    void (*read_comp_coeff_8x8_CAVLC)(struct macroblock_dec *currMB,
-        ColorPlane pl, int (*InvLevelScale8x8)[8], int qp_per, int cbp, byte **nzcoeff);
-} Macroblock;
 
 typedef struct wp_params {
     short weight[3];
@@ -294,8 +196,8 @@ typedef struct coding_par {
 
     imgpel **imgY_ref;                              //!< reference frame find snr
     imgpel ***imgUV_ref;
-    Macroblock *mb_data;               //!< array containing all MBs of a whole frame
-    Macroblock *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
+    struct macroblock_dec *mb_data;               //!< array containing all MBs of a whole frame
+    struct macroblock_dec *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
     char  *intra_block;
     char  *intra_block_JV[MAX_PLANE];
     BlockPos *PicPos;  
@@ -368,8 +270,8 @@ typedef struct video_par {
 
   //Slice      *currentSlice;          //!< pointer to current Slice data struct
   struct slice_t      *pNextSlice;             //!< pointer to first Slice of next picture;
-  Macroblock *mb_data;               //!< array containing all MBs of a whole frame
-  Macroblock *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
+  struct macroblock_dec *mb_data;               //!< array containing all MBs of a whole frame
+  struct macroblock_dec *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
   //int colour_plane_id;               //!< colour_plane_id of the current coded slice
   int ChromaArrayType;
 
@@ -510,14 +412,14 @@ typedef struct video_par {
 #endif
 
   void (*buf2img)          (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int o_size_x, int o_size_y, int symbol_size_in_bytes, int bitshift);
-  void (*getNeighbour)     (Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
+  void (*getNeighbour)     (struct macroblock_dec *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
   void (*get_mb_block_pos) (BlockPos *PicPos, int mb_addr, short *x, short *y);
-  void (*GetStrengthVer)   (Macroblock *MbQ, int edge, int mvlimit, struct storable_picture *p);
-  void (*GetStrengthHor)   (Macroblock *MbQ, int edge, int mvlimit, struct storable_picture *p);
-  void (*EdgeLoopLumaVer)  (ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge);
-  void (*EdgeLoopLumaHor)  (ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, struct storable_picture *p);
-  void (*EdgeLoopChromaVer)(imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, struct storable_picture *p);
-  void (*EdgeLoopChromaHor)(imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, struct storable_picture *p);
+  void (*GetStrengthVer)   (struct macroblock_dec *MbQ, int edge, int mvlimit, struct storable_picture *p);
+  void (*GetStrengthHor)   (struct macroblock_dec *MbQ, int edge, int mvlimit, struct storable_picture *p);
+  void (*EdgeLoopLumaVer)  (ColorPlane pl, imgpel** Img, byte *Strength, struct macroblock_dec *MbQ, int edge);
+  void (*EdgeLoopLumaHor)  (ColorPlane pl, imgpel** Img, byte *Strength, struct macroblock_dec *MbQ, int edge, struct storable_picture *p);
+  void (*EdgeLoopChromaVer)(imgpel** Img, byte *Strength, struct macroblock_dec *MbQ, int edge, int uv, struct storable_picture *p);
+  void (*EdgeLoopChromaHor)(imgpel** Img, byte *Strength, struct macroblock_dec *MbQ, int edge, int uv, struct storable_picture *p);
   void (*img2buf)          (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
   ImageData tempData3;

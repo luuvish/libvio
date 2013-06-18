@@ -14,6 +14,7 @@
  */
 #include "global.h"
 #include "slice.h"
+#include "macroblock.h"
 #include "block.h"
 #include "neighbour.h"
 #include "image.h"
@@ -34,42 +35,6 @@ static void intra_chroma_DC_single_mbaff(imgpel **curr_img, int up_avail, int le
     for (i = blk_y; i < (blk_y + 4);++i)  
       s0 += curr_img[left[i].pos_y][left[i].pos_x];
     *pred = (s0 + 2) >> 2;
-  }
-}
-
-void intrapred_chroma_ver_mbaff(Macroblock *currMB)
-{
-  Slice *currSlice = currMB->p_Slice;
-  VideoParameters *p_Vid = currMB->p_Vid;
-  int j;
-  StorablePicture *dec_picture = currSlice->dec_picture;
-
-  PixelPos up;        //!< pixel position  p(0,-1)
-  int up_avail;
-  int cr_MB_x = p_Vid->mb_cr_size_x;
-  int cr_MB_y = p_Vid->mb_cr_size_y;
-
-  getAffNeighbour(currMB, 0, -1, p_Vid->mb_size[IS_CHROMA], &up);
-
-  if (!p_Vid->active_pps->constrained_intra_pred_flag)
-    up_avail      = up.available;
-  else
-    up_avail = up.available ? currSlice->intra_block[up.mb_addr] : 0;
-  // Vertical Prediction
-  if (!up_avail)
-    error("unexpected VERT_PRED_8 chroma intra prediction mode",-1);
-  else
-  {
-    imgpel **mb_pred0 = currSlice->mb_pred[1];
-    imgpel **mb_pred1 = currSlice->mb_pred[2];
-    imgpel *i0 = &(dec_picture->imgUV[0][up.pos_y][up.pos_x]);
-    imgpel *i1 = &(dec_picture->imgUV[1][up.pos_y][up.pos_x]);
-
-    for (j = 0; j < cr_MB_y; ++j) 
-    {
-      memcpy(&(mb_pred0[j][0]),i0, cr_MB_x * sizeof(imgpel));
-      memcpy(&(mb_pred1[j][0]),i1, cr_MB_x * sizeof(imgpel));
-    }
   }
 }
 

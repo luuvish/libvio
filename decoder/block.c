@@ -16,6 +16,7 @@
 
 #include "global.h"
 #include "slice.h"
+#include "macroblock.h"
 #include "block.h"
 #include "blk_prediction.h"
 #include "image.h"
@@ -883,19 +884,6 @@ void copy_image_data_4x4(imgpel  **imgBuf1, imgpel  **imgBuf2, int off1, int off
   memcpy((*imgBuf1++ + off1), (*imgBuf2++ + off2), BLOCK_SIZE * sizeof (imgpel));
   memcpy((*imgBuf1++ + off1), (*imgBuf2++ + off2), BLOCK_SIZE * sizeof (imgpel));
   memcpy((*imgBuf1   + off1), (*imgBuf2   + off2), BLOCK_SIZE * sizeof (imgpel));
-}
-
-int CheckVertMV(Macroblock *currMB, int vec1_y, int block_size_y)
-{
-  VideoParameters *p_Vid = currMB->p_Vid;  
-  StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
-  int y_pos = vec1_y>>2;
-  int maxold_y = (currMB->mb_field) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;
-
-  if(y_pos < (-p_Vid->iLumaPadY + 2) || y_pos > (maxold_y + p_Vid->iLumaPadY - block_size_y - 2))
-    return 1;
-  else
-    return 0;
 }
 
 
