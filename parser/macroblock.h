@@ -28,9 +28,9 @@ struct inp_par;
 
 //! cbp structure
 typedef struct cbp_s {
-  int64         blk     ;
-  int64         bits    ;
-  int64         bits_8x8;
+    int64 blk     ;
+    int64 bits    ;
+    int64 bits_8x8;
 } CBPStructure;
 
 //! Macroblock
@@ -126,9 +126,9 @@ typedef struct macroblock_dec {
 
 void setup_slice_methods(struct slice_t *currSlice);
 
-void start_macroblock     (struct slice_t *currSlice, Macroblock **currMB);
-Boolean  exit_macroblock  (struct slice_t *currSlice, int eos_bit);
-void update_qp            (Macroblock *currMB, int qp);
+void    start_macroblock(struct slice_t *currSlice, Macroblock **currMB);
+Boolean exit_macroblock (struct slice_t *currSlice, int eos_bit);
+void    update_qp       (Macroblock *currMB, int qp);
 
 
 #ifdef __cplusplus

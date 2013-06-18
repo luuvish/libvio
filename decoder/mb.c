@@ -1,24 +1,9 @@
 
-#include <math.h>
-
 #include "global.h"
 #include "slice.h"
-#include "mbuffer.h"
-#include "mbuffer_mvc.h"
-#include "bitstream_elements.h"
-#include "bitstream_cabac.h"
-#include "bitstream.h"
 #include "macroblock.h"
-#include "fmo.h"
-#include "image.h"
-#include "neighbour.h"
-#include "biaridecod.h"
-#include "transform.h"
-#include "mv_prediction.h"
 #include "inter_prediction.h"
 #include "intra_prediction.h"
-#include "fast_memory.h"
-#include "filehandle.h"
 
 /*!
  ************************************************************************
@@ -53,7 +38,8 @@ static int decode_one_component_p_slice(Macroblock *currMB, ColorPlane curr_plan
 {
     //For residual DPCM
     currMB->ipmode_DPCM = NO_INTRA_PMODE; 
-    if(currMB->mb_type == IPCM)
+
+    if (currMB->mb_type == IPCM)
         mb_pred_ipcm(currMB);
     else if (currMB->mb_type == I16MB)
         mb_pred_intra16x16(currMB, curr_plane, dec_picture);
@@ -151,7 +137,7 @@ static int decode_one_component_b_slice(Macroblock *currMB, ColorPlane curr_plan
                 mb_pred_b_d4x4spatial(currMB, curr_plane, currImg, dec_picture);
         }
     } else
-        mb_pred_b_inter8x8 (currMB, curr_plane, dec_picture);
+        mb_pred_b_inter8x8(currMB, curr_plane, dec_picture);
 
     return 1;
 }

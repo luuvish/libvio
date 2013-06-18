@@ -45,7 +45,7 @@
 #include "mb.h"
 
 
-extern void update_direct_types                (Slice *currSlice);
+extern void update_direct_types(Slice *currSlice);
 
 void set_chroma_qp(Macroblock* currMB)
 {
@@ -188,13 +188,6 @@ void start_macroblock(Slice *currSlice, Macroblock **currMB)
     {
       fast_memset_zero( currSlice->cof[0][0], MB_PIXELS * sizeof(int));
     }
-    //fast_memset_zero( currSlice->cof[0][0], MB_PIXELS * sizeof(int));
-    //fast_memset_zero( currSlice->cof[1][0], p_Vid->mb_cr_size * sizeof(int));
-    //fast_memset_zero( currSlice->cof[2][0], p_Vid->mb_cr_size * sizeof(int));
-
-    //fast_memset(currSlice->fcf[0][0], 0, MB_PIXELS * sizeof(int)); // reset luma coeffs   
-    //fast_memset(currSlice->fcf[1][0], 0, MB_PIXELS * sizeof(int));
-    //fast_memset(currSlice->fcf[2][0], 0, MB_PIXELS * sizeof(int));
 
     currSlice->is_reset_coeff = TRUE;
   }
@@ -261,46 +254,37 @@ Boolean exit_macroblock(Slice *currSlice, int eos_bit)
  */
 static void interpret_mb_mode_P(Macroblock *currMB)
 {
-  static const short ICBPTAB[6] = {0,16,32,15,31,47};
-  short  mbmode = currMB->mb_type;
+    static const short ICBPTAB[6] = {0,16,32,15,31,47};
+    short  mbmode = currMB->mb_type;
 
-  if(mbmode < 4)
-  {
-    currMB->mb_type = mbmode;
-    memset(currMB->b8mode, mbmode, 4 * sizeof(char));
-    memset(currMB->b8pdir, 0, 4 * sizeof(char));
-  }
-  else if((mbmode == 4 || mbmode == 5))
-  {
-    currMB->mb_type = P8x8;
-    currMB->p_Slice->allrefzero = (mbmode == 5);
-  }
-  else if(mbmode == 6)
-  {
-    currMB->is_intra_block = TRUE;
-    currMB->mb_type = I4MB;
-    memset(currMB->b8mode, IBLOCK, 4 * sizeof(char));
-    memset(currMB->b8pdir,     -1, 4 * sizeof(char));
-  }
-  else if(mbmode == 31)
-  {
-    currMB->is_intra_block = TRUE;
-    currMB->mb_type = IPCM;
-    currMB->cbp = -1;
-    currMB->i16mode = 0;
+    if (mbmode < 4) {
+        currMB->mb_type = mbmode;
+        memset(currMB->b8mode, mbmode, 4 * sizeof(char));
+        memset(currMB->b8pdir, 0, 4 * sizeof(char));
+    } else if ((mbmode == 4 || mbmode == 5)) {
+        currMB->mb_type = P8x8;
+        currMB->p_Slice->allrefzero = (mbmode == 5);
+    } else if (mbmode == 6) {
+        currMB->is_intra_block = TRUE;
+        currMB->mb_type = I4MB;
+        memset(currMB->b8mode, IBLOCK, 4 * sizeof(char));
+        memset(currMB->b8pdir,     -1, 4 * sizeof(char));
+    } else if (mbmode == 31) {
+        currMB->is_intra_block = TRUE;
+        currMB->mb_type = IPCM;
+        currMB->cbp = -1;
+        currMB->i16mode = 0;
 
-    memset(currMB->b8mode, 0, 4 * sizeof(char));
-    memset(currMB->b8pdir,-1, 4 * sizeof(char));
-  }
-  else
-  {
-    currMB->is_intra_block = TRUE;
-    currMB->mb_type = I16MB;
-    currMB->cbp = ICBPTAB[((mbmode-7))>>2];
-    currMB->i16mode = ((mbmode-7)) & 0x03;
-    memset(currMB->b8mode, 0, 4 * sizeof(char));
-    memset(currMB->b8pdir,-1, 4 * sizeof(char));
-  }
+        memset(currMB->b8mode, 0, 4 * sizeof(char));
+        memset(currMB->b8pdir,-1, 4 * sizeof(char));
+    } else {
+        currMB->is_intra_block = TRUE;
+        currMB->mb_type = I16MB;
+        currMB->cbp = ICBPTAB[((mbmode-7))>>2];
+        currMB->i16mode = ((mbmode-7)) & 0x03;
+        memset(currMB->b8mode, 0, 4 * sizeof(char));
+        memset(currMB->b8pdir,-1, 4 * sizeof(char));
+    }
 }
 
 /*!
@@ -311,35 +295,30 @@ static void interpret_mb_mode_P(Macroblock *currMB)
  */
 static void interpret_mb_mode_I(Macroblock *currMB)
 {
-  static const short ICBPTAB[6] = {0,16,32,15,31,47};
-  short mbmode   = currMB->mb_type;
+    static const short ICBPTAB[6] = {0,16,32,15,31,47};
+    short mbmode = currMB->mb_type;
 
-  if (mbmode == 0)
-  {
-    currMB->is_intra_block = TRUE;
-    currMB->mb_type = I4MB;
-    memset(currMB->b8mode,IBLOCK,4 * sizeof(char));
-    memset(currMB->b8pdir,-1,4 * sizeof(char));
-  }
-  else if(mbmode == 25)
-  {
-    currMB->is_intra_block = TRUE;
-    currMB->mb_type=IPCM;
-    currMB->cbp= -1;
-    currMB->i16mode = 0;
+    if (mbmode == 0) {
+        currMB->is_intra_block = TRUE;
+        currMB->mb_type = I4MB;
+        memset(currMB->b8mode,IBLOCK,4 * sizeof(char));
+        memset(currMB->b8pdir,-1,4 * sizeof(char));
+    } else if (mbmode == 25) {
+        currMB->is_intra_block = TRUE;
+        currMB->mb_type=IPCM;
+        currMB->cbp= -1;
+        currMB->i16mode = 0;
 
-    memset(currMB->b8mode, 0,4 * sizeof(char));
-    memset(currMB->b8pdir,-1,4 * sizeof(char));
-  }
-  else
-  {
-    currMB->is_intra_block = TRUE;
-    currMB->mb_type = I16MB;
-    currMB->cbp= ICBPTAB[(mbmode-1)>>2];
-    currMB->i16mode = (mbmode-1) & 0x03;
-    memset(currMB->b8mode, 0, 4 * sizeof(char));
-    memset(currMB->b8pdir,-1, 4 * sizeof(char));
-  }
+        memset(currMB->b8mode, 0,4 * sizeof(char));
+        memset(currMB->b8pdir,-1,4 * sizeof(char));
+    } else {
+        currMB->is_intra_block = TRUE;
+        currMB->mb_type = I16MB;
+        currMB->cbp= ICBPTAB[(mbmode-1)>>2];
+        currMB->i16mode = (mbmode-1) & 0x03;
+        memset(currMB->b8mode, 0, 4 * sizeof(char));
+        memset(currMB->b8pdir,-1, 4 * sizeof(char));
+    }
 }
 
 /*!
@@ -350,80 +329,61 @@ static void interpret_mb_mode_I(Macroblock *currMB)
  */
 static void interpret_mb_mode_B(Macroblock *currMB)
 {
-  static const char offset2pdir16x16[12]   = {0, 0, 1, 2, 0,0,0,0,0,0,0,0};
-  static const char offset2pdir16x8[22][2] = {{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{1,1},{0,0},{0,1},{0,0},{1,0},
-                                             {0,0},{0,2},{0,0},{1,2},{0,0},{2,0},{0,0},{2,1},{0,0},{2,2},{0,0}};
-  static const char offset2pdir8x16[22][2] = {{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{1,1},{0,0},{0,1},{0,0},
-                                             {1,0},{0,0},{0,2},{0,0},{1,2},{0,0},{2,0},{0,0},{2,1},{0,0},{2,2}};
+    static const char offset2pdir16x16[12]   = {0, 0, 1, 2, 0,0,0,0,0,0,0,0};
+    static const char offset2pdir16x8[22][2] = {{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{1,1},{0,0},{0,1},{0,0},{1,0},
+                                                {0,0},{0,2},{0,0},{1,2},{0,0},{2,0},{0,0},{2,1},{0,0},{2,2},{0,0}};
+    static const char offset2pdir8x16[22][2] = {{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{1,1},{0,0},{0,1},{0,0},
+                                                {1,0},{0,0},{0,2},{0,0},{1,2},{0,0},{2,0},{0,0},{2,1},{0,0},{2,2}};
 
-  static const char ICBPTAB[6] = {0,16,32,15,31,47};
+    static const char ICBPTAB[6] = {0,16,32,15,31,47};
 
-  short i, mbmode;
-  short mbtype  = currMB->mb_type;
+    short i, mbmode;
+    short mbtype = currMB->mb_type;
 
-  //--- set mbtype, b8type, and b8pdir ---
-  if (mbtype == 0)       // direct
-  {
-    mbmode=0;
-    memset(currMB->b8mode, 0, 4 * sizeof(char));
-    memset(currMB->b8pdir, 2, 4 * sizeof(char));
-  }
-  else if (mbtype == 23) // intra4x4
-  {
-    currMB->is_intra_block = TRUE;
-    mbmode=I4MB;
-    memset(currMB->b8mode, IBLOCK,4 * sizeof(char));
-    memset(currMB->b8pdir, -1,4 * sizeof(char));
-  }
-  else if ((mbtype > 23) && (mbtype < 48) ) // intra16x16
-  {
-    currMB->is_intra_block = TRUE;
-    mbmode=I16MB;
-    memset(currMB->b8mode,  0, 4 * sizeof(char));
-    memset(currMB->b8pdir, -1, 4 * sizeof(char));
+    //--- set mbtype, b8type, and b8pdir ---
+    if (mbtype == 0) { // direct
+        mbmode = 0;
+        memset(currMB->b8mode, 0, 4 * sizeof(char));
+        memset(currMB->b8pdir, 2, 4 * sizeof(char));
+    } else if (mbtype == 23) { // intra4x4
+        currMB->is_intra_block = TRUE;
+        mbmode = I4MB;
+        memset(currMB->b8mode, IBLOCK,4 * sizeof(char));
+        memset(currMB->b8pdir, -1,4 * sizeof(char));
+    } else if ((mbtype > 23) && (mbtype < 48) ) { // intra16x16
+        currMB->is_intra_block = TRUE;
+        mbmode = I16MB;
+        memset(currMB->b8mode,  0, 4 * sizeof(char));
+        memset(currMB->b8pdir, -1, 4 * sizeof(char));
 
-    currMB->cbp     = (int) ICBPTAB[(mbtype-24)>>2];
-    currMB->i16mode = (mbtype-24) & 0x03;
-  }
-  else if (mbtype == 22) // 8x8(+split)
-  {
-    mbmode=P8x8;       // b8mode and pdir is transmitted in additional codewords
-  }
-  else if (mbtype < 4)   // 16x16
-  {
-    mbmode = 1;
-    memset(currMB->b8mode, 1,4 * sizeof(char));
-    memset(currMB->b8pdir, offset2pdir16x16[mbtype], 4 * sizeof(char));
-  }
-  else if(mbtype == 48)
-  {
-    currMB->is_intra_block = TRUE;
-    mbmode=IPCM;
-    memset(currMB->b8mode, 0,4 * sizeof(char));
-    memset(currMB->b8pdir,-1,4 * sizeof(char));
+        currMB->cbp     = (int) ICBPTAB[(mbtype-24)>>2];
+        currMB->i16mode = (mbtype-24) & 0x03;
+    } else if (mbtype == 22) { // 8x8(+split)
+        mbmode = P8x8;       // b8mode and pdir is transmitted in additional codewords
+    } else if (mbtype < 4) { // 16x16
+        mbmode = 1;
+        memset(currMB->b8mode, 1,4 * sizeof(char));
+        memset(currMB->b8pdir, offset2pdir16x16[mbtype], 4 * sizeof(char));
+    } else if(mbtype == 48) {
+        currMB->is_intra_block = TRUE;
+        mbmode=IPCM;
+        memset(currMB->b8mode, 0,4 * sizeof(char));
+        memset(currMB->b8pdir,-1,4 * sizeof(char));
 
-    currMB->cbp= -1;
-    currMB->i16mode = 0;
-  }
-  else if ((mbtype & 0x01) == 0) // 16x8
-  {
-    mbmode = 2;
-    memset(currMB->b8mode, 2,4 * sizeof(char));
-    for(i=0;i<4;++i)
-    {
-      currMB->b8pdir[i] = offset2pdir16x8 [mbtype][i>>1];
+        currMB->cbp= -1;
+        currMB->i16mode = 0;
+    } else if ((mbtype & 0x01) == 0) { // 16x8
+        mbmode = 2;
+        memset(currMB->b8mode, 2,4 * sizeof(char));
+        for(i=0;i<4;++i)
+            currMB->b8pdir[i] = offset2pdir16x8 [mbtype][i>>1];
+    } else {
+        mbmode=3;
+        memset(currMB->b8mode, 3,4 * sizeof(char));
+        for(i=0;i<4; ++i)
+            currMB->b8pdir[i] = offset2pdir8x16 [mbtype][i&0x01];
     }
-  }
-  else
-  {
-    mbmode=3;
-    memset(currMB->b8mode, 3,4 * sizeof(char));
-    for(i=0;i<4; ++i)
-    {
-      currMB->b8pdir[i] = offset2pdir8x16 [mbtype][i&0x01];
-    }
-  }
-  currMB->mb_type = mbmode;
+    currMB->mb_type = mbmode;
 }
 
 /*!
@@ -434,44 +394,36 @@ static void interpret_mb_mode_B(Macroblock *currMB)
  */
 static void interpret_mb_mode_SI(Macroblock *currMB)
 {
-  //VideoParameters *p_Vid = currMB->p_Vid;
-  const int ICBPTAB[6] = {0,16,32,15,31,47};
-  short mbmode   = currMB->mb_type;
+    //VideoParameters *p_Vid = currMB->p_Vid;
+    const int ICBPTAB[6] = {0,16,32,15,31,47};
+    short mbmode = currMB->mb_type;
 
-  if (mbmode == 0)
-  {
-    currMB->is_intra_block = TRUE;
-    currMB->mb_type = SI4MB;
-    memset(currMB->b8mode,IBLOCK,4 * sizeof(char));
-    memset(currMB->b8pdir,-1,4 * sizeof(char));
-    currMB->p_Slice->siblock[currMB->mb.y][currMB->mb.x]=1;
-  }
-  else if (mbmode == 1)
-  {
-    currMB->is_intra_block = TRUE;
-    currMB->mb_type = I4MB;
-    memset(currMB->b8mode,IBLOCK,4 * sizeof(char));
-    memset(currMB->b8pdir,-1,4 * sizeof(char));
-  }
-  else if(mbmode == 26)
-  {
-    currMB->is_intra_block = TRUE;
-    currMB->mb_type=IPCM;
-    currMB->cbp= -1;
-    currMB->i16mode = 0;
-    memset(currMB->b8mode,0,4 * sizeof(char));
-    memset(currMB->b8pdir,-1,4 * sizeof(char));
-  }
-
-  else
-  {
-    currMB->is_intra_block = TRUE;
-    currMB->mb_type = I16MB;
-    currMB->cbp= ICBPTAB[(mbmode-2)>>2];
-    currMB->i16mode = (mbmode-2) & 0x03;
-    memset(currMB->b8mode,0,4 * sizeof(char));
-    memset(currMB->b8pdir,-1,4 * sizeof(char));
-  }
+    if (mbmode == 0) {
+        currMB->is_intra_block = TRUE;
+        currMB->mb_type = SI4MB;
+        memset(currMB->b8mode,IBLOCK,4 * sizeof(char));
+        memset(currMB->b8pdir,-1,4 * sizeof(char));
+        currMB->p_Slice->siblock[currMB->mb.y][currMB->mb.x]=1;
+    } else if (mbmode == 1) {
+        currMB->is_intra_block = TRUE;
+        currMB->mb_type = I4MB;
+        memset(currMB->b8mode,IBLOCK,4 * sizeof(char));
+        memset(currMB->b8pdir,-1,4 * sizeof(char));
+    } else if (mbmode == 26) {
+        currMB->is_intra_block = TRUE;
+        currMB->mb_type=IPCM;
+        currMB->cbp= -1;
+        currMB->i16mode = 0;
+        memset(currMB->b8mode,0,4 * sizeof(char));
+        memset(currMB->b8pdir,-1,4 * sizeof(char));
+    } else {
+        currMB->is_intra_block = TRUE;
+        currMB->mb_type = I16MB;
+        currMB->cbp= ICBPTAB[(mbmode-2)>>2];
+        currMB->i16mode = (mbmode-2) & 0x03;
+        memset(currMB->b8mode,0,4 * sizeof(char));
+        memset(currMB->b8pdir,-1,4 * sizeof(char));
+    }
 }
 
 
@@ -483,61 +435,81 @@ static void interpret_mb_mode_SI(Macroblock *currMB)
  */
 void setup_slice_methods(Slice *currSlice)
 {
-  setup_read_macroblock (currSlice);
-  setup_decode_mb(currSlice);
+    setup_read_macroblock(currSlice);
+    setup_decode_mb(currSlice);
 
-  switch (currSlice->slice_type)
-  {
-  case P_SLICE: 
-    currSlice->interpret_mb_mode         = interpret_mb_mode_P;
-    currSlice->update_direct_mv_info     = NULL;
-#if (MVC_EXTENSION_ENABLE)
-    currSlice->init_lists                = currSlice->view_id ? init_lists_p_slice_mvc : init_lists_p_slice;
-#else
-    currSlice->init_lists                = init_lists_p_slice;
-#endif
-    break;
-  case SP_SLICE:
-    currSlice->interpret_mb_mode         = interpret_mb_mode_P;
-    currSlice->update_direct_mv_info     = NULL;
-#if (MVC_EXTENSION_ENABLE)
-    currSlice->init_lists                = currSlice->view_id ? init_lists_p_slice_mvc : init_lists_p_slice;
-#else
-    currSlice->init_lists                = init_lists_p_slice;
-#endif
-    break;
-  case B_SLICE:
-    currSlice->interpret_mb_mode         = interpret_mb_mode_B;
-    update_direct_types(currSlice);
-#if (MVC_EXTENSION_ENABLE)
-    currSlice->init_lists                = currSlice->view_id ? init_lists_b_slice_mvc : init_lists_b_slice;
-#else
-    currSlice->init_lists                = init_lists_b_slice;
-#endif
-    break;
-  case I_SLICE: 
-    currSlice->interpret_mb_mode         = interpret_mb_mode_I;
-    currSlice->update_direct_mv_info     = NULL;
-#if (MVC_EXTENSION_ENABLE)
-    currSlice->init_lists                = currSlice->view_id ? init_lists_i_slice_mvc : init_lists_i_slice;
-#else
-    currSlice->init_lists                = init_lists_i_slice;
-#endif
-    break;
-  case SI_SLICE: 
-    currSlice->interpret_mb_mode         = interpret_mb_mode_SI;
-    currSlice->update_direct_mv_info     = NULL;
-#if (MVC_EXTENSION_ENABLE)
-    currSlice->init_lists                = currSlice->view_id ? init_lists_i_slice_mvc : init_lists_i_slice;
-#else
-    currSlice->init_lists                = init_lists_i_slice;
-#endif
-    break;
-  default:
-    printf("Unsupported slice type\n");
-    break;
-  }
+    switch (currSlice->slice_type) {
+    case P_SLICE: 
+    case SP_SLICE:
+        currSlice->interpret_mb_mode = interpret_mb_mode_P;
+        break;
+    case B_SLICE:
+        currSlice->interpret_mb_mode = interpret_mb_mode_B;
+        break;
+    case I_SLICE: 
+        currSlice->interpret_mb_mode = interpret_mb_mode_I;
+        break;
+    case SI_SLICE: 
+        currSlice->interpret_mb_mode = interpret_mb_mode_SI;
+        break;
+    default:
+        printf("Unsupported slice type\n");
+        break;
+    }
 
-  set_intra_prediction_modes(currSlice);
+    switch (currSlice->slice_type) {
+    case P_SLICE: 
+    case SP_SLICE:
+    case I_SLICE: 
+    case SI_SLICE: 
+        currSlice->update_direct_mv_info = NULL;
+        break;
+    case B_SLICE:
+        update_direct_types(currSlice);
+        break;
+    default:
+        printf("Unsupported slice type\n");
+        break;
+    }
+
+#if (MVC_EXTENSION_ENABLE)
+    if (currSlice->view_id) {
+        switch (currSlice->slice_type) {
+        case P_SLICE: 
+        case SP_SLICE:
+            currSlice->init_lists = init_lists_p_slice_mvc;
+            break;
+        case B_SLICE:
+            currSlice->init_lists = init_lists_b_slice_mvc;
+            break;
+        case I_SLICE: 
+        case SI_SLICE: 
+            currSlice->init_lists = init_lists_i_slice_mvc;
+            break;
+        default:
+            printf("Unsupported slice type\n");
+            break;
+        }
+    } else
+#endif
+    {
+        switch (currSlice->slice_type) {
+        case P_SLICE:
+        case SP_SLICE:
+            currSlice->init_lists = init_lists_p_slice;
+            break;
+        case B_SLICE:
+            currSlice->init_lists = init_lists_b_slice;
+            break;
+        case I_SLICE:
+        case SI_SLICE:
+            currSlice->init_lists = init_lists_i_slice;
+            break;
+        default:
+            printf("Unsupported slice type\n");
+            break;
+        }
+    }
+
+    set_intra_prediction_modes(currSlice);
 }
-
