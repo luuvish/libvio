@@ -14,43 +14,6 @@
 
 #include "global.h"
 
-
-#ifdef _WIN32
-
-static LARGE_INTEGER freq;
-
-void gettime(TIME_T* time)
-{
-#ifndef TIMING_DISABLE
-  QueryPerformanceCounter(time);
-#endif
-}
-
-int64 timediff(TIME_T* start, TIME_T* end)
-{
-#ifndef TIMING_DISABLE
-  return (int64)((end->QuadPart - start->QuadPart));
-#else
-  return 0;
-#endif
-}
-
-void init_time(void)
-{
-  QueryPerformanceFrequency(&freq);
-}
-
-int64 timenorm(int64  cur_time)
-{
-#ifndef TIMING_DISABLE
-  return (int64)(cur_time * 1000 /(freq.QuadPart));
-#else
-  return 1;
-#endif
-}
-
-#else
-
 static struct timezone tz;
 
 void gettime(TIME_T* time)
@@ -75,4 +38,3 @@ int64 timenorm(int64 cur_time)
 {
   return (int64)(cur_time / (int64) 1000);
 }
-#endif

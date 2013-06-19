@@ -38,12 +38,8 @@ extern "C" {
 #define VERSION             "18.5"
 #define EXT_VERSION         "(FRExt)"
 
-#define IMGTYPE                   1    //!< Define imgpel size type. 0 implies byte (cannot handle >8 bit depths) and 1 implies unsigned short
-#define ENABLE_FIELD_CTX          1    //!< Enables Field mode related context types for CABAC
 #define ENABLE_HIGH444_CTX        1    //!< Enables High 444 profile context types for CABAC. 
-#define ZEROSNR                   0    //!< PSNR computation method
 #define ENABLE_OUTPUT_TONEMAPPING 1    //!< enable tone map the output if tone mapping SEI present
-#define JCOST_CALC_SCALEUP        1    //!< 1: J = (D<<LAMBDA_ACCURACY_BITS)+Lambda*R; 0: J = D + ((Lambda*R+Rounding)>>LAMBDA_ACCURACY_BITS)
 #define DISABLE_ERC               0    //!< Disable any error concealment processes
 #define JM_PARALLEL_DEBLOCK       0    //!< Enables Parallel Deblocking
 #define SIMULCAST_ENABLE          0    //!< to test the decoder
@@ -55,8 +51,6 @@ extern "C" {
 #define BASE_VIEW_IDX             0
 
 #include "typedefs.h"
-
-#define SSE_MEMORY_ALIGNMENT      16
 
 //#define MAX_NUM_SLICES 150
 #define MAX_NUM_SLICES     50
@@ -264,7 +258,7 @@ enum {
 
 #define MAX_PLANE       3
 #define IS_FREXT_PROFILE(profile_idc) ( profile_idc>=FREXT_HP || profile_idc == FREXT_CAVLC444 )
-#define HI_INTRA_ONLY_PROFILE         (((p_Vid->active_sps->profile_idc>=FREXT_Hi10P)&&(p_Vid->active_sps->constrained_set3_flag))||(p_Vid->active_sps->profile_idc==FREXT_CAVLC444)) 
+#define HI_INTRA_ONLY_PROFILE         (((p_Vid->active_sps->profile_idc>=FREXT_Hi10P)&&(p_Vid->active_sps->constraint_set3_flag))||(p_Vid->active_sps->profile_idc==FREXT_CAVLC444)) 
 
 #ifdef __cplusplus
 }

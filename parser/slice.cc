@@ -531,7 +531,7 @@ int RestOfSliceHeader(Slice *currSlice)
             error ("slice_qs_delta makes slice_qs_y out of range", 500);
     }
 
-    if ( !HI_intra_only_profile(active_sps->profile_idc, active_sps->constrained_set3_flag) || (p_Inp->intra_profile_deblocking == 1) ) {
+    if ( !HI_intra_only_profile(active_sps->profile_idc, active_sps->constraint_set3_flag) || (p_Inp->intra_profile_deblocking == 1) ) {
         //then read flags and parameters from bistream
         if (p_Vid->active_pps->deblocking_filter_control_present_flag) {
             currSlice->DFDisableIdc = (short) read_ue_v ("SH: disable_deblocking_filter_idc", currStream, &p_Dec->UsedBits);

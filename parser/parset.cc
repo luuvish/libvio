@@ -228,13 +228,13 @@ static int InterpretSPS (VideoParameters *p_Vid, DataPartition *p, seq_parameter
     return p_Dec->UsedBits;
   }
 
-  sps->constrained_set0_flag                  = read_u_1  (   "SPS: constrained_set0_flag"                 , s, &p_Dec->UsedBits);
-  sps->constrained_set1_flag                  = read_u_1  (   "SPS: constrained_set1_flag"                 , s, &p_Dec->UsedBits);
-  sps->constrained_set2_flag                  = read_u_1  (   "SPS: constrained_set2_flag"                 , s, &p_Dec->UsedBits);
-  sps->constrained_set3_flag                  = read_u_1  (   "SPS: constrained_set3_flag"                 , s, &p_Dec->UsedBits);
+  sps->constraint_set0_flag                  = read_u_1  (   "SPS: constrained_set0_flag"                 , s, &p_Dec->UsedBits);
+  sps->constraint_set1_flag                  = read_u_1  (   "SPS: constrained_set1_flag"                 , s, &p_Dec->UsedBits);
+  sps->constraint_set2_flag                  = read_u_1  (   "SPS: constrained_set2_flag"                 , s, &p_Dec->UsedBits);
+  sps->constraint_set3_flag                  = read_u_1  (   "SPS: constrained_set3_flag"                 , s, &p_Dec->UsedBits);
 #if (MVC_EXTENSION_ENABLE)
-  sps->constrained_set4_flag                  = read_u_1  (   "SPS: constrained_set4_flag"                 , s, &p_Dec->UsedBits);
-  sps->constrained_set5_flag                  = read_u_1  (   "SPS: constrained_set5_flag"                 , s, &p_Dec->UsedBits);
+  sps->constraint_set4_flag                  = read_u_1  (   "SPS: constrained_set4_flag"                 , s, &p_Dec->UsedBits);
+  sps->constraint_set5_flag                  = read_u_1  (   "SPS: constrained_set5_flag"                 , s, &p_Dec->UsedBits);
   reserved_zero                               = read_u_v  (2, "SPS: reserved_zero_2bits"                   , s, &p_Dec->UsedBits);
 #else
   reserved_zero                               = read_u_v  (4, "SPS: reserved_zero_4bits"                   , s, &p_Dec->UsedBits);
@@ -363,7 +363,7 @@ static void get_max_dec_frame_buf_size(seq_parameter_set_rbsp_t *sps)
     size = 152064;
     break;
   case 11:
-    if (!is_FREXT_profile(sps->profile_idc) && (sps->constrained_set3_flag == 1))
+    if (!is_FREXT_profile(sps->profile_idc) && (sps->constraint_set3_flag == 1))
       size = 152064;
     else
       size = 345600;
@@ -812,9 +812,9 @@ static int sps_is_equal(seq_parameter_set_rbsp_t *sps1, seq_parameter_set_rbsp_t
     return 0;
 
   equal &= (sps1->profile_idc == sps2->profile_idc);
-  equal &= (sps1->constrained_set0_flag == sps2->constrained_set0_flag);
-  equal &= (sps1->constrained_set1_flag == sps2->constrained_set1_flag);
-  equal &= (sps1->constrained_set2_flag == sps2->constrained_set2_flag);
+  equal &= (sps1->constraint_set0_flag == sps2->constraint_set0_flag);
+  equal &= (sps1->constraint_set1_flag == sps2->constraint_set1_flag);
+  equal &= (sps1->constraint_set2_flag == sps2->constraint_set2_flag);
   equal &= (sps1->level_idc == sps2->level_idc);
   equal &= (sps1->seq_parameter_set_id == sps2->seq_parameter_set_id);
   equal &= (sps1->log2_max_frame_num_minus4 == sps2->log2_max_frame_num_minus4);

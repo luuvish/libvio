@@ -142,16 +142,6 @@ static void intrapred_chroma_dc(Macroblock *currMB)
         break;
       }
 
-#if (IMGTYPE == 0)
-      {
-        int jj;
-        for (jj = blk_y; jj < blk_y + BLOCK_SIZE; ++jj) 
-        {
-          memset(&mb_pred0[jj][blk_x],  pred, BLOCK_SIZE * sizeof(imgpel));
-          memset(&mb_pred1[jj][blk_x], pred1, BLOCK_SIZE * sizeof(imgpel));
-        }
-      }
-#else
       {
         int jj, ii;
         for (jj = blk_y; jj < blk_y + BLOCK_SIZE; ++jj) 
@@ -163,7 +153,6 @@ static void intrapred_chroma_dc(Macroblock *currMB)
           }
         }
       }
-#endif
     }
   }
 }
@@ -191,9 +180,7 @@ static void intrapred_chroma_hor(Macroblock *currMB)
 
     int j;  
     StorablePicture *dec_picture = currSlice->dec_picture;
-#if (IMGTYPE != 0)
     int i, pred, pred1;
-#endif
     int pos_y = a.pos_y;
     int pos_x = a.pos_x;
     imgpel **mb_pred0 = currSlice->mb_pred[0 + 1];
@@ -203,10 +190,6 @@ static void intrapred_chroma_hor(Macroblock *currMB)
     
     for (j = 0; j < cr_MB_y; ++j) 
     {
-#if (IMGTYPE == 0)
-      memset(mb_pred0[j], (*i0++)[pos_x], cr_MB_x * sizeof(imgpel));
-      memset(mb_pred1[j], (*i1++)[pos_x], cr_MB_x * sizeof(imgpel));
-#else
       pred  = (*i0++)[pos_x];
       pred1 = (*i1++)[pos_x];
       for (i = 0; i < cr_MB_x; ++i) 
@@ -214,8 +197,6 @@ static void intrapred_chroma_hor(Macroblock *currMB)
         mb_pred0[j][i]=(imgpel) pred;
         mb_pred1[j][i]=(imgpel) pred1;
       }
-#endif
-
     }
   }
 }

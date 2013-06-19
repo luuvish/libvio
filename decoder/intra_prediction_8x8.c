@@ -286,11 +286,7 @@ static inline int intra8x8_dc_pred(Macroblock *currMB,    //!< current macrobloc
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[1], p_Vid->dc_pred_value_comp[pl], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_A = P_B = P_C = P_D = P_E = P_F = P_G = P_H = (imgpel) p_Vid->dc_pred_value_comp[pl];
-#endif
   }
 
   if (block_available_up_right)
@@ -299,11 +295,7 @@ static inline int intra8x8_dc_pred(Macroblock *currMB,    //!< current macrobloc
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[9], PredPel[8], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_I = P_J = P_K = P_L = P_M = P_N = P_O = P_P = P_H;
-#endif
   }
 
   if (block_available_left)
@@ -431,11 +423,7 @@ static inline int intra8x8_vert_pred(Macroblock *currMB,    //!< current macrobl
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[1], p_Vid->dc_pred_value_comp[pl], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_A = P_B = P_C = P_D = P_E = P_F = P_G = P_H = (imgpel) p_Vid->dc_pred_value_comp[pl];
-#endif
   }
 
   if (block_available_up_right)
@@ -444,11 +432,7 @@ static inline int intra8x8_vert_pred(Macroblock *currMB,    //!< current macrobl
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[9], PredPel[8], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_I = P_J = P_K = P_L = P_M = P_N = P_O = P_P = P_H;
-#endif
   }
 
   if (block_available_up_left)
@@ -500,10 +484,8 @@ static inline int intra8x8_hor_pred(Macroblock *currMB,    //!< current macroblo
   int block_available_left;
   int block_available_up_left;
 
-#if (IMGTYPE != 0)
   int ipos0 = ioff    , ipos1 = ioff + 1, ipos2 = ioff + 2, ipos3 = ioff + 3;
   int ipos4 = ioff + 4, ipos5 = ioff + 5, ipos6 = ioff + 6, ipos7 = ioff + 7;
-#endif
   int jpos;  
   imgpel **mpr = currSlice->mb_pred[pl];
   int *mb_size = p_Vid->mb_size[IS_LUMA];
@@ -561,9 +543,6 @@ static inline int intra8x8_hor_pred(Macroblock *currMB,    //!< current macroblo
   for (j=0; j < BLOCK_SIZE_8x8; j++)
   {
     jpos = j + joff;
-#if (IMGTYPE == 0)
-    memset(&mpr[jpos][ioff], (imgpel) (&P_Q)[j], 8 * sizeof(imgpel));
-#else
     mpr[jpos][ipos0]  =
       mpr[jpos][ipos1]  =
       mpr[jpos][ipos2]  =
@@ -572,7 +551,6 @@ static inline int intra8x8_hor_pred(Macroblock *currMB,    //!< current macroblo
       mpr[jpos][ipos5]  =
       mpr[jpos][ipos6]  =
       mpr[jpos][ipos7]  = (imgpel) (&P_Q)[j];
-#endif
   }
  
   return DECODING_OK;
@@ -644,11 +622,7 @@ static inline int intra8x8_diag_down_right_pred(Macroblock *currMB,    //!< curr
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[1], p_Vid->dc_pred_value_comp[pl], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_A = P_B = P_C = P_D = P_E = P_F = P_G = P_H = (imgpel) p_Vid->dc_pred_value_comp[pl];
-#endif
   }
 
   if (block_available_up_right)
@@ -657,11 +631,7 @@ static inline int intra8x8_diag_down_right_pred(Macroblock *currMB,    //!< curr
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[9], PredPel[8], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_I = P_J = P_K = P_L = P_M = P_N = P_O = P_P = P_H;
-#endif
   }
 
   if (block_available_left)
@@ -790,11 +760,7 @@ static inline int intra8x8_diag_down_left_pred(Macroblock *currMB,    //!< curre
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[1], p_Vid->dc_pred_value_comp[pl], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_A = P_B = P_C = P_D = P_E = P_F = P_G = P_H = (imgpel) p_Vid->dc_pred_value_comp[pl];
-#endif
   }
 
   if (block_available_up_right)
@@ -803,11 +769,7 @@ static inline int intra8x8_diag_down_left_pred(Macroblock *currMB,    //!< curre
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[9], PredPel[8], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_I = P_J = P_K = P_L = P_M = P_N = P_O = P_P = P_H;
-#endif
   }
 
   if (block_available_left)
@@ -936,11 +898,7 @@ static inline int intra8x8_vert_right_pred(Macroblock *currMB,    //!< current m
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[1], p_Vid->dc_pred_value_comp[pl], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_A = P_B = P_C = P_D = P_E = P_F = P_G = P_H = (imgpel) p_Vid->dc_pred_value_comp[pl];
-#endif
   }
 
   if (block_available_up_right)
@@ -949,11 +907,7 @@ static inline int intra8x8_vert_right_pred(Macroblock *currMB,    //!< current m
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[9], PredPel[8], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_I = P_J = P_K = P_L = P_M = P_N = P_O = P_P = P_H;
-#endif
   }
 
   if (block_available_left)
@@ -1089,11 +1043,7 @@ static inline int intra8x8_vert_left_pred(Macroblock *currMB,    //!< current ma
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[1], p_Vid->dc_pred_value_comp[pl], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_A = P_B = P_C = P_D = P_E = P_F = P_G = P_H = (imgpel) p_Vid->dc_pred_value_comp[pl];
-#endif
   }
 
   if (block_available_up_right)
@@ -1102,11 +1052,7 @@ static inline int intra8x8_vert_left_pred(Macroblock *currMB,    //!< current ma
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[9], PredPel[8], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_I = P_J = P_K = P_L = P_M = P_N = P_O = P_P = P_H;
-#endif
   }
 
   if (block_available_left)
@@ -1240,11 +1186,7 @@ static inline int intra8x8_hor_up_pred(Macroblock *currMB,    //!< current macro
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[1], p_Vid->dc_pred_value_comp[pl], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_A = P_B = P_C = P_D = P_E = P_F = P_G = P_H = (imgpel) p_Vid->dc_pred_value_comp[pl];
-#endif
   }
 
   if (block_available_up_right)
@@ -1253,11 +1195,7 @@ static inline int intra8x8_hor_up_pred(Macroblock *currMB,    //!< current macro
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[9], PredPel[8], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_I = P_J = P_K = P_L = P_M = P_N = P_O = P_P = P_H;
-#endif
   }
 
   if (block_available_left)
@@ -1390,11 +1328,7 @@ static inline int intra8x8_hor_down_pred(Macroblock *currMB,    //!< current mac
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[1], p_Vid->dc_pred_value_comp[pl], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_A = P_B = P_C = P_D = P_E = P_F = P_G = P_H = (imgpel) p_Vid->dc_pred_value_comp[pl];
-#endif
   }
 
   if (block_available_up_right)
@@ -1403,11 +1337,7 @@ static inline int intra8x8_hor_down_pred(Macroblock *currMB,    //!< current mac
   }
   else
   {
-#if (IMGTYPE == 0)
-    memset(&PredPel[9], PredPel[8], BLOCK_SIZE_8x8 * sizeof(imgpel));
-#else
     P_I = P_J = P_K = P_L = P_M = P_N = P_O = P_P = P_H;
-#endif
   }
 
   if (block_available_left)

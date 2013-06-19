@@ -1365,34 +1365,6 @@ void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, i
 {
   int j;
   imgpel *pLine0 = pImgBuf - iPadX, *pLine;
-#if (IMGTYPE==0)
-  int pad_width = iPadX + iWidth;
-  fast_memset(pImgBuf - iPadX, *pImgBuf, iPadX * sizeof(imgpel));
-  fast_memset(pImgBuf + iWidth, *(pImgBuf + iWidth - 1), iPadX * sizeof(imgpel));
-
-  pLine = pLine0 - iPadY * iStride;
-  
-  for(j = -iPadY; j < 0; j++)
-  {
-    fast_memcpy(pLine, pLine0, iStride * sizeof(imgpel));
-    pLine += iStride;
-  }
-
-  for(j = 1; j < iHeight; j++)
-  {
-    pLine += iStride;
-    fast_memset(pLine, *(pLine + iPadX), iPadX * sizeof(imgpel));
-    fast_memset(pLine + pad_width, *(pLine + pad_width - 1), iPadX * sizeof(imgpel));
-  }
-
-  pLine0 = pLine + iStride;
-    
-  for(j = iHeight; j < iHeight + iPadY; j++)
-  {
-    fast_memcpy(pLine0,  pLine, iStride * sizeof(imgpel));
-    pLine0 += iStride;
-  }
-#else
   int i;
   for(i=-iPadX; i<0; i++)
     pImgBuf[i] = *pImgBuf;
@@ -1413,7 +1385,6 @@ void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, i
   pLine = pLine0 + (iHeight-1)*iStride;
   for(j=iHeight; j<iHeight+iPadY; j++)
     memcpy(pLine0+j*iStride,  pLine, iStride*sizeof(imgpel));
-#endif
 }
 
 void pad_dec_picture(VideoParameters *p_Vid, StorablePicture *dec_picture)

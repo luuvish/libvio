@@ -17,7 +17,6 @@
 #include "image.h"
 #include "memalloc.h"
 #include "sei.h"
-#include "input.h"
 #include "fast_memory.h"
 
 static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_out);
@@ -25,6 +24,27 @@ static void img2buf_byte   (imgpel** imgX, unsigned char* buf, int size_x, int s
 static void img2buf_normal (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 static void img2buf_endian (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
+
+/*!
+ ************************************************************************
+ * \brief
+ *      checks if the System is big- or little-endian
+ * \return
+ *      0, little-endian (e.g. Intel architectures)
+ *      1, big-endian (e.g. SPARC, MIPS, PowerPC)
+ ************************************************************************
+ */
+int testEndian(void)
+{
+  short s;
+  byte *p;
+
+  p=(byte*)&s;
+
+  s=1;
+
+  return (*p==0);
+}
 
 /*!
  ************************************************************************
@@ -113,16 +133,6 @@ static void img2buf_normal (imgpel** imgX, unsigned char* buf, int size_x, int s
   }
   else
   {
-#if (IMGTYPE == 0)
-    //if (sizeof(imgpel) == sizeof(char))
-    {
-      //memcpy(buf, &(imgX[0][0]), size_y * size_x * sizeof(imgpel));
-      for(j=0; j<size_y; j++)
-        memcpy(buf+j*iOutStride, imgX[j], size_x*sizeof(imgpel));
-    }
-    //else
-#else
-    {
       imgpel *cur_pixel;
       unsigned char *pDst; 
       for(j = 0; j < size_y; j++)
@@ -132,8 +142,6 @@ static void img2buf_normal (imgpel** imgX, unsigned char* buf, int size_x, int s
         for(i=0; i < size_x; i++)
           *(pDst++)=(unsigned char)*(cur_pixel++);
       }
-    }
-#endif
   }
 }
 

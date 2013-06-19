@@ -44,7 +44,6 @@ extern "C" {
 #include "io_image.h"
 #include "frame.h"
 #include "distortion.h"
-#include "io_video.h"
 
 #include "parser.h"
 #include "parset.h"
@@ -333,18 +332,6 @@ typedef struct video_par {
   byte *buf;
   byte *ibuf;
 
-  ImageData imgData;           //!< Image data to be encoded (dummy variable for now)
-  ImageData imgData0;          //!< base layer input
-  ImageData imgData1;          //!< temp buffer for left de-muxed view
-  ImageData imgData2;          //!< temp buffer for right de-muxed view
-
-  // Data needed for 3:2 pulldown or temporal interleaving
-  ImageData imgData32;           //!< Image data to be encoded
-  ImageData imgData4;
-  ImageData imgData5;
-  ImageData imgData6;
-
-
   // Redundant slices. Should be moved to another structure and allocated only if extended profile
   unsigned int previous_frame_num; //!< frame number of previous slice
   //!< non-zero: i-th previous frame is correct
@@ -523,9 +510,6 @@ typedef struct inp_par
 
   int  ProcessInput;
   int  enable_32_pulldown;
-  VideoDataFile input_file1;          //!< Input video file1
-  VideoDataFile input_file2;          //!< Input video file2
-  VideoDataFile input_file3;          //!< Input video file3
 #if (MVC_EXTENSION_ENABLE)
   int  DecodeAllLayers;
 #endif
@@ -609,9 +593,9 @@ static inline int is_FREXT_profile(unsigned int profile_idc)
 {
   return ( profile_idc >= FREXT_HP || profile_idc == FREXT_CAVLC444 );
 }
-static inline int HI_intra_only_profile(unsigned int profile_idc, Boolean constrained_set3_flag)
+static inline int HI_intra_only_profile(unsigned int profile_idc, Boolean constraint_set3_flag)
 {
-  return ( ((profile_idc >= FREXT_Hi10P) && constrained_set3_flag) || (profile_idc == FREXT_CAVLC444) );
+  return ( ((profile_idc >= FREXT_Hi10P) && constraint_set3_flag) || (profile_idc == FREXT_CAVLC444) );
 }
 static inline int is_BL_profile(unsigned int profile_idc) 
 {

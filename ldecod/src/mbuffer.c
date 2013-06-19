@@ -31,7 +31,6 @@
 #include "output.h"
 #include "mbuffer_mvc.h"
 #include "fast_memory.h"
-#include "input.h"
 
 static void insert_picture_in_dpb    (VideoParameters *p_Vid, FrameStore* fs, StorablePicture* p);
 static int output_one_frame_from_dpb (DecodedPictureBuffer *p_Dpb);
@@ -62,7 +61,7 @@ int getDpbSize(VideoParameters *p_Vid, seq_parameter_set_rbsp_t *active_sps)
     size = 152064;
     break;
   case 11:
-    if (!is_FREXT_profile(active_sps->profile_idc) && (active_sps->constrained_set3_flag == 1))
+    if (!is_FREXT_profile(active_sps->profile_idc) && (active_sps->constraint_set3_flag == 1))
       size = 152064;
     else
       size = 345600;

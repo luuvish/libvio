@@ -86,14 +86,10 @@ static int intra16x16_dc_pred_mbaff(Macroblock *currMB, ColorPlane pl)
   
   for(j = 0; j < MB_BLOCK_SIZE; ++j)
   {
-#if (IMGTYPE == 0)
-    memset(mb_pred[j], s0, MB_BLOCK_SIZE * sizeof(imgpel));
-#else
     for(i = 0; i < MB_BLOCK_SIZE; ++i)
     {
       mb_pred[j][i]=(imgpel) s0;
     }
-#endif
   }
 
   return DECODING_OK;

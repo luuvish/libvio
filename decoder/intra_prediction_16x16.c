@@ -91,9 +91,6 @@ static int intra16x16_dc_pred(Macroblock *currMB, ColorPlane pl)
 
   for(j = 0; j < MB_BLOCK_SIZE; ++j)
   {
-#if (IMGTYPE == 0)
-    memset(mb_pred[j], s0, MB_BLOCK_SIZE * sizeof(imgpel));
-#else
     for(i = 0; i < MB_BLOCK_SIZE; i += 4)
     {
       mb_pred[j][i    ]=(imgpel) s0;
@@ -101,7 +98,6 @@ static int intra16x16_dc_pred(Macroblock *currMB, ColorPlane pl)
       mb_pred[j][i + 2]=(imgpel) s0;
       mb_pred[j][i + 3]=(imgpel) s0;
     }
-#endif
   }
 
   return DECODING_OK;
@@ -206,12 +202,6 @@ static int intra16x16_hor_pred(Macroblock *currMB, ColorPlane pl)
 
   for(j = 0; j < MB_BLOCK_SIZE; ++j)
   {
-#if (IMGTYPE == 0)
-    imgpel *prd = mb_pred[j];
-    prediction = imgY[pos_y++][pos_x];
-
-    memset(prd, prediction, MB_BLOCK_SIZE * sizeof(imgpel));
-#else
     int i;
     imgpel *prd = mb_pred[j];
     prediction = imgY[pos_y++][pos_x];
@@ -223,7 +213,6 @@ static int intra16x16_hor_pred(Macroblock *currMB, ColorPlane pl)
       *prd++= prediction; // store predicted 16x16 block
       *prd++= prediction; // store predicted 16x16 block
     }
-#endif
   }
 
   return DECODING_OK;

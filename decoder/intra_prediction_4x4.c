@@ -242,19 +242,6 @@ static int intra4x4_hor_pred(Macroblock *currMB,
   if (!block_available_left)
     printf ("warning: Intra_4x4_Horizontal prediction mode not allowed at mb %d\n",(int) currSlice->current_mb_nr);
   else
-#if (IMGTYPE == 0)
-  {
-    imgpel **imgY = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
-    imgpel **mb_pred  =  &currSlice->mb_pred[pl][joff];
-    imgpel **img_pred =  &imgY[pix_a.pos_y];    
-    int pos_x = pix_a.pos_x;
-
-    memset((*(mb_pred++) + ioff), *(*(img_pred++) + pos_x), BLOCK_SIZE * sizeof (imgpel));
-    memset((*(mb_pred++) + ioff), *(*(img_pred++) + pos_x), BLOCK_SIZE * sizeof (imgpel));
-    memset((*(mb_pred++) + ioff), *(*(img_pred++) + pos_x), BLOCK_SIZE * sizeof (imgpel));
-    memset((*(mb_pred  ) + ioff), *(*(img_pred  ) + pos_x), BLOCK_SIZE * sizeof (imgpel));
-  }
-#else
   {
     int j;
     int pos_y = pix_a.pos_y;
@@ -274,7 +261,6 @@ static int intra4x4_hor_pred(Macroblock *currMB,
       predrow[ioff + 3]= prediction; 
     }
   }
-#endif
 
   return DECODING_OK;
 }
@@ -424,11 +410,7 @@ static int intra4x4_diag_down_left_pred(Macroblock *currMB,    //!< current macr
     }
     else
     {
-#if (IMGTYPE == 0)
-      memset(&PredPel[5], PredPel[4], BLOCK_SIZE * sizeof(imgpel));
-#else
       P_E = P_F = P_G = P_H = P_D;
-#endif
     }
 
     PredPixel[0] = (imgpel) ((P_A + P_C + 2*(P_B) + 2) >> 2);
@@ -595,11 +577,7 @@ static int intra4x4_vert_left_pred(Macroblock *currMB,    //!< current macrobloc
     }
     else
     {
-#if (IMGTYPE == 0)
-      memset(&PredPel[5], PredPel[4], BLOCK_SIZE * sizeof(imgpel));
-#else
       P_E = P_F = P_G = P_H = P_D;
-#endif
     }
 
     PredPixel[0] = (imgpel) ((P_A + P_B + 1) >> 1);

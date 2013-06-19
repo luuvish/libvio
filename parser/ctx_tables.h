@@ -875,7 +875,6 @@ static const char INIT_ABS_P[3][22][5][2] =
 
 
 
-#if ENABLE_FIELD_CTX
 static const char INIT_FLD_MAP_I[1][8][15][2] =
 {
   //----- model 0 -----
@@ -987,7 +986,6 @@ static const char INIT_FLD_LAST_P[3][8][15][2] =
     {  CTX_UNUSED , {  24,  23} , {  27,  16} , {  24,  30} , {  31,  29} , {  22,  41} , {  22,  42} , {  16,  60} , {  15,  52} , {  14,  60} , {   3,  78} , { -16, 123} , {  21,  53} , {  22,  56} , {  25,  61} }
   }
 };
-#endif
 
 
 #endif
