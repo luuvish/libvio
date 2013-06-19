@@ -1512,8 +1512,8 @@ void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSlic
   }
 
   // set max size
-  p_Vid->ppSliceList[0]->listXsize[0] = (char) imin (p_Vid->ppSliceList[0]->listXsize[0], (int)active_sps->num_ref_frames);
-  p_Vid->ppSliceList[0]->listXsize[1] = (char) imin (p_Vid->ppSliceList[0]->listXsize[1], (int)active_sps->num_ref_frames);
+  p_Vid->ppSliceList[0]->listXsize[0] = (char) imin (p_Vid->ppSliceList[0]->listXsize[0], (int)active_sps->max_num_ref_frames);
+  p_Vid->ppSliceList[0]->listXsize[1] = (char) imin (p_Vid->ppSliceList[0]->listXsize[1], (int)active_sps->max_num_ref_frames);
 
   p_Vid->ppSliceList[0]->listXsize[1] = 0;
   // set the unused list entries to NULL

@@ -59,289 +59,235 @@ void SubsetSPSConsistencyCheck (subset_seq_parameter_set_rbsp_t *subset_sps);
 #endif
 
 
-// syntax for scaling list matrix values
-static void Scaling_List(int *scalingList, int sizeOfScalingList, Boolean *UseDefaultScalingMatrix, Bitstream *s)
+// E.1.2 HRD parameters syntax
+static void hrd_parameters(DataPartition *p, hrd_parameters_t *hrd)
 {
-  int j, scanj;
-  int delta_scale, lastScale, nextScale;
+    Bitstream *s = p->bitstream;
+    int SchedSelIdx;
 
-  lastScale      = 8;
-  nextScale      = 8;
+    hrd->cpb_cnt_minus1                                      = read_ue_v (   "VUI: cpb_cnt_minus1"                       , s, &p_Dec->UsedBits);
+    hrd->bit_rate_scale                                      = read_u_v  ( 4,"VUI: bit_rate_scale"                       , s, &p_Dec->UsedBits);
+    hrd->cpb_size_scale                                      = read_u_v  ( 4,"VUI: cpb_size_scale"                       , s, &p_Dec->UsedBits);
 
-  for(j=0; j<sizeOfScalingList; j++)
-  {
-    scanj = (sizeOfScalingList==16) ? ZZ_SCAN[j]:ZZ_SCAN8[j];
-
-    if(nextScale!=0)
-    {
-      delta_scale = read_se_v (   "   : delta_sl   "                           , s, &p_Dec->UsedBits);
-      nextScale = (lastScale + delta_scale + 256) % 256;
-      *UseDefaultScalingMatrix = (Boolean) (scanj==0 && nextScale==0);
+    for (SchedSelIdx = 0; SchedSelIdx <= hrd->cpb_cnt_minus1; SchedSelIdx++) {
+        hrd->bit_rate_value_minus1[SchedSelIdx]             = read_ue_v  ( "VUI: bit_rate_value_minus1"                  , s, &p_Dec->UsedBits);
+        hrd->cpb_size_value_minus1[SchedSelIdx]             = read_ue_v  ( "VUI: cpb_size_value_minus1"                  , s, &p_Dec->UsedBits);
+        hrd->cbr_flag             [SchedSelIdx]             = read_u_1   ( "VUI: cbr_flag"                               , s, &p_Dec->UsedBits);
     }
 
-    scalingList[scanj] = (nextScale==0) ? lastScale:nextScale;
-    lastScale = scalingList[scanj];
-  }
-}
-// fill sps with content of p
-
-
-static int ReadHRDParameters(DataPartition *p, hrd_parameters_t *hrd)
-{
-  Bitstream *s = p->bitstream;
-  unsigned int SchedSelIdx;
-
-  hrd->cpb_cnt_minus1                                      = read_ue_v (   "VUI: cpb_cnt_minus1"                       , s, &p_Dec->UsedBits);
-  hrd->bit_rate_scale                                      = read_u_v  ( 4,"VUI: bit_rate_scale"                       , s, &p_Dec->UsedBits);
-  hrd->cpb_size_scale                                      = read_u_v  ( 4,"VUI: cpb_size_scale"                       , s, &p_Dec->UsedBits);
-
-  for( SchedSelIdx = 0; SchedSelIdx <= hrd->cpb_cnt_minus1; SchedSelIdx++ )
-  {
-    hrd->bit_rate_value_minus1[ SchedSelIdx ]             = read_ue_v  ( "VUI: bit_rate_value_minus1"                  , s, &p_Dec->UsedBits);
-    hrd->cpb_size_value_minus1[ SchedSelIdx ]             = read_ue_v  ( "VUI: cpb_size_value_minus1"                  , s, &p_Dec->UsedBits);
-    hrd->cbr_flag[ SchedSelIdx ]                          = read_u_1   ( "VUI: cbr_flag"                               , s, &p_Dec->UsedBits);
-  }
-
-  hrd->initial_cpb_removal_delay_length_minus1            = read_u_v  ( 5,"VUI: initial_cpb_removal_delay_length_minus1" , s, &p_Dec->UsedBits);
-  hrd->cpb_removal_delay_length_minus1                    = read_u_v  ( 5,"VUI: cpb_removal_delay_length_minus1"         , s, &p_Dec->UsedBits);
-  hrd->dpb_output_delay_length_minus1                     = read_u_v  ( 5,"VUI: dpb_output_delay_length_minus1"          , s, &p_Dec->UsedBits);
-  hrd->time_offset_length                                 = read_u_v  ( 5,"VUI: time_offset_length"          , s, &p_Dec->UsedBits);
-
-  return 0;
+    hrd->initial_cpb_removal_delay_length_minus1            = read_u_v  ( 5,"VUI: initial_cpb_removal_delay_length_minus1" , s, &p_Dec->UsedBits);
+    hrd->cpb_removal_delay_length_minus1                    = read_u_v  ( 5,"VUI: cpb_removal_delay_length_minus1"         , s, &p_Dec->UsedBits);
+    hrd->dpb_output_delay_length_minus1                     = read_u_v  ( 5,"VUI: dpb_output_delay_length_minus1"          , s, &p_Dec->UsedBits);
+    hrd->time_offset_length                                 = read_u_v  ( 5,"VUI: time_offset_length"          , s, &p_Dec->UsedBits);
 }
 
-static void InitVUI(seq_parameter_set_rbsp_t *sps)
+// E.1.1 VUI parameter syntax
+static void vui_parameters(DataPartition *p, seq_parameter_set_rbsp_t *sps)
 {
+    Bitstream *s = p->bitstream;
+    vui_parameters_t *vui = &(sps->vui_seq_parameters);
     sps->vui_seq_parameters.matrix_coefficients = 2;
-}
 
-static int ReadVUI(DataPartition *p, seq_parameter_set_rbsp_t *sps)
-{
-  Bitstream *s = p->bitstream;
-  if (sps->vui_parameters_present_flag)
-  {
-    sps->vui_seq_parameters.aspect_ratio_info_present_flag = read_u_1  ("VUI: aspect_ratio_info_present_flag"   , s, &p_Dec->UsedBits);
-    if (sps->vui_seq_parameters.aspect_ratio_info_present_flag)
-    {
-      sps->vui_seq_parameters.aspect_ratio_idc             = read_u_v  ( 8, "VUI: aspect_ratio_idc"              , s, &p_Dec->UsedBits);
-      if (255==sps->vui_seq_parameters.aspect_ratio_idc)
-      {
-        sps->vui_seq_parameters.sar_width                  = (unsigned short) read_u_v  (16, "VUI: sar_width"                     , s, &p_Dec->UsedBits);
-        sps->vui_seq_parameters.sar_height                 = (unsigned short) read_u_v  (16, "VUI: sar_height"                    , s, &p_Dec->UsedBits);
-      }
-    }
+    if (!sps->vui_parameters_present_flag)
+        return;
 
-    sps->vui_seq_parameters.overscan_info_present_flag     = read_u_1  ("VUI: overscan_info_present_flag"        , s, &p_Dec->UsedBits);
-    if (sps->vui_seq_parameters.overscan_info_present_flag)
-    {
-      sps->vui_seq_parameters.overscan_appropriate_flag    = read_u_1  ("VUI: overscan_appropriate_flag"         , s, &p_Dec->UsedBits);
-    }
-
-    sps->vui_seq_parameters.video_signal_type_present_flag = read_u_1  ("VUI: video_signal_type_present_flag"    , s, &p_Dec->UsedBits);
-    if (sps->vui_seq_parameters.video_signal_type_present_flag)
-    {
-      sps->vui_seq_parameters.video_format                    = read_u_v  ( 3,"VUI: video_format"                      , s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.video_full_range_flag           = read_u_1  (   "VUI: video_full_range_flag"             , s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.colour_description_present_flag = read_u_1  (   "VUI: color_description_present_flag"    , s, &p_Dec->UsedBits);
-      if(sps->vui_seq_parameters.colour_description_present_flag)
-      {
-        sps->vui_seq_parameters.colour_primaries              = read_u_v  ( 8,"VUI: colour_primaries"                  , s, &p_Dec->UsedBits);
-        sps->vui_seq_parameters.transfer_characteristics      = read_u_v  ( 8,"VUI: transfer_characteristics"          , s, &p_Dec->UsedBits);
-        sps->vui_seq_parameters.matrix_coefficients           = read_u_v  ( 8,"VUI: matrix_coefficients"               , s, &p_Dec->UsedBits);
-      }
-    }
-    sps->vui_seq_parameters.chroma_location_info_present_flag = read_u_1  (   "VUI: chroma_loc_info_present_flag"      , s, &p_Dec->UsedBits);
-    if(sps->vui_seq_parameters.chroma_location_info_present_flag)
-    {
-      sps->vui_seq_parameters.chroma_sample_loc_type_top_field     = read_ue_v  ( "VUI: chroma_sample_loc_type_top_field"    , s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.chroma_sample_loc_type_bottom_field  = read_ue_v  ( "VUI: chroma_sample_loc_type_bottom_field" , s, &p_Dec->UsedBits);
-    }
-    sps->vui_seq_parameters.timing_info_present_flag          = read_u_1  ("VUI: timing_info_present_flag"           , s, &p_Dec->UsedBits);
-    if (sps->vui_seq_parameters.timing_info_present_flag)
-    {
-      sps->vui_seq_parameters.num_units_in_tick               = read_u_v  (32,"VUI: num_units_in_tick"               , s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.time_scale                      = read_u_v  (32,"VUI: time_scale"                      , s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.fixed_frame_rate_flag           = read_u_1  (   "VUI: fixed_frame_rate_flag"           , s, &p_Dec->UsedBits);
-    }
-    sps->vui_seq_parameters.nal_hrd_parameters_present_flag   = read_u_1  ("VUI: nal_hrd_parameters_present_flag"    , s, &p_Dec->UsedBits);
-    if (sps->vui_seq_parameters.nal_hrd_parameters_present_flag)
-    {
-      ReadHRDParameters(p, &(sps->vui_seq_parameters.nal_hrd_parameters));
-    }
-    sps->vui_seq_parameters.vcl_hrd_parameters_present_flag   = read_u_1  ("VUI: vcl_hrd_parameters_present_flag"    , s, &p_Dec->UsedBits);
-    if (sps->vui_seq_parameters.vcl_hrd_parameters_present_flag)
-    {
-      ReadHRDParameters(p, &(sps->vui_seq_parameters.vcl_hrd_parameters));
-    }
-    if (sps->vui_seq_parameters.nal_hrd_parameters_present_flag || sps->vui_seq_parameters.vcl_hrd_parameters_present_flag)
-    {
-      sps->vui_seq_parameters.low_delay_hrd_flag             =  read_u_1  ("VUI: low_delay_hrd_flag"                 , s, &p_Dec->UsedBits);
-    }
-    sps->vui_seq_parameters.pic_struct_present_flag          =  read_u_1  ("VUI: pic_struct_present_flag   "         , s, &p_Dec->UsedBits);
-    sps->vui_seq_parameters.bitstream_restriction_flag       =  read_u_1  ("VUI: bitstream_restriction_flag"         , s, &p_Dec->UsedBits);
-    if (sps->vui_seq_parameters.bitstream_restriction_flag)
-    {
-      sps->vui_seq_parameters.motion_vectors_over_pic_boundaries_flag =  read_u_1  ("VUI: motion_vectors_over_pic_boundaries_flag", s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.max_bytes_per_pic_denom                 =  read_ue_v ("VUI: max_bytes_per_pic_denom"                , s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.max_bits_per_mb_denom                   =  read_ue_v ("VUI: max_bits_per_mb_denom"                  , s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.log2_max_mv_length_horizontal           =  read_ue_v ("VUI: log2_max_mv_length_horizontal"          , s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.log2_max_mv_length_vertical             =  read_ue_v ("VUI: log2_max_mv_length_vertical"            , s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.num_reorder_frames                      =  read_ue_v ("VUI: num_reorder_frames"                     , s, &p_Dec->UsedBits);
-      sps->vui_seq_parameters.max_dec_frame_buffering                 =  read_ue_v ("VUI: max_dec_frame_buffering"                , s, &p_Dec->UsedBits);
-    }
-  }
-
-  return 0;
-}
-
-static int InterpretSPS (VideoParameters *p_Vid, DataPartition *p, seq_parameter_set_rbsp_t *sps)
-{
-  unsigned i;
-  unsigned n_ScalingList;
-  int reserved_zero;
-  Bitstream *s = p->bitstream;
-
-  assert (p != NULL);
-  assert (p->bitstream != NULL);
-  assert (p->bitstream->streamBuffer != 0);
-  assert (sps != NULL);
-
-  p_Dec->UsedBits = 0;
-
-  sps->profile_idc                            = read_u_v  (8, "SPS: profile_idc"                           , s, &p_Dec->UsedBits);
-
-  if ((sps->profile_idc!=BASELINE       ) &&
-      (sps->profile_idc!=MAIN           ) &&
-      (sps->profile_idc!=EXTENDED       ) &&
-      (sps->profile_idc!=FREXT_HP       ) &&
-      (sps->profile_idc!=FREXT_Hi10P    ) &&
-      (sps->profile_idc!=FREXT_Hi422    ) &&
-      (sps->profile_idc!=FREXT_Hi444    ) &&
-      (sps->profile_idc!=FREXT_CAVLC444 )
-#if (MVC_EXTENSION_ENABLE)
-      && (sps->profile_idc!=MVC_HIGH)
-      && (sps->profile_idc!=STEREO_HIGH)
-#endif
-      )
-  {
-    printf("Invalid Profile IDC (%d) encountered. \n", sps->profile_idc);
-    return p_Dec->UsedBits;
-  }
-
-  sps->constraint_set0_flag                  = read_u_1  (   "SPS: constrained_set0_flag"                 , s, &p_Dec->UsedBits);
-  sps->constraint_set1_flag                  = read_u_1  (   "SPS: constrained_set1_flag"                 , s, &p_Dec->UsedBits);
-  sps->constraint_set2_flag                  = read_u_1  (   "SPS: constrained_set2_flag"                 , s, &p_Dec->UsedBits);
-  sps->constraint_set3_flag                  = read_u_1  (   "SPS: constrained_set3_flag"                 , s, &p_Dec->UsedBits);
-#if (MVC_EXTENSION_ENABLE)
-  sps->constraint_set4_flag                  = read_u_1  (   "SPS: constrained_set4_flag"                 , s, &p_Dec->UsedBits);
-  sps->constraint_set5_flag                  = read_u_1  (   "SPS: constrained_set5_flag"                 , s, &p_Dec->UsedBits);
-  reserved_zero                               = read_u_v  (2, "SPS: reserved_zero_2bits"                   , s, &p_Dec->UsedBits);
-#else
-  reserved_zero                               = read_u_v  (4, "SPS: reserved_zero_4bits"                   , s, &p_Dec->UsedBits);
-#endif
-  //assert (reserved_zero==0);
-  if (reserved_zero != 0)
-  {
-    printf("Warning, reserved_zero flag not equal to 0. Possibly new constrained_setX flag introduced.\n");
-  }
-
-  sps->level_idc                              = read_u_v  (8, "SPS: level_idc"                             , s, &p_Dec->UsedBits);
-
-  sps->seq_parameter_set_id                   = read_ue_v ("SPS: seq_parameter_set_id"                     , s, &p_Dec->UsedBits);
-
-  // Fidelity Range Extensions stuff
-  sps->chroma_format_idc = 1;
-  sps->bit_depth_luma_minus8   = 0;
-  sps->bit_depth_chroma_minus8 = 0;
-  sps->lossless_qpprime_flag   = 0;
-  sps->separate_colour_plane_flag = 0;
-
-  if((sps->profile_idc==FREXT_HP   ) ||
-     (sps->profile_idc==FREXT_Hi10P) ||
-     (sps->profile_idc==FREXT_Hi422) ||
-     (sps->profile_idc==FREXT_Hi444) ||
-     (sps->profile_idc==FREXT_CAVLC444)
-#if (MVC_EXTENSION_ENABLE)
-     || (sps->profile_idc==MVC_HIGH)
-     || (sps->profile_idc==STEREO_HIGH)
-#endif
-     )
-  {
-    sps->chroma_format_idc                      = read_ue_v ("SPS: chroma_format_idc"                       , s, &p_Dec->UsedBits);
-
-    if(sps->chroma_format_idc == YUV444)
-    {
-      sps->separate_colour_plane_flag           = read_u_1  ("SPS: separate_colour_plane_flag"              , s, &p_Dec->UsedBits);
-    }
-
-    sps->bit_depth_luma_minus8                  = read_ue_v ("SPS: bit_depth_luma_minus8"                   , s, &p_Dec->UsedBits);
-    sps->bit_depth_chroma_minus8                = read_ue_v ("SPS: bit_depth_chroma_minus8"                 , s, &p_Dec->UsedBits);
-    //checking;
-    if((sps->bit_depth_luma_minus8+8 > sizeof(imgpel)*8) || (sps->bit_depth_chroma_minus8+8> sizeof(imgpel)*8))
-      error ("Source picture has higher bit depth than imgpel data type. \nPlease recompile with larger data type for imgpel.", 500);
-
-    sps->lossless_qpprime_flag                  = read_u_1  ("SPS: lossless_qpprime_y_zero_flag"            , s, &p_Dec->UsedBits);
-
-    sps->seq_scaling_matrix_present_flag        = read_u_1  (   "SPS: seq_scaling_matrix_present_flag"       , s, &p_Dec->UsedBits);
-    
-    if(sps->seq_scaling_matrix_present_flag)
-    {
-      n_ScalingList = (sps->chroma_format_idc != YUV444) ? 8 : 12;
-      for(i=0; i<n_ScalingList; i++)
-      {
-        sps->seq_scaling_list_present_flag[i]   = read_u_1  (   "SPS: seq_scaling_list_present_flag"         , s, &p_Dec->UsedBits);
-        if(sps->seq_scaling_list_present_flag[i])
-        {
-          if(i<6)
-            Scaling_List(sps->ScalingList4x4[i], 16, &sps->UseDefaultScalingMatrix4x4Flag[i], s);
-          else
-            Scaling_List(sps->ScalingList8x8[i-6], 64, &sps->UseDefaultScalingMatrix8x8Flag[i-6], s);
+    vui->aspect_ratio_info_present_flag = read_u_1  ("VUI: aspect_ratio_info_present_flag"   , s, &p_Dec->UsedBits);
+    if (vui->aspect_ratio_info_present_flag) {
+        vui->aspect_ratio_idc             = read_u_v  ( 8, "VUI: aspect_ratio_idc"              , s, &p_Dec->UsedBits);
+        if (255 == vui->aspect_ratio_idc) {
+            vui->sar_width                  = (unsigned short) read_u_v  (16, "VUI: sar_width"                     , s, &p_Dec->UsedBits);
+            vui->sar_height                 = (unsigned short) read_u_v  (16, "VUI: sar_height"                    , s, &p_Dec->UsedBits);
         }
-      }
     }
-  }
 
-  sps->log2_max_frame_num_minus4              = read_ue_v ("SPS: log2_max_frame_num_minus4"                , s, &p_Dec->UsedBits);
-  sps->pic_order_cnt_type                     = read_ue_v ("SPS: pic_order_cnt_type"                       , s, &p_Dec->UsedBits);
+    vui->overscan_info_present_flag     = read_u_1  ("VUI: overscan_info_present_flag"        , s, &p_Dec->UsedBits);
+    if (vui->overscan_info_present_flag)
+        vui->overscan_appropriate_flag    = read_u_1  ("VUI: overscan_appropriate_flag"         , s, &p_Dec->UsedBits);
 
-  if (sps->pic_order_cnt_type == 0)
-    sps->log2_max_pic_order_cnt_lsb_minus4 = read_ue_v ("SPS: log2_max_pic_order_cnt_lsb_minus4"           , s, &p_Dec->UsedBits);
-  else if (sps->pic_order_cnt_type == 1)
-  {
-    sps->delta_pic_order_always_zero_flag      = read_u_1  ("SPS: delta_pic_order_always_zero_flag"       , s, &p_Dec->UsedBits);
-    sps->offset_for_non_ref_pic                = read_se_v ("SPS: offset_for_non_ref_pic"                 , s, &p_Dec->UsedBits);
-    sps->offset_for_top_to_bottom_field        = read_se_v ("SPS: offset_for_top_to_bottom_field"         , s, &p_Dec->UsedBits);
-    sps->num_ref_frames_in_pic_order_cnt_cycle = read_ue_v ("SPS: num_ref_frames_in_pic_order_cnt_cycle"  , s, &p_Dec->UsedBits);
-    for(i=0; i<sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
-      sps->offset_for_ref_frame[i]               = read_se_v ("SPS: offset_for_ref_frame[i]"              , s, &p_Dec->UsedBits);
-  }
-  sps->num_ref_frames                        = read_ue_v ("SPS: num_ref_frames"                         , s, &p_Dec->UsedBits);
-  sps->gaps_in_frame_num_value_allowed_flag  = read_u_1  ("SPS: gaps_in_frame_num_value_allowed_flag"   , s, &p_Dec->UsedBits);
-  sps->pic_width_in_mbs_minus1               = read_ue_v ("SPS: pic_width_in_mbs_minus1"                , s, &p_Dec->UsedBits);
-  sps->pic_height_in_map_units_minus1        = read_ue_v ("SPS: pic_height_in_map_units_minus1"         , s, &p_Dec->UsedBits);
-  sps->frame_mbs_only_flag                   = read_u_1  ("SPS: frame_mbs_only_flag"                    , s, &p_Dec->UsedBits);
-  if (!sps->frame_mbs_only_flag)
-  {
-    sps->mb_adaptive_frame_field_flag        = read_u_1  ("SPS: mb_adaptive_frame_field_flag"           , s, &p_Dec->UsedBits);
-  }
-  //printf("interlace flags %d %d\n", sps->frame_mbs_only_flag, sps->mb_adaptive_frame_field_flag);
-  sps->direct_8x8_inference_flag             = read_u_1  ("SPS: direct_8x8_inference_flag"              , s, &p_Dec->UsedBits);
-  sps->frame_cropping_flag                   = read_u_1  ("SPS: frame_cropping_flag"                    , s, &p_Dec->UsedBits);
+    vui->video_signal_type_present_flag = read_u_1  ("VUI: video_signal_type_present_flag"    , s, &p_Dec->UsedBits);
+    if (vui->video_signal_type_present_flag) {
+        vui->video_format                    = read_u_v  ( 3,"VUI: video_format"                      , s, &p_Dec->UsedBits);
+        vui->video_full_range_flag           = read_u_1  (   "VUI: video_full_range_flag"             , s, &p_Dec->UsedBits);
+        vui->colour_description_present_flag = read_u_1  (   "VUI: color_description_present_flag"    , s, &p_Dec->UsedBits);
+        if (vui->colour_description_present_flag) {
+            vui->colour_primaries              = read_u_v  ( 8,"VUI: colour_primaries"                  , s, &p_Dec->UsedBits);
+            vui->transfer_characteristics      = read_u_v  ( 8,"VUI: transfer_characteristics"          , s, &p_Dec->UsedBits);
+            vui->matrix_coefficients           = read_u_v  ( 8,"VUI: matrix_coefficients"               , s, &p_Dec->UsedBits);
+        }
+    }
 
-  if (sps->frame_cropping_flag)
-  {
-    sps->frame_crop_left_offset      = read_ue_v ("SPS: frame_crop_left_offset"           , s, &p_Dec->UsedBits);
-    sps->frame_crop_right_offset     = read_ue_v ("SPS: frame_crop_right_offset"          , s, &p_Dec->UsedBits);
-    sps->frame_crop_top_offset       = read_ue_v ("SPS: frame_crop_top_offset"            , s, &p_Dec->UsedBits);
-    sps->frame_crop_bottom_offset    = read_ue_v ("SPS: frame_crop_bottom_offset"         , s, &p_Dec->UsedBits);
-  }
-  sps->vui_parameters_present_flag           = (Boolean) read_u_1  ("SPS: vui_parameters_present_flag"      , s, &p_Dec->UsedBits);
+    vui->chroma_loc_info_present_flag = read_u_1  (   "VUI: chroma_loc_info_present_flag"      , s, &p_Dec->UsedBits);
+    if (vui->chroma_loc_info_present_flag) {
+        vui->chroma_sample_loc_type_top_field     = read_ue_v  ( "VUI: chroma_sample_loc_type_top_field"    , s, &p_Dec->UsedBits);
+        vui->chroma_sample_loc_type_bottom_field  = read_ue_v  ( "VUI: chroma_sample_loc_type_bottom_field" , s, &p_Dec->UsedBits);
+    }
+    vui->timing_info_present_flag          = read_u_1  ("VUI: timing_info_present_flag"           , s, &p_Dec->UsedBits);
+    if (vui->timing_info_present_flag) {
+        vui->num_units_in_tick               = read_u_v  (32,"VUI: num_units_in_tick"               , s, &p_Dec->UsedBits);
+        vui->time_scale                      = read_u_v  (32,"VUI: time_scale"                      , s, &p_Dec->UsedBits);
+        vui->fixed_frame_rate_flag           = read_u_1  (   "VUI: fixed_frame_rate_flag"           , s, &p_Dec->UsedBits);
+    }
+    vui->nal_hrd_parameters_present_flag   = read_u_1  ("VUI: nal_hrd_parameters_present_flag"    , s, &p_Dec->UsedBits);
+    if (vui->nal_hrd_parameters_present_flag)
+        hrd_parameters(p, &(vui->nal_hrd_parameters));
+    vui->vcl_hrd_parameters_present_flag   = read_u_1  ("VUI: vcl_hrd_parameters_present_flag"    , s, &p_Dec->UsedBits);
+    if (vui->vcl_hrd_parameters_present_flag)
+        hrd_parameters(p, &(vui->vcl_hrd_parameters));
+    if (vui->nal_hrd_parameters_present_flag || vui->vcl_hrd_parameters_present_flag)
+        vui->low_delay_hrd_flag             =  read_u_1  ("VUI: low_delay_hrd_flag"                 , s, &p_Dec->UsedBits);
+    vui->pic_struct_present_flag          =  read_u_1  ("VUI: pic_struct_present_flag   "         , s, &p_Dec->UsedBits);
+    vui->bitstream_restriction_flag       =  read_u_1  ("VUI: bitstream_restriction_flag"         , s, &p_Dec->UsedBits);
+    if (vui->bitstream_restriction_flag) {
+        vui->motion_vectors_over_pic_boundaries_flag =  read_u_1  ("VUI: motion_vectors_over_pic_boundaries_flag", s, &p_Dec->UsedBits);
+        vui->max_bytes_per_pic_denom                 =  read_ue_v ("VUI: max_bytes_per_pic_denom"                , s, &p_Dec->UsedBits);
+        vui->max_bits_per_mb_denom                   =  read_ue_v ("VUI: max_bits_per_mb_denom"                  , s, &p_Dec->UsedBits);
+        vui->log2_max_mv_length_horizontal           =  read_ue_v ("VUI: log2_max_mv_length_horizontal"          , s, &p_Dec->UsedBits);
+        vui->log2_max_mv_length_vertical             =  read_ue_v ("VUI: log2_max_mv_length_vertical"            , s, &p_Dec->UsedBits);
+        vui->max_num_reorder_frames                  =  read_ue_v ("VUI: num_reorder_frames"                     , s, &p_Dec->UsedBits);
+        vui->max_dec_frame_buffering                 =  read_ue_v ("VUI: max_dec_frame_buffering"                , s, &p_Dec->UsedBits);
+    }
+}
 
-  InitVUI(sps);
-  ReadVUI(p, sps);
+// 7.3.2.1.1.1 Scaling list syntax
+static void scaling_list(int *scalingList, int sizeOfScalingList, Boolean *useDefaultScalingMatrixFlag, Bitstream *s)
+{
+    int j, scanj;
+    int delta_scale;
+    int lastScale = 8;
+    int nextScale = 8;
+    for (j = 0; j < sizeOfScalingList; j++) {
+        scanj = (sizeOfScalingList == 16) ? ZZ_SCAN[j] : ZZ_SCAN8[j];
+        if (nextScale != 0) {
+            delta_scale = read_se_v (   "   : delta_sl   "                           , s, &p_Dec->UsedBits);
+            nextScale = (lastScale + delta_scale + 256) % 256;
+            *useDefaultScalingMatrixFlag = (Boolean) (scanj == 0 && nextScale == 0);
+        }
+        scalingList[scanj] = (nextScale == 0) ? lastScale : nextScale;
+        lastScale = scalingList[scanj];
+    }
+}
 
-  sps->Valid = TRUE;
-  return p_Dec->UsedBits;
+// 7.3.2.1.1 Sequence parameter set data syntax
+static int seq_parameter_set_data(VideoParameters *p_Vid, DataPartition *p, seq_parameter_set_rbsp_t *sps)
+{
+    unsigned i;
+    unsigned n_ScalingList;
+    Bitstream *s = p->bitstream;
+    int reserved_zero_2bits;
+
+    assert (p != NULL);
+    assert (p->bitstream != NULL);
+    assert (p->bitstream->streamBuffer != 0);
+    assert (sps != NULL);
+
+    p_Dec->UsedBits = 0;
+
+    sps->profile_idc                            = read_u_v  (8, "SPS: profile_idc"                           , s, &p_Dec->UsedBits);
+
+    if ((sps->profile_idc!=BASELINE       ) &&
+        (sps->profile_idc!=MAIN           ) &&
+        (sps->profile_idc!=EXTENDED       ) &&
+        (sps->profile_idc!=FREXT_HP       ) &&
+        (sps->profile_idc!=FREXT_Hi10P    ) &&
+        (sps->profile_idc!=FREXT_Hi422    ) &&
+        (sps->profile_idc!=FREXT_Hi444    ) &&
+        (sps->profile_idc!=FREXT_CAVLC444 )
+        && (sps->profile_idc!=MVC_HIGH)
+        && (sps->profile_idc!=STEREO_HIGH)) {
+        printf("Invalid Profile IDC (%d) encountered. \n", sps->profile_idc);
+        return p_Dec->UsedBits;
+    }
+
+    sps->constraint_set0_flag                  = read_u_1  (   "SPS: constrained_set0_flag"                 , s, &p_Dec->UsedBits);
+    sps->constraint_set1_flag                  = read_u_1  (   "SPS: constrained_set1_flag"                 , s, &p_Dec->UsedBits);
+    sps->constraint_set2_flag                  = read_u_1  (   "SPS: constrained_set2_flag"                 , s, &p_Dec->UsedBits);
+    sps->constraint_set3_flag                  = read_u_1  (   "SPS: constrained_set3_flag"                 , s, &p_Dec->UsedBits);
+    sps->constraint_set4_flag                  = read_u_1  (   "SPS: constrained_set4_flag"                 , s, &p_Dec->UsedBits);
+    sps->constraint_set5_flag                  = read_u_1  (   "SPS: constrained_set5_flag"                 , s, &p_Dec->UsedBits);
+    reserved_zero_2bits                        = read_u_v  (2, "SPS: reserved_zero_2bits"                   , s, &p_Dec->UsedBits);
+
+    if (reserved_zero_2bits != 0)
+        printf("Warning, reserved_zero flag not equal to 0. Possibly new constrained_setX flag introduced.\n");
+
+    sps->level_idc                              = read_u_v  (8, "SPS: level_idc"                             , s, &p_Dec->UsedBits);
+    sps->seq_parameter_set_id                   = read_ue_v ("SPS: seq_parameter_set_id"                     , s, &p_Dec->UsedBits);
+
+    // Fidelity Range Extensions stuff
+    sps->chroma_format_idc                    = 1;
+    sps->separate_colour_plane_flag           = 0;
+    sps->bit_depth_luma_minus8                = 0;
+    sps->bit_depth_chroma_minus8              = 0;
+    sps->qpprime_y_zero_transform_bypass_flag = 0;
+
+    if ((sps->profile_idc==FREXT_HP   ) ||
+        (sps->profile_idc==FREXT_Hi10P) ||
+        (sps->profile_idc==FREXT_Hi422) ||
+        (sps->profile_idc==FREXT_Hi444) ||
+        (sps->profile_idc==FREXT_CAVLC444)
+     || (sps->profile_idc==MVC_HIGH)
+     || (sps->profile_idc==STEREO_HIGH) ) {
+        sps->chroma_format_idc                      = read_ue_v ("SPS: chroma_format_idc"                       , s, &p_Dec->UsedBits);
+
+        if (sps->chroma_format_idc == YUV444)
+            sps->separate_colour_plane_flag           = read_u_1  ("SPS: separate_colour_plane_flag"              , s, &p_Dec->UsedBits);
+
+        sps->bit_depth_luma_minus8                  = read_ue_v ("SPS: bit_depth_luma_minus8"                   , s, &p_Dec->UsedBits);
+        sps->bit_depth_chroma_minus8                = read_ue_v ("SPS: bit_depth_chroma_minus8"                 , s, &p_Dec->UsedBits);
+        //checking;
+        if ((sps->bit_depth_luma_minus8+8 > sizeof(imgpel)*8) || (sps->bit_depth_chroma_minus8+8> sizeof(imgpel)*8))
+            error ("Source picture has higher bit depth than imgpel data type. \nPlease recompile with larger data type for imgpel.", 500);
+
+        sps->qpprime_y_zero_transform_bypass_flag                  = read_u_1  ("SPS: lossless_qpprime_y_zero_flag"            , s, &p_Dec->UsedBits);
+        sps->seq_scaling_matrix_present_flag        = read_u_1  (   "SPS: seq_scaling_matrix_present_flag"       , s, &p_Dec->UsedBits);
+        if (sps->seq_scaling_matrix_present_flag) {
+            n_ScalingList = (sps->chroma_format_idc != YUV444) ? 8 : 12;
+            for (i = 0; i < n_ScalingList; i++) {
+                sps->seq_scaling_list_present_flag[i]   = read_u_1  (   "SPS: seq_scaling_list_present_flag"         , s, &p_Dec->UsedBits);
+                if (sps->seq_scaling_list_present_flag[i]) {
+                    if (i < 6)
+                        scaling_list(sps->ScalingList4x4[i], 16, &sps->UseDefaultScalingMatrix4x4Flag[i], s);
+                    else
+                        scaling_list(sps->ScalingList8x8[i-6], 64, &sps->UseDefaultScalingMatrix8x8Flag[i-6], s);
+                }
+            }
+        }
+    }
+
+    sps->log2_max_frame_num_minus4              = read_ue_v ("SPS: log2_max_frame_num_minus4"                , s, &p_Dec->UsedBits);
+    sps->pic_order_cnt_type                     = read_ue_v ("SPS: pic_order_cnt_type"                       , s, &p_Dec->UsedBits);
+    if (sps->pic_order_cnt_type == 0)
+        sps->log2_max_pic_order_cnt_lsb_minus4 = read_ue_v ("SPS: log2_max_pic_order_cnt_lsb_minus4"           , s, &p_Dec->UsedBits);
+    else if (sps->pic_order_cnt_type == 1) {
+        sps->delta_pic_order_always_zero_flag      = read_u_1  ("SPS: delta_pic_order_always_zero_flag"       , s, &p_Dec->UsedBits);
+        sps->offset_for_non_ref_pic                = read_se_v ("SPS: offset_for_non_ref_pic"                 , s, &p_Dec->UsedBits);
+        sps->offset_for_top_to_bottom_field        = read_se_v ("SPS: offset_for_top_to_bottom_field"         , s, &p_Dec->UsedBits);
+        sps->num_ref_frames_in_pic_order_cnt_cycle = read_ue_v ("SPS: num_ref_frames_in_pic_order_cnt_cycle"  , s, &p_Dec->UsedBits);
+        for (i = 0; i < sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
+            sps->offset_for_ref_frame[i]               = read_se_v ("SPS: offset_for_ref_frame[i]"              , s, &p_Dec->UsedBits);
+    }
+    sps->max_num_ref_frames                        = read_ue_v ("SPS: num_ref_frames"                         , s, &p_Dec->UsedBits);
+    sps->gaps_in_frame_num_value_allowed_flag  = read_u_1  ("SPS: gaps_in_frame_num_value_allowed_flag"   , s, &p_Dec->UsedBits);
+
+    sps->pic_width_in_mbs_minus1               = read_ue_v ("SPS: pic_width_in_mbs_minus1"                , s, &p_Dec->UsedBits);
+    sps->pic_height_in_map_units_minus1        = read_ue_v ("SPS: pic_height_in_map_units_minus1"         , s, &p_Dec->UsedBits);
+    sps->frame_mbs_only_flag                   = read_u_1  ("SPS: frame_mbs_only_flag"                    , s, &p_Dec->UsedBits);
+    if (!sps->frame_mbs_only_flag)
+        sps->mb_adaptive_frame_field_flag        = read_u_1  ("SPS: mb_adaptive_frame_field_flag"           , s, &p_Dec->UsedBits);
+    sps->direct_8x8_inference_flag             = read_u_1  ("SPS: direct_8x8_inference_flag"              , s, &p_Dec->UsedBits);
+    sps->frame_cropping_flag                   = read_u_1  ("SPS: frame_cropping_flag"                    , s, &p_Dec->UsedBits);
+    if (sps->frame_cropping_flag) {
+        sps->frame_crop_left_offset      = read_ue_v ("SPS: frame_crop_left_offset"           , s, &p_Dec->UsedBits);
+        sps->frame_crop_right_offset     = read_ue_v ("SPS: frame_crop_right_offset"          , s, &p_Dec->UsedBits);
+        sps->frame_crop_top_offset       = read_ue_v ("SPS: frame_crop_top_offset"            , s, &p_Dec->UsedBits);
+        sps->frame_crop_bottom_offset    = read_ue_v ("SPS: frame_crop_bottom_offset"         , s, &p_Dec->UsedBits);
+    }
+
+    sps->vui_parameters_present_flag           = (Boolean) read_u_1  ("SPS: vui_parameters_present_flag"      , s, &p_Dec->UsedBits);
+
+    vui_parameters(p, sps);
+
+    sps->Valid = TRUE;
+    return p_Dec->UsedBits;
 }
 
 
@@ -354,70 +300,69 @@ static void get_max_dec_frame_buf_size(seq_parameter_set_rbsp_t *sps)
 
   int size = 0;
 
-  switch (sps->level_idc)
-  {
-  case 9:
-    size = 152064;
-    break;
-  case 10:
-    size = 152064;
-    break;
-  case 11:
-    if (!is_FREXT_profile(sps->profile_idc) && (sps->constraint_set3_flag == 1))
-      size = 152064;
-    else
-      size = 345600;
-    break;
-  case 12:
-    size = 912384;
-    break;
-  case 13:
-    size = 912384;
-    break;
-  case 20:
-    size = 912384;
-    break;
-  case 21:
-    size = 1824768;
-    break;
-  case 22:
-    size = 3110400;
-    break;
-  case 30:
-    size = 3110400;
-    break;
-  case 31:
-    size = 6912000;
-    break;
-  case 32:
-    size = 7864320;
-    break;
-  case 40:
-    size = 12582912;
-    break;
-  case 41:
-    size = 12582912;
-    break;
-  case 42:
-    size = 13369344;
-    break;
-  case 50:
-    size = 42393600;
-    break;
-  case 51:
-    size = 70778880;
-    break;
-  case 52:
-    size = 70778880;
-    break;
-  default:
-    error ("undefined level", 500);
-    break;
-  }
+    switch (sps->level_idc) {
+    case 9:
+        size = 152064;
+        break;
+    case 10:
+        size = 152064;
+        break;
+    case 11:
+        if (!is_FREXT_profile(sps->profile_idc) && (sps->constraint_set3_flag == 1))
+            size = 152064;
+        else
+            size = 345600;
+        break;
+    case 12:
+        size = 912384;
+        break;
+    case 13:
+        size = 912384;
+        break;
+    case 20:
+        size = 912384;
+        break;
+    case 21:
+        size = 1824768;
+        break;
+    case 22:
+        size = 3110400;
+        break;
+    case 30:
+        size = 3110400;
+        break;
+    case 31:
+        size = 6912000;
+        break;
+    case 32:
+        size = 7864320;
+        break;
+    case 40:
+        size = 12582912;
+        break;
+    case 41:
+        size = 12582912;
+        break;
+    case 42:
+        size = 13369344;
+        break;
+    case 50:
+        size = 42393600;
+        break;
+    case 51:
+        size = 70778880;
+        break;
+    case 52:
+        size = 70778880;
+        break;
+    default:
+        error ("undefined level", 500);
+        break;
+    }
 
-  size /= pic_size;
-  size = imin( size, 16);
-  sps->max_dec_frame_buffering = size;
+    size /= pic_size;
+    size = imin( size, 16);
+    sps->max_dec_frame_buffering = size;
 }
 
 static void seq_parameter_set_mvc_extension(subset_seq_parameter_set_rbsp_t *subset_sps, Bitstream *s)
@@ -549,7 +494,7 @@ static int MemAlloc1D(void** ppBuf, int iEleSize, int iNum)
   return (*ppBuf == NULL);
 }
 
-static void hrd_parameters(MVCVUI_t *pMVCVUI, Bitstream *s)
+static void mvc_hrd_parameters(MVCVUI_t *pMVCVUI, Bitstream *s)
 {
   int i;
 
@@ -608,10 +553,10 @@ static void mvc_vui_parameters_extension(MVCVUI_t *pMVCVUI, Bitstream *s)
       }
       pMVCVUI->nal_hrd_parameters_present_flag[i] = (char) read_u_1("vui_mvc_nal_hrd_parameters_present_flag", s, &p_Dec->UsedBits);
       if(pMVCVUI->nal_hrd_parameters_present_flag[i])
-        hrd_parameters(pMVCVUI, s);
+        mvc_hrd_parameters(pMVCVUI, s);
       pMVCVUI->vcl_hrd_parameters_present_flag[i] = (char) read_u_1("vcl_hrd_parameters_present_flag", s, &p_Dec->UsedBits);
       if(pMVCVUI->vcl_hrd_parameters_present_flag[i])
-        hrd_parameters(pMVCVUI, s);
+        mvc_hrd_parameters(pMVCVUI, s);
       if(pMVCVUI->nal_hrd_parameters_present_flag[i]||pMVCVUI->vcl_hrd_parameters_present_flag[i])
         pMVCVUI->low_delay_hrd_flag[i]    = (char) read_u_1("vui_mvc_low_delay_hrd_flag", s, &p_Dec->UsedBits);
       pMVCVUI->pic_struct_present_flag[i] = (char) read_u_1("vui_mvc_pic_struct_present_flag", s, &p_Dec->UsedBits);
@@ -619,7 +564,8 @@ static void mvc_vui_parameters_extension(MVCVUI_t *pMVCVUI, Bitstream *s)
   }
 }
 
-static int InterpretSubsetSPS (VideoParameters *p_Vid, DataPartition *p, int *curr_seq_set_id)
+// 7.3.2.1.3 Subset sequence parameter set RBSP syntax
+static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *p, int *curr_seq_set_id)
 {
   subset_seq_parameter_set_rbsp_t *subset_sps;
   unsigned int additional_extension2_flag;
@@ -630,7 +576,7 @@ static int InterpretSubsetSPS (VideoParameters *p_Vid, DataPartition *p, int *cu
   assert (p->bitstream != NULL);
   assert (p->bitstream->streamBuffer != 0);
 
-  InterpretSPS (p_Vid, p, sps);
+  seq_parameter_set_data(p_Vid, p, sps);
   get_max_dec_frame_buf_size(sps);
 
   *curr_seq_set_id = sps->seq_parameter_set_id;
@@ -684,124 +630,93 @@ static int InterpretSubsetSPS (VideoParameters *p_Vid, DataPartition *p, int *cu
 }
 #endif
 
-
-static int InterpretPPS (VideoParameters *p_Vid, DataPartition *p, pic_parameter_set_rbsp_t *pps)
+// 7.3.2.2 Picture parameter set RBSP syntax
+static int pic_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *p, pic_parameter_set_rbsp_t *pps)
 {
-  unsigned i;
-  unsigned n_ScalingList;
-  int chroma_format_idc;
-  int NumberBitsPerSliceGroupId;
-  Bitstream *s = p->bitstream;
+    int iGroup;
+    unsigned i;
+    unsigned n_ScalingList;
+    int chroma_format_idc;
+    int NumberBitsPerSliceGroupId;
+    Bitstream *s = p->bitstream;
+    assert (p != NULL);
+    assert (p->bitstream != NULL);
+    assert (p->bitstream->streamBuffer != 0);
+    assert (pps != NULL);
 
-  assert (p != NULL);
-  assert (p->bitstream != NULL);
-  assert (p->bitstream->streamBuffer != 0);
-  assert (pps != NULL);
+    p_Dec->UsedBits = 0;
 
-  p_Dec->UsedBits = 0;
+    pps->pic_parameter_set_id                  = read_ue_v ("PPS: pic_parameter_set_id"                   , s, &p_Dec->UsedBits);
+    pps->seq_parameter_set_id                  = read_ue_v ("PPS: seq_parameter_set_id"                   , s, &p_Dec->UsedBits);
+    pps->entropy_coding_mode_flag              = read_u_1  ("PPS: entropy_coding_mode_flag"               , s, &p_Dec->UsedBits);
+    pps->bottom_field_pic_order_in_frame_present_flag = read_u_1  ("PPS: bottom_field_pic_order_in_frame_present_flag"                 , s, &p_Dec->UsedBits);
 
-  pps->pic_parameter_set_id                  = read_ue_v ("PPS: pic_parameter_set_id"                   , s, &p_Dec->UsedBits);
-  pps->seq_parameter_set_id                  = read_ue_v ("PPS: seq_parameter_set_id"                   , s, &p_Dec->UsedBits);
-  pps->entropy_coding_mode_flag              = read_u_1  ("PPS: entropy_coding_mode_flag"               , s, &p_Dec->UsedBits);
-
-  //! Note: as per JVT-F078 the following bit is unconditional.  If F078 is not accepted, then
-  //! one has to fetch the correct SPS to check whether the bit is present (hopefully there is
-  //! no consistency problem :-(
-  //! The current encoder code handles this in the same way.  When you change this, don't forget
-  //! the encoder!  StW, 12/8/02
-  pps->bottom_field_pic_order_in_frame_present_flag = read_u_1  ("PPS: bottom_field_pic_order_in_frame_present_flag"                 , s, &p_Dec->UsedBits);
-
-  pps->num_slice_groups_minus1               = read_ue_v ("PPS: num_slice_groups_minus1"                , s, &p_Dec->UsedBits);
-
-  // FMO stuff begins here
-  if (pps->num_slice_groups_minus1 > 0)
-  {
-    pps->slice_group_map_type               = read_ue_v ("PPS: slice_group_map_type"                , s, &p_Dec->UsedBits);
-    if (pps->slice_group_map_type == 0)
-    {
-      for (i=0; i<=pps->num_slice_groups_minus1; i++)
-        pps->run_length_minus1 [i]                  = read_ue_v ("PPS: run_length_minus1 [i]"              , s, &p_Dec->UsedBits);
-    }
-    else if (pps->slice_group_map_type == 2)
-    {
-      for (i=0; i<pps->num_slice_groups_minus1; i++)
-      {
-        //! JVT-F078: avoid reference of SPS by using ue(v) instead of u(v)
-        pps->top_left [i]                          = read_ue_v ("PPS: top_left [i]"                        , s, &p_Dec->UsedBits);
-        pps->bottom_right [i]                      = read_ue_v ("PPS: bottom_right [i]"                    , s, &p_Dec->UsedBits);
-      }
-    }
-    else if (pps->slice_group_map_type == 3 ||
-             pps->slice_group_map_type == 4 ||
-             pps->slice_group_map_type == 5)
-    {
-      pps->slice_group_change_direction_flag     = read_u_1  ("PPS: slice_group_change_direction_flag"      , s, &p_Dec->UsedBits);
-      pps->slice_group_change_rate_minus1        = read_ue_v ("PPS: slice_group_change_rate_minus1"         , s, &p_Dec->UsedBits);
-    }
-    else if (pps->slice_group_map_type == 6)
-    {
-      if (pps->num_slice_groups_minus1+1 >4)
-        NumberBitsPerSliceGroupId = 3;
-      else if (pps->num_slice_groups_minus1+1 > 2)
-        NumberBitsPerSliceGroupId = 2;
-      else
-        NumberBitsPerSliceGroupId = 1;
-      pps->pic_size_in_map_units_minus1      = read_ue_v ("PPS: pic_size_in_map_units_minus1"               , s, &p_Dec->UsedBits);
-      if ((pps->slice_group_id = (byte *)calloc (pps->pic_size_in_map_units_minus1+1, 1)) == NULL)
-        no_mem_exit ("InterpretPPS: slice_group_id");
-      for (i=0; i<=pps->pic_size_in_map_units_minus1; i++)
-        pps->slice_group_id[i] = (byte) read_u_v (NumberBitsPerSliceGroupId, "slice_group_id[i]", s, &p_Dec->UsedBits);
-    }
-  }
-
-  // End of FMO stuff
-
-  pps->num_ref_idx_l0_default_active_minus1  = read_ue_v ("PPS: num_ref_idx_l0_default_active_minus1"   , s, &p_Dec->UsedBits);
-  pps->num_ref_idx_l1_default_active_minus1  = read_ue_v ("PPS: num_ref_idx_l1_default_active_minus1"   , s, &p_Dec->UsedBits);
-  pps->weighted_pred_flag                    = read_u_1  ("PPS: weighted_pred_flag"                     , s, &p_Dec->UsedBits);
-  pps->weighted_bipred_idc                   = read_u_v  ( 2, "PPS: weighted_bipred_idc"                , s, &p_Dec->UsedBits);
-  pps->pic_init_qp_minus26                   = read_se_v ("PPS: pic_init_qp_minus26"                    , s, &p_Dec->UsedBits);
-  pps->pic_init_qs_minus26                   = read_se_v ("PPS: pic_init_qs_minus26"                    , s, &p_Dec->UsedBits);
-
-  pps->chroma_qp_index_offset                = read_se_v ("PPS: chroma_qp_index_offset"                 , s, &p_Dec->UsedBits);
-
-  pps->deblocking_filter_control_present_flag = read_u_1 ("PPS: deblocking_filter_control_present_flag" , s, &p_Dec->UsedBits);
-  pps->constrained_intra_pred_flag           = read_u_1  ("PPS: constrained_intra_pred_flag"            , s, &p_Dec->UsedBits);
-  pps->redundant_pic_cnt_present_flag        = read_u_1  ("PPS: redundant_pic_cnt_present_flag"         , s, &p_Dec->UsedBits);
-
-  if(more_rbsp_data(s->streamBuffer, s->frame_bitoffset,s->bitstream_length)) // more_data_in_rbsp()
-  {
-    //Fidelity Range Extensions Stuff
-    pps->transform_8x8_mode_flag           =  read_u_1  ("PPS: transform_8x8_mode_flag"                , s, &p_Dec->UsedBits);
-    pps->pic_scaling_matrix_present_flag   =  read_u_1  ("PPS: pic_scaling_matrix_present_flag"        , s, &p_Dec->UsedBits);
-
-    if(pps->pic_scaling_matrix_present_flag)
-    {
-      chroma_format_idc = p_Vid->SeqParSet[pps->seq_parameter_set_id].chroma_format_idc;
-      n_ScalingList = 6 + ((chroma_format_idc != YUV444) ? 2 : 6) * pps->transform_8x8_mode_flag;
-      for(i=0; i<n_ScalingList; i++)
-      {
-        pps->pic_scaling_list_present_flag[i]= read_u_1  ("PPS: pic_scaling_list_present_flag"          , s, &p_Dec->UsedBits);
-
-        if(pps->pic_scaling_list_present_flag[i])
-        {
-          if(i<6)
-            Scaling_List(pps->ScalingList4x4[i], 16, &pps->UseDefaultScalingMatrix4x4Flag[i], s);
-          else
-            Scaling_List(pps->ScalingList8x8[i-6], 64, &pps->UseDefaultScalingMatrix8x8Flag[i-6], s);
+    pps->num_slice_groups_minus1               = read_ue_v ("PPS: num_slice_groups_minus1"                , s, &p_Dec->UsedBits);
+    if (pps->num_slice_groups_minus1 > 0) {
+        pps->slice_group_map_type               = read_ue_v ("PPS: slice_group_map_type"                , s, &p_Dec->UsedBits);
+        if (pps->slice_group_map_type == 0) {
+            for (iGroup = 0; iGroup <= pps->num_slice_groups_minus1; iGroup++)
+                pps->run_length_minus1[iGroup]                  = read_ue_v ("PPS: run_length_minus1 [i]"              , s, &p_Dec->UsedBits);
+        } else if (pps->slice_group_map_type == 2) {
+            for (iGroup = 0; iGroup < pps->num_slice_groups_minus1; iGroup++) {
+                pps->top_left[iGroup]                          = read_ue_v ("PPS: top_left [i]"                        , s, &p_Dec->UsedBits);
+                pps->bottom_right[iGroup]                      = read_ue_v ("PPS: bottom_right [i]"                    , s, &p_Dec->UsedBits);
+            }
+        } else if (pps->slice_group_map_type == 3 ||
+                   pps->slice_group_map_type == 4 ||
+                   pps->slice_group_map_type == 5) {
+            pps->slice_group_change_direction_flag     = read_u_1  ("PPS: slice_group_change_direction_flag"      , s, &p_Dec->UsedBits);
+            pps->slice_group_change_rate_minus1        = read_ue_v ("PPS: slice_group_change_rate_minus1"         , s, &p_Dec->UsedBits);
+        } else if (pps->slice_group_map_type == 6) {
+            if (pps->num_slice_groups_minus1+1 >4)
+                NumberBitsPerSliceGroupId = 3;
+            else if (pps->num_slice_groups_minus1+1 > 2)
+                NumberBitsPerSliceGroupId = 2;
+            else
+                NumberBitsPerSliceGroupId = 1;
+            pps->pic_size_in_map_units_minus1      = read_ue_v ("PPS: pic_size_in_map_units_minus1"               , s, &p_Dec->UsedBits);
+            if ((pps->slice_group_id = (byte *)calloc (pps->pic_size_in_map_units_minus1+1, 1)) == NULL)
+                no_mem_exit ("InterpretPPS: slice_group_id");
+            for (i = 0; i <= pps->pic_size_in_map_units_minus1; i++)
+                pps->slice_group_id[i] = (byte) read_u_v (NumberBitsPerSliceGroupId, "slice_group_id[i]", s, &p_Dec->UsedBits);
         }
-      }
     }
-    pps->second_chroma_qp_index_offset      = read_se_v ("PPS: second_chroma_qp_index_offset"          , s, &p_Dec->UsedBits);
-  }
-  else
-  {
-    pps->second_chroma_qp_index_offset      = pps->chroma_qp_index_offset;
-  }
 
-  pps->Valid = TRUE;
-  return p_Dec->UsedBits;
+    pps->num_ref_idx_l0_default_active_minus1  = read_ue_v ("PPS: num_ref_idx_l0_default_active_minus1"   , s, &p_Dec->UsedBits);
+    pps->num_ref_idx_l1_default_active_minus1  = read_ue_v ("PPS: num_ref_idx_l1_default_active_minus1"   , s, &p_Dec->UsedBits);
+    pps->weighted_pred_flag                    = read_u_1  ("PPS: weighted_pred_flag"                     , s, &p_Dec->UsedBits);
+    pps->weighted_bipred_idc                   = read_u_v  ( 2, "PPS: weighted_bipred_idc"                , s, &p_Dec->UsedBits);
+    pps->pic_init_qp_minus26                   = read_se_v ("PPS: pic_init_qp_minus26"                    , s, &p_Dec->UsedBits);
+    pps->pic_init_qs_minus26                   = read_se_v ("PPS: pic_init_qs_minus26"                    , s, &p_Dec->UsedBits);
+    pps->chroma_qp_index_offset                = read_se_v ("PPS: chroma_qp_index_offset"                 , s, &p_Dec->UsedBits);
+    pps->deblocking_filter_control_present_flag = read_u_1 ("PPS: deblocking_filter_control_present_flag" , s, &p_Dec->UsedBits);
+    pps->constrained_intra_pred_flag           = read_u_1  ("PPS: constrained_intra_pred_flag"            , s, &p_Dec->UsedBits);
+    pps->redundant_pic_cnt_present_flag        = read_u_1  ("PPS: redundant_pic_cnt_present_flag"         , s, &p_Dec->UsedBits);
+
+    if (more_rbsp_data(s->streamBuffer, s->frame_bitoffset, s->bitstream_length)) {
+        pps->transform_8x8_mode_flag           =  read_u_1  ("PPS: transform_8x8_mode_flag"                , s, &p_Dec->UsedBits);
+        pps->pic_scaling_matrix_present_flag   =  read_u_1  ("PPS: pic_scaling_matrix_present_flag"        , s, &p_Dec->UsedBits);
+        if (pps->pic_scaling_matrix_present_flag) {
+            chroma_format_idc = p_Vid->SeqParSet[pps->seq_parameter_set_id].chroma_format_idc;
+            n_ScalingList = 6 + ((chroma_format_idc != YUV444) ? 2 : 6) * pps->transform_8x8_mode_flag;
+            for (i = 0; i < n_ScalingList; i++) {
+                pps->pic_scaling_list_present_flag[i]= read_u_1  ("PPS: pic_scaling_list_present_flag"          , s, &p_Dec->UsedBits);
+                if (pps->pic_scaling_list_present_flag[i]) {
+                    if (i < 6)
+                        scaling_list(pps->ScalingList4x4[i], 16, &pps->UseDefaultScalingMatrix4x4Flag[i], s);
+                    else
+                        scaling_list(pps->ScalingList8x8[i-6], 64, &pps->UseDefaultScalingMatrix8x8Flag[i-6], s);
+                }
+            }
+        }
+        pps->second_chroma_qp_index_offset      = read_se_v ("PPS: second_chroma_qp_index_offset"          , s, &p_Dec->UsedBits);
+    } else
+        pps->second_chroma_qp_index_offset      = pps->chroma_qp_index_offset;
+
+    pps->Valid = TRUE;
+    return p_Dec->UsedBits;
 }
+
 
 static int sps_is_equal(seq_parameter_set_rbsp_t *sps1, seq_parameter_set_rbsp_t *sps2)
 {
@@ -839,7 +754,7 @@ static int sps_is_equal(seq_parameter_set_rbsp_t *sps1, seq_parameter_set_rbsp_t
       equal &= (sps1->offset_for_ref_frame[i] == sps2->offset_for_ref_frame[i]);
   }
 
-  equal &= (sps1->num_ref_frames == sps2->num_ref_frames);
+  equal &= (sps1->max_num_ref_frames == sps2->max_num_ref_frames);
   equal &= (sps1->gaps_in_frame_num_value_allowed_flag == sps2->gaps_in_frame_num_value_allowed_flag);
   equal &= (sps1->pic_width_in_mbs_minus1 == sps2->pic_width_in_mbs_minus1);
   equal &= (sps1->pic_height_in_map_units_minus1 == sps2->pic_height_in_map_units_minus1);
@@ -1018,7 +933,7 @@ void ProcessSPS(VideoParameters *p_Vid, NALU_t *nalu)
     dp->bitstream->ei_flag  = 0;
     dp->bitstream->read_len = dp->bitstream->frame_bitoffset = 0;
 
-    InterpretSPS (p_Vid, dp, sps);
+    seq_parameter_set_data(p_Vid, dp, sps);
 #if (MVC_EXTENSION_ENABLE)
     get_max_dec_frame_buf_size(sps);
 #endif
@@ -1062,7 +977,7 @@ void ProcessSubsetSPS(VideoParameters *p_Vid, NALU_t *nalu)
     dp->bitstream->code_len = dp->bitstream->bitstream_length = RBSPtoSODB (dp->bitstream->streamBuffer, nalu->len-1);
     dp->bitstream->ei_flag  = 0;
     dp->bitstream->read_len = dp->bitstream->frame_bitoffset = 0;
-    InterpretSubsetSPS (p_Vid, dp, &curr_seq_set_id);
+    subset_seq_parameter_set_rbsp(p_Vid, dp, &curr_seq_set_id);
 
     subset_sps = p_Vid->SubsetSeqParSet + curr_seq_set_id;
     get_max_dec_frame_buf_size(&(subset_sps->sps));
@@ -1098,7 +1013,7 @@ void ProcessPPS(VideoParameters *p_Vid, NALU_t *nalu)
     dp->bitstream->code_len = dp->bitstream->bitstream_length = RBSPtoSODB (dp->bitstream->streamBuffer, nalu->len-1);
     dp->bitstream->ei_flag  = 0;
     dp->bitstream->read_len = dp->bitstream->frame_bitoffset = 0;
-    InterpretPPS (p_Vid, dp, pps);
+    pic_parameter_set_rbsp(p_Vid, dp, pps);
     // PPSConsistencyCheck (pps);
     if (p_Vid->active_pps) {
         if (pps->pic_parameter_set_id == p_Vid->active_pps->pic_parameter_set_id) {
@@ -1281,7 +1196,7 @@ static void set_coding_par(seq_parameter_set_rbsp_t *sps, CodingParameters *cps)
 {
   // maximum vertical motion vector range in luma quarter pixel units
   cps->profile_idc = sps->profile_idc;
-  cps->lossless_qpprime_flag   = sps->lossless_qpprime_flag;
+  cps->lossless_qpprime_flag   = sps->qpprime_y_zero_transform_bypass_flag;
   if (sps->level_idc <= 10)
   {
     cps->max_vmv_r = 64 * 4;
