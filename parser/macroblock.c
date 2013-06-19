@@ -39,7 +39,6 @@
 #include "mv_prediction.h"
 #include "inter_prediction.h"
 #include "intra_prediction.h"
-#include "fast_memory.h"
 #include "filehandle.h"
 
 #include "mb.h"
@@ -166,27 +165,27 @@ void start_macroblock(Slice *currSlice, Macroblock **currMB)
   if (currSlice->slice_type != I_SLICE)
   {
     if (currSlice->slice_type != B_SLICE)
-      fast_memset((*currMB)->mvd[0][0][0], 0, MB_BLOCK_PARTITIONS * 2 * sizeof(short));
+      memset((*currMB)->mvd[0][0][0], 0, MB_BLOCK_PARTITIONS * 2 * sizeof(short));
     else
-      fast_memset((*currMB)->mvd[0][0][0], 0, 2 * MB_BLOCK_PARTITIONS * 2 * sizeof(short));
+      memset((*currMB)->mvd[0][0][0], 0, 2 * MB_BLOCK_PARTITIONS * 2 * sizeof(short));
   }
   
-  fast_memset((*currMB)->s_cbp, 0, 3 * sizeof(CBPStructure));
+  memset((*currMB)->s_cbp, 0, 3 * sizeof(CBPStructure));
 
   // initialize currSlice->mb_rres
   if (currSlice->is_reset_coeff == FALSE)
   {
-    fast_memset_zero( currSlice->mb_rres[0][0], MB_PIXELS * sizeof(int));
-    fast_memset_zero( currSlice->mb_rres[1][0], p_Vid->mb_cr_size * sizeof(int));
-    fast_memset_zero( currSlice->mb_rres[2][0], p_Vid->mb_cr_size * sizeof(int));
+    memset( currSlice->mb_rres[0][0], 0, MB_PIXELS * sizeof(int));
+    memset( currSlice->mb_rres[1][0], 0, p_Vid->mb_cr_size * sizeof(int));
+    memset( currSlice->mb_rres[2][0], 0, p_Vid->mb_cr_size * sizeof(int));
     if (currSlice->is_reset_coeff_cr == FALSE)
     {
-      fast_memset_zero( currSlice->cof[0][0], 3 * MB_PIXELS * sizeof(int));
+      memset( currSlice->cof[0][0], 0, 3 * MB_PIXELS * sizeof(int));
       currSlice->is_reset_coeff_cr = TRUE;
     }
     else
     {
-      fast_memset_zero( currSlice->cof[0][0], MB_PIXELS * sizeof(int));
+      memset( currSlice->cof[0][0], 0, MB_PIXELS * sizeof(int));
     }
 
     currSlice->is_reset_coeff = TRUE;

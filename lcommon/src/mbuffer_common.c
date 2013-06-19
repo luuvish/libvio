@@ -24,7 +24,6 @@
 #include "mbuffer.h"
 #include "memalloc.h"
 #include "output.h"
-#include "fast_memory.h"
 
 static void unmark_long_term_field_for_reference_by_frame_idx(DecodedPictureBuffer *p_Dpb, PictureStructure structure, int long_term_frame_idx, int mark_current, unsigned curr_frame_num, int curr_pic_num);
 /*!

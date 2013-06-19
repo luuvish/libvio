@@ -50,11 +50,9 @@
 #include "biaridecod.h"
 #include "context_ini.h"
 
-#include "errorconcealment.h"
 #include "erc_api.h"
 #include "mbuffer_common.h"
 #include "mbuffer_mvc.h"
-#include "fast_memory.h"
 
 extern int testEndian(void);
 void reorder_lists(Slice *currSlice);
@@ -309,11 +307,8 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
     error("p_Vid->structure not initialized", 235);
   }
 
-  //p_Vid->current_slice_nr=0;
-
   if (p_Vid->type > SI_SLICE)
   {
-    set_ec_flag(p_Vid, SE_PTYPE);
     p_Vid->type = P_SLICE;  // concealed element
   }
 
@@ -335,7 +330,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
       {
         reset_mbs(currMB++);
       }
-      fast_memset(p_Vid->ipredmode_JV[nplane][0], DC_PRED, 16 * p_Vid->FrameHeightInMbs * p_Vid->PicWidthInMbs * sizeof(char));
+      memset(p_Vid->ipredmode_JV[nplane][0], DC_PRED, 16 * p_Vid->FrameHeightInMbs * p_Vid->PicWidthInMbs * sizeof(char));
       if(p_Vid->active_pps->constrained_intra_pred_flag)
       {
         for (i=0; i<(int)p_Vid->PicSizeInMbs; ++i)
@@ -363,7 +358,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
         p_Vid->intra_block[i] = 1;
       }
     }
-    fast_memset(p_Vid->ipredmode[0], DC_PRED, 16 * p_Vid->FrameHeightInMbs * p_Vid->PicWidthInMbs * sizeof(char));
+    memset(p_Vid->ipredmode[0], DC_PRED, 16 * p_Vid->FrameHeightInMbs * p_Vid->PicWidthInMbs * sizeof(char));
   }  
 
   dec_picture->slice_type = p_Vid->type;
@@ -1071,7 +1066,7 @@ void buffer2img (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int 
   if (( sizeof(char) == sizeof (imgpel)) && ( sizeof(char) == symbol_size_in_bytes))
   {
     // imgpel == pixel_in_file == 1 byte -> simple copy
-    fast_memcpy(&imgX[0][0], buf, size_x * size_y);
+    memcpy(&imgX[0][0], buf, size_x * size_y);
   }
   else
   {
@@ -1280,7 +1275,7 @@ void find_snr(VideoParameters *p_Vid,
     if (ret != comp_size_x[k] * comp_size_y[k] * symbol_size_in_bytes)
     {
       printf ("Warning: could not read from reconstructed file\n");
-      fast_memset (buf, 0, comp_size_x[k] * comp_size_y[k] * symbol_size_in_bytes);
+      memset (buf, 0, comp_size_x[k] * comp_size_y[k] * symbol_size_in_bytes);
       close(*p_ref);
       *p_ref = -1;
       break;
@@ -1987,8 +1982,6 @@ void decode_one_slice(Slice *currSlice)
   if (currSlice->slice_type != I_SLICE && currSlice->slice_type != SI_SLICE)
     init_cur_imgy(currSlice,p_Vid); 
 
-  //reset_ec_flags(p_Vid);
-
   while (end_of_slice == FALSE) // loop over macroblocks
   {
 
@@ -2014,7 +2007,6 @@ void decode_one_slice(Slice *currSlice)
 
     end_of_slice = exit_macroblock(currSlice, (!currSlice->mb_aff_frame_flag|| currSlice->current_mb_nr%2));
   }
-  //reset_ec_flags(p_Vid);
 }
 
 #if (MVC_EXTENSION_ENABLE)

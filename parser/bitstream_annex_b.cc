@@ -16,7 +16,6 @@
 #include "bitstream_nal.h"
 #include "bitstream_annex_b.h"
 #include "memalloc.h" 
-#include "fast_memory.h"
 
 static const int IOBUFFERSIZE = 512*1024; //65536;
 
@@ -249,7 +248,7 @@ int get_nalu_from_annex_b(NALU_t *nalu, ANNEXB_t *annex_b)
     // is the size of the NALU.
 
     nalu->len = pos - LeadingZero8BitsCount;
-    fast_memcpy(nalu->buf, annex_b->Buf + LeadingZero8BitsCount, nalu->len);
+    memcpy(nalu->buf, annex_b->Buf + LeadingZero8BitsCount, nalu->len);
     nalu->forbidden_bit     = (*(nalu->buf) >> 7) & 1;
     nalu->nal_reference_idc = (NalRefIdc) ((*(nalu->buf) >> 5) & 3);
     nalu->nal_unit_type     = (NaluType) ((*(nalu->buf)) & 0x1f);

@@ -39,7 +39,6 @@
 #include "mv_prediction.h"
 #include "intra_prediction.h"
 #include "inter_prediction.h"
-#include "fast_memory.h"
 #include "filehandle.h"
 
 #if TRACE
@@ -1822,7 +1821,7 @@ static inline void reset_coeffs(Macroblock *currMB)
 
   // CAVLC
   if (p_Vid->active_pps->entropy_coding_mode_flag == (Boolean) CAVLC)
-    fast_memset(p_Vid->nz_coeff[currMB->mbAddrX][0][0], 0, 3 * BLOCK_PIXELS * sizeof(byte));
+    memset(p_Vid->nz_coeff[currMB->mbAddrX][0][0], 0, 3 * BLOCK_PIXELS * sizeof(byte));
 }
 
 static inline void field_flag_inference(Macroblock *currMB)

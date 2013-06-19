@@ -19,9 +19,6 @@
 #include "defines.h"
 #include "slice.h"
 #include "fmo.h"
-#include "fast_memory.h"
-
-//#define PRINT_FMO_MAPS
 
 static void FmoGenerateType0MapUnitMap (VideoParameters *p_Vid, unsigned PicSizeInMapUnits );
 static void FmoGenerateType1MapUnitMap (VideoParameters *p_Vid, unsigned PicSizeInMapUnits );
@@ -71,7 +68,7 @@ static int FmoGenerateMapUnitToSliceGroupMap (VideoParameters *p_Vid, Slice *cur
 
   if (pps->num_slice_groups_minus1 == 0)    // only one slice group
   {
-    fast_memset (p_Vid->MapUnitToSliceGroupMap, 0, NumSliceGroupMapUnits * sizeof (int));
+    memset (p_Vid->MapUnitToSliceGroupMap, 0, NumSliceGroupMapUnits * sizeof (int));
     return 0;
   }
 

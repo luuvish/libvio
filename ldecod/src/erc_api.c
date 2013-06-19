@@ -18,7 +18,6 @@
 #include "global.h"
 #include "memalloc.h"
 #include "erc_api.h"
-#include "fast_memory.h"
 
 /*!
  ************************************************************************
@@ -110,7 +109,7 @@ void ercReset( ercVariables_t *errorVar, int nOfMBs, int numOfSegments, int picS
     {
       errorVar->segments = (ercSegment_t *)malloc( numOfSegments*sizeof(ercSegment_t) );
       if ( errorVar->segments == NULL ) no_mem_exit("ercReset: errorVar->segments");
-      fast_memset( errorVar->segments, 0, numOfSegments*sizeof(ercSegment_t));
+      memset( errorVar->segments, 0, numOfSegments*sizeof(ercSegment_t));
       errorVar->nOfSegments = numOfSegments;
 
       errorVar->yCondition = (char *)malloc( 4*nOfMBs*sizeof(char) );
@@ -132,9 +131,9 @@ void ercReset( ercVariables_t *errorVar, int nOfMBs, int numOfSegments, int picS
     }
 
     // Reset tables and parameters
-    fast_memset( errorVar->yCondition, 0, 4*nOfMBs*sizeof(*errorVar->yCondition));
-    fast_memset( errorVar->uCondition, 0,   nOfMBs*sizeof(*errorVar->uCondition));
-    fast_memset( errorVar->vCondition, 0,   nOfMBs*sizeof(*errorVar->vCondition));
+    memset( errorVar->yCondition, 0, 4*nOfMBs*sizeof(*errorVar->yCondition));
+    memset( errorVar->uCondition, 0,   nOfMBs*sizeof(*errorVar->uCondition));
+    memset( errorVar->vCondition, 0,   nOfMBs*sizeof(*errorVar->vCondition));
 
     if (errorVar->nOfSegments != numOfSegments)
     {

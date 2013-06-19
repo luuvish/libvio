@@ -23,13 +23,6 @@ extern "C" {
 
 #include "global.h"
 #include "mbuffer.h"
-#include "distortion.h"
-#include "lagrangian.h"
-
-extern int  get_mem2Ddist(DistortionData ***array2D, int dim0, int dim1);
-
-extern int  get_mem2Dlm  (LambdaParams ***array2D, int dim0, int dim1);
-extern int  get_mem2Dolm (LambdaParams ***array2D, int dim0, int dim1, int offset);
 
 extern int  get_mem2Dmp  (PicMotionParams ***array2D, int dim0, int dim1);
 extern int  get_mem3Dmp  (PicMotionParams ****array3D, int dim0, int dim1, int dim2);
@@ -95,11 +88,6 @@ extern int  get_mem2Dwp (WPParams ***array2D, int dim0, int dim1);
 extern int  get_offset_mem2Dshort(short ***array2D, int rows, int columns, int offset_y, int offset_x);
 
 extern void free_offset_mem2Dshort(short **array2D, int columns, int offset_x, int offset_y);
-
-extern void free_mem2Ddist (DistortionData **array2D);
-
-extern void free_mem2Dlm   (LambdaParams **array2D);
-extern void free_mem2Dolm  (LambdaParams **array2D, int offset);
 
 extern void free_mem2Dmp   (PicMotionParams    **array2D);
 extern void free_mem3Dmp   (PicMotionParams   ***array2D);

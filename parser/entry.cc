@@ -23,11 +23,9 @@
 #include "context_ini.h"
 #include "quantization.h"
 
-#include "errorconcealment.h"
 #include "erc_api.h"
 #include "mbuffer_common.h"
 #include "mbuffer_mvc.h"
-#include "fast_memory.h"
 
 /*!
  ************************************************************************
@@ -109,7 +107,7 @@ int read_new_slice(Slice *currSlice)
             currStream = currSlice->partArr[0].bitstream;
             currStream->ei_flag = 0;
             currStream->frame_bitoffset = currStream->read_len = 0;
-            fast_memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
+            memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
             currStream->code_len = currStream->bitstream_length = RBSPtoSODB(currStream->streamBuffer, nalu->len-1);
 
             currSlice->svc_extension_flag = read_u_1 ("svc_extension_flag"        , currStream, &p_Dec->UsedBits);
@@ -159,7 +157,7 @@ process_nalu:
                 currStream = currSlice->partArr[0].bitstream;
                 currStream->ei_flag = 0;
                 currStream->frame_bitoffset = currStream->read_len = 0;
-                fast_memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
+                memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
                 currStream->code_len = currStream->bitstream_length = RBSPtoSODB(currStream->streamBuffer, nalu->len-1);
 #if (MVC_EXTENSION_ENABLE)
             }

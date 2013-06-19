@@ -17,7 +17,6 @@
 #include "image.h"
 #include "memalloc.h"
 #include "sei.h"
-#include "fast_memory.h"
 
 static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_out);
 static void img2buf_byte   (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);

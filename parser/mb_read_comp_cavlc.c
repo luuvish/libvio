@@ -17,7 +17,6 @@
 #include "bitstream.h"
 #include "macroblock.h"
 #include "mb_read.h"
-#include "fast_memory.h"
 #include "transform.h"
 #include "neighbour.h"
 
@@ -1615,7 +1614,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_400(Macroblock *currMB)
   }
   else
   {
-    fast_memset(p_Vid->nz_coeff[mb_nr][0][0], 0, BLOCK_PIXELS * sizeof(byte));
+    memset(p_Vid->nz_coeff[mb_nr][0][0], 0, BLOCK_PIXELS * sizeof(byte));
   }
 }
 
@@ -1806,7 +1805,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
   }
   else
   {
-    fast_memset(p_Vid->nz_coeff[mb_nr][0][0], 0, BLOCK_PIXELS * sizeof(byte));
+    memset(p_Vid->nz_coeff[mb_nr][0][0], 0, BLOCK_PIXELS * sizeof(byte));
   }
 
   //========================== CHROMA DC ============================
@@ -1899,7 +1898,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
   // chroma AC coeff, all zero fram start_scan
   if (cbp<=31)
   {
-    fast_memset(p_Vid->nz_coeff [mb_nr ][1][0], 0, 2 * BLOCK_PIXELS * sizeof(byte));
+    memset(p_Vid->nz_coeff [mb_nr ][1][0], 0, 2 * BLOCK_PIXELS * sizeof(byte));
   }
   else
   {
@@ -2149,7 +2148,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
   }
   else
   {
-    fast_memset(p_Vid->nz_coeff[mb_nr][0][0], 0, BLOCK_PIXELS * sizeof(byte));
+    memset(p_Vid->nz_coeff[mb_nr][0][0], 0, BLOCK_PIXELS * sizeof(byte));
   }
 
   for (uv = PLANE_U; uv <= PLANE_V; ++uv )
@@ -2347,7 +2346,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
             currMB->read_comp_coeff_8x8_CAVLC(currMB, PLANE_Y, InvLevelScale8x8, qp_per, cbp, p_Vid->nz_coeff[mb_nr][PLANE_Y]);
         }
     } else
-        fast_memset(p_Vid->nz_coeff[mb_nr][0][0], 0, BLOCK_PIXELS * sizeof(byte));
+        memset(p_Vid->nz_coeff[mb_nr][0][0], 0, BLOCK_PIXELS * sizeof(byte));
 
     //========================== CHROMA DC ============================
     //-----------------------------------------------------------------
@@ -2402,7 +2401,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
     //-----------------------------------------------------------------
     // chroma AC coeff, all zero fram start_scan
     if (cbp <= 31)
-        fast_memset(p_Vid->nz_coeff[mb_nr][1][0], 0, 2 * BLOCK_PIXELS * sizeof(byte));
+        memset(p_Vid->nz_coeff[mb_nr][1][0], 0, 2 * BLOCK_PIXELS * sizeof(byte));
     else {
         int b8, b4;
         int uv;

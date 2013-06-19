@@ -1008,11 +1008,6 @@ void free_global_buffers(VideoParameters *p_Vid)
 #endif
 }
 
-void report_stats_on_error(void)
-{
-  //free_encoder_memory(p_Vid);
-  exit (-1);
-}
 
 void ClearDecPicList(VideoParameters *p_Vid)
 {

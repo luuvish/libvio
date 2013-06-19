@@ -30,7 +30,6 @@
 #include "memalloc.h"
 #include "output.h"
 #include "mbuffer_mvc.h"
-#include "fast_memory.h"
 
 static void insert_picture_in_dpb    (VideoParameters *p_Vid, FrameStore* fs, StorablePicture* p);
 static int output_one_frame_from_dpb (DecodedPictureBuffer *p_Dpb);
@@ -2880,7 +2879,7 @@ int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, seq_parameter_se
       if (sizeof(imgpel) == sizeof(unsigned char))
       {
         for (k = 1; k < 3; k++)
-          fast_memset(p_ImgData->frm_data[k][0], 128, p_Vid->height_cr * p_Vid->width_cr * sizeof(imgpel));
+          memset(p_ImgData->frm_data[k][0], 128, p_Vid->height_cr * p_Vid->width_cr * sizeof(imgpel));
       }
       else
       {
@@ -2972,7 +2971,7 @@ static inline void copy_img_data(imgpel *out_img, imgpel *in_img, int ostride, i
   unsigned int i;
   for(i = 0; i < size_y; i++)
   {
-    fast_memcpy(out_img, in_img, size_x);
+    memcpy(out_img, in_img, size_x);
     out_img += ostride;
     in_img += istride;
   }

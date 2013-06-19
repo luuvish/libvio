@@ -43,7 +43,6 @@ extern "C" {
 #include "types.h"
 #include "io_image.h"
 #include "frame.h"
-#include "distortion.h"
 
 #include "parser.h"
 #include "parset.h"
@@ -375,7 +374,6 @@ typedef struct video_par {
 
   int erc_mvperMB;
   struct video_par *erc_img;
-  int ec_flag[SE_MAX_ELEMENTS];        //!< array to set errorconcealment
 
   struct frame_store *out_buffer;
 
