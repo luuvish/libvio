@@ -266,7 +266,7 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
               }
               else if (INVALIDINDEX == mapped_idx)
               {
-                error((char *)"temporal direct error: colocated block has ref that is unavailable",-1111);
+                error("temporal direct error: colocated block has ref that is unavailable",-1111);
               }
             }
           }

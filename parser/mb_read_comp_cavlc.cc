@@ -677,7 +677,7 @@ static void read_coeff_4x4_CAVLC(Macroblock *currMB,
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   default:
-    error ((char *)"read_coeff_4x4_CAVLC: invalid block type", 600);
+    error ("read_coeff_4x4_CAVLC: invalid block type", 600);
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   }
@@ -927,7 +927,7 @@ static void read_coeff_4x4_CAVLC_444(Macroblock *currMB,
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   default:
-    error ((char *)"read_coeff_4x4_CAVLC: invalid block type", 600);
+    error ("read_coeff_4x4_CAVLC: invalid block type", 600);
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   }

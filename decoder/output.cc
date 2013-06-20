@@ -252,7 +252,7 @@ static void img2buf_endian (imgpel** imgX, unsigned char* buf, int size_x, int s
     }
   default:
     {
-      error ((char *)"writing only to formats of 8, 16 or 32 bit allowed on big endian architecture", 500);
+      error("writing only to formats of 8, 16 or 32 bit allowed on big endian architecture", 500);
       break;
     }
   }  
@@ -410,7 +410,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
       ret = write(p_out, buf, (p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)*symbol_size_in_bytes);
       if (ret != ((p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)*symbol_size_in_bytes))
       {
-        error ((char *)"write_out_picture: error writing to RGB file", 500);
+        error("write_out_picture: error writing to RGB file", 500);
       }
     }
 
@@ -437,7 +437,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
     ret = write(p_out, buf, (p->size_y-crop_bottom-crop_top)*(p->size_x-crop_right-crop_left)*symbol_size_in_bytes);
     if (ret != ((p->size_y-crop_bottom-crop_top)*(p->size_x-crop_right-crop_left)*symbol_size_in_bytes))
     {
-      error ((char *)"write_out_picture: error writing to YUV file", 500);
+      error("write_out_picture: error writing to YUV file", 500);
     }
   }
 
@@ -454,7 +454,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
       ret = write(p_out, buf, (p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)* symbol_size_in_bytes);
       if (ret != ((p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)* symbol_size_in_bytes))
       {
-        error ((char *)"write_out_picture: error writing to YUV file", 500);
+        error("write_out_picture: error writing to YUV file", 500);
       }
     }
 
@@ -468,7 +468,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
         ret = write(p_out, buf, (p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)*symbol_size_in_bytes);
         if (ret != ((p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)*symbol_size_in_bytes))
         {
-          error ((char *)"write_out_picture: error writing to YUV file", 500);
+          error("write_out_picture: error writing to YUV file", 500);
         }
       }
     }
@@ -497,12 +497,12 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
       ret = write(p_out, buf, symbol_size_in_bytes * (p->size_y-crop_bottom-crop_top)/2 * (p->size_x-crop_right-crop_left)/2 );
       if (ret != (symbol_size_in_bytes * (p->size_y-crop_bottom-crop_top)/2 * (p->size_x-crop_right-crop_left)/2))
       {
-        error ((char *)"write_out_picture: error writing to YUV file", 500);
+        error("write_out_picture: error writing to YUV file", 500);
       }
       ret = write(p_out, buf, symbol_size_in_bytes * (p->size_y-crop_bottom-crop_top)/2 * (p->size_x-crop_right-crop_left)/2 );
       if (ret != (symbol_size_in_bytes * (p->size_y-crop_bottom-crop_top)/2 * (p->size_x-crop_right-crop_left)/2))
       {
-        error ((char *)"write_out_picture: error writing to YUV file", 500);
+        error("write_out_picture: error writing to YUV file", 500);
       }
       free(buf);
       free_mem3Dpel(p->imgUV);

@@ -235,7 +235,7 @@ static int seq_parameter_set_data(VideoParameters *p_Vid, DataPartition *p, seq_
         sps->bit_depth_chroma_minus8                = read_ue_v ("SPS: bit_depth_chroma_minus8"                 , s, &p_Dec->UsedBits);
         //checking;
         if ((sps->bit_depth_luma_minus8+8 > sizeof(imgpel)*8) || (sps->bit_depth_chroma_minus8+8> sizeof(imgpel)*8))
-            error ((char *)"Source picture has higher bit depth than imgpel data type. \nPlease recompile with larger data type for imgpel.", 500);
+            error ("Source picture has higher bit depth than imgpel data type. \nPlease recompile with larger data type for imgpel.", 500);
 
         sps->qpprime_y_zero_transform_bypass_flag                  = read_u_1  ("SPS: lossless_qpprime_y_zero_flag"            , s, &p_Dec->UsedBits);
         sps->seq_scaling_matrix_present_flag        = read_u_1  (   "SPS: seq_scaling_matrix_present_flag"       , s, &p_Dec->UsedBits);
@@ -356,7 +356,7 @@ static void get_max_dec_frame_buf_size(seq_parameter_set_rbsp_t *sps)
         size = 70778880;
         break;
     default:
-        error ((char *)"undefined level", 500);
+        error("undefined level", 500);
         break;
     }
 
@@ -1508,15 +1508,15 @@ void UseParameterSet (Slice *currSlice)
   //  printf ("Using Picture Parameter set %d and associated Sequence Parameter Set %d\n", PicParsetId, pps->seq_parameter_set_id);
   if ((int) sps->pic_order_cnt_type < 0 || sps->pic_order_cnt_type > 2)  // != 1
   {
-    printf ("invalid sps->pic_order_cnt_type = %d\n", (int) sps->pic_order_cnt_type);
-    error ((char *)"pic_order_cnt_type != 1", -1000);
+    printf("invalid sps->pic_order_cnt_type = %d\n", (int) sps->pic_order_cnt_type);
+    error("pic_order_cnt_type != 1", -1000);
   }
 
   if (sps->pic_order_cnt_type == 1)
   {
     if(sps->num_ref_frames_in_pic_order_cnt_cycle >= MAXnum_ref_frames_in_pic_order_cnt_cycle)
     {
-      error((char *)"num_ref_frames_in_pic_order_cnt_cycle too large",-1011);
+      error("num_ref_frames_in_pic_order_cnt_cycle too large",-1011);
     }
   }
   p_Vid->dpb_layer_id = currSlice->layer_id;

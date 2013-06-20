@@ -93,8 +93,8 @@ SRC=    $(wildcard $(SRCDIR)/*.cc)
 ADDSRC= $(wildcard $(ADDSRCDIR)/*.cc)
 PARSERSRC= $(wildcard $(PARSER)/*.cc)
 DECODESRC= $(wildcard $(DECODE)/*.cc)
-OBJ=    $(SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o$(SUFFIX))
-OBJ+=   $(ADDSRC:$(ADDSRCDIR)/%.c=$(OBJDIR)/%.o$(SUFFIX))
+OBJ=    $(SRC:$(SRCDIR)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(ADDSRC:$(ADDSRCDIR)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(PARSERSRC:$(PARSER)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(DECODESRC:$(DECODE)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
 BIN=    $(BINDIR)/$(NAME)$(SUFFIX)
@@ -113,7 +113,7 @@ distclean: clean
 
 tags:
 	@echo update tag table
-	@ctags inc/*.h src/*.c
+	@ctags inc/*.h src/*.cc
 
 bin:    $(OBJ)
 	@echo
@@ -130,23 +130,15 @@ depend:
          >$(DEPEND)'
 	@echo
 
-$(OBJDIR)/%.o$(SUFFIX): $(SRCDIR)/%.c
+$(OBJDIR)/%.o$(SUFFIX): $(SRCDIR)/%.cc
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
-$(OBJDIR)/%.o$(SUFFIX): $(ADDSRCDIR)/%.c
-	@echo 'compiling object file "$@" ...'
-	@$(CC) -c -o $@ $(FLAGS) $<
-
-$(OBJDIR)/%.o$(SUFFIX): $(PARSER)/%.c
+$(OBJDIR)/%.o$(SUFFIX): $(ADDSRCDIR)/%.cc
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
 $(OBJDIR)/%.o$(SUFFIX): $(PARSER)/%.cc
-	@echo 'compiling object file "$@" ...'
-	@$(CC) -c -o $@ $(FLAGS) $<
-
-$(OBJDIR)/%.o$(SUFFIX): $(DECODE)/%.c
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 

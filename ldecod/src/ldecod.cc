@@ -120,7 +120,7 @@ unsigned CeilLog2_sf( unsigned uiVal)
  *    Exit code
  ************************************************************************
  */
-void error(char *text, int code)
+void error(const char *text, int code)
 {
   fprintf(stderr, "%s\n", text);
   if (p_Dec)

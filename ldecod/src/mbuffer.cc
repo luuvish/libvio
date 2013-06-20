@@ -108,7 +108,7 @@ int getDpbSize(VideoParameters *p_Vid, seq_parameter_set_rbsp_t *active_sps)
     size = 70778880;
     break;
   default:
-    error ((char *)"undefined level", 500);
+    error("undefined level", 500);
     break;
   }
 
@@ -130,7 +130,7 @@ int getDpbSize(VideoParameters *p_Vid, seq_parameter_set_rbsp_t *active_sps)
     int size_vui;
     if ((int)active_sps->vui_seq_parameters.max_dec_frame_buffering > size)
     {
-      error ((char *)"max_dec_frame_buffering larger than MaxDpbSize", 500);
+      error("max_dec_frame_buffering larger than MaxDpbSize", 500);
     }
     size_vui = imax (1, active_sps->vui_seq_parameters.max_dec_frame_buffering);
 #ifdef _DEBUG
@@ -157,7 +157,7 @@ void check_num_ref(DecodedPictureBuffer *p_Dpb)
 {
   if ((int)(p_Dpb->ltref_frames_in_buffer +  p_Dpb->ref_frames_in_buffer ) > imax(1, p_Dpb->num_ref_frames))
   {
-    error ((char *)"Max. number of reference frames exceeded. Invalid stream.", 500);
+    error ("Max. number of reference frames exceeded. Invalid stream.", 500);
   }
 }
 
@@ -189,7 +189,7 @@ void init_dpb(VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb, int type)
   if (p_Dpb->size < active_sps->max_num_ref_frames)
 #endif
   {
-    error ((char *)"DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n", 1000);
+    error ("DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n", 1000);
   }
 
   p_Dpb->used_size = 0;
@@ -290,7 +290,7 @@ void re_init_dpb(VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb, int type)
     if (p_Dpb->size < active_sps->max_num_ref_frames)
 #endif
     {
-      error ((char *)"DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n", 1000);
+      error ("DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n", 1000);
     }
 
     p_Dpb->fs = (FrameStore **)realloc(p_Dpb->fs, iDpbSize * sizeof (FrameStore*));
@@ -1397,7 +1397,7 @@ void reorder_ref_pic_list(Slice *currSlice, int cur_list)
   for (i=0; modification_of_pic_nums_idc[i]!=3; i++)
   {
     if (modification_of_pic_nums_idc[i]>3)
-      error ((char *)"Invalid modification_of_pic_nums_idc command", 500);
+      error ("Invalid modification_of_pic_nums_idc command", 500);
 
     if (modification_of_pic_nums_idc[i] < 2)
     {
@@ -1558,7 +1558,7 @@ static void adaptive_memory_management(DecodedPictureBuffer *p_Dpb, StorablePict
       case 0:
         if (tmp_drpm->Next != NULL)
         {
-          error ((char *)"memory_management_control_operation = 0 not last operation in buffer", 500);
+          error ("memory_management_control_operation = 0 not last operation in buffer", 500);
         }
         break;
       case 1:
@@ -1588,7 +1588,7 @@ static void adaptive_memory_management(DecodedPictureBuffer *p_Dpb, StorablePict
         check_num_ref(p_Dpb);
         break;
       default:
-        error ((char *)"invalid memory_management_control_operation in buffer", 500);
+        error ("invalid memory_management_control_operation in buffer", 500);
     }
     p->dec_ref_pic_marking_buffer = tmp_drpm->Next;
     free (tmp_drpm);
@@ -1770,7 +1770,7 @@ void store_picture_in_dpb(DecodedPictureBuffer *p_Dpb, StorablePicture* p)
     {
       if (p_Dpb->fs_ref[i]->frame_num == p->frame_num)
       {
-        error((char *)"duplicate frame_num in short-term reference picture buffer", 500);
+        error("duplicate frame_num in short-term reference picture buffer", 500);
       }
     }
   }
@@ -1958,7 +1958,7 @@ void remove_frame_from_dpb(DecodedPictureBuffer *p_Dpb, int pos)
   case 0:
     break;
   default:
-    error((char *)"invalid frame store type",500);
+    error("invalid frame store type",500);
   }
   fs->is_used = 0;
   fs->is_long_term = 0;
@@ -1992,7 +1992,7 @@ static int output_one_frame_from_dpb(DecodedPictureBuffer *p_Dpb)
   //diagnostics
   if (p_Dpb->used_size < 1)
   {
-    error((char *)"Cannot output frame, DPB empty.",150);
+    error("Cannot output frame, DPB empty.",150);
   }
 
   // find smallest POC
@@ -2033,7 +2033,7 @@ static int output_one_frame_from_dpb(DecodedPictureBuffer *p_Dpb)
   {
     if (p_Dpb->last_output_poc >= poc)
     {
-      error ((char *)"output POC must be in ascending order", 150);
+      error ("output POC must be in ascending order", 150);
     }
   }
 
@@ -2672,7 +2672,7 @@ int GetMaxDecFrameBuffering(VideoParameters *p_Vid)
       {
         if ((int)curr_subset_sps->sps.vui_seq_parameters.max_dec_frame_buffering > j)
         {
-          error ((char *)"max_dec_frame_buffering larger than MaxDpbSize", 500);
+          error ("max_dec_frame_buffering larger than MaxDpbSize", 500);
         }
         j = imax (1, curr_subset_sps->sps.vui_seq_parameters.max_dec_frame_buffering);
       }
@@ -2689,7 +2689,7 @@ int GetMaxDecFrameBuffering(VideoParameters *p_Vid)
       {
         if ((int)curr_sps->vui_seq_parameters.max_dec_frame_buffering > j)
         {
-          error ((char *)"max_dec_frame_buffering larger than MaxDpbSize", 500);
+          error ("max_dec_frame_buffering larger than MaxDpbSize", 500);
         }
         j = imax (1, curr_sps->vui_seq_parameters.max_dec_frame_buffering);
       }

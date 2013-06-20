@@ -332,7 +332,7 @@ int mb_pred_b_d8x8temporal(Macroblock *currMB, ColorPlane curr_plane, imgpel **c
                     mv_info->ref_idx[LIST_0] = (char) mapped_idx; //colocated->ref_idx[refList];
                     mv_info->ref_idx[LIST_1] = 0;
                 } else if (INVALIDINDEX == mapped_idx)
-                    error((char *)"temporal direct error: colocated block has ref that is unavailable",-1111);
+                    error("temporal direct error: colocated block has ref that is unavailable",-1111);
             }
             // store reference picture ID determined by direct mode
             mv_info->ref_pic[LIST_0] = list0[(short)mv_info->ref_idx[LIST_0]];
@@ -415,7 +415,7 @@ int mb_pred_b_d4x4temporal(Macroblock *currMB, ColorPlane curr_plane, imgpel **c
                         mapped_idx=INVALIDINDEX;
                 }
                 if (INVALIDINDEX == mapped_idx)
-                    error((char *)"temporal direct error: colocated block has ref that is unavailable",-1111);
+                    error("temporal direct error: colocated block has ref that is unavailable",-1111);
                 else {
                     int mv_scale = currSlice->mvscale[LIST_0 + list_offset][mapped_idx];
 

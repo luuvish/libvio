@@ -125,7 +125,7 @@ static void intra16x16_vert_pred_mbaff(Macroblock *currMB, ColorPlane pl)
                   currMB, 0, 0);
 
     if (!up_avail) {
-        error ((char *)"invalid 16x16 intra pred Mode VERT_PRED_16",500);
+        error ("invalid 16x16 intra pred Mode VERT_PRED_16",500);
         return;
     }
 
@@ -167,7 +167,7 @@ static void intra16x16_hor_pred_mbaff(Macroblock *currMB, ColorPlane pl)
                   currMB, 0, 0);
 
     if (!left_avail) {
-        error ((char *)"invalid 16x16 intra pred Mode HOR_PRED_16",500);
+        error ("invalid 16x16 intra pred Mode HOR_PRED_16",500);
         return;
     }
 
@@ -210,7 +210,7 @@ static void intra16x16_plane_pred_mbaff(Macroblock *currMB, ColorPlane pl)
                   currMB, 0, 0);
 
     if (!up_avail || !left_up_avail  || !left_avail) {
-        error ((char *)"invalid 16x16 intra pred Mode PLANE_16",500);
+        error ("invalid 16x16 intra pred Mode PLANE_16",500);
         return;
     }
 

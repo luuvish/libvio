@@ -314,7 +314,7 @@ process_nalu:
             slice_id_a = read_ue_v("NALU: DP_A slice_id", currStream, &p_Dec->UsedBits);
 
             if (p_Vid->active_pps->entropy_coding_mode_flag)
-                error ((char *)"received data partition with CABAC, this is not allowed", 500);
+                error ("received data partition with CABAC, this is not allowed", 500);
 
             // continue with reading next DP
             if (0 == read_next_nalu(p_Vid->bitstream, nalu))

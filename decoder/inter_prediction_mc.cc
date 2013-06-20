@@ -1225,13 +1225,11 @@ static void check_motion_vector_range(const MotionVector *mv, Slice *pSlice)
   if (mv->mv_x > 8191 || mv->mv_x < -8192)
   {
     fprintf(stderr,"WARNING! Horizontal motion vector %d is out of allowed range {-8192, 8191} in picture %d, macroblock %d\n", mv->mv_x, pSlice->p_Vid->number, pSlice->current_mb_nr);
-    //error("invalid stream: too big horizontal motion vector", 500);
   }
 
   if (mv->mv_y > (pSlice->max_mb_vmv_r - 1) || mv->mv_y < (-pSlice->max_mb_vmv_r))
   {
     fprintf(stderr,"WARNING! Vertical motion vector %d is out of allowed range {%d, %d} in picture %d, macroblock %d\n", mv->mv_y, (-pSlice->max_mb_vmv_r), (pSlice->max_mb_vmv_r - 1), pSlice->p_Vid->number, pSlice->current_mb_nr);
-    //error("invalid stream: too big vertical motion vector", 500);
   }
 }
 

@@ -584,7 +584,7 @@ void mm_assign_long_term_frame_idx(DecodedPictureBuffer *p_Dpb, StorablePicture*
     }
     if (structure==FRAME)
     {
-      error ((char *)"field for long term marking not found",200);
+      error("field for long term marking not found",200);
     }
 
     unmark_long_term_field_for_reference_by_frame_idx(p_Dpb, structure, long_term_frame_idx, 0, 0, picNumX);
@@ -724,7 +724,7 @@ void get_smallest_poc(DecodedPictureBuffer *p_Dpb, int *poc,int * pos)
 
   if (p_Dpb->used_size<1)
   {
-    error((char *)"Cannot determine smallest POC, DPB empty.",150);
+    error("Cannot determine smallest POC, DPB empty.",150);
   }
 
   *pos=-1;

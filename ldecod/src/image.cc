@@ -227,7 +227,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
       }
       else
       {   /* Advanced Error Concealment would be called here to combat unintentional loss of pictures. */
-        error((char *)"An unintentional loss of pictures occurs! Exit\n", 100);
+        error("An unintentional loss of pictures occurs! Exit\n", 100);
       }
     }
     if(p_Vid->conceal_mode == 0)
@@ -304,7 +304,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
       break;
     }
   default:
-    error((char *)"p_Vid->structure not initialized", 235);
+    error("p_Vid->structure not initialized", 235);
   }
 
   if (p_Vid->type > SI_SLICE)
@@ -611,7 +611,7 @@ static void init_picture_decoding(VideoParameters *p_Vid)
 
   if(p_Vid->iSliceNumOfCurrPic >= MAX_NUM_SLICES)
   {
-    error ((char *)"Maximum number of supported slices exceeded. \nPlease recompile with increased value for MAX_NUM_SLICES", 200);
+    error ("Maximum number of supported slices exceeded. \nPlease recompile with increased value for MAX_NUM_SLICES", 200);
   }
 
   if(p_Vid->pNextPPS->Valid && (int) p_Vid->pNextPPS->pic_parameter_set_id == pSlice->pic_parameter_set_id)
@@ -1060,7 +1060,7 @@ void buffer2img (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int 
 
   if (symbol_size_in_bytes> sizeof(imgpel))
   {
-    error ((char *)"Source picture has higher bit depth than imgpel data type. \nPlease recompile with larger data type for imgpel.", 500);
+    error ("Source picture has higher bit depth than imgpel data type. \nPlease recompile with larger data type for imgpel.", 500);
   }
 
   if (( sizeof(char) == sizeof (imgpel)) && ( sizeof(char) == symbol_size_in_bytes))
@@ -1108,7 +1108,7 @@ void buffer2img (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int 
         }
       default:
         {
-           error ((char *)"reading only from formats of 8, 16 or 32 bit allowed on big endian architecture", 500);
+           error ("reading only from formats of 8, 16 or 32 bit allowed on big endian architecture", 500);
            break;
         }
       }
@@ -1328,7 +1328,7 @@ void reorder_lists(Slice *currSlice)
       if (p_Vid->non_conforming_stream)
         printf("RefPicList0[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_active[LIST_0] - 1);
       else
-        error((char *)"RefPicList0[ num_ref_idx_l0_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
+        error("RefPicList0[ num_ref_idx_l0_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
     }
     // that's a definition
     currSlice->listXsize[0] = (char) currSlice->num_ref_idx_active[LIST_0];
@@ -1345,7 +1345,7 @@ void reorder_lists(Slice *currSlice)
       if (p_Vid->non_conforming_stream)
         printf("RefPicList1[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_active[LIST_1] - 1);
       else
-        error((char *)"RefPicList1[ num_ref_idx_l1_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
+        error("RefPicList1[ num_ref_idx_l1_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
     }
     // that's a definition
     currSlice->listXsize[1] = (char) currSlice->num_ref_idx_active[LIST_1];

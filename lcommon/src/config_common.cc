@@ -79,7 +79,7 @@ static int  ParameterNameToMapIndex (Mapping *Map, char *s);
  *    NULL in case of error. Error message will be set in errortext
  ***********************************************************************
  */
-char *GetConfigFileContent (char *Filename)
+char *GetConfigFileContent (const char *Filename)
 {
   long FileSize;
   FILE *f;

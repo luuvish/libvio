@@ -113,7 +113,7 @@ static inline void conf_read_check (int val, int expected)
 {
   if (val != expected)
   {
-    error ((char *)"init_conf: error reading from config file", 500);
+    error ("init_conf: error reading from config file", 500);
   }
 }
 
@@ -135,7 +135,7 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
 {
   char *content = NULL;
   int CLcount, ContentLen, NumberParams;
-  char *filename=(char *)DEFAULTCONFIGFILENAME;
+  const char *filename=DEFAULTCONFIGFILENAME;
 
   if (ac==2)
   {

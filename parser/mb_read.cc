@@ -1551,7 +1551,7 @@ static void read_ipred_modes(Macroblock *currMB)
 
     if (currMB->c_ipred_mode < DC_PRED_8 || currMB->c_ipred_mode > PLANE_8)
     {
-      error((char *)"illegal chroma intra pred mode!\n", 600);
+      error("illegal chroma intra pred mode!\n", 600);
     }
   }
 }

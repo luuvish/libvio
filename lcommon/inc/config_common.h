@@ -21,7 +21,7 @@ extern "C" {
 
 //! Maps parameter name to its address, type etc.
 typedef struct {
-  char *TokenName;    //!< name
+  const char *TokenName;    //!< name
   void *Place;        //!< address
   int Type;           //!< type:  0-int, 1-char[], 2-double
   double Default;     //!< default value
@@ -31,7 +31,7 @@ typedef struct {
   int    char_size;   //!< Dimension of type char[]
 } Mapping;
 
-extern char *GetConfigFileContent (char *Filename);
+extern char *GetConfigFileContent (const char *Filename);
 extern int  InitParams            (Mapping *Map);
 extern int TestParams(Mapping *Map, int bitdepth_qp_scale[3]);
 extern int DisplayParams(Mapping *Map, char *message);
