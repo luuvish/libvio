@@ -110,53 +110,6 @@ void free_mem2Dmp(PicMotionParams **array2D)
 /*!
  ************************************************************************
  * \brief
- *    Allocate 2D memory array -> WPParams array2D[dim0][dim1]
- *
- * \par Output:
- *    memory size in bytes
- ************************************************************************/
-int get_mem2Dwp(WPParams ***array2D, int dim0, int dim1)
-{
-  int i;
-
-  if((*array2D    = (WPParams**)mem_malloc(dim0 *      sizeof(WPParams*))) == NULL)
-    no_mem_exit("get_mem2Dwp: array2D");
-  if((*(*array2D) = (WPParams* )mem_calloc(dim0 * dim1,sizeof(WPParams ))) == NULL)
-    no_mem_exit("get_mem2Dwp: array2D");
-
-  for(i = 1 ; i < dim0; i++)
-    (*array2D)[i] =  (*array2D)[i-1] + dim1;
-
-  return dim0 * (sizeof(WPParams*) + dim1 * sizeof(WPParams));
-}
-
-/*!
- ************************************************************************
- * \brief
- *    free 2D memory array
- *    which was allocated with get_mem2Dwp()
- ************************************************************************
- */
-void free_mem2Dwp(WPParams **array2D)
-{
-  if (array2D)
-  {
-    if (*array2D)
-      mem_free (*array2D);
-    else 
-      error ("free_mem2Dwp: trying to free unused memory",100);
-
-    mem_free (array2D);
-  } 
-  else
-  {
-    error ("free_mem2Dwp: trying to free unused memory",100);
-  }
-}
-
-/*!
- ************************************************************************
- * \brief
  *    Allocate 1D memory array -> imgpel array1D[dim0
  *
  * \par Output:

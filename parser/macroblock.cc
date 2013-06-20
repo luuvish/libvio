@@ -24,8 +24,8 @@
 
 #include "global.h"
 #include "slice.h"
-#include "mbuffer.h"
-#include "mbuffer_mvc.h"
+#include "dpb.h"
+#include "dpb_mvc.h"
 #include "bitstream_elements.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"

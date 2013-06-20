@@ -14,7 +14,7 @@
 #include "bitstream_elements.h"
 #include "defines.h"
 #include "fmo.h"
-#include "mbuffer.h"
+#include "dpb.h"
 #include "slice.h"
 #include "memalloc.h"
 
@@ -229,11 +229,9 @@ static void pred_weight_table(Slice *currSlice)
     int i,j;
 
     currSlice->luma_log2_weight_denom = (unsigned short) read_ue_v ("SH: luma_log2_weight_denom", currStream, &p_Dec->UsedBits);
-    currSlice->wp_round_luma = currSlice->luma_log2_weight_denom ? 1<<(currSlice->luma_log2_weight_denom - 1): 0;
 
     if ( 0 != active_sps->chroma_format_idc) {
         currSlice->chroma_log2_weight_denom = (unsigned short) read_ue_v ("SH: chroma_log2_weight_denom", currStream, &p_Dec->UsedBits);
-        currSlice->wp_round_chroma = currSlice->chroma_log2_weight_denom ? 1<<(currSlice->chroma_log2_weight_denom - 1): 0;
     }
 
     reset_wp_params(currSlice);

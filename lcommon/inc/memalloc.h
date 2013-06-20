@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 #include "global.h"
-#include "mbuffer.h"
+#include "dpb.h"
 
 extern int  get_mem2Dmp  (PicMotionParams ***array2D, int dim0, int dim1);
 
@@ -42,8 +42,6 @@ extern int  get_mem2Dpel_pad(imgpel ***array2D, int dim0, int dim1, int iPadY, i
 extern int  get_mem3Dpel    (imgpel ****array3D, int dim0, int dim1, int dim2);
 extern int  get_mem3Dpel_pad(imgpel ****array3D, int dim0, int dim1, int dim2, int iPadY, int iPadX);
 
-extern int  get_mem2Dwp (WPParams ***array2D, int dim0, int dim1);
-
 extern void free_mem2Dmp   (PicMotionParams    **array2D);
 
 extern void free_mem2D     (byte      **array2D);
@@ -62,8 +60,6 @@ extern void free_mem3Dpel_pad(imgpel ***array3D, int iDim12, int iPadY, int iPad
 
 extern int  init_top_bot_planes(imgpel **imgFrame, int height, imgpel ***imgTopField, imgpel ***imgBotField);
 extern void free_top_bot_planes(imgpel **imgTopField, imgpel **imgBotField);
-
-extern void free_mem2Dwp   (WPParams **array2D);
 
 extern void no_mem_exit(const char *where);
 

@@ -18,7 +18,7 @@
 #include "sei.h"
 #include "bitstream.h"
 #include "slice.h"
-#include "mbuffer.h"
+#include "dpb.h"
 #include "parset.h"
 
 

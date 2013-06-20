@@ -12,7 +12,7 @@
  */
 
 #include "global.h"
-#include "mbuffer.h"
+#include "dpb.h"
 #include "slice.h"
 #include "macroblock.h"
 #include "transform.h"

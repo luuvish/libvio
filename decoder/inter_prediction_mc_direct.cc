@@ -17,7 +17,7 @@
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "mbuffer.h"
+#include "dpb.h"
 #include "transform.h"
 #include "inter_prediction_mc.h"
 #include "intra_prediction.h"

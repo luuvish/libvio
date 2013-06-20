@@ -24,8 +24,8 @@
 
 #include "global.h"
 #include "slice.h"
-#include "mbuffer.h"
-#include "mbuffer_mvc.h"
+#include "dpb.h"
+#include "dpb_mvc.h"
 #include "bitstream_elements.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
@@ -1759,7 +1759,6 @@ static void read_IPCM_coeffs_from_NAL(Slice *currSlice, struct datapartition_dec
       {
         readSyntaxElement_FLC(&currSE, dP->bitstream);
         currSlice->cof[0][i][j] = currSE.value1;
-        //currSlice->fcf[0][i][j] = currSE.value1;
       }
     }
     currSE.len=p_Vid->bitdepth_chroma;
@@ -1772,7 +1771,6 @@ static void read_IPCM_coeffs_from_NAL(Slice *currSlice, struct datapartition_dec
         {
           readSyntaxElement_FLC(&currSE, dP->bitstream);
           currSlice->cof[1][i][j] = currSE.value1;
-          //currSlice->fcf[1][i][j] = currSE.value1;
         }
       }
       TRACE_STRING("pcm_sample_chroma (v)");
@@ -1782,7 +1780,6 @@ static void read_IPCM_coeffs_from_NAL(Slice *currSlice, struct datapartition_dec
         {
           readSyntaxElement_FLC(&currSE, dP->bitstream);
           currSlice->cof[2][i][j] = currSE.value1;
-          //currSlice->fcf[2][i][j] = currSE.value1;
         }
       }
     }

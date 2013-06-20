@@ -99,11 +99,6 @@ typedef struct {
  ***********************************************************************
  */
 
-typedef struct wp_params {
-    short weight[3];
-    short offset[3];
-} WPParams;
-
 #if (MVC_EXTENSION_ENABLE)
 typedef struct nalunitheadermvcext_tag {
     unsigned int non_idr_flag;

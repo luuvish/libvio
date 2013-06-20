@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 #include "global.h"
-#include "mbuffer.h"
+#include "dpb.h"
 
 struct slice_t;
 struct macroblock_dec;

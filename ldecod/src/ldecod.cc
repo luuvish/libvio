@@ -49,7 +49,7 @@
 #include "bitstream_cabac.h"
 #include "image.h"
 #include "memalloc.h"
-#include "mbuffer.h"
+#include "dpb.h"
 #include "fmo.h"
 #include "output.h"
 #include "parset.h"
@@ -693,8 +693,6 @@ Slice *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
   currSlice->max_part_nr = 3;  //! assume data partitioning (worst case) for the following mallocs()
   currSlice->partArr = AllocPartition(currSlice->max_part_nr);
 
-  memory_size += get_mem2Dwp (&(currSlice->wp_params), 2, MAX_REFERENCE_PICTURES);
-
   memory_size += get_mem3Dint(&(currSlice->wp_weight), 2, MAX_REFERENCE_PICTURES, 3);
   memory_size += get_mem3Dint(&(currSlice->wp_offset), 6, MAX_REFERENCE_PICTURES, 3);
   memory_size += get_mem4Dint(&(currSlice->wbp_weight), 6, MAX_REFERENCE_PICTURES, MAX_REFERENCE_PICTURES, 3);
@@ -703,7 +701,6 @@ Slice *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
   memory_size += get_mem3Dpel(&(currSlice->mb_rec ), MAX_PLANE, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
   memory_size += get_mem3Dint(&(currSlice->mb_rres), MAX_PLANE, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
   memory_size += get_mem3Dint(&(currSlice->cof    ), MAX_PLANE, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-  //  memory_size += get_mem3Dint(&(currSlice->fcf    ), MAX_PLANE, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
   allocate_pred_mem(currSlice);
 #if (MVC_EXTENSION_ENABLE)
   currSlice->view_id = MVC_INIT_VIEW_ID;
@@ -756,7 +753,6 @@ static void free_slice(Slice *currSlice)
   free_mem3Dpel(currSlice->mb_rec );
   free_mem3Dpel(currSlice->mb_pred);
 
-  free_mem2Dwp (currSlice->wp_params );
   free_mem3Dint(currSlice->wp_weight );
   free_mem3Dint(currSlice->wp_offset );
   free_mem4Dint(currSlice->wbp_weight);

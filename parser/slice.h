@@ -83,8 +83,6 @@ typedef struct slice_t {
     int                    ***wp_weight;  // weight in [list][index][component] order
     int                    ***wp_offset;  // offset in [list][index][component] order
     int                   ****wbp_weight; //weight in [list][fw_index][bw_index][component] order
-    short                     wp_round_luma;
-    short                     wp_round_chroma;
 
     int                       no_output_of_prior_pics_flag;
     int                       long_term_reference_flag;
@@ -171,15 +169,12 @@ typedef struct slice_t {
     imgpel                 ***mb_rec;
     int                    ***mb_rres;
     int                    ***cof;
-    int                    ***fcf;
 
-    int                       cofu[16];
-
-    imgpel                  **tmp_block_l0;
-    imgpel                  **tmp_block_l1;  
+    imgpel                  **tmp_block_l0; // InterPrediction()
+    imgpel                  **tmp_block_l1; // InterPrediction()
     int                     **tmp_res;
-    imgpel                  **tmp_block_l2;
-    imgpel                  **tmp_block_l3;  
+    imgpel                  **tmp_block_l2; // InterPrediction()
+    imgpel                  **tmp_block_l3; // InterPrediction()
 
     // Scaling matrix info
     int                       InvLevelScale4x4_Intra[3][6][4][4];
@@ -193,9 +188,6 @@ typedef struct slice_t {
     int                       coeff[64]; // one more for EOB
     int                       coeff_ctr;
     int                       pos;  
-
-
-    WPParams                **wp_params; // wp parameters in [list][index]
 
 
 #if (MVC_EXTENSION_ENABLE)

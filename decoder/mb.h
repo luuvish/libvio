@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 #include "global.h"
-#include "mbuffer.h"
+#include "dpb.h"
 
 void setup_decode_mb(Slice *currSlice);
 int  decode_one_macroblock(Macroblock *currMB, StorablePicture *dec_picture);

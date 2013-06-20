@@ -25,11 +25,11 @@
 #include "erc_api.h"
 #include "slice.h"
 #include "image.h"
-#include "mbuffer.h"
-#include "mbuffer_common.h"
+#include "dpb.h"
+#include "dpb_common.h"
+#include "dpb_mvc.h"
 #include "memalloc.h"
 #include "output.h"
-#include "mbuffer_mvc.h"
 
 static void insert_picture_in_dpb    (VideoParameters *p_Vid, FrameStore* fs, StorablePicture* p);
 static int output_one_frame_from_dpb (DecodedPictureBuffer *p_Dpb);
@@ -3129,7 +3129,6 @@ StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePictur
   }
   
   // store BL reconstruction
-  //memcpy((void *)p_stored_pic->imgY[0], (void *)p_Vid->tempData3.frm_data[0][0], p_pic->size_x * p_pic->size_y * sizeof(imgpel));
 
   ostride[0] = p_stored_pic->iLumaStride;
   ostride[1] = p_stored_pic->iChromaStride;
@@ -3155,8 +3154,6 @@ StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePictur
 
   if (p_Vid->active_sps->chroma_format_idc != YUV400)
   {    
-    //memcpy((void *)p_stored_pic->imgUV[0][0], (void *)p_Vid->tempData3.frm_data[1][0], p_pic->size_x_cr * p_pic->size_y_cr * sizeof(imgpel));
-    //memcpy((void *)p_stored_pic->imgUV[1][0], (void *)p_Vid->tempData3.frm_data[2][0], p_pic->size_x_cr * p_pic->size_y_cr * sizeof(imgpel));
     copy_img_data(&p_stored_pic->imgUV[0][0][0], &img_in[1][0][0], ostride[1], istride[1], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(imgpel));
     pad_buf(*p_stored_pic->imgUV[0], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, p_Vid->iChromaPadX, p_Vid->iChromaPadY);
     copy_img_data(&p_stored_pic->imgUV[1][0][0], &img_in[2][0][0], ostride[1], istride[2], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(imgpel));
@@ -3165,11 +3162,9 @@ StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePictur
 
   for (j = 0; j < (p_pic->size_y >> BLOCK_SHIFT); j++)
   {
-    //PicMotionParams *mv_info = p_stored_pic->mv_info[j];
     char *ref_idx = p_stored_pic->mv_info[j][0].ref_idx;
     for (i = 0; i < (p_pic->size_x >> BLOCK_SHIFT); i++)
     {          
-      //*((short *)&((mv_info++)->ref_idx[LIST_0])) = -1;
       *((short *) ref_idx) = -1;
       ref_idx += sizeof(PicMotionParams);
     }

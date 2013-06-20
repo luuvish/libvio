@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 #include "global.h"
-#include "mbuffer.h"
+#include "dpb.h"
 #include "transform.h"
 
 struct slice_t;

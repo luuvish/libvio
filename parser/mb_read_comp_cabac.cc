@@ -187,9 +187,7 @@ static void read_comp_coeff_4x4_smb_CABAC (Macroblock *currMB, SyntaxElement *cu
           j0 = *pos_scan_4x4++;
 
           *cbp_blk |= i64_power2(j + (i >> 2)) ;
-          //cof[j + j0][i + i0]= rshift_rnd_sf((level * InvLevelScale4x4[j0][i0]) << qp_per, 4);
           cof[j + j0][i + i0]= level;
-          //currSlice->fcf[pl][j + j0][i + i0]= level;
         }
       }
 
@@ -226,7 +224,6 @@ static void read_comp_coeff_4x4_smb_CABAC (Macroblock *currMB, SyntaxElement *cu
             j0 = *pos_scan_4x4++;
 
             cof[j + j0][i + i0] = level;
-            //currSlice->fcf[pl][j + j0][i + i0]= level;
           }
         }
       }
@@ -770,6 +767,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
     if (cbp > 15) {
         CBPStructure *s_cbp = &currMB->s_cbp[0];
         int uv, ll, k, coef_ctr;
+        int cofu[16];
 
         for (ll = 0; ll < 3; ll += 2) {
             uv = ll >> 1;
@@ -777,7 +775,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
             InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]]
                                      : currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
             //===================== CHROMA DC YUV420 ======================
-            memset(currSlice->cofu, 0, 4 * sizeof(int));
+            memset(cofu, 0, 4 * sizeof(int));
             coef_ctr = -1;
 
             level = 1;
@@ -812,21 +810,21 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
                     // functionality).
 
                     assert(coef_ctr < p_Vid->num_cdc_coeff);
-                    currSlice->cofu[coef_ctr] = level;
+                    cofu[coef_ctr] = level;
                 }
             }
 
             if (smb || currMB->is_lossless == TRUE) { // check to see if MB type is SPred or SIntra4x4
-                currSlice->cof[uv + 1][0][0] = currSlice->cofu[0];
-                currSlice->cof[uv + 1][0][4] = currSlice->cofu[1];
-                currSlice->cof[uv + 1][4][0] = currSlice->cofu[2];
-                currSlice->cof[uv + 1][4][4] = currSlice->cofu[3];
+                currSlice->cof[uv + 1][0][0] = cofu[0];
+                currSlice->cof[uv + 1][0][4] = cofu[1];
+                currSlice->cof[uv + 1][4][0] = cofu[2];
+                currSlice->cof[uv + 1][4][4] = cofu[3];
             } else {
                 int temp[4];
                 int scale_dc = InvLevelScale4x4[0][0];
                 int **cof = currSlice->cof[uv + 1];
 
-                ihadamard2x2(currSlice->cofu, temp);
+                ihadamard2x2(cofu, temp);
 
                 cof[0][0] = (((temp[0] * scale_dc) << qp_per_uv[uv]) >> 5);
                 cof[0][4] = (((temp[1] * scale_dc) << qp_per_uv[uv]) >> 5);
@@ -1068,7 +1066,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_400(Macroblock *currMB)
             j0 = ((*pos_scan_4x4++) << 2);
 
             currSlice->cof[0][j0][i0] = level;// add new intra DC coeff
-            //currSlice->fcf[0][j0][i0] = level;// add new intra DC coeff
           }
         }
       }
@@ -1286,7 +1283,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
             j0 = ((*pos_scan_4x4++) << 2);
 
             currSlice->cof[0][j0][i0] = level;// add new intra DC coeff
-            //currSlice->fcf[0][j0][i0] = level;// add new intra DC coeff
           }
         }
       }
@@ -1374,7 +1370,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
             i0 = pos_scan4x4[coef_ctr][0];
             j0 = pos_scan4x4[coef_ctr][1];
             currSlice->cof[uv + 1][j0<<2][i0<<2] = level;
-            //currSlice->fcf[uv + 1][j0<<2][i0<<2] = level;
           }                        
         } //k loop
       } // else CAVLC
@@ -1603,7 +1598,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
             j0 = ((*pos_scan_4x4++) << 2);
 
             currSlice->cof[0][j0][i0] = level;// add new intra DC coeff
-            //currSlice->fcf[0][j0][i0] = level;// add new intra DC coeff
           }
         }
       }
@@ -1745,7 +1739,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
             for(i=0;i<2;++i)                
             {
               currSlice->cof[uv + 1][j<<2][i<<2] = m3[i][j];
-              //currSlice->fcf[uv + 1][j<<2][i<<2] = m3[i][j];
             }
           }
         }
@@ -1810,7 +1803,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
                 j0 = *pos_scan_4x4++;
 
                 currSlice->cof[uv + 1][(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0])<<qp_per_uv[uv], 4);
-                //currSlice->fcf[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
               }
             } //for(k=0;(k<16)&&(level!=0);++k)
           }
@@ -1851,7 +1843,6 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
                 j0 = *pos_scan_4x4++;
 
                 currSlice->cof[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
-                //currSlice->fcf[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
               }
             } 
           }

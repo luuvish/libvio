@@ -14,7 +14,7 @@
 
 #include "global.h"
 #include "macroblock.h"
-#include "mbuffer.h"
+#include "dpb.h"
 #include "mv_prediction.h"
 
 /*!

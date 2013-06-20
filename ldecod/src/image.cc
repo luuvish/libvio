@@ -52,8 +52,8 @@
 #include "context_ini.h"
 
 #include "erc_api.h"
-#include "mbuffer_common.h"
-#include "mbuffer_mvc.h"
+#include "dpb_common.h"
+#include "dpb_mvc.h"
 
 void reorder_lists(Slice *currSlice);
 
@@ -491,8 +491,6 @@ static void fill_wp_params(Slice *currSlice)
     {
       currSlice->luma_log2_weight_denom = 5;
       currSlice->chroma_log2_weight_denom = 5;
-      currSlice->wp_round_luma   = 16;
-      currSlice->wp_round_chroma = 16;
 
       for (i=0; i<MAX_REFERENCE_PICTURES; ++i)
       {

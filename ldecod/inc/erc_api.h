@@ -134,7 +134,7 @@ int ercConcealInterFrame( frame *recfr, objectBuffer_t *object_list,
 
 /* Thomson APIs for concealing entire frame loss */
 
-#include "mbuffer.h"
+#include "dpb.h"
 #include "output.h"
 
 struct concealment_node {
@@ -146,8 +146,6 @@ struct concealment_node {
 struct slice_t;
 
 extern struct concealment_node * init_node(StorablePicture* , int );
-extern void print_node( struct concealment_node * );
-extern void print_list( struct concealment_node * );
 extern void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int , PictureStructure );
 
 extern void conceal_non_ref_pics(DecodedPictureBuffer *p_Dpb, int diff);

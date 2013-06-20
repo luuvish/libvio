@@ -13,7 +13,7 @@
  */
 
 #include "global.h"
-#include "mbuffer.h"
+#include "dpb.h"
 #include "image.h"
 #include "memalloc.h"
 #include "sei.h"

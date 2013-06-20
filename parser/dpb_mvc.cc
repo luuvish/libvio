@@ -20,9 +20,9 @@
 #include "global.h"
 #include "slice.h"
 #include "image.h"
-#include "mbuffer.h"
-#include "mbuffer_common.h"
-#include "mbuffer_mvc.h"
+#include "dpb.h"
+#include "dpb_common.h"
+#include "dpb_mvc.h"
 #include "memalloc.h"
 #include "output.h"
 

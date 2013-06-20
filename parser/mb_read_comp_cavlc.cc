@@ -1162,7 +1162,6 @@ static void read_comp_coeff_4x4_CAVLC(Macroblock *currMB, ColorPlane pl, int (*I
                 *cur_cbp |= i64_power2(j + (i >> 2));
 
                 currSlice->cof[pl][j + j0][i + i0]= rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0])<<qp_per, 4);
-                //currSlice->fcf[pl][j + j0][i + i0]= levarr[k];
               }
             }
           }
@@ -1245,7 +1244,6 @@ static void read_comp_coeff_4x4_CAVLC_ls (Macroblock *currMB, ColorPlane pl, int
 
                 *cur_cbp |= i64_power2((j<<2) + i);
                 currSlice->cof[pl][(j<<2) + j0][(i<<2) + i0]= levarr[k];
-                //currSlice->fcf[pl][(j<<2) + j0][(i<<2) + i0]= levarr[k];
               }
             }
           }
@@ -1582,7 +1580,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_400(Macroblock *currMB)
           j0 = ((*pos_scan_4x4++) << 2);
 
           currSlice->cof[0][j0][i0] = levarr[k];// add new intra DC coeff
-          //currSlice->fcf[0][j0][i0] = levarr[k];// add new intra DC coeff
         }
       }
 
@@ -1766,7 +1763,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
           j0 = ((*pos_scan_4x4++) << 2);
 
           currSlice->cof[0][j0][i0] = levarr[k];// add new intra DC coeff
-          //currSlice->fcf[0][j0][i0] = levarr[k];// add new intra DC coeff
         }
       }
 
@@ -1928,7 +1924,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
               j0=pos_scan4x4[coef_ctr][1];
 
               currSlice->cof[PLANE_U + uv][(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0])<<qp_per_uv[uv], 4);
-              //currSlice->fcf[PLANE_U + uv][(j<<2) + j0][(i<<2) + i0] = levarr[k];
             }
           }
         }
@@ -2109,7 +2104,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
           j0 = ((*pos_scan_4x4++) << 2);
 
           currSlice->cof[0][j0][i0] = levarr[k];// add new intra DC coeff
-          //currSlice->fcf[0][j0][i0] = levarr[k];// add new intra DC coeff
         }
       }
 
@@ -2172,7 +2166,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
           i0 = pos_scan4x4[coef_ctr][0];
           j0 = pos_scan4x4[coef_ctr][1];
           currSlice->cof[uv][j0<<2][i0<<2] = levarr[k];// add new intra DC coeff
-          //currSlice->fcf[uv][j0<<2][i0<<2] = levarr[k];// add new intra DC coeff
         } //if leavarr[k]
       } //k loop
 
@@ -2358,6 +2351,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
         int (*InvLevelScale4x4)[4] = NULL;
         int intra = currMB->is_intra_block == TRUE;
         int levarr[16], runarr[16], numcoeff;
+        int cofu[16];
 
         for (ll = 0; ll < 3; ll += 2) {
             uv = ll >> 1;
@@ -2365,7 +2359,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
             InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[PLANE_U + uv][qp_rem_uv[uv]]
                                      : currSlice->InvLevelScale4x4_Inter[PLANE_U + uv][qp_rem_uv[uv]];
             //===================== CHROMA DC YUV420 ======================
-            memset(currSlice->cofu, 0, 4 * sizeof(int));
+            memset(cofu, 0, 4 * sizeof(int));
             coef_ctr = -1;
 
             currSlice->read_coeff_4x4_CAVLC(currMB, CHROMA_DC, 0, 0, levarr, runarr, &numcoeff);
@@ -2374,20 +2368,20 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
                 if (levarr[k] != 0) {
                     currMB->s_cbp[0].blk |= 0xf0000 << (ll << 1);
                     coef_ctr += runarr[k] + 1;
-                    currSlice->cofu[coef_ctr] = levarr[k];
+                    cofu[coef_ctr] = levarr[k];
                 }
             }
 
             int smb = (p_Vid->type == SP_SLICE && currMB->is_intra_block == FALSE) ||
                       (p_Vid->type == SI_SLICE && currMB->mb_type == SI4MB);
             if (smb || currMB->is_lossless == TRUE) { // check to see if MB type is SPred or SIntra4x4
-                currSlice->cof[PLANE_U + uv][0][0] = currSlice->cofu[0];
-                currSlice->cof[PLANE_U + uv][0][4] = currSlice->cofu[1];
-                currSlice->cof[PLANE_U + uv][4][0] = currSlice->cofu[2];
-                currSlice->cof[PLANE_U + uv][4][4] = currSlice->cofu[3];
+                currSlice->cof[PLANE_U + uv][0][0] = cofu[0];
+                currSlice->cof[PLANE_U + uv][0][4] = cofu[1];
+                currSlice->cof[PLANE_U + uv][4][0] = cofu[2];
+                currSlice->cof[PLANE_U + uv][4][4] = cofu[3];
             } else {
                 int temp[4];
-                ihadamard2x2(currSlice->cofu, temp);
+                ihadamard2x2(cofu, temp);
 
                 currSlice->cof[PLANE_U + uv][0][0] = ((temp[0] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;
                 currSlice->cof[PLANE_U + uv][0][4] = ((temp[1] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;

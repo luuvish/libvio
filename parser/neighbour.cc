@@ -15,7 +15,7 @@
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "mbuffer.h"
+#include "dpb.h"
 #include "neighbour.h"
 
 /*!

@@ -21,7 +21,7 @@
 #include "global.h"
 #include "slice.h"
 #include "transform.h"
-#include "mbuffer.h"
+#include "dpb.h"
 #include "memalloc.h"
 #include "erc_do.h"
 #include "image.h"
@@ -1597,37 +1597,6 @@ struct concealment_node * init_node( StorablePicture* picture, int missingpoc )
     ptr->missingpocs = missingpoc;
     ptr->next = NULL;
     return ptr;
-  }
-}
-
-/*!
-************************************************************************
-* \brief
-* Prints the details of a node
-*
-************************************************************************
-*/
-
-void print_node( struct concealment_node *ptr )
-{
-  printf("Missing POC=%d\n", ptr->missingpocs );
-}
-
-
-/*!
-************************************************************************
-* \brief
-* Prints all nodes from the current address passed to it.
-*
-************************************************************************
-*/
-
-void print_list( struct concealment_node *ptr )
-{
-  while( ptr != NULL )
-  {
-    print_node( ptr );
-    ptr = ptr->next;
   }
 }
 
