@@ -97,13 +97,13 @@ void free_mem2Dmp(PicMotionParams **array2D)
     if (*array2D)
       mem_free (*array2D);
     else 
-      error ("free_mem2Dmp: trying to free unused memory",100);
+      error ((char *)"free_mem2Dmp: trying to free unused memory",100);
 
     mem_free (array2D);
   } 
   else
   {
-    error ("free_mem2Dmp: trying to free unused memory",100);
+    error ((char *)"free_mem2Dmp: trying to free unused memory",100);
   }
 }
 
@@ -144,13 +144,13 @@ void free_mem2Dwp(WPParams **array2D)
     if (*array2D)
       mem_free (*array2D);
     else 
-      error ("free_mem2Dwp: trying to free unused memory",100);
+      error ((char *)"free_mem2Dwp: trying to free unused memory",100);
 
     mem_free (array2D);
   } 
   else
   {
-    error ("free_mem2Dwp: trying to free unused memory",100);
+    error ((char *)"free_mem2Dwp: trying to free unused memory",100);
   }
 }
 
@@ -314,7 +314,7 @@ void free_mem1Dpel(imgpel *array1D)
   } 
   else
   {
-    error ("free_mem1Dpel: trying to free unused memory",100);
+    error ((char *)"free_mem1Dpel: trying to free unused memory",100);
   }
 }
 
@@ -332,13 +332,13 @@ void free_mem2Dpel(imgpel **array2D)
     if (*array2D)
       mem_free (*array2D);
     else 
-     error ("free_mem2Dpel: trying to free unused memory",100);
+     error ((char *)"free_mem2Dpel: trying to free unused memory",100);
 
     mem_free (array2D);
   } 
   else
   {
-    error ("free_mem2Dpel: trying to free unused memory",100);
+    error ((char *)"free_mem2Dpel: trying to free unused memory",100);
   }
 }
 
@@ -351,13 +351,13 @@ void free_mem2Dpel_pad(imgpel **array2D, int iPadY, int iPadX)
       mem_free (array2D[-iPadY]-iPadX);
     }
     else 
-      error ("free_mem2Dpel_pad: trying to free unused memory",100);
+      error ((char *)"free_mem2Dpel_pad: trying to free unused memory",100);
 
     mem_free (&array2D[-iPadY]);
   } 
   else
   {
-    error ("free_mem2Dpel_pad: trying to free unused memory",100);
+    error ((char *)"free_mem2Dpel_pad: trying to free unused memory",100);
   }
 }
 
@@ -377,7 +377,7 @@ void free_mem3Dpel(imgpel ***array3D)
   }
   else
   {
-    error ("free_mem3Dpel: trying to free unused memory",100);
+    error ((char *)"free_mem3Dpel: trying to free unused memory",100);
   }
 }
 
@@ -396,7 +396,7 @@ void free_mem3Dpel_pad(imgpel ***array3D, int iDim12, int iPadY, int iPadX)
   }
   else
   {
-    error ("free_mem3Dpel_pad: trying to free unused memory",100);
+    error ((char *)"free_mem3Dpel_pad: trying to free unused memory",100);
   }
   
 }
@@ -610,13 +610,13 @@ void free_mem2D(byte **array2D)
     if (*array2D)
       mem_free (*array2D);
     else 
-      error ("free_mem2D: trying to free unused memory",100);
+      error ((char *)"free_mem2D: trying to free unused memory",100);
 
     mem_free (array2D);
   } 
   else
   {
-    error ("free_mem2D: trying to free unused memory",100);
+    error ((char *)"free_mem2D: trying to free unused memory",100);
   }
 }
 
@@ -634,13 +634,13 @@ void free_mem2Dint(int **array2D)
     if (*array2D)
       mem_free (*array2D);
     else 
-      error ("free_mem2Dint: trying to free unused memory",100);
+      error ((char *)"free_mem2Dint: trying to free unused memory",100);
 
     mem_free (array2D);
   } 
   else
   {
-    error ("free_mem2Dint: trying to free unused memory",100);
+    error ((char *)"free_mem2Dint: trying to free unused memory",100);
   }
 }
 
@@ -660,7 +660,7 @@ void free_mem3D(byte ***array3D)
   } 
   else
   {
-    error ("free_mem3D: trying to free unused memory",100);
+    error ((char *)"free_mem3D: trying to free unused memory",100);
   }
 }
 
@@ -680,7 +680,7 @@ void free_mem4D(byte ****array4D)
   } 
   else
   {
-    error ("free_mem4D: trying to free unused memory",100);
+    error ((char *)"free_mem4D: trying to free unused memory",100);
   }
 }
 
@@ -700,7 +700,7 @@ void free_mem3Dint(int ***array3D)
   } 
   else
   {
-    error ("free_mem3Dint: trying to free unused memory",100);
+    error ((char *)"free_mem3Dint: trying to free unused memory",100);
   }
 }
 
@@ -719,7 +719,7 @@ void free_mem4Dint(int ****array4D)
     mem_free (array4D);
   } else
   {
-    error ("free_mem4Dint: trying to free unused memory",100);
+    error ((char *)"free_mem4Dint: trying to free unused memory",100);
   }
 }
 

@@ -13,6 +13,7 @@
  */
 
 #include "global.h"
+#include "win32.h"
 
 static struct timezone tz;
 

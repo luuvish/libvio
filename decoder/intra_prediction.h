@@ -87,6 +87,7 @@ typedef enum {
 } I8x8PredModes;
 
 void set_intra_prediction_modes(Slice *currSlice);
+void update_direct_types(Slice *currSlice);
 
 int mb_pred_intra4x4  (Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
 int mb_pred_intra16x16(Macroblock *currMB, ColorPlane curr_plane, StorablePicture *dec_picture);

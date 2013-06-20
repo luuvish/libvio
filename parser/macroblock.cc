@@ -44,8 +44,6 @@
 #include "mb.h"
 
 
-extern void update_direct_types(Slice *currSlice);
-
 void set_chroma_qp(Macroblock* currMB)
 {
   VideoParameters *p_Vid = currMB->p_Vid;

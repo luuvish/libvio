@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-extern void  init_contexts  (Slice *currslice);
+void  init_contexts(Slice *currslice);
 
 #ifdef __cplusplus
 }

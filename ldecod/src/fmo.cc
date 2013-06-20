@@ -53,7 +53,7 @@ static int FmoGenerateMapUnitToSliceGroupMap (VideoParameters *p_Vid, Slice *cur
   {
     if ((pps->pic_size_in_map_units_minus1 + 1) != NumSliceGroupMapUnits)
     {
-      error ("wrong pps->pic_size_in_map_units_minus1 for used SPS and FMO type 6", 500);
+      error ((char *)"wrong pps->pic_size_in_map_units_minus1 for used SPS and FMO type 6", 500);
     }
   }
 

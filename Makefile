@@ -89,12 +89,10 @@ endif
 
 OBJSUF= .o$(SUFFIX)
 
-SRC=    $(wildcard $(SRCDIR)/*.c)
-ADDSRC= $(wildcard $(ADDSRCDIR)/*.c)
+SRC=    $(wildcard $(SRCDIR)/*.cc)
+ADDSRC= $(wildcard $(ADDSRCDIR)/*.cc)
 PARSERSRC= $(wildcard $(PARSER)/*.cc)
-PARSERSRC+= $(wildcard $(PARSER)/*.c)
 DECODESRC= $(wildcard $(DECODE)/*.cc)
-DECODESRC+= $(wildcard $(DECODE)/*.c)
 OBJ=    $(SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(ADDSRC:$(ADDSRCDIR)/%.c=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(PARSERSRC:$(PARSER)/%.cc=$(OBJDIR)/%.o$(SUFFIX))

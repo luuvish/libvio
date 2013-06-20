@@ -69,6 +69,8 @@
 
 static void PatchInp                (InputParameters *p_Inp);
 
+InputParameters cfgparams;
+
 /*!
  ***********************************************************************
  * \brief
@@ -111,7 +113,7 @@ static inline void conf_read_check (int val, int expected)
 {
   if (val != expected)
   {
-    error ("init_conf: error reading from config file", 500);
+    error ((char *)"init_conf: error reading from config file", 500);
   }
 }
 
@@ -133,7 +135,7 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
 {
   char *content = NULL;
   int CLcount, ContentLen, NumberParams;
-  char *filename=DEFAULTCONFIGFILENAME;
+  char *filename=(char *)DEFAULTCONFIGFILENAME;
 
   if (ac==2)
   {
@@ -292,7 +294,7 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
   cfgparams = *p_Inp;
   p_Inp->enable_32_pulldown = 0;
   if (p_Inp->bDisplayDecParams)
-    DisplayParams(Map, "Decoder Parameters");
+    DisplayParams(Map, (char *)"Decoder Parameters");
 }
 
 

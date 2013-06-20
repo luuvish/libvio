@@ -20,6 +20,8 @@
 #include "mbuffer.h"
 #include "transform.h"
 #include "inter_prediction_mc.h"
+#include "intra_prediction.h"
+
 
 //! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
 static const int BLOCK_STEP[8][2] = {
@@ -264,7 +266,7 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
               }
               else if (INVALIDINDEX == mapped_idx)
               {
-                error("temporal direct error: colocated block has ref that is unavailable",-1111);
+                error((char *)"temporal direct error: colocated block has ref that is unavailable",-1111);
               }
             }
           }

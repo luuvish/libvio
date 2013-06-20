@@ -790,7 +790,7 @@ int predict_nnz(Macroblock *currMB, int block_type, int i,int j)
       ++cnt;
       break;
     default:
-      error("writeCoeff4x4_CAVLC: Invalid block type", 600);
+      error((char *)"writeCoeff4x4_CAVLC: Invalid block type", 600);
       break;
     }
   }
@@ -822,7 +822,7 @@ int predict_nnz(Macroblock *currMB, int block_type, int i,int j)
       ++cnt;
       break;
     default:
-      error("writeCoeff4x4_CAVLC: Invalid block type", 600);
+      error((char *)"writeCoeff4x4_CAVLC: Invalid block type", 600);
       break;
     }
   }

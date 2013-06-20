@@ -21,6 +21,7 @@
 #include "bitstream_cabac.h"
 #include "biaridecod.h"
 #include "ctx_tables.h"
+#include "context_ini.h"
 
 
 #define IBIARI_CTX_INIT2(ii,jj,ctx,tab,num, qp) \

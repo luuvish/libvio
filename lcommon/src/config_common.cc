@@ -60,6 +60,7 @@
 #include "global.h"
 #include "configfile.h"
 #include "memalloc.h"
+#include "config_common.h"
 
 static int  ParameterNameToMapIndex (Mapping *Map, char *s);
 
@@ -255,7 +256,7 @@ void ParseContent (InputParameters *p_Inp, Mapping *Map, char *buf, int bufsize)
       printf (".");
       break;
     default:
-      error ("Unknown value type in the map definition of configfile.h",-1);
+      error ((char *)"Unknown value type in the map definition of configfile.h",-1);
     }
   }
   *p_Inp = cfgparams;

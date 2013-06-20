@@ -17,6 +17,7 @@
 #include "image.h"
 #include "memalloc.h"
 #include "sei.h"
+#include "output.h"
 
 static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_out);
 static void img2buf_byte   (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
@@ -251,7 +252,7 @@ static void img2buf_endian (imgpel** imgX, unsigned char* buf, int size_x, int s
     }
   default:
     {
-      error ("writing only to formats of 8, 16 or 32 bit allowed on big endian architecture", 500);
+      error ((char *)"writing only to formats of 8, 16 or 32 bit allowed on big endian architecture", 500);
       break;
     }
   }  
@@ -409,7 +410,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
       ret = write(p_out, buf, (p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)*symbol_size_in_bytes);
       if (ret != ((p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)*symbol_size_in_bytes))
       {
-        error ("write_out_picture: error writing to RGB file", 500);
+        error ((char *)"write_out_picture: error writing to RGB file", 500);
       }
     }
 
@@ -436,7 +437,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
     ret = write(p_out, buf, (p->size_y-crop_bottom-crop_top)*(p->size_x-crop_right-crop_left)*symbol_size_in_bytes);
     if (ret != ((p->size_y-crop_bottom-crop_top)*(p->size_x-crop_right-crop_left)*symbol_size_in_bytes))
     {
-      error ("write_out_picture: error writing to YUV file", 500);
+      error ((char *)"write_out_picture: error writing to YUV file", 500);
     }
   }
 
@@ -453,7 +454,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
       ret = write(p_out, buf, (p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)* symbol_size_in_bytes);
       if (ret != ((p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)* symbol_size_in_bytes))
       {
-        error ("write_out_picture: error writing to YUV file", 500);
+        error ((char *)"write_out_picture: error writing to YUV file", 500);
       }
     }
 
@@ -467,7 +468,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
         ret = write(p_out, buf, (p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)*symbol_size_in_bytes);
         if (ret != ((p->size_y_cr-crop_bottom-crop_top)*(p->size_x_cr-crop_right-crop_left)*symbol_size_in_bytes))
         {
-          error ("write_out_picture: error writing to YUV file", 500);
+          error ((char *)"write_out_picture: error writing to YUV file", 500);
         }
       }
     }
@@ -496,12 +497,12 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
       ret = write(p_out, buf, symbol_size_in_bytes * (p->size_y-crop_bottom-crop_top)/2 * (p->size_x-crop_right-crop_left)/2 );
       if (ret != (symbol_size_in_bytes * (p->size_y-crop_bottom-crop_top)/2 * (p->size_x-crop_right-crop_left)/2))
       {
-        error ("write_out_picture: error writing to YUV file", 500);
+        error ((char *)"write_out_picture: error writing to YUV file", 500);
       }
       ret = write(p_out, buf, symbol_size_in_bytes * (p->size_y-crop_bottom-crop_top)/2 * (p->size_x-crop_right-crop_left)/2 );
       if (ret != (symbol_size_in_bytes * (p->size_y-crop_bottom-crop_top)/2 * (p->size_x-crop_right-crop_left)/2))
       {
-        error ("write_out_picture: error writing to YUV file", 500);
+        error ((char *)"write_out_picture: error writing to YUV file", 500);
       }
       free(buf);
       free_mem3Dpel(p->imgUV);

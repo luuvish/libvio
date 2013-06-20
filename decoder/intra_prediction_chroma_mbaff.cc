@@ -17,6 +17,7 @@
 #include "macroblock.h"
 #include "transform.h"
 #include "intra_prediction.h"
+#include "intra_prediction_common.h"
 #include "neighbour.h"
 #include "image.h"
 
@@ -199,7 +200,7 @@ void intra_pred_chroma_mbaff(Macroblock *currMB)
       }
       // Horizontal Prediction
       if (!left_avail[0] || !left_avail[1])
-        error("unexpected HOR_PRED_8 chroma intra prediction mode",-1);
+        error((char *)"unexpected HOR_PRED_8 chroma intra prediction mode",-1);
       else
       {
         int pred1;
@@ -237,7 +238,7 @@ void intra_pred_chroma_mbaff(Macroblock *currMB)
         up_avail = up.available ? currSlice->intra_block[up.mb_addr] : 0;
       // Vertical Prediction
       if (!up_avail)
-        error("unexpected VERT_PRED_8 chroma intra prediction mode",-1);
+        error((char *)"unexpected VERT_PRED_8 chroma intra prediction mode",-1);
       else
       {
         imgpel **mb_pred0 = currSlice->mb_pred[0 + 1];
@@ -287,7 +288,7 @@ void intra_pred_chroma_mbaff(Macroblock *currMB)
       }
       // plane prediction
       if (!left_up_avail || !left_avail[0] || !left_avail[1] || !up_avail)
-        error("unexpected PLANE_8 chroma intra prediction mode",-1);
+        error((char *)"unexpected PLANE_8 chroma intra prediction mode",-1);
       else
       {
         int uv;
@@ -320,7 +321,7 @@ void intra_pred_chroma_mbaff(Macroblock *currMB)
     }
     break;
   default:
-    error("illegal chroma intra prediction mode", 600);
+    error((char *)"illegal chroma intra prediction mode", 600);
     break;
   }
 }

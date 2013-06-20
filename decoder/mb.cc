@@ -4,6 +4,7 @@
 #include "macroblock.h"
 #include "inter_prediction.h"
 #include "intra_prediction.h"
+#include "mb.h"
 
 /*!
  ************************************************************************

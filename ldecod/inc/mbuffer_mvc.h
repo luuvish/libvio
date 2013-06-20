@@ -18,6 +18,10 @@
 #ifndef _MBUFFER_MVC_H_
 #define _MBUFFER_MVC_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "global.h"
 
 #if (MVC_EXTENSION_ENABLE)
@@ -31,6 +35,10 @@ extern void reorder_ref_pic_list_mvc(Slice *currSlice, int cur_list, int **ancho
 
 extern void reorder_short_term(Slice *currSlice, int cur_list, int num_ref_idx_lX_active_minus1, int picNumLX, int *refIdxLX, int currViewID);
 extern void reorder_long_term(Slice *currSlice, StorablePicture **RefPicListX, int num_ref_idx_lX_active_minus1, int LongTermPicNum, int *refIdxLX, int currViewID);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif
