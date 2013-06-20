@@ -15,6 +15,7 @@
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
+#include "intra_prediction.h"
 #include "transform.h"
 #include "neighbour.h"
 #include "image.h"

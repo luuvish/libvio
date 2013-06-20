@@ -32,9 +32,6 @@ typedef          short int16;
 typedef          int   int32;
 
 typedef uint16 imgpel;
-typedef uint32 distpel;
-typedef int64  distblk;
-typedef int32  transpel;
 
 enum {
 	FALSE,

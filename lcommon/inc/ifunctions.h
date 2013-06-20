@@ -101,16 +101,6 @@ static inline int64 i64max(int64 a, int64 b)
   return ((a) > (b)) ? (a) : (b);
 }
 
-static inline distblk distblkmin(distblk a, distblk b)
-{
-  return ((a) < (b)) ? (a) : (b);
-}
-
-static inline distblk distblkmax(distblk a, distblk b)
-{
-  return ((a) > (b)) ? (a) : (b);
-}
-
 static inline short sabs(short x)
 {
   static const short SHORT_BITS = (sizeof(short) * CHAR_BIT) - 1;
@@ -224,12 +214,6 @@ static inline double dClip3(double low, double high, double x)
   return x;
 }
 
-
-static inline distblk weighted_cost(int factor, int bits)
-{
-  return (((distblk)(factor))*((distblk)(bits)));
-}
-
 static inline int RSD(int x)
 {
  return ((x&2)?(x|1):(x&(~1)));
@@ -282,26 +266,6 @@ static inline int CheckCost_Shift(int64 mcost, int64 min_mcost)
 static inline int CheckCost(int64 mcost, int64 min_mcost)
 {
   return ((mcost) >= (min_mcost));
-}
-
-static inline void down_scale(distblk *pblkdistCost) 
-{
-  *pblkdistCost = (*pblkdistCost)>>LAMBDA_ACCURACY_BITS;
-}
-
-static inline void up_scale(distblk *pblkdistCost) 
-{
-  *pblkdistCost = (*pblkdistCost)<<LAMBDA_ACCURACY_BITS;
-}
-
-static inline distblk dist_scale(distblk blkdistCost) 
-{
-  return ((blkdistCost)<<LAMBDA_ACCURACY_BITS);
-}
-
-static inline int dist_down(distblk blkdistCost) 
-{
-  return ((int)((blkdistCost)>>LAMBDA_ACCURACY_BITS));
 }
 
 /*!

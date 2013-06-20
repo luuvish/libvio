@@ -18,6 +18,7 @@
 #include "slice.h"
 #include "macroblock.h"
 #include "intra_prediction_common.h"
+#include "intra_prediction.h"
 #include "neighbour.h"
 #include "image.h"
 

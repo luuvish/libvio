@@ -28,7 +28,7 @@ void malloc_annex_b(unsigned int max_size, ANNEXB_t **p_annex_b)
   }
   if (((*p_annex_b)->Buf = (byte*)malloc(max_size)) == NULL)
   {
-    error("malloc_annex_b: Buf", 101);
+    error((char *)"malloc_annex_b: Buf", 101);
   }
 }
 
@@ -274,7 +274,7 @@ int get_nalu_from_annex_b(NALU_t *nalu, ANNEXB_t *annex_b)
 void open_annex_b(char *fn, ANNEXB_t *annex_b)
 {
     if (NULL != annex_b->iobuffer)
-        error("open_annex_b: tried to open Annex B file twice", 500);
+        error((char *)"open_annex_b: tried to open Annex B file twice", 500);
     if ((annex_b->BitStreamFile = open(fn, OPENFLAGS_READ)) == -1) {
         snprintf(errortext, ET_SIZE, "Cannot open Annex B ByteStream file '%s'", fn);
         error(errortext, 500);
@@ -283,7 +283,7 @@ void open_annex_b(char *fn, ANNEXB_t *annex_b)
     annex_b->iIOBufferSize = IOBUFFERSIZE * sizeof(byte);
     annex_b->iobuffer = (byte *)malloc(annex_b->iIOBufferSize);
     if (NULL == annex_b->iobuffer)
-        error("open_annex_b: cannot allocate IO buffer", 500);
+        error((char *)"open_annex_b: cannot allocate IO buffer", 500);
     annex_b->is_eof = FALSE;
     getChunk(annex_b);
 }

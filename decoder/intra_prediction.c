@@ -33,28 +33,30 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
 
     currSlice->intra_pred_chroma(currMB);// last argument is ignored, computes needed data for both uv channels
 
-    for(uv = 0; uv < 2; uv++) {
-        currMB->itrans_4x4 = (currMB->is_lossless == FALSE) ? itrans4x4 : itrans4x4_ls;
+    void (*itrans_4x4)(struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
+    itrans_4x4 = (currMB->is_lossless == FALSE) ? itrans4x4 : itrans4x4_ls;
+
+    for (uv = 0; uv < 2; uv++) {
 
         curUV = dec_picture->imgUV[uv];
 
-        if(currMB->is_lossless) {
-            if ((currMB->c_ipred_mode == VERT_PRED_8)||(currMB->c_ipred_mode == HOR_PRED_8))
+        if (currMB->is_lossless) {
+            if (currMB->c_ipred_mode == VERT_PRED_8 || currMB->c_ipred_mode == HOR_PRED_8)
                 Inv_Residual_trans_Chroma(currMB, uv) ;
             else {
-                for(j=0;j<p_Vid->mb_cr_size_y;j++)
-                    for(i=0;i<p_Vid->mb_cr_size_x;i++)
-                        currSlice->mb_rres [uv+1][j][i]=currSlice->cof[uv+1][j][i];
+                for (j = 0; j < p_Vid->mb_cr_size_y; j++)
+                    for (i = 0; i < p_Vid->mb_cr_size_x; i++)
+                        currSlice->mb_rres[uv + 1][j][i] = currSlice->cof[uv + 1][j][i];
             }
         }
 
-        if ((!(currMB->mb_type == SI4MB) && (currMB->cbp >> 4)) ) {
-            for (b8 = 0; b8 < (p_Vid->num_uv_blocks); b8++) {
-                for(b4 = 0; b4 < 4; b4++) {
+        if (currMB->mb_type != SI4MB && currMB->cbp >> 4) {
+            for (b8 = 0; b8 < p_Vid->num_uv_blocks; b8++) {
+                for (b4 = 0; b4 < 4; b4++) {
                     joff = subblk_offset_y[yuv][b8][b4];          
                     ioff = subblk_offset_x[yuv][b8][b4];          
 
-                    currMB->itrans_4x4(currMB, (ColorPlane) (uv + 1), ioff, joff);
+                    itrans_4x4(currMB, (ColorPlane) (uv + 1), ioff, joff);
 
                     copy_image_data_4x4(&curUV[currMB->pix_c_y + joff], &(currSlice->mb_rec[uv + 1][joff]), currMB->pix_c_x + ioff, ioff);
                 }
@@ -64,16 +66,16 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
             itrans_sp_cr(currMB, uv);
 
             for (joff  = 0; joff < 8; joff += 4) {
-                for(ioff = 0; ioff < 8;ioff+=4) {
-                    currMB->itrans_4x4(currMB, (ColorPlane) (uv + 1), ioff, joff);
-        
+                for (ioff = 0; ioff < 8; ioff += 4) {
+                    itrans_4x4(currMB, (ColorPlane) (uv + 1), ioff, joff);
+
                     copy_image_data_4x4(&curUV[currMB->pix_c_y + joff], &(currSlice->mb_rec[uv + 1][joff]), currMB->pix_c_x + ioff, ioff);
                 }
             }
             currSlice->is_reset_coeff_cr = FALSE;
         } else { 
-            for (b8 = 0; b8 < (p_Vid->num_uv_blocks); b8++) {
-                for(b4 = 0; b4 < 4; b4++) {
+            for (b8 = 0; b8 < p_Vid->num_uv_blocks; b8++) {
+                for (b4 = 0; b4 < 4; b4++) {
                     joff = subblk_offset_y[yuv][b8][b4];
                     ioff = subblk_offset_x[yuv][b8][b4];          
 
@@ -87,20 +89,17 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
 
 void set_intra_prediction_modes(Slice *currSlice)
 { 
-  if (currSlice->mb_aff_frame_flag)
-  {
-    currSlice->intra_pred_4x4    = intra_pred_4x4_mbaff;
-    currSlice->intra_pred_8x8    = intra_pred_8x8_mbaff;
-    currSlice->intra_pred_16x16  = intra_pred_16x16_mbaff;    
-    currSlice->intra_pred_chroma = intra_pred_chroma_mbaff;
-  }
-  else
-  {
-    currSlice->intra_pred_4x4    = intra_pred_4x4_normal;  
-    currSlice->intra_pred_8x8    = intra_pred_8x8_normal;
-    currSlice->intra_pred_16x16  = intra_pred_16x16_normal;
-    currSlice->intra_pred_chroma = intra_pred_chroma;   
-  }
+    if (currSlice->mb_aff_frame_flag) {
+        currSlice->intra_pred_4x4    = intra_pred_4x4_mbaff;
+        currSlice->intra_pred_8x8    = intra_pred_8x8_mbaff;
+        currSlice->intra_pred_16x16  = intra_pred_16x16_mbaff;    
+        currSlice->intra_pred_chroma = intra_pred_chroma_mbaff;
+    } else {
+        currSlice->intra_pred_4x4    = intra_pred_4x4_normal;  
+        currSlice->intra_pred_8x8    = intra_pred_8x8_normal;
+        currSlice->intra_pred_16x16  = intra_pred_16x16_normal;
+        currSlice->intra_pred_chroma = intra_pred_chroma;   
+    }
 }
 
 int mb_pred_intra4x4(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture)
@@ -111,7 +110,9 @@ int mb_pred_intra4x4(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg
     int j_pos, i_pos;
     int ioff,joff;
     int block8x8;   // needed for ABT
-    currMB->itrans_4x4 = (currMB->is_lossless == FALSE) ? itrans4x4 : Inv_Residual_trans_4x4;    
+
+    void (*itrans_4x4)(struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
+    itrans_4x4 = (currMB->is_lossless == FALSE) ? itrans4x4 : Inv_Residual_trans_4x4;    
 
     for (block8x8 = 0; block8x8 < 4; block8x8++) {
         for (k = block8x8 * 4; k < block8x8 * 4 + 4; k ++) {
@@ -127,18 +128,18 @@ int mb_pred_intra4x4(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg
 
             // PREDICTION
             //===== INTRA PREDICTION =====
-            if (currSlice->intra_pred_4x4(currMB, curr_plane, ioff,joff,i4,j4) == SEARCH_SYNC)  /* make 4x4 prediction block mpr from given prediction p_Vid->mb_mode */
-                return SEARCH_SYNC;                   /* bit error */
+            if (currSlice->intra_pred_4x4(currMB, curr_plane, ioff, joff, i4, j4) == SEARCH_SYNC)  /* make 4x4 prediction block mpr from given prediction p_Vid->mb_mode */
+                return 1;
             // =============== 4x4 itrans ================
             // -------------------------------------------
-            currMB->itrans_4x4(currMB, curr_plane, ioff, joff);
+            itrans_4x4(currMB, curr_plane, ioff, joff);
 
             copy_image_data_4x4(&currImg[j_pos], &currSlice->mb_rec[curr_plane][joff], i_pos, ioff);
         }
     }
 
     // chroma decoding *******************************************************
-    if ((dec_picture->chroma_format_idc != YUV400) && (dec_picture->chroma_format_idc != YUV444)) 
+    if (dec_picture->chroma_format_idc != YUV400 && dec_picture->chroma_format_idc != YUV444)
         intra_cr_decoding(currMB, yuv);
 
     if (currMB->cbp != 0)
@@ -158,7 +159,7 @@ int mb_pred_intra16x16(Macroblock *currMB, ColorPlane curr_plane, StorablePictur
     iMBtrans4x4(currMB, curr_plane, 0);
 
     // chroma decoding *******************************************************
-    if ((dec_picture->chroma_format_idc != YUV400) && (dec_picture->chroma_format_idc != YUV444)) 
+    if (dec_picture->chroma_format_idc != YUV400 && dec_picture->chroma_format_idc != YUV444) 
         intra_cr_decoding(currMB, yuv);
 
     currMB->p_Slice->is_reset_coeff = FALSE;
@@ -170,7 +171,9 @@ int mb_pred_intra8x8(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg
     Slice *currSlice = currMB->p_Slice;
     int yuv = dec_picture->chroma_format_idc - 1;
     int block8x8;   // needed for ABT
-    currMB->itrans_8x8 = (currMB->is_lossless == FALSE) ? itrans8x8 : Inv_Residual_trans_8x8;
+
+    void (*itrans_8x8)(struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
+    itrans_8x8 = (currMB->is_lossless == FALSE) ? itrans8x8 : Inv_Residual_trans_8x8;
 
     for (block8x8 = 0; block8x8 < 4; block8x8++) {
         //=========== 8x8 BLOCK TYPE ============
@@ -180,14 +183,14 @@ int mb_pred_intra8x8(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg
         //PREDICTION
         currSlice->intra_pred_8x8(currMB, curr_plane, ioff, joff);
         if (currMB->cbp & (1 << block8x8)) 
-            currMB->itrans_8x8(currMB, curr_plane, ioff,joff);      // use inverse integer transform and make 8x8 block m7 from prediction block mpr
+            itrans_8x8(currMB, curr_plane, ioff, joff);      // use inverse integer transform and make 8x8 block m7 from prediction block mpr
         else
-            icopy8x8(currMB, curr_plane, ioff,joff);
+            icopy8x8(currMB, curr_plane, ioff, joff);
     
         copy_image_data_8x8(&currImg[currMB->pix_y + joff], &currSlice->mb_rec[curr_plane][joff], currMB->pix_x + ioff, ioff);
     }
     // chroma decoding *******************************************************
-    if ((dec_picture->chroma_format_idc != YUV400) && (dec_picture->chroma_format_idc != YUV444)) 
+    if (dec_picture->chroma_format_idc != YUV400 && dec_picture->chroma_format_idc != YUV444)
         intra_cr_decoding(currMB, yuv);
 
     if (currMB->cbp != 0)
@@ -202,19 +205,16 @@ int mb_pred_ipcm(Macroblock *currMB)
     VideoParameters *p_Vid = currMB->p_Vid;
     StorablePicture *dec_picture = currSlice->dec_picture;
 
-    //Copy coefficients to decoded picture buffer
-    //IPCM coefficients are stored in currSlice->cof which is set in function read_IPCM_coeffs_from_NAL()
-
-    for(i = 0; i < MB_BLOCK_SIZE; ++i) {
-        for(j = 0;j < MB_BLOCK_SIZE ; ++j)
+    for (i = 0; i < MB_BLOCK_SIZE; ++i) {
+        for (j = 0;j < MB_BLOCK_SIZE ; ++j)
             dec_picture->imgY[currMB->pix_y + i][currMB->pix_x + j] = (imgpel) currSlice->cof[0][i][j];
     }
 
-    if ((dec_picture->chroma_format_idc != YUV400) && (p_Vid->separate_colour_plane_flag == 0)) {
+    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->separate_colour_plane_flag == 0) {
         for (k = 0; k < 2; ++k) {
-            for(i = 0; i < p_Vid->mb_cr_size_y; ++i) {
-                for(j = 0;j < p_Vid->mb_cr_size_x; ++j)
-                    dec_picture->imgUV[k][currMB->pix_c_y+i][currMB->pix_c_x + j] = (imgpel) currSlice->cof[k + 1][i][j];  
+            for (i = 0; i < p_Vid->mb_cr_size_y; ++i) {
+                for (j = 0;j < p_Vid->mb_cr_size_x; ++j)
+                    dec_picture->imgUV[k][currMB->pix_c_y + i][currMB->pix_c_x + j] = (imgpel) currSlice->cof[k + 1][i][j];
             }
         }
     }

@@ -520,7 +520,7 @@ int RestOfSliceHeader(Slice *currSlice)
     currSlice->slice_qp_delta = val = read_se_v("SH: slice_qp_delta", currStream, &p_Dec->UsedBits);
     currSlice->qp = 26 + p_Vid->active_pps->pic_init_qp_minus26 + val;
     if ((currSlice->qp < -p_Vid->bitdepth_luma_qp_scale) || (currSlice->qp > 51))
-        error ("slice_qp_delta makes slice_qp_y out of range", 500);
+        error ((char *)"slice_qp_delta makes slice_qp_y out of range", 500);
 
     if (currSlice->slice_type == SP_SLICE || currSlice->slice_type == SI_SLICE) {
         if (currSlice->slice_type == SP_SLICE)
@@ -528,7 +528,7 @@ int RestOfSliceHeader(Slice *currSlice)
         currSlice->slice_qs_delta = val = read_se_v("SH: slice_qs_delta", currStream, &p_Dec->UsedBits);
         currSlice->qs = 26 + p_Vid->active_pps->pic_init_qs_minus26 + val;    
         if ((currSlice->qs < 0) || (currSlice->qs > 51))
-            error ("slice_qs_delta makes slice_qs_y out of range", 500);
+            error ((char *)"slice_qs_delta makes slice_qs_y out of range", 500);
     }
 
     if ( !HI_intra_only_profile(active_sps->profile_idc, active_sps->constraint_set3_flag) || (p_Inp->intra_profile_deblocking == 1) ) {
@@ -647,7 +647,7 @@ void decode_poc(VideoParameters *p_Vid, Slice *pSlice)
         if (pSlice->idr_flag) {
             p_Vid->FrameNumOffset=0;     //  first pix of IDRGOP,
             if (pSlice->frame_num)
-                error("frame_num not equal to zero in IDR picture", -1020);
+                error((char *)"frame_num not equal to zero in IDR picture", -1020);
         } else {
             if (p_Vid->last_has_mmco_5) {
                 p_Vid->PreviousFrameNumOffset = 0;
@@ -705,7 +705,7 @@ void decode_poc(VideoParameters *p_Vid, Slice *pSlice)
             p_Vid->FrameNumOffset=0;     //  first pix of IDRGOP,
             pSlice->ThisPOC = pSlice->framepoc = pSlice->toppoc = pSlice->bottompoc = 0;
             if (pSlice->frame_num)
-                error("frame_num not equal to zero in IDR picture", -1020);
+                error((char *)"frame_num not equal to zero in IDR picture", -1020);
         } else {
             if (p_Vid->last_has_mmco_5) {
                 p_Vid->PreviousFrameNum = 0;

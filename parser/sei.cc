@@ -1256,7 +1256,7 @@ void interpret_picture_timing_info( byte* payload, int size, VideoParameters *p_
       NumClockTs = 3;
       break;
     default:
-      error("reserved pic_struct used (can't determine NumClockTs)", 500);
+      error((char *)"reserved pic_struct used (can't determine NumClockTs)", 500);
     }
     for (i=0; i<NumClockTs; i++)
     {

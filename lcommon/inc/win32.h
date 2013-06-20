@@ -39,7 +39,6 @@ extern "C" {
 #define OPEN_PERMISSIONS S_IRUSR | S_IWUSR
 
 typedef int64_t int64;
-typedef uint64_t uint64;
 # define FORMAT_OFF_T "lld"
 
 extern void   gettime(TIME_T* time);

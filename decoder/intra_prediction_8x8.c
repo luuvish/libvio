@@ -18,6 +18,7 @@
 #include "slice.h"
 #include "macroblock.h"
 #include "intra_prediction_common.h"
+#include "intra_prediction.h"
 #include "neighbour.h"
 #include "image.h"
 
@@ -257,7 +258,7 @@ static inline int intra8x8_dc_pred(Macroblock *currMB,    //!< current macrobloc
   imgpel **mpr = currSlice->mb_pred[pl];
   int *mb_size = p_Vid->mb_size[IS_LUMA];
 
-  getNonAffNeighbour(currMB, ioff - 1, joff, mb_size, &pix_a);
+  getNonAffNeighbour(currMB, ioff - 1, joff    , mb_size, &pix_a);
   getNonAffNeighbour(currMB, ioff    , joff - 1, mb_size, &pix_b);
   getNonAffNeighbour(currMB, ioff + 8, joff - 1, mb_size, &pix_c);
   getNonAffNeighbour(currMB, ioff - 1, joff - 1, mb_size, &pix_d);

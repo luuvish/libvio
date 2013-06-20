@@ -128,11 +128,11 @@ int read_next_nalu(struct bitstream_t *bitstream, NALU_t *nalu)
     ret = NALUtoRBSP(nalu);
 
     if (ret < 0)
-        error("Invalid startcode emulation prevention found.", 602);
+        error((char *)"Invalid startcode emulation prevention found.", 602);
 
     // Got a NALU
     if (nalu->forbidden_bit)
-        error("Found NALU with forbidden_bit set, bit error?", 603);
+        error((char *)"Found NALU with forbidden_bit set, bit error?", 603);
 
     return nalu->len;
 }

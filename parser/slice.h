@@ -167,7 +167,7 @@ typedef struct slice_t {
 
     Boolean                   is_reset_coeff;
     Boolean                   is_reset_coeff_cr;
-    imgpel                 ***mb_pred;
+    imgpel                 ***mb_pred; // IntraPrediction()
     imgpel                 ***mb_rec;
     int                    ***mb_rres;
     int                    ***cof;

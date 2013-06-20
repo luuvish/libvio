@@ -23,6 +23,7 @@
 #include "transform.h"
 #include "quantization.h"
 #include "memalloc.h"
+#include "intra_prediction.h"
 
 
 #include "bitstream_elements.h"
@@ -656,7 +657,8 @@ void iMBtrans4x4(Macroblock *currMB, ColorPlane pl, int smb)
   }
   else if (smb || currMB->is_lossless == TRUE)
   {
-    currMB->itrans_4x4 = (smb) ? itrans_sp : ((currMB->is_lossless == FALSE) ? itrans4x4 : Inv_Residual_trans_4x4);
+    void (*itrans_4x4)(struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
+    itrans_4x4 = (smb) ? itrans_sp : ((currMB->is_lossless == FALSE) ? itrans4x4 : Inv_Residual_trans_4x4);
     for (block8x8=0; block8x8 < MB_BLOCK_SIZE; block8x8 += 4)
     { 
       for (k = block8x8; k < block8x8 + 4; ++k )
@@ -664,7 +666,7 @@ void iMBtrans4x4(Macroblock *currMB, ColorPlane pl, int smb)
         jj = ((decode_block_scan[k] >> 2) & 3) << BLOCK_SHIFT;
         ii = (decode_block_scan[k] & 3) << BLOCK_SHIFT;
 
-        currMB->itrans_4x4(currMB, pl, ii, jj);   // use integer transform and make 4x4 block mb_rres from prediction block mb_pred
+        itrans_4x4(currMB, pl, ii, jj);   // use integer transform and make 4x4 block mb_rres from prediction block mb_pred
       }
     }
   }
@@ -785,6 +787,9 @@ void iTransform(Macroblock *currMB, ColorPlane pl, int smb)
     int ioff, joff;
     imgpel **mb_rec;
 
+    void (*itrans_4x4)(struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
+    itrans_4x4 = (currMB->is_lossless == FALSE) ? itrans4x4 : itrans4x4_ls;
+
     for(uv = PLANE_U; uv <= PLANE_V; ++uv)
     {
       // =============== 4x4 itrans ================
@@ -840,14 +845,13 @@ void iTransform(Macroblock *currMB, ColorPlane pl, int smb)
       }
       else if (smb)
       {
-        currMB->itrans_4x4 = (currMB->is_lossless == FALSE) ? itrans4x4 : itrans4x4_ls;
         itrans_sp_cr(currMB, uv - 1);
 
         for (joff = 0; joff < p_Vid->mb_cr_size_y; joff += BLOCK_SIZE)
         {
           for(ioff = 0; ioff < p_Vid->mb_cr_size_x ;ioff += BLOCK_SIZE)
           {
-            currMB->itrans_4x4(currMB, (ColorPlane)uv, ioff, joff);
+            itrans_4x4(currMB, (ColorPlane)uv, ioff, joff);
           }
         }
 

@@ -45,6 +45,7 @@
 #include "macroblock.h"
 #include "mb.h"
 
+#include "intra_prediction.h"
 #include "loop_filter.h"
 
 #include "biaridecod.h"
