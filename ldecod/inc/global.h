@@ -387,7 +387,7 @@ typedef struct video_par {
   void (*get_mb_block_pos) (BlockPos *PicPos, int mb_addr, short *x, short *y);
   void (*GetStrengthVer)   (struct macroblock_dec *MbQ, int edge, int mvlimit, struct storable_picture *p);
   void (*GetStrengthHor)   (struct macroblock_dec *MbQ, int edge, int mvlimit, struct storable_picture *p);
-  void (*EdgeLoopLumaVer)  (ColorPlane pl, imgpel** Img, byte *Strength, struct macroblock_dec *MbQ, int edge);
+  void (*EdgeLoopLumaVer)  (ColorPlane pl, imgpel** Img, byte *Strength, struct macroblock_dec *MbQ, int edge, struct storable_picture *p);
   void (*EdgeLoopLumaHor)  (ColorPlane pl, imgpel** Img, byte *Strength, struct macroblock_dec *MbQ, int edge, struct storable_picture *p);
   void (*EdgeLoopChromaVer)(imgpel** Img, byte *Strength, struct macroblock_dec *MbQ, int edge, int uv, struct storable_picture *p);
   void (*EdgeLoopChromaHor)(imgpel** Img, byte *Strength, struct macroblock_dec *MbQ, int edge, int uv, struct storable_picture *p);

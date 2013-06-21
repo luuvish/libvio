@@ -1486,34 +1486,7 @@ void exit_picture(VideoParameters *p_Vid, StorablePicture **dec_picture)
   }
 #endif
 
-  if(!p_Vid->iDeblockMode && (p_Vid->bDeblockEnable & (1<<(*dec_picture)->used_for_reference)))
-  {
-    //deblocking for frame or field
-    if( (p_Vid->separate_colour_plane_flag != 0) )
-    {
-      int nplane;
-      int colour_plane_id = p_Vid->ppSliceList[0]->colour_plane_id;
-      for( nplane=0; nplane<MAX_PLANE; ++nplane )
-      {
-        p_Vid->ppSliceList[0]->colour_plane_id = nplane;
-        change_plane_JV( p_Vid, nplane, NULL );
-        DeblockPicture( p_Vid, *dec_picture );
-      }
-      p_Vid->ppSliceList[0]->colour_plane_id = colour_plane_id;
-      make_frame_picture_JV(p_Vid);
-    }
-    else
-    {
-      DeblockPicture( p_Vid, *dec_picture );
-    }
-  }
-  else
-  {
-    if( (p_Vid->separate_colour_plane_flag != 0) )
-    {
-      make_frame_picture_JV(p_Vid);
-    }
-  }
+  pic_deblock(p_Vid, *dec_picture);
 
   if ((*dec_picture)->mb_aff_frame_flag)
     MbAffPostProc(p_Vid);

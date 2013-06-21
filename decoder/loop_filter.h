@@ -20,11 +20,9 @@ extern "C" {
 struct slice_t;
 
 void init_Deblock(VideoParameters *p_Vid, int mb_aff_frame_flag);
-void DeblockPicture(VideoParameters *p_Vid, StorablePicture *p) ;
-
+void pic_deblock(VideoParameters *p_Vid, StorablePicture *p);
 // For 4:4:4 independent mode
-void change_plane_JV      ( VideoParameters *p_Vid, int nplane, struct slice_t *pSlice);
-void make_frame_picture_JV( VideoParameters *p_Vid );
+void change_plane_JV(VideoParameters *p_Vid, int nplane, struct slice_t *pSlice);
 
 #ifdef __cplusplus
 }

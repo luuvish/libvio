@@ -30,7 +30,7 @@
 
 static void get_strength_ver    (Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p);
 static void get_strength_hor    (Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p);
-static void edge_loop_luma_ver  (ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge);
+static void edge_loop_luma_ver  (ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p);
 static void edge_loop_luma_hor  (ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p);
 static void edge_loop_chroma_ver(imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, StorablePicture *p);
 static void edge_loop_chroma_hor(imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, StorablePicture *p);
@@ -274,113 +274,134 @@ static void get_strength_hor(Macroblock *MbQ, int edge, int mvlimit, StorablePic
     }
 }
 
+static inline int Abs(int x)
+{
+  static const int INT_BITS = (sizeof(int) * CHAR_BIT) - 1;
+  int y = x >> INT_BITS;
+  return (x ^ y) - y;
+}
+
+static inline int Clip3(int low, int high, int x)
+{
+  x = imax(x, low);
+  x = imin(x, high);
+
+  return x;
+}
+
+static const byte TABLE_TCO[52][5] = {
+    { 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},
+    { 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},{ 0, 0, 0, 0, 0},
+    { 0, 0, 0, 0, 0},{ 0, 0, 0, 1, 1},{ 0, 0, 0, 1, 1},{ 0, 0, 0, 1, 1},{ 0, 0, 0, 1, 1},{ 0, 0, 1, 1, 1},{ 0, 0, 1, 1, 1},{ 0, 1, 1, 1, 1},
+    { 0, 1, 1, 1, 1},{ 0, 1, 1, 1, 1},{ 0, 1, 1, 1, 1},{ 0, 1, 1, 2, 2},{ 0, 1, 1, 2, 2},{ 0, 1, 1, 2, 2},{ 0, 1, 1, 2, 2},{ 0, 1, 2, 3, 3},
+    { 0, 1, 2, 3, 3},{ 0, 2, 2, 3, 3},{ 0, 2, 2, 4, 4},{ 0, 2, 3, 4, 4},{ 0, 2, 3, 4, 4},{ 0, 3, 3, 5, 5},{ 0, 3, 4, 6, 6},{ 0, 3, 4, 6, 6},
+    { 0, 4, 5, 7, 7},{ 0, 4, 5, 8, 8},{ 0, 4, 6, 9, 9},{ 0, 5, 7,10,10},{ 0, 6, 8,11,11},{ 0, 6, 8,13,13},{ 0, 7,10,14,14},{ 0, 8,11,16,16},
+    { 0, 9,12,18,18},{ 0,10,13,20,20},{ 0,11,15,23,23},{ 0,13,17,25,25}
+};
+
 /*!
  *****************************************************************************************
  * \brief
  *    Vertical Deblocking with Strength = 4
  *****************************************************************************************
  */
-static void luma_ver_deblock_strong(imgpel **cur_img, int pos_x1, int Alpha, int Beta)
+static void luma_deblock_strong(imgpel *pixP, imgpel *pixQ, int width, int alpha, int beta)
 {
-  int i;
-  for( i = 0 ; i < BLOCK_SIZE ; ++i )
-  {
-    imgpel *SrcPtrP = *(cur_img++) + pos_x1;
-    imgpel *SrcPtrQ = SrcPtrP + 1;
-    imgpel  L0 = *SrcPtrP;
-    imgpel  R0 = *SrcPtrQ;
+#define p(i) (pixP[- (i) * width])
+#define q(i) (pixQ[  (i) * width])
+    int  bS = 4;
+    bool chromaStyleFilteringFlag = 0;
+    bool filterSamplesFlag = bS != 0 && Abs(p(0) - q(0)) < alpha
+                                     && Abs(p(1) - p(0)) < beta
+                                     && Abs(q(1) - q(0)) < beta;
 
-    if( iabs( R0 - L0 ) < Alpha )
-    {
-      imgpel  R1 = *(SrcPtrQ + 1);
-      imgpel  L1 = *(SrcPtrP - 1);
-      if ((iabs( R0 - R1) < Beta)  && (iabs(L0 - L1) < Beta))
-      {
-        if ((iabs( R0 - L0 ) < ((Alpha >> 2) + 2)))
-        {
-          imgpel  R2 = *(SrcPtrQ + 2);
-          imgpel  L2 = *(SrcPtrP - 2);                  
-          int RL0 = L0 + R0;
+    if (filterSamplesFlag && bS == 4) {
+        int ap = Abs(p(2) - p(0));
+        int aq = Abs(q(2) - q(0));
+        int p0, p1, p2;
+        int q0, q1, q2;
 
-          if (( iabs( L0 - L2) < Beta ))
-          {
-            imgpel  L3 = *(SrcPtrP - 3);
-            *(SrcPtrP--) = (imgpel)  (( R1 + ((L1 + RL0) << 1) +  L2 + 4) >> 3);
-            *(SrcPtrP--) = (imgpel)  (( L2 + L1 + RL0 + 2) >> 2);
-            *(SrcPtrP  ) = (imgpel) ((((L3 + L2) <<1) + L2 + L1 + RL0 + 4) >> 3);                
-          }
-          else
-          {
-            *SrcPtrP = (imgpel) (((L1 << 1) + L0 + R1 + 2) >> 2);
-          }
-
-          if (( iabs( R0 - R2) < Beta ))
-          {
-            imgpel  R3 = *(SrcPtrQ + 3);
-            *(SrcPtrQ++) = (imgpel) (( L1 + ((R1 + RL0) << 1) +  R2 + 4) >> 3);
-            *(SrcPtrQ++) = (imgpel) (( R2 + R0 + L0 + R1 + 2) >> 2);
-            *(SrcPtrQ  ) = (imgpel) ((((R3 + R2) <<1) + R2 + R1 + RL0 + 4) >> 3);
-          }
-          else
-          {
-            *SrcPtrQ = (imgpel) (((R1 << 1) + R0 + L1 + 2) >> 2);
-          }
+        if (chromaStyleFilteringFlag == 0 && ap < beta && Abs(p(0) - q(0)) < (alpha >> 2) + 2) {
+            p0 = (p(2) + 2 * p(1) + 2 * p(0) + 2 * q(0) + q(1) + 4) >> 3;
+            p1 = (p(2) + p(1) + p(0) + q(0) + 2) >> 2;
+            p2 = (2 * p(3) + 3 * p(2) + p(1) + p(0) + q(0) + 4) >> 3;
+        } else {
+            p0 = (2 * p(1) + p(0) + q(1) + 2) >> 2;
+            p1 = p(1);
+            p2 = p(2);
         }
-        else
-        {
-          *SrcPtrP = (imgpel) (((L1 << 1) + L0 + R1 + 2) >> 2);
-          *SrcPtrQ = (imgpel) (((R1 << 1) + R0 + L1 + 2) >> 2);
+
+        if (chromaStyleFilteringFlag == 0 && aq < beta && Abs(p(0) - q(0)) < (alpha >> 2) + 2) {
+            q0 = (p(1) + 2 * p(0) + 2 * q(0) + 2 * q(1) + q(2) + 4) >> 3;
+            q1 = (p(0) + q(0) + q(1) + q(2) + 2) >> 2;
+            q2 = (2 * q(3) + 3 * q(2) + q(1) + q(0) + p(0) + 4) >> 3;
+        } else {
+            q0 = (2 * q(1) + q(0) + p(1) + 2) >> 2;
+            q1 = q(1);
+            q2 = q(2);
         }
-      }
+
+        p(0) = p0;
+        p(1) = p1;
+        p(2) = p2;
+        q(0) = q0;
+        q(1) = q1;
+        q(2) = q2;
     }
-  }
+#undef p
+#undef q
 }
 
-/*!
- *****************************************************************************************
- * \brief
- *    Vertical Deblocking with Normal Strength
- *****************************************************************************************
- */
-static void luma_ver_deblock_normal(imgpel **cur_img, int pos_x1, int Alpha, int Beta, int C0, int max_imgpel_value)
+static void luma_deblock_normal(imgpel *pixP, imgpel *pixQ, int width, int alpha, int beta, int chromaEdgeFlag, int BitDepthY, int BitDepthC, int indexA, int bS)
 {
-    int i;
-    imgpel *SrcPtrP, *SrcPtrQ;
-    int edge_diff;
+#define p(i) (pixP[- (i) * width])
+#define q(i) (pixQ[  (i) * width])
+    int  BitDepth = chromaEdgeFlag == 0 ? BitDepthY : BitDepthC;
+    bool chromaStyleFilteringFlag = 0;
+    bool filterSamplesFlag = bS != 0 && Abs(p(0) - q(0)) < alpha
+                                     && Abs(p(1) - p(0)) < beta
+                                     && Abs(q(1) - q(0)) < beta;
 
-    for (i = 0; i < BLOCK_SIZE; ++i) {
-        SrcPtrP = *(cur_img++) + pos_x1;
-        SrcPtrQ = SrcPtrP + 1;
-        edge_diff = *SrcPtrQ - *SrcPtrP;
+    if (filterSamplesFlag && bS < 4) {
+        int tc0, tc, delta;
+        int ap, aq;
+        int p0, p1;
+        int q0, q1;
 
-        if (iabs(edge_diff) < Alpha) {
-            imgpel *SrcPtrQ1 = SrcPtrQ + 1;
-            imgpel *SrcPtrP1 = SrcPtrP - 1;
+        if (chromaEdgeFlag == 0)
+            tc0 = TABLE_TCO[indexA][bS] * (1 << (BitDepthY - 8));
+        else
+            tc0 = TABLE_TCO[indexA][bS] * (1 << (BitDepthC - 8));
 
-            if (iabs(*SrcPtrQ - *SrcPtrQ1) < Beta && iabs(*SrcPtrP - *SrcPtrP1) < Beta) {
-                int RL0 = (*SrcPtrP + *SrcPtrQ + 1) >> 1;
-                imgpel R2 = *(SrcPtrQ1 + 1);
-                imgpel L2 = *(SrcPtrP1 - 1);
+        ap = Abs(p(2) - p(0));
+        aq = Abs(q(2) - q(0));
+        if (chromaStyleFilteringFlag == 0)
+            tc = tc0 + (ap < beta ? 1 : 0) + (aq < beta ? 1 : 0);
+        else
+            tc = tc0 + 1;
+        delta = Clip3(-tc, tc, ((((q(0) - p(0)) << 2) + (p(1) - q(1)) + 4) >> 3));
 
-                int aq  = (iabs(*SrcPtrQ - R2) < Beta);
-                int ap  = (iabs(*SrcPtrP - L2) < Beta);
+#define Clip1(x) (Clip3(0, (1 << BitDepth) - 1, x))
+        p0 = Clip1(p(0) + delta);
+        q0 = Clip1(q(0) - delta);
+#undef Clip1
 
-                int tc0  = (C0 + ap + aq) ;
-                int dif = iClip3( -tc0, tc0, (((edge_diff) << 2) + (*SrcPtrP1 - *SrcPtrQ1) + 4) >> 3 );
+        if (chromaStyleFilteringFlag == 0 && ap < beta)
+            p1 = p(1) + Clip3(-tc0, tc0, (p(2) + ((p(0) + q(0) + 1) >> 1) - (p(1) << 1)) >> 1);
+        else
+            p1 = p(1);
+        if (chromaStyleFilteringFlag == 0 && aq < beta)
+            q1 = q(1) + Clip3(-tc0, tc0, (q(2) + ((p(0) + q(0) + 1) >> 1) - (q(1) << 1)) >> 1);
+        else
+            q1 = q(1);
 
-                if (C0 != 0 && ap)
-                    *SrcPtrP1 = (imgpel) (*SrcPtrP1 + iClip3( -C0,  C0, (L2 + RL0 - (*SrcPtrP1<<1)) >> 1 ));
-
-                if (dif != 0) {
-                    *SrcPtrP = (imgpel) iClip1(max_imgpel_value, *SrcPtrP + dif);
-                    *SrcPtrQ = (imgpel) iClip1(max_imgpel_value, *SrcPtrQ - dif);
-                }
-
-                if (C0 != 0 && aq)
-                    *SrcPtrQ1 = (imgpel) (*SrcPtrQ1 + iClip3( -C0,  C0, (R2 + RL0 - (*SrcPtrQ1<<1)) >> 1 ));
-            }
-        }
+        p(0) = p0;
+        p(1) = p1;
+        q(0) = q0;
+        q(1) = q1;
     }
+#undef p
+#undef q
 }
 
 /*!
@@ -389,160 +410,61 @@ static void luma_ver_deblock_normal(imgpel **cur_img, int pos_x1, int Alpha, int
  *    Filters 16 pel block edge of Frame or Field coded MBs 
  *****************************************************************************************
  */
-static void edge_loop_luma_ver(ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge)
+static void edge_loop_luma_ver(ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p)
 {
-  VideoParameters *p_Vid = MbQ->p_Vid;
+    VideoParameters *p_Vid = MbQ->p_Vid;
+    Macroblock *MbP = get_non_aff_neighbor_luma(MbQ, edge - 1, 0);
 
-  Macroblock *MbP = get_non_aff_neighbor_luma(MbQ, edge - 1, 0);
+    // chromaStyleFilteringFlag = chromaEdgeFlag && (ChromaArrayType != 3)
 
-  if (MbP || (MbQ->DFDisableIdc== 0))
-  {
-    int bitdepth_scale   = pl ? p_Vid->bitdepth_scale[IS_CHROMA] : p_Vid->bitdepth_scale[IS_LUMA];
+    if (MbP || MbQ->DFDisableIdc == 0) {
+/*
+        qPav = (qPp + qPq + 1) >> 1;
 
-    // Average QP of the two blocks
-    int QP = pl? ((MbP->qpc[pl-1] + MbQ->qpc[pl-1] + 1) >> 1) : (MbP->qp + MbQ->qp + 1) >> 1;
+        indexA = Clip3(0, 51, qPav + filterOffsetA);
+        indexB = Clip3(0, 51, qPav + filterOffsetB);
 
-    int indexA = iClip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
-    int indexB = iClip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
-
-    int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
-    int Beta   = BETA_TABLE [indexB] * bitdepth_scale;
-
-    if ((Alpha | Beta )!= 0)
-    {
-      const byte *ClipTab = CLIP_TAB[indexA];
-      int max_imgpel_value = p_Vid->max_pel_value_comp[pl];      
-
-      int pos_x1 = get_pos_x_luma(MbP, (edge - 1));
-      imgpel **cur_img = &Img[get_pos_y_luma(MbP, 0)];
-      int pel;
-
-      for( pel = 0 ; pel < MB_BLOCK_SIZE ; pel += 4 )
-      {
-        if(*Strength == 4 )    // INTRA strong filtering
-        {
-          luma_ver_deblock_strong(cur_img, pos_x1, Alpha, Beta);
+        if (chromaEdgeFlag == 0) {
+            alpha = TABLE_ALPHA[indexA] * (1 << (BitDepthY - 8));
+            beta  = TABLE_BETA [indexB] * (1 << (BitDepthY - 8));
+        } else {
+            alpha = TABLE_ALPHA[indexA] * (1 << (BitDepthC - 8));
+            beta  = TABLE_BETA [indexB] * (1 << (BitDepthC - 8));
         }
-        else if( *Strength != 0) // normal filtering
-        {
-          luma_ver_deblock_normal(cur_img, pos_x1, Alpha, Beta, ClipTab[ *Strength ] * bitdepth_scale, max_imgpel_value);
-        }        
-        cur_img += 4;
-        Strength ++;
-      }
-    }
-  }
-}
 
-/*!
- *****************************************************************************************
- * \brief
- *    Horizontal Deblocking with Strength = 4
- *****************************************************************************************
- */
-static void luma_hor_deblock_strong(imgpel *imgP, imgpel *imgQ, int width, int Alpha, int Beta)
-{
-  int pixel;
-  int inc_dim2 = width * 2;
-  int inc_dim3 = width * 3;
-  for( pixel = 0 ; pixel < BLOCK_SIZE ; ++pixel )
-  {
-    imgpel *SrcPtrP = imgP++;
-    imgpel *SrcPtrQ = imgQ++;
-    imgpel  L0 = *SrcPtrP;
-    imgpel  R0 = *SrcPtrQ;
+        filterSamplesFlag = bS != 0 && Abs(p[0] - q[0]) < alpha
+                                    && Abs(p[1] - p[0]) < beta
+                                    && Abs(q[1] - q[0]) < beta;
+*/
+        int bitdepth_scale   = pl ? p_Vid->bitdepth_scale[IS_CHROMA] :
+                                    p_Vid->bitdepth_scale[IS_LUMA];
 
-    if( iabs( R0 - L0 ) < Alpha )
-    { 
-      imgpel  L1 = *(SrcPtrP - width);
-      imgpel  R1 = *(SrcPtrQ + width);
+        // Average QP of the two blocks
+        int QP = pl? ((MbP->qpc[pl-1] + MbQ->qpc[pl-1] + 1) >> 1) :
+                      (MbP->qp + MbQ->qp + 1) >> 1;
 
-      if ((iabs( R0 - R1) < Beta)  && (iabs(L0 - L1) < Beta))
-      {
-        if ((iabs( R0 - L0 ) < ((Alpha >> 2) + 2)))
-        {
-          imgpel  L2 = *(SrcPtrP - inc_dim2);
-          imgpel  R2 = *(SrcPtrQ + inc_dim2);                
-          int RL0 = L0 + R0;
+        int indexA = iClip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
+        int indexB = iClip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
 
-          if (( iabs( L0 - L2) < Beta ))
-          {
-            imgpel  L3 = *(SrcPtrP - inc_dim3);
-            *(SrcPtrP         ) = (imgpel)  (( R1 + ((L1 + RL0) << 1) +  L2 + 4) >> 3);
-            *(SrcPtrP -= width) = (imgpel)  (( L2 + L1 + RL0 + 2) >> 2);
-            *(SrcPtrP -  width) = (imgpel) ((((L3 + L2) <<1) + L2 + L1 + RL0 + 4) >> 3);                
-          }
-          else
-          {
-            *SrcPtrP = (imgpel) (((L1 << 1) + L0 + R1 + 2) >> 2);
-          }
+        int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
+        int Beta   = BETA_TABLE [indexB] * bitdepth_scale;
 
-          if (( iabs( R0 - R2) < Beta ))
-          {
-            imgpel  R3 = *(SrcPtrQ + inc_dim3);
-            *(SrcPtrQ          ) = (imgpel)  (( L1 + ((R1 + RL0) << 1) +  R2 + 4) >> 3);
-            *(SrcPtrQ += width ) = (imgpel)  (( R2 + R0 + L0 + R1 + 2) >> 2);
-            *(SrcPtrQ +  width ) = (imgpel) ((((R3 + R2) <<1) + R2 + R1 + RL0 + 4) >> 3);
-          }
-          else
-          {
-            *SrcPtrQ = (imgpel) (((R1 << 1) + R0 + L1 + 2) >> 2);
-          }
-        }
-        else
-        {
-          *SrcPtrP = (imgpel) (((L1 << 1) + L0 + R1 + 2) >> 2);
-          *SrcPtrQ = (imgpel) (((R1 << 1) + R0 + L1 + 2) >> 2);
-        }
-      }
-    }
-  }
-}
+        if ((Alpha | Beta) != 0) {
+            int pos_x1 = get_pos_x_luma(MbP, (edge - 1));
+            imgpel **cur_img = &Img[get_pos_y_luma(MbP, 0)];
+            int pel;
 
-/*!
- *****************************************************************************************
- * \brief
- *    Horizontal Deblocking with Strength = 4
- *****************************************************************************************
- */
-static void luma_hor_deblock_normal(imgpel *imgP, imgpel *imgQ, int width, int Alpha, int Beta, int C0, int max_imgpel_value)
-{
-    int i;
-    int edge_diff;
-    int tc0, dif, aq, ap;
-
-    for (i = 0; i < BLOCK_SIZE; ++i) {
-        edge_diff = *imgQ - *imgP;
-
-        if (iabs(edge_diff) < Alpha) {
-            imgpel  *SrcPtrQ1 = imgQ + width;
-            imgpel  *SrcPtrP1 = imgP - width;
-
-            if (iabs(*imgQ - *SrcPtrQ1) < Beta && iabs(*imgP - *SrcPtrP1) < Beta) {
-                int RL0 = (*imgP + *imgQ + 1) >> 1;
-                imgpel  R2 = *(SrcPtrQ1 + width);
-                imgpel  L2 = *(SrcPtrP1 - width);
-
-                aq  = (iabs(*imgQ - R2) < Beta);
-                ap  = (iabs(*imgP - L2) < Beta);
-
-                tc0 = (C0 + ap + aq) ;
-                dif = iClip3( -tc0, tc0, (((edge_diff) << 2) + (*SrcPtrP1 - *SrcPtrQ1) + 4) >> 3 );
-
-                if (C0 != 0 && ap)
-                    *SrcPtrP1 = (imgpel) (*SrcPtrP1 + iClip3( -C0,  C0, (L2 + RL0 - (*SrcPtrP1<<1)) >> 1 ));
-
-                if (dif != 0) {
-                    *imgP = (imgpel) iClip1(max_imgpel_value, *imgP + dif);
-                    *imgQ = (imgpel) iClip1(max_imgpel_value, *imgQ - dif);
+            for (pel = 0; pel < MB_BLOCK_SIZE; pel += 4) {
+                for (int i = 0; i < BLOCK_SIZE; ++i) {
+                    if (*Strength == 4)    // INTRA strong filtering
+                        luma_deblock_strong(&cur_img[i][pos_x1], &cur_img[i][pos_x1+1], 1, Alpha, Beta);
+                    else if (*Strength != 0) // normal filtering
+                        luma_deblock_normal(&cur_img[i][pos_x1], &cur_img[i][pos_x1+1], 1, Alpha, Beta, pl, p_Vid->bitdepth_luma, p_Vid->bitdepth_chroma, indexA, *Strength);
                 }
-
-                if (C0 != 0 && aq)
-                    *SrcPtrQ1 = (imgpel) (*SrcPtrQ1 + iClip3( -C0,  C0, (R2 + RL0 - (*SrcPtrQ1<<1)) >> 1 ));
+                cur_img += 4;
+                Strength++;
             }
         }
-        imgP++;
-        imgQ++;
     }
 }
 
@@ -554,50 +476,42 @@ static void luma_hor_deblock_normal(imgpel *imgP, imgpel *imgQ, int width, int A
  */
 static void edge_loop_luma_hor(ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p)
 {
-  VideoParameters *p_Vid = MbQ->p_Vid;
+    VideoParameters *p_Vid = MbQ->p_Vid;
+    int ypos = (edge < MB_BLOCK_SIZE ? edge - 1: 0);
+    Macroblock *MbP = get_non_aff_neighbor_luma(MbQ, 0, ypos); 
 
-  int ypos = (edge < MB_BLOCK_SIZE ? edge - 1: 0);
-  Macroblock *MbP = get_non_aff_neighbor_luma(MbQ, 0, ypos); 
+    if (MbP || MbQ->DFDisableIdc == 0) {
+        int bitdepth_scale   = pl ? p_Vid->bitdepth_scale[IS_CHROMA] : p_Vid->bitdepth_scale[IS_LUMA];
 
-  if (MbP || (MbQ->DFDisableIdc== 0))
-  {
-    int bitdepth_scale   = pl ? p_Vid->bitdepth_scale[IS_CHROMA] : p_Vid->bitdepth_scale[IS_LUMA];
+        // Average QP of the two blocks
+        int QP = pl? ((MbP->qpc[pl-1] + MbQ->qpc[pl-1] + 1) >> 1) : (MbP->qp + MbQ->qp + 1) >> 1;
 
-    // Average QP of the two blocks
-    int QP = pl? ((MbP->qpc[pl-1] + MbQ->qpc[pl-1] + 1) >> 1) : (MbP->qp + MbQ->qp + 1) >> 1;
+        int indexA = iClip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
+        int indexB = iClip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
 
-    int indexA = iClip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
-    int indexB = iClip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
+        int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
+        int Beta   = BETA_TABLE [indexB] * bitdepth_scale;
 
-    int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
-    int Beta   = BETA_TABLE [indexB] * bitdepth_scale;
-
-    if ((Alpha | Beta )!= 0)
-    {
-      const byte *ClipTab = CLIP_TAB[indexA];
-      int max_imgpel_value = p_Vid->max_pel_value_comp[pl];
-      int width = p->iLumaStride; //p->size_x;
-
-      imgpel *imgP = &Img[get_pos_y_luma(MbP, ypos)][get_pos_x_luma(MbP, 0)];
-      imgpel *imgQ = imgP + width;
-      int pel;
-
-      for( pel = 0 ; pel < BLOCK_SIZE ; pel++ )
-      {
-        if(*Strength == 4 )    // INTRA strong filtering
+        if ((Alpha | Beta )!= 0)
         {
-          luma_hor_deblock_strong(imgP, imgQ, width, Alpha, Beta);
+            int width = p->iLumaStride; //p->size_x;
+            imgpel *imgP = &Img[get_pos_y_luma(MbP, ypos)][get_pos_x_luma(MbP, 0)];
+            imgpel *imgQ = imgP + width;
+            int pel;
+
+            for (pel = 0; pel < BLOCK_SIZE; pel++) {
+                for (int i = 0; i < BLOCK_SIZE; ++i) {
+                    if (*Strength == 4)    // INTRA strong filtering
+                        luma_deblock_strong(&imgP[i], &imgQ[i], width, Alpha, Beta);
+                    else if (*Strength != 0) // normal filtering
+                        luma_deblock_normal(&imgP[i], &imgQ[i], width, Alpha, Beta, pl, p_Vid->bitdepth_luma, p_Vid->bitdepth_chroma, indexA, *Strength);
+                }
+                imgP += 4;
+                imgQ += 4;
+                Strength ++;
+            }
         }
-        else if( *Strength != 0) // normal filtering
-        {
-          luma_hor_deblock_normal(imgP, imgQ, width, Alpha, Beta, ClipTab[ *Strength ] * bitdepth_scale, max_imgpel_value);
-        }        
-        imgP += 4;
-        imgQ += 4;
-        Strength ++;
-      }
     }
-  }
 }
 
 

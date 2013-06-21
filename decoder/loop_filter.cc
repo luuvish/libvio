@@ -110,6 +110,21 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         if (MbQ->mb_type == I8MB)
             assert(MbQ->luma_transform_size_8x8_flag);
 
+//      fieldMbInFrameFlag = MbaffFrameFlag == 1 && mb_field_decoding_flag == 1
+
+//      filterInternalEdgesFlag = slice->disable_deblocking_filter_idc == 0
+
+//      filterLeftMbEdgeFlag = (MbaffFrameFlag == 0 && CurrMbAddr % PicWidthInMbs == 0) ||
+//                             (MbaffFrameFlag == 1 && (CurrMbAddr >> 1) % PicWidthInMbs == 0) ||
+//                             (slice->disable_deblocking_filter_idc == 1) ||
+//                             (slice->disable_deblocking_filter_idc == 2 && mbAddrA == NULL) ? 0 : 1
+
+//      filterTopMbEdgeFlag = (MbaffFrameFlag == 0 && CurrMbAddr < PicWidthInMbs) ||
+//                            (MbaffFrameFlag == 1 && (CurrMbAddr >> 1) < PicWidthInMbs && mb->field) ||
+//                            (MbaffFrameFlag == 1 && (CurrMbAddr >> 1) < PicWidthInMbs && mb->frame && CurrMbAddr % 2 == 0) ||
+//                            (slice->disable_deblocking_filter_idc == 1) ||
+//                            (slice->disable_deblocking_filter_idc == 2 && mbAddrB == NULL) ? 0 : 1
+
         filterNon8x8LumaEdgesFlag[1] =
         filterNon8x8LumaEdgesFlag[3] = !(MbQ->luma_transform_size_8x8_flag);
 
@@ -158,10 +173,10 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
                 //if ((*((int *) Strength))) { // only if one of the 16 Strength bytes is != 0
                 //if (p_Strength64[0] || p_Strength64[1]) { // only if one of the 16 Strength bytes is != 0
                     if (filterNon8x8LumaEdgesFlag[edge]) {
-                        p_Vid->EdgeLoopLumaVer( PLANE_Y, imgY, Strength, MbQ, edge << 2);
+                        p_Vid->EdgeLoopLumaVer( PLANE_Y, imgY, Strength, MbQ, edge << 2, p);
                         if (currSlice->chroma444_not_separate) {
-                            p_Vid->EdgeLoopLumaVer(PLANE_U, imgUV[0], Strength, MbQ, edge << 2);
-                            p_Vid->EdgeLoopLumaVer(PLANE_V, imgUV[1], Strength, MbQ, edge << 2);
+                            p_Vid->EdgeLoopLumaVer(PLANE_U, imgUV[0], Strength, MbQ, edge << 2, p);
+                            p_Vid->EdgeLoopLumaVer(PLANE_V, imgUV[1], Strength, MbQ, edge << 2, p);
                         }
                     }
                     if (active_sps->chroma_format_idc==YUV420 || active_sps->chroma_format_idc==YUV422) {
@@ -249,49 +264,14 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
     }
 }
 
-void init_Deblock(VideoParameters *p_Vid, int mb_aff_frame_flag)
-{
-    if (p_Vid->yuv_format == YUV444 && p_Vid->separate_colour_plane_flag) {
-        change_plane_JV(p_Vid, PLANE_Y, NULL);
-        init_neighbors(p_Dec->p_Vid);
-        change_plane_JV(p_Vid, PLANE_U, NULL);
-        init_neighbors(p_Dec->p_Vid);
-        change_plane_JV(p_Vid, PLANE_V, NULL);
-        init_neighbors(p_Dec->p_Vid);
-        change_plane_JV(p_Vid, PLANE_Y, NULL);
-    } else 
-        init_neighbors(p_Dec->p_Vid);
-    if (mb_aff_frame_flag == 1) 
-        set_loop_filter_functions_mbaff(p_Vid);
-    else
-        set_loop_filter_functions_normal(p_Vid);
-}
-
-void DeblockPicture(VideoParameters *p_Vid, StorablePicture *p)
+static void DeblockPicture(VideoParameters *p_Vid, StorablePicture *p)
 {
     int i;
     for (i = 0; i < p->PicSizeInMbs; ++i)
         DeblockMb(p_Vid, p, i);
 }
 
-void change_plane_JV(VideoParameters *p_Vid, int nplane, Slice *pSlice)
-{
-    p_Vid->mb_data     = p_Vid->mb_data_JV    [nplane];
-    p_Vid->dec_picture = p_Vid->dec_picture_JV[nplane];
-    p_Vid->siblock     = p_Vid->siblock_JV    [nplane];
-    p_Vid->ipredmode   = p_Vid->ipredmode_JV  [nplane];
-    p_Vid->intra_block = p_Vid->intra_block_JV[nplane];
-
-    if (pSlice) {
-        pSlice->mb_data     = p_Vid->mb_data_JV    [nplane];
-        pSlice->dec_picture = p_Vid->dec_picture_JV[nplane];
-        pSlice->siblock     = p_Vid->siblock_JV    [nplane];
-        pSlice->ipredmode   = p_Vid->ipredmode_JV  [nplane];
-        pSlice->intra_block = p_Vid->intra_block_JV[nplane];
-    }
-}
-
-void make_frame_picture_JV(VideoParameters *p_Vid)
+static void make_frame_picture_JV(VideoParameters *p_Vid)
 {
     int uv, line;
     int nsize;
@@ -311,5 +291,62 @@ void make_frame_picture_JV(VideoParameters *p_Vid)
             memcpy( p_Vid->dec_picture->imgUV[uv][line], p_Vid->dec_picture_JV[uv+1]->imgY[line], nsize );
         }
         free_storable_picture(p_Vid->dec_picture_JV[uv+1]);
+    }
+}
+
+void init_Deblock(VideoParameters *p_Vid, int mb_aff_frame_flag)
+{
+    if (p_Vid->yuv_format == YUV444 && p_Vid->separate_colour_plane_flag) {
+        change_plane_JV(p_Vid, PLANE_Y, NULL);
+        init_neighbors(p_Dec->p_Vid);
+        change_plane_JV(p_Vid, PLANE_U, NULL);
+        init_neighbors(p_Dec->p_Vid);
+        change_plane_JV(p_Vid, PLANE_V, NULL);
+        init_neighbors(p_Dec->p_Vid);
+        change_plane_JV(p_Vid, PLANE_Y, NULL);
+    } else 
+        init_neighbors(p_Dec->p_Vid);
+    if (mb_aff_frame_flag == 1) 
+        set_loop_filter_functions_mbaff(p_Vid);
+    else
+        set_loop_filter_functions_normal(p_Vid);
+}
+
+void change_plane_JV(VideoParameters *p_Vid, int nplane, Slice *pSlice)
+{
+    p_Vid->mb_data     = p_Vid->mb_data_JV    [nplane];
+    p_Vid->dec_picture = p_Vid->dec_picture_JV[nplane];
+    p_Vid->siblock     = p_Vid->siblock_JV    [nplane];
+    p_Vid->ipredmode   = p_Vid->ipredmode_JV  [nplane];
+    p_Vid->intra_block = p_Vid->intra_block_JV[nplane];
+
+    if (pSlice) {
+        pSlice->mb_data     = p_Vid->mb_data_JV    [nplane];
+        pSlice->dec_picture = p_Vid->dec_picture_JV[nplane];
+        pSlice->siblock     = p_Vid->siblock_JV    [nplane];
+        pSlice->ipredmode   = p_Vid->ipredmode_JV  [nplane];
+        pSlice->intra_block = p_Vid->intra_block_JV[nplane];
+    }
+}
+
+void pic_deblock(VideoParameters *p_Vid, StorablePicture *p)
+{
+    if (!p_Vid->iDeblockMode && (p_Vid->bDeblockEnable & (1<<p->used_for_reference))) {
+        //deblocking for frame or field
+        if (p_Vid->separate_colour_plane_flag != 0) {
+            int nplane;
+            int colour_plane_id = p_Vid->ppSliceList[0]->colour_plane_id;
+            for (nplane = 0; nplane<MAX_PLANE; ++nplane) {
+                p_Vid->ppSliceList[0]->colour_plane_id = nplane;
+                change_plane_JV(p_Vid, nplane, NULL);
+                DeblockPicture(p_Vid, p);
+            }
+            p_Vid->ppSliceList[0]->colour_plane_id = colour_plane_id;
+            make_frame_picture_JV(p_Vid);
+        } else
+            DeblockPicture(p_Vid, p);
+    } else {
+        if (p_Vid->separate_colour_plane_flag != 0)
+            make_frame_picture_JV(p_Vid);
     }
 }

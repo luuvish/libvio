@@ -85,17 +85,27 @@ typedef struct macroblock_dec {
     char                   ipmode_DPCM;
     char                   c_ipred_mode;       //!< chroma intra prediction mode
     char                   skip_flag;
+
+
     short                  DFDisableIdc;
     short                  DFAlphaC0Offset;
     short                  DFBetaOffset;
 
     Boolean                mb_field;
-    //Flag for MBAFF deblocking;
-    byte                   mixedModeEdgeFlag;
 
-    // deblocking strength indices
-    byte                   strength_ver[4][4];
-    byte                   strength_hor[4][16];
+    short                  filterOffsetA;
+    short                  filterOffsetB;
+
+    bool                   fieldMbInFrameFlag;
+    bool                   filterInternalEdgesFlag;
+    bool                   filterLeftMbEdgeFlag;
+    bool                   filterTopMbEdgeFlag;
+
+    bool                   mixedModeEdgeFlag;
+    byte                   strength_ver[4][4];  // bS
+    byte                   strength_hor[4][16]; // bS
+
+
 
     Boolean                luma_transform_size_8x8_flag;
     Boolean                NoMbPartLessThan8x8Flag;
