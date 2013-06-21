@@ -22,7 +22,7 @@
 
 
 
-static void get_available(int *avail_left, int *avail_up, int *avail_up_right, int *avail_up_left,
+static void get_available_normal(int *avail_left, int *avail_up, int *avail_up_right, int *avail_up_left,
                           PixelPos *pix_a, PixelPos *pix_b, PixelPos *pix_c, PixelPos *pix_d,
                           Macroblock *currMB, int ioff, int joff)
 {
@@ -55,7 +55,7 @@ static void get_available(int *avail_left, int *avail_up, int *avail_up_right, i
  *
  ***********************************************************************
  */
-static void intra16x16_dc_pred(Macroblock *currMB, ColorPlane pl)
+static void intra16x16_dc_pred_normal(Macroblock *currMB, ColorPlane pl)
 {
     Slice *currSlice = currMB->p_Slice;
     VideoParameters *p_Vid = currMB->p_Vid;
@@ -68,7 +68,7 @@ static void intra16x16_dc_pred(Macroblock *currMB, ColorPlane pl)
 
     PixelPos a, b, c, d;
     int left_avail, up_avail, left_up_avail, right_up_avail;
-    get_available(&left_avail, &up_avail, &right_up_avail, &left_up_avail,
+    get_available_normal(&left_avail, &up_avail, &right_up_avail, &left_up_avail,
                   &a, &b, &c, &d,
                   currMB, 0, 0);
 
@@ -116,7 +116,7 @@ static void intra16x16_dc_pred(Macroblock *currMB, ColorPlane pl)
  *
  ***********************************************************************
  */
-static void intra16x16_vert_pred(Macroblock *currMB, ColorPlane pl)
+static void intra16x16_vert_pred_normal(Macroblock *currMB, ColorPlane pl)
 {
     Slice *currSlice = currMB->p_Slice;
   
@@ -126,7 +126,7 @@ static void intra16x16_vert_pred(Macroblock *currMB, ColorPlane pl)
 
     PixelPos a, b, c, d;
     int left_avail, up_avail, left_up_avail, right_up_avail;
-    get_available(&left_avail, &up_avail, &right_up_avail, &left_up_avail,
+    get_available_normal(&left_avail, &up_avail, &right_up_avail, &left_up_avail,
                   &a, &b, &c, &d,
                   currMB, 0, 0);
 
@@ -157,7 +157,7 @@ static void intra16x16_vert_pred(Macroblock *currMB, ColorPlane pl)
  *
  ***********************************************************************
  */
-static void intra16x16_hor_pred(Macroblock *currMB, ColorPlane pl)
+static void intra16x16_hor_pred_normal(Macroblock *currMB, ColorPlane pl)
 {
     Slice *currSlice = currMB->p_Slice;
     int j;
@@ -169,7 +169,7 @@ static void intra16x16_hor_pred(Macroblock *currMB, ColorPlane pl)
 
     PixelPos a, b, c, d;
     int left_avail, up_avail, left_up_avail, right_up_avail;
-    get_available(&left_avail, &up_avail, &right_up_avail, &left_up_avail,
+    get_available_normal(&left_avail, &up_avail, &right_up_avail, &left_up_avail,
                   &a, &b, &c, &d,
                   currMB, 0, 0);
 
@@ -206,7 +206,7 @@ static void intra16x16_hor_pred(Macroblock *currMB, ColorPlane pl)
  *
  ***********************************************************************
  */
-static void intra16x16_plane_pred(Macroblock *currMB, ColorPlane pl)
+static void intra16x16_plane_pred_normal(Macroblock *currMB, ColorPlane pl)
 {
     Slice *currSlice = currMB->p_Slice;
     VideoParameters *p_Vid = currMB->p_Vid;
@@ -224,7 +224,7 @@ static void intra16x16_plane_pred(Macroblock *currMB, ColorPlane pl)
 
     PixelPos a, b, c, d;
     int left_avail, up_avail, left_up_avail, right_up_avail;
-    get_available(&left_avail, &up_avail, &right_up_avail, &left_up_avail,
+    get_available_normal(&left_avail, &up_avail, &right_up_avail, &left_up_avail,
                   &a, &b, &c, &d,
                   currMB, 0, 0);
 
@@ -276,16 +276,16 @@ int intra_pred_16x16_normal(Macroblock *currMB,  //!< Current Macroblock
 {
     switch (predmode) {
     case VERT_PRED_16:                       // vertical prediction from block above
-        intra16x16_vert_pred(currMB, pl);
+        intra16x16_vert_pred_normal(currMB, pl);
         break;
     case HOR_PRED_16:                        // horizontal prediction from left block
-        intra16x16_hor_pred(currMB, pl);
+        intra16x16_hor_pred_normal(currMB, pl);
         break;
     case DC_PRED_16:                         // DC prediction
-        intra16x16_dc_pred(currMB, pl);
+        intra16x16_dc_pred_normal(currMB, pl);
         break;
     case PLANE_16: // 16 bit integer plan pred
-        intra16x16_plane_pred(currMB, pl);
+        intra16x16_plane_pred_normal(currMB, pl);
         break;
     default:
         printf("illegal 16x16 intra prediction mode input: %d\n",predmode);

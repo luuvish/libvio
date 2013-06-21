@@ -41,7 +41,6 @@ extern "C" {
 #define ENABLE_HIGH444_CTX        1    //!< Enables High 444 profile context types for CABAC. 
 #define ENABLE_OUTPUT_TONEMAPPING 1    //!< enable tone map the output if tone mapping SEI present
 #define DISABLE_ERC               0    //!< Disable any error concealment processes
-#define JM_PARALLEL_DEBLOCK       0    //!< Enables Parallel Deblocking
 #define SIMULCAST_ENABLE          0    //!< to test the decoder
 
 #define MVC_EXTENSION_ENABLE      1    //!< enable support for the Multiview High Profile

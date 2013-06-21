@@ -151,26 +151,6 @@ static unsigned int unary_exp_golomb_mv_decode(DecodingEnvironmentPtr dep_dp,
 }
 
 
-void CheckAvailabilityOfNeighborsCABAC(Macroblock *currMB)
-{
-  VideoParameters *p_Vid = currMB->p_Vid;
-  PixelPos up, left;
-  int *mb_size = p_Vid->mb_size[IS_LUMA];
-
-  p_Vid->getNeighbour(currMB, -1,  0, mb_size, &left);
-  p_Vid->getNeighbour(currMB,  0, -1, mb_size, &up);
-
-  if (up.available)
-    currMB->mb_up = &currMB->p_Slice->mb_data[up.mb_addr]; //&p_Vid->mb_data[up.mb_addr];
-  else
-    currMB->mb_up = NULL;
-
-  if (left.available)
-    currMB->mb_left = &currMB->p_Slice->mb_data[left.mb_addr]; //&p_Vid->mb_data[left.mb_addr];
-  else
-    currMB->mb_left = NULL;
-}
-
 void cabac_new_slice(Slice *currSlice)
 {
   currSlice->last_dquant = 0;

@@ -62,11 +62,6 @@ struct macroblock_dec;
  ***********************************************************************
  */
 typedef enum {
-    DEC_OPENED = 0,
-    DEC_STOPPED
-} DecoderStatus_e;
-
-typedef enum {
     LumaComp = 0,
     CrComp = 1,
     CbComp = 2
@@ -246,9 +241,7 @@ typedef struct video_par {
   struct slice_t **ppSliceList;
   char  *intra_block;
   char  *intra_block_JV[MAX_PLANE];
-  //int qp;                                     //!< quant for the current frame
 
-  //int sp_switch;                              //!< 1 for switching sp, 0 for normal sp  
   int type;                                   //!< image type INTER/INTRA
 
   byte **ipredmode;                  //!< prediction type [90][74]
@@ -261,11 +254,9 @@ typedef struct video_par {
   int newframe;
   int structure;                     //!< Identify picture structure type
 
-  //Slice      *currentSlice;          //!< pointer to current Slice data struct
   struct slice_t      *pNextSlice;             //!< pointer to first Slice of next picture;
   struct macroblock_dec *mb_data;               //!< array containing all MBs of a whole frame
   struct macroblock_dec *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
-  //int colour_plane_id;               //!< colour_plane_id of the current coded slice
   int ChromaArrayType;
 
   // picture error concealment

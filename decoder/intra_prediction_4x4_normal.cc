@@ -47,7 +47,7 @@
 #define P_L (PredPel[12])
 
 
-static void get_available(int *avail_left, int *avail_up, int *avail_up_right, int *avail_up_left,
+static void get_available_normal(int *avail_left, int *avail_up, int *avail_up_right, int *avail_up_left,
                           PixelPos *pix_a, PixelPos *pix_b, PixelPos *pix_c, PixelPos *pix_d,
                           Macroblock *currMB, int ioff, int joff)
 {
@@ -93,7 +93,7 @@ static void get_available(int *avail_left, int *avail_up, int *avail_up_right, i
  *
  ***********************************************************************
  */
-static void intra4x4_dc_pred(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+static void intra4x4_dc_pred_normal(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
     Slice *currSlice = currMB->p_Slice;
     VideoParameters *p_Vid = currMB->p_Vid;
@@ -109,7 +109,7 @@ static void intra4x4_dc_pred(Macroblock *currMB, ColorPlane pl, int ioff, int jo
     int block_available_up;
     int block_available_up_right;
     int block_available_up_left;
-    get_available(&block_available_left, &block_available_up,
+    get_available_normal(&block_available_left, &block_available_up,
                   &block_available_up_right, &block_available_up_left,
                   &pix_a, &pix_b, &pix_c, &pix_d,
                   currMB, ioff, joff);
@@ -159,7 +159,7 @@ static void intra4x4_dc_pred(Macroblock *currMB, ColorPlane pl, int ioff, int jo
  *
  ***********************************************************************
  */
-static void intra4x4_vert_pred(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+static void intra4x4_vert_pred_normal(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
     Slice *currSlice = currMB->p_Slice;
 
@@ -168,7 +168,7 @@ static void intra4x4_vert_pred(Macroblock *currMB, ColorPlane pl, int ioff, int 
     int block_available_up;
     int block_available_up_left;
     int block_available_up_right;
-    get_available(&block_available_left, &block_available_up,
+    get_available_normal(&block_available_left, &block_available_up,
                   &block_available_up_right, &block_available_up_left,
                   &pix_a, &pix_b, &pix_c, &pix_d,
                   currMB, ioff, joff);
@@ -185,6 +185,7 @@ static void intra4x4_vert_pred(Macroblock *currMB, ColorPlane pl, int ioff, int 
     memcpy(&(mb_pred[joff++][ioff]), imgY, BLOCK_SIZE * sizeof(imgpel));
     memcpy(&(mb_pred[joff++][ioff]), imgY, BLOCK_SIZE * sizeof(imgpel));
     memcpy(&(mb_pred[joff  ][ioff]), imgY, BLOCK_SIZE * sizeof(imgpel));
+
 /*
     imgpel **pred4x4_l = &currSlice->mb_pred[pl][joff][ioff];
     imgpel ***img = (pl) ? &currSlice->dec_picture->imgUV[pl - 1] : &currSlice->dec_picture->imgY;
@@ -217,7 +218,7 @@ static void intra4x4_vert_pred(Macroblock *currMB, ColorPlane pl, int ioff, int 
  *
  ***********************************************************************
  */
-static void intra4x4_hor_pred(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+static void intra4x4_hor_pred_normal(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
     Slice *currSlice = currMB->p_Slice;
 
@@ -226,7 +227,7 @@ static void intra4x4_hor_pred(Macroblock *currMB, ColorPlane pl, int ioff, int j
     int block_available_up;
     int block_available_up_left;
     int block_available_up_right;
-    get_available(&block_available_left, &block_available_up,
+    get_available_normal(&block_available_left, &block_available_up,
                   &block_available_up_right, &block_available_up_left,
                   &pix_a, &pix_b, &pix_c, &pix_d,
                   currMB, ioff, joff);
@@ -264,7 +265,7 @@ static void intra4x4_hor_pred(Macroblock *currMB, ColorPlane pl, int ioff, int j
  *
  ***********************************************************************
  */
-static void intra4x4_diag_down_right_pred(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+static void intra4x4_diag_down_right_pred_normal(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
     Slice *currSlice = currMB->p_Slice;
 
@@ -276,7 +277,7 @@ static void intra4x4_diag_down_right_pred(Macroblock *currMB, ColorPlane pl, int
     int block_available_up;
     int block_available_up_left;
     int block_available_up_right;
-    get_available(&block_available_left, &block_available_up,
+    get_available_normal(&block_available_left, &block_available_up,
                   &block_available_up_right, &block_available_up_left,
                   &pix_a, &pix_b, &pix_c, &pix_d,
                   currMB, ioff, joff);
@@ -326,7 +327,7 @@ static void intra4x4_diag_down_right_pred(Macroblock *currMB, ColorPlane pl, int
  *
  ***********************************************************************
  */
-static void intra4x4_diag_down_left_pred(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+static void intra4x4_diag_down_left_pred_normal(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
     Slice *currSlice = currMB->p_Slice;
 
@@ -335,7 +336,7 @@ static void intra4x4_diag_down_left_pred(Macroblock *currMB, ColorPlane pl, int 
     int block_available_up;
     int block_available_up_left;
     int block_available_up_right;
-    get_available(&block_available_left, &block_available_up,
+    get_available_normal(&block_available_left, &block_available_up,
                   &block_available_up_right, &block_available_up_left,
                   &pix_a, &pix_b, &pix_c, &pix_d,
                   currMB, ioff, joff);
@@ -385,7 +386,7 @@ static void intra4x4_diag_down_left_pred(Macroblock *currMB, ColorPlane pl, int 
  *
  ***********************************************************************
  */
-static void intra4x4_vert_right_pred(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+static void intra4x4_vert_right_pred_normal(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
     Slice *currSlice = currMB->p_Slice;
 
@@ -394,7 +395,7 @@ static void intra4x4_vert_right_pred(Macroblock *currMB, ColorPlane pl, int ioff
     int block_available_up;
     int block_available_up_left;
     int block_available_up_right;
-    get_available(&block_available_left, &block_available_up,
+    get_available_normal(&block_available_left, &block_available_up,
                   &block_available_up_right, &block_available_up_left,
                   &pix_a, &pix_b, &pix_c, &pix_d,
                   currMB, ioff, joff);
@@ -450,7 +451,7 @@ static void intra4x4_vert_right_pred(Macroblock *currMB, ColorPlane pl, int ioff
  *
  ***********************************************************************
  */
-static void intra4x4_vert_left_pred(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+static void intra4x4_vert_left_pred_normal(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
     Slice *currSlice = currMB->p_Slice;
 
@@ -459,7 +460,7 @@ static void intra4x4_vert_left_pred(Macroblock *currMB, ColorPlane pl, int ioff,
     int block_available_up;
     int block_available_up_left;
     int block_available_up_right;
-    get_available(&block_available_left, &block_available_up,
+    get_available_normal(&block_available_left, &block_available_up,
                   &block_available_up_right, &block_available_up_left,
                   &pix_a, &pix_b, &pix_c, &pix_d,
                   currMB, ioff, joff);
@@ -512,7 +513,7 @@ static void intra4x4_vert_left_pred(Macroblock *currMB, ColorPlane pl, int ioff,
  *
  ***********************************************************************
  */
-static void intra4x4_hor_up_pred(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+static void intra4x4_hor_up_pred_normal(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
     Slice *currSlice = currMB->p_Slice;
 
@@ -521,7 +522,7 @@ static void intra4x4_hor_up_pred(Macroblock *currMB, ColorPlane pl, int ioff, in
     int block_available_up;
     int block_available_up_left;
     int block_available_up_right;
-    get_available(&block_available_left, &block_available_up,
+    get_available_normal(&block_available_left, &block_available_up,
                   &block_available_up_right, &block_available_up_left,
                   &pix_a, &pix_b, &pix_c, &pix_d,
                   currMB, ioff, joff);
@@ -572,7 +573,7 @@ static void intra4x4_hor_up_pred(Macroblock *currMB, ColorPlane pl, int ioff, in
  *
  ***********************************************************************
  */
-static void intra4x4_hor_down_pred(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+static void intra4x4_hor_down_pred_normal(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
     Slice *currSlice = currMB->p_Slice;
 
@@ -581,7 +582,7 @@ static void intra4x4_hor_down_pred(Macroblock *currMB, ColorPlane pl, int ioff, 
     int block_available_up;
     int block_available_up_left;
     int block_available_up_right;
-    get_available(&block_available_left, &block_available_up,
+    get_available_normal(&block_available_left, &block_available_up,
                   &block_available_up_right, &block_available_up_left,
                   &pix_a, &pix_b, &pix_c, &pix_d,
                   currMB, ioff, joff);
@@ -652,31 +653,31 @@ int intra_pred_4x4_normal(Macroblock *currMB,    //!< current macroblock
 
     switch (predmode) {
     case DC_PRED:
-        intra4x4_dc_pred(currMB, pl, ioff, joff);
+        intra4x4_dc_pred_normal(currMB, pl, ioff, joff);
         break;
     case VERT_PRED:
-        intra4x4_vert_pred(currMB, pl, ioff, joff);
+        intra4x4_vert_pred_normal(currMB, pl, ioff, joff);
         break;
     case HOR_PRED:
-        intra4x4_hor_pred(currMB, pl, ioff, joff);
+        intra4x4_hor_pred_normal(currMB, pl, ioff, joff);
         break;
     case DIAG_DOWN_RIGHT_PRED:
-        intra4x4_diag_down_right_pred(currMB, pl, ioff, joff);
+        intra4x4_diag_down_right_pred_normal(currMB, pl, ioff, joff);
         break;
     case DIAG_DOWN_LEFT_PRED:
-        intra4x4_diag_down_left_pred(currMB, pl, ioff, joff);
+        intra4x4_diag_down_left_pred_normal(currMB, pl, ioff, joff);
         break;
     case VERT_RIGHT_PRED:
-        intra4x4_vert_right_pred(currMB, pl, ioff, joff);
+        intra4x4_vert_right_pred_normal(currMB, pl, ioff, joff);
         break;
     case VERT_LEFT_PRED:
-        intra4x4_vert_left_pred(currMB, pl, ioff, joff);
+        intra4x4_vert_left_pred_normal(currMB, pl, ioff, joff);
         break;
     case HOR_UP_PRED:
-        intra4x4_hor_up_pred(currMB, pl, ioff, joff);
+        intra4x4_hor_up_pred_normal(currMB, pl, ioff, joff);
         break;
     case HOR_DOWN_PRED:  
-        intra4x4_hor_down_pred(currMB, pl, ioff, joff);
+        intra4x4_hor_down_pred_normal(currMB, pl, ioff, joff);
         break;
     default:
         printf("Error: illegal intra_4x4 prediction mode: %d\n", (int) predmode);

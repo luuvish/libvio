@@ -851,7 +851,6 @@ int init_global_buffers(VideoParameters *p_Vid, int layer_id)
   }
 
 
-  //memory_size += get_mem2Dint(&PicPos,p_Vid->FrameSizeInMbs + 1,2);  //! Helper array to access macroblock positions. We add 1 to also consider last MB.
   if(((cps->PicPos) = (BlockPos*) calloc(cps->FrameSizeInMbs + 1, sizeof(BlockPos))) == NULL)
     no_mem_exit("init_global_buffers: PicPos");
 
