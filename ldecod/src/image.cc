@@ -46,7 +46,7 @@
 #include "mb.h"
 
 #include "intra_prediction.h"
-#include "loop_filter.h"
+#include "deblock.h"
 
 #include "biaridecod.h"
 #include "context_ini.h"

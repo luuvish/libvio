@@ -17,7 +17,7 @@
 #include "memalloc.h"
 #include "macroblock.h"
 
-#include "loop_filter.h"
+#include "deblock.h"
 
 #include "biaridecod.h"
 #include "context_ini.h"

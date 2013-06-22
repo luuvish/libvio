@@ -25,55 +25,269 @@
 #include "macroblock.h"
 #include "image.h"
 #include "neighbour.h"
-#include "loop_filter.h"
-#include "loop_filter_common.h"
+#include "deblock.h"
+#include "deblock_common.h"
 
-static void edge_loop_luma_ver_MBAff   (ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p);
-static void edge_loop_luma_hor_MBAff   (ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p);
-static void edge_loop_chroma_ver_MBAff (imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, StorablePicture *p);
-static void edge_loop_chroma_hor_MBAff (imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, StorablePicture *p);
 
-void set_loop_filter_functions_mbaff(VideoParameters *p_Vid)
+#define get_x_luma(x) (x & 15)
+#define get_y_luma(y) (y & 15)
+#define get_pos_x_luma(mb,x) (mb->pix_x + (x & 15))
+#define get_pos_y_luma(mb,y) (mb->pix_y + (y & 15))
+#define get_pos_x_chroma(mb,x,max) (mb->pix_c_x + (x & max))
+#define get_pos_y_chroma(mb,y,max) (mb->pix_c_y + (y & max))
+
+
+static inline int compare_mvs(const MotionVector *mv0, const MotionVector *mv1, int mvlimit)
 {
-  p_Vid->EdgeLoopLumaVer   = edge_loop_luma_ver_MBAff;
-  p_Vid->EdgeLoopLumaHor   = edge_loop_luma_hor_MBAff;
-  p_Vid->EdgeLoopChromaVer = edge_loop_chroma_ver_MBAff;
-  p_Vid->EdgeLoopChromaHor = edge_loop_chroma_hor_MBAff;
+    return ((iabs( mv0->mv_x - mv1->mv_x) >= 4) | (iabs( mv0->mv_y - mv1->mv_y) >= mvlimit));
 }
 
 
-Macroblock* get_non_aff_neighbor_luma(Macroblock *mb, int xN, int yN)
+static Macroblock* get_non_aff_neighbor_luma(Macroblock *mb, int xN, int yN)
 {
-  if (xN < 0)
-    return(mb->mbleft);
-  else if (yN < 0)
-    return(mb->mbup);
-  else
-    return(mb);
-}
-
-Macroblock* get_non_aff_neighbor_chroma(Macroblock *mb, int xN, int yN, int block_width,int block_height)
-{
-  if (xN < 0) 
-  {
-    if (yN < block_height)
-      return(mb->mbleft);
+    if (xN < 0)
+        return mb->mbleft;
+    else if (yN < 0)
+        return mb->mbup;
     else
-      return(NULL);
-  }
-  else if (xN < block_width) 
-  {
-    if (yN < 0)
-      return(mb->mbup);
-    else if (yN < block_height)
-      return(mb);
-    else
-      return(NULL);
-  }
-  else
-    return(NULL);
+        return mb;
 }
 
+
+  /*!
+ *********************************************************************************************
+ * \brief
+ *    returns a buffer of 16 Strength values for one stripe in a mb (for different Frame or Field types)
+ *********************************************************************************************
+ */
+void get_strength_ver(Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p)
+{
+    byte *Strength = MbQ->strength_ver[edge];
+    Slice *currSlice = MbQ->p_Slice;
+    int     StrValue;
+    BlockPos *PicPos = MbQ->p_Vid->PicPos;
+
+    int xQ = (edge << 2) - 1;
+    Macroblock *neighbor = get_non_aff_neighbor_luma(MbQ, xQ, 0);
+    Macroblock *MbP = (edge) ? MbQ : neighbor;
+
+/*
+    mixedModeEdgeFlag = MbaffFrameFlag == 1 && p->field != q->field
+
+    if (!p->field && !q->field && (p->intra || q->intra))
+        bS = 4;
+    if (!p->field && !q->field && (p->slice_type == SP || q->slice_type == SI))
+        bS = 4;
+    if ((MbaffFrameFlag == 1 || field_pic_flag == 1) && verticalEdgeFlag == 1 && (p->intra || q->intra))
+        bS = 4;
+    if ((MbaffFrameFlag == 1 || field_pic_flag == 1) && verticalEdgeFlag == 1 && (p->slice_type == SP || q->slice_type == SI))
+        bS = 4;
+
+    if (mixedModeEdgeFlag == 0 && (p->intra || q->intra))
+        bS = 3;
+    if (mixedModeEdgeFlag == 0 && (p->slice_type == SP || q->slice_type == SI))
+        bS = 3;
+    if (mixedModeEdgeFlag == 1 && verticalEdgeFlag == 0 && (p->intra || q->intra))
+        bS = 3;
+    if (mixedModeEdgeFlag == 1 && verticalEdgeFlag == 0 && (p->slice_type == SP || q->slice_type == SI))
+        bS = 3;
+
+    if (p->transform_size_8x8_flag == 1 && p->cbp[0..3] != 0)
+        bS = 2;
+    if (p->transform_size_8x8_flag == 0 && p->cbp[0..15] != 0)
+        bS = 2;
+    if (q->transform_size_8x8_flag == 1 && q->cbp[0..3] != 0)
+        bS = 2;
+    if (q->transform_size_8x8_flag == 0 && q->cbp[0..15] != 0)
+        bS = 2;
+
+    if (mixedModeEdgeFlag == 1)
+        bS = 1;
+    if (mixedModeEdgeFlag == 0 && p->ref_pic_list != q->ref_pic_list)
+        bS = 1;
+    if (mixedModeEdgeFlag == 0 && Abs(p->mv[0] - q->mv[0]) >= 4)
+        bS = 1;
+    if (mixedModeEdgeFlag == 0 && Abs(p->mv[0] - q->mv[0]) >= 4 && Abs(p->mv[1] - q->mv[1]) >= 4)
+        bS = 1;
+    if (mixedModeEdgeFlag == 0 && Abs(p->mv[0] - q->mv[1]) >= 4 && Abs(p->mv[1] - q->mv[0]) >= 4)
+        bS = 1;
+
+    bS = 0;
+*/
+    if (currSlice->slice_type == SP_SLICE || currSlice->slice_type == SI_SLICE ||
+        MbQ->is_intra_block || (MbP->is_intra_block && edge == 0)) {
+        // Set strength to either 3 or 4 regardless of pixel position
+        StrValue = (edge == 0) ? 4 : 3;
+        memset(Strength, (byte) StrValue, BLOCK_SIZE * sizeof(byte));
+        return;
+    }
+
+    if (edge && currSlice->slice_type == P_SLICE && MbQ->mb_type == PSKIP) {
+        memset(Strength, 0, BLOCK_SIZE * sizeof(byte));
+        return;
+    }
+
+    if (edge && (MbQ->mb_type == P16x16 || MbQ->mb_type == P16x8)) {
+        int blkP, blkQ, idx;
+        for (idx = 0; idx < MB_BLOCK_SIZE; idx += BLOCK_SIZE) {
+            blkQ = idx + (edge);
+            blkP = idx + (get_x_luma(xQ) >> 2);
+            if ((MbQ->s_cbp[0].blk & (i64_power2(blkQ) | i64_power2(blkP))) != 0)
+                StrValue = 2;
+            else
+                StrValue = 0; // if internal edge of certain types, then we already know StrValue should be 0
+            Strength[idx >> 2] = StrValue;
+        }
+        return;
+    }
+
+    int      blkP, blkQ, idx;
+    BlockPos mb = PicPos[ MbQ->mbAddrX ];
+    mb.x <<= BLOCK_SHIFT;
+    mb.y <<= BLOCK_SHIFT;
+
+    for (idx = 0; idx < MB_BLOCK_SIZE; idx += BLOCK_SIZE) {
+        blkQ = idx  + (edge);
+        blkP = idx  + (get_x_luma(xQ) >> 2);
+        if ((MbQ->s_cbp[0].blk & i64_power2(blkQ)) != 0 ||
+            (MbP->s_cbp[0].blk & i64_power2(blkP)) != 0)
+            StrValue = 2;
+        else { // for everything else, if no coefs, but vector difference >= 1 set Strength=1
+            int blk_y  = mb.y + (blkQ >> 2);
+            int blk_x  = mb.x + (blkQ  & 3);
+            int blk_y2 = (short)(get_pos_y_luma(neighbor,  0) + idx) >> 2;
+            int blk_x2 = (short)(get_pos_x_luma(neighbor, xQ)      ) >> 2;
+            PicMotionParams *mv_info_p = &p->mv_info[blk_y ][blk_x ];            
+            PicMotionParams *mv_info_q = &p->mv_info[blk_y2][blk_x2];            
+            StorablePicturePtr ref_p0 = mv_info_p->ref_pic[LIST_0];
+            StorablePicturePtr ref_q0 = mv_info_q->ref_pic[LIST_0];            
+            StorablePicturePtr ref_p1 = mv_info_p->ref_pic[LIST_1];
+            StorablePicturePtr ref_q1 = mv_info_q->ref_pic[LIST_1];
+
+            if ( ((ref_p0==ref_q0) && (ref_p1==ref_q1)) || ((ref_p0==ref_q1) && (ref_p1==ref_q0))) {
+                // L0 and L1 reference pictures of p0 are different; q0 as well
+                if (ref_p0 != ref_p1) {
+                    // compare MV for the same reference picture
+                    if (ref_p0 == ref_q0) {
+                        StrValue = 
+                            compare_mvs(&mv_info_p->mv[LIST_0], &mv_info_q->mv[LIST_0], mvlimit) |
+                            compare_mvs(&mv_info_p->mv[LIST_1], &mv_info_q->mv[LIST_1], mvlimit);
+                    } else {
+                        StrValue = 
+                            compare_mvs(&mv_info_p->mv[LIST_0], &mv_info_q->mv[LIST_1], mvlimit) |
+                            compare_mvs(&mv_info_p->mv[LIST_1], &mv_info_q->mv[LIST_0], mvlimit);
+                    }
+                } else { // L0 and L1 reference pictures of p0 are the same; q0 as well
+                        StrValue = ((
+                            compare_mvs(&mv_info_p->mv[LIST_0], &mv_info_q->mv[LIST_0], mvlimit) |
+                            compare_mvs(&mv_info_p->mv[LIST_1], &mv_info_q->mv[LIST_1], mvlimit))
+                            && (
+                            compare_mvs(&mv_info_p->mv[LIST_0], &mv_info_q->mv[LIST_1], mvlimit) |
+                            compare_mvs(&mv_info_p->mv[LIST_1], &mv_info_q->mv[LIST_0], mvlimit)
+                        ));
+                }
+            } else
+                StrValue = 1;
+        }
+        Strength[idx >> 2] = StrValue;
+    }
+}
+
+  /*!
+ *********************************************************************************************
+ * \brief
+ *    returns a buffer of 16 Strength values for one stripe in a mb (for different Frame or Field types)
+ *********************************************************************************************
+ */
+void get_strength_hor(Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p)
+{  
+    byte  *Strength = MbQ->strength_hor[edge];
+    int    StrValue;
+    Slice *currSlice = MbQ->p_Slice;
+    BlockPos *PicPos = MbQ->p_Vid->PicPos;
+
+    int yQ = (edge < BLOCK_SIZE ? (edge << 2) - 1: 0);
+    Macroblock *neighbor = get_non_aff_neighbor_luma(MbQ, 0, yQ);
+    Macroblock *MbP = (edge) ? MbQ : neighbor;
+
+    if (currSlice->slice_type == SP_SLICE || currSlice->slice_type == SI_SLICE ||
+        MbQ->is_intra_block || (MbP->is_intra_block && edge == 0)) {
+        // Set strength to either 3 or 4 regardless of pixel position
+        StrValue = (edge == 0 && p->structure == FRAME) ? 4 : 3;
+        memset(Strength, (byte) StrValue, BLOCK_SIZE * sizeof(byte));
+        return;
+    }
+
+    if (edge && currSlice->slice_type == P_SLICE && MbQ->mb_type == PSKIP) {
+        memset(Strength, 0, BLOCK_SIZE * sizeof(byte));
+        return;
+    }
+
+    if (edge && (MbQ->mb_type == P16x16 || MbQ->mb_type == P8x16)) {
+        int blkP, blkQ, idx;
+        for (idx = 0; idx < BLOCK_SIZE; idx++) {
+            blkQ = (yQ + 1) + idx;
+            blkP = (get_y_luma(yQ) & 0xFFFC) + idx;
+            if ((MbQ->s_cbp[0].blk & (i64_power2(blkQ) | i64_power2(blkP))) != 0)
+                StrValue = 2;
+            else
+                StrValue = 0; // if internal edge of certain types, we already know StrValue should be 0
+            *(int*)(Strength + idx) = StrValue;
+        }
+        return;
+    }
+
+    int      blkP, blkQ, idx;
+    BlockPos mb = PicPos[ MbQ->mbAddrX ];
+    mb.x <<= 2;
+    mb.y <<= 2;
+
+    for (idx = 0; idx < BLOCK_SIZE; idx++) {
+        blkQ = (yQ + 1) + idx;
+        blkP = (get_y_luma(yQ) & 0xFFFC) + idx;
+
+        if (((MbQ->s_cbp[0].blk & i64_power2(blkQ)) != 0) || ((MbP->s_cbp[0].blk & i64_power2(blkP)) != 0))
+            StrValue = 2;
+        else { // for everything else, if no coefs, but vector difference >= 1 set Strength=1
+            int blk_y  = mb.y + (blkQ >> 2);
+            int blk_x  = mb.x + (blkQ  & 3);
+            int blk_y2 = get_pos_y_luma(neighbor,yQ) >> 2;
+            int blk_x2 = ((short)(get_pos_x_luma(neighbor,0)) >> 2) + idx;
+            PicMotionParams *mv_info_p = &p->mv_info[blk_y ][blk_x ];
+            PicMotionParams *mv_info_q = &p->mv_info[blk_y2][blk_x2];
+            StorablePicturePtr ref_p0 = mv_info_p->ref_pic[LIST_0];
+            StorablePicturePtr ref_q0 = mv_info_q->ref_pic[LIST_0];
+            StorablePicturePtr ref_p1 = mv_info_p->ref_pic[LIST_1];
+            StorablePicturePtr ref_q1 = mv_info_q->ref_pic[LIST_1];            
+
+            if ( ((ref_p0==ref_q0) && (ref_p1==ref_q1)) || ((ref_p0==ref_q1) && (ref_p1==ref_q0))) {
+                // L0 and L1 reference pictures of p0 are different; q0 as well
+                if (ref_p0 != ref_p1) {
+                    // compare MV for the same reference picture
+                    if (ref_p0 == ref_q0) {
+                        StrValue = 
+                            compare_mvs(&mv_info_p->mv[LIST_0], &mv_info_q->mv[LIST_0], mvlimit) |
+                            compare_mvs(&mv_info_p->mv[LIST_1], &mv_info_q->mv[LIST_1], mvlimit);
+                    } else {
+                        StrValue =
+                            compare_mvs(&mv_info_p->mv[LIST_0], &mv_info_q->mv[LIST_1], mvlimit) |
+                            compare_mvs(&mv_info_p->mv[LIST_1], &mv_info_q->mv[LIST_0], mvlimit);
+                    }
+                } else { // L0 and L1 reference pictures of p0 are the same; q0 as well
+                    StrValue = ((
+                        compare_mvs(&mv_info_p->mv[LIST_0], &mv_info_q->mv[LIST_0], mvlimit) |
+                        compare_mvs(&mv_info_p->mv[LIST_1], &mv_info_q->mv[LIST_1], mvlimit))
+                        && (
+                        compare_mvs(&mv_info_p->mv[LIST_0], &mv_info_q->mv[LIST_1], mvlimit) |
+                        compare_mvs(&mv_info_p->mv[LIST_1], &mv_info_q->mv[LIST_0], mvlimit)
+                    ));
+                }
+            } else
+                StrValue = 1;
+        }
+        *(int*)(Strength + idx) = StrValue;
+    }
+}
 
 /*!
  *********************************************************************************************
@@ -345,108 +559,3 @@ void get_strength_hor_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
     }
 }
 
-
-static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaStyleFilteringFlag,
-                       Macroblock *MbP, Macroblock *MbQ, byte *Strength,
-                       ColorPlane pl, imgpel **Img, int edge, StorablePicture *p)
-{
-    VideoParameters *p_Vid = MbQ->p_Vid;
-
-    int width = chromaEdgeFlag == 0 ? p->iLumaStride : p->iChromaStride;
-    int PelNum = pl ? pelnum_cr[verticalEdgeFlag ? 0 : 1][p->chroma_format_idc] : MB_BLOCK_SIZE;
-    int bitdepth_scale = pl ? p_Vid->bitdepth_scale[IS_CHROMA]
-                            : p_Vid->bitdepth_scale[IS_LUMA];
-    int *mb_size = p_Vid->mb_size[chromaEdgeFlag == 0 ? IS_LUMA : IS_CHROMA];
-    PixelPos pixP, pixQ;
-
-    int yQ = (edge < MB_BLOCK_SIZE ? edge : 1);
-
-    if (MbQ->DFDisableIdc == 0) {
-        for (int pel = 0; pel < PelNum; ++pel) {
-            if (verticalEdgeFlag) {
-                getAffNeighbour(MbQ, edge - 1, pel, mb_size, &pixP);     
-                getAffNeighbour(MbQ, edge    , pel, mb_size, &pixQ);
-            } else {
-                getAffNeighbour(MbQ, pel, yQ - 1, mb_size, &pixP);     
-                getAffNeighbour(MbQ, pel, yQ    , mb_size, &pixQ);
-            }
-
-            Macroblock *MbP = &(p_Vid->mb_data[pixP.mb_addr]);
-            int StrengthIdx = (PelNum == 8) ? ((MbQ->mb_field && !MbP->mb_field) ? pel << 1 : ((pel >> 1) << 2) + (pel & 0x01)) : pel;
-            int bS = Strength[StrengthIdx];
-
-            if (pixP.available && bS != 0) {
-                imgpel *SrcPtrP = &(Img[pixP.pos_y][pixP.pos_x]);
-                imgpel *SrcPtrQ = &(Img[pixQ.pos_y][pixQ.pos_x]);
-                int incP, incQ;
-
-                if (verticalEdgeFlag) {
-                    incQ = 1;
-                    incP = 1;
-                } else {
-                    incQ = ((MbP->mb_field && !MbQ->mb_field) ? 2 * width : width);
-                    incP = ((MbQ->mb_field && !MbP->mb_field) ? 2 * width : width);
-                }
-
-                // Average QP of the two blocks
-                int QP = pl? ((MbP->qpc[pl-1] + MbQ->qpc[pl-1] + 1) >> 1)
-                            : (MbP->qp + MbQ->qp + 1) >> 1;
-                int indexA = iClip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
-                int indexB = iClip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
-                int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
-                int Beta   = BETA_TABLE [indexB] * bitdepth_scale;
-
-                if (bS == 4)
-                    deblock_strong(SrcPtrP, SrcPtrQ, incP, incQ, Alpha, Beta, bS, chromaEdgeFlag);
-                else if (bS > 0)
-                    deblock_normal(SrcPtrP, SrcPtrQ, incP, incQ, Alpha, Beta, bS, chromaEdgeFlag, pl, p_Vid->bitdepth_luma, p_Vid->bitdepth_chroma, indexA);
-            }
-        }
-    }
-}
-
-/*!
- *****************************************************************************************
- * \brief
- *    Filters 16 pel block edge of Super MB Frame coded MBs
- *****************************************************************************************
- */
-static void edge_loop_luma_ver_MBAff(ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p)
-{
-    deblock_mb_mbaff(1, 0, 0, MbQ, MbQ, Strength, pl, Img, edge, p);
-}
-
-/*!
- *****************************************************************************************
- * \brief
- *    Filters 16 pel block edge of Super MB Frame coded MBs
- *****************************************************************************************
- */
-static void edge_loop_luma_hor_MBAff(ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p)
-{
-    deblock_mb_mbaff(0, 0, 0, MbQ, MbQ, Strength, pl, Img, edge, p);
-}
-
-
-
-/*!
-*****************************************************************************************
-* \brief
-*    Filters chroma block edge for MBAFF types
-*****************************************************************************************
- */
-static void edge_loop_chroma_ver_MBAff(imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, StorablePicture *p)
-{
-    deblock_mb_mbaff(1, 1, 1, MbQ, MbQ, Strength, (ColorPlane)(uv+1), Img, edge, p);
-}
-
-/*!
-*****************************************************************************************
-* \brief
-*    Filters chroma block edge for MBAFF types
-*****************************************************************************************
- */
-static void edge_loop_chroma_hor_MBAff(imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, StorablePicture *p)
-{
-    deblock_mb_mbaff(0, 1, 1, MbQ, MbQ, Strength, (ColorPlane)(uv+1), Img, edge, p);
-}

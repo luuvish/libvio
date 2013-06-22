@@ -57,7 +57,7 @@
 #include "erc_api.h"
 #include "quantization.h"
 #include "transform.h"
-#include "loop_filter.h"
+#include "deblock.h"
 #include "output.h"
 #include "h264decoder.h"
 
