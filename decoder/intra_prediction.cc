@@ -17,7 +17,6 @@
 #include "macroblock.h"
 #include "transform.h"
 #include "intra_prediction.h"
-#include "intra_prediction_common.h"
 
 
 static void intra_cr_decoding(Macroblock *currMB, int yuv)
@@ -89,16 +88,10 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
 
 void set_intra_prediction_modes(Slice *currSlice)
 { 
-    currSlice->intra_pred_4x4 = intra_pred_4x4;
-    if (currSlice->mb_aff_frame_flag) {
-        currSlice->intra_pred_8x8    = intra_pred_8x8_mbaff;
-        currSlice->intra_pred_16x16  = intra_pred_16x16_mbaff;    
-        currSlice->intra_pred_chroma = intra_pred_chroma_mbaff;
-    } else {
-        currSlice->intra_pred_8x8    = intra_pred_8x8_normal;
-        currSlice->intra_pred_16x16  = intra_pred_16x16_normal;
-        currSlice->intra_pred_chroma = intra_pred_chroma;   
-    }
+    currSlice->intra_pred_4x4    = intra_pred_4x4;
+    currSlice->intra_pred_8x8    = intra_pred_8x8;
+    currSlice->intra_pred_16x16  = intra_pred_16x16;
+    currSlice->intra_pred_chroma = intra_pred_chroma;
 }
 
 int mb_pred_intra4x4(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture)

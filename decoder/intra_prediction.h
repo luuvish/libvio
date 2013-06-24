@@ -52,9 +52,9 @@ enum {
     Intra_16x16_DC,
     Intra_16x16_Plane,
 
-    Intra_Chroma_Vertical = 0,
+    Intra_Chroma_DC = 0,
     Intra_Chroma_Horizontal,
-    Intra_Chroma_DC,
+    Intra_Chroma_Vertical,
     Intra_Chroma_Plane
 };
 
@@ -88,6 +88,11 @@ typedef enum {
 
 void set_intra_prediction_modes(Slice *currSlice);
 void update_direct_types(Slice *currSlice);
+
+int intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff, int img_block_x, int img_block_y);
+int intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff);
+int intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int predmode);
+void intra_pred_chroma(Macroblock *currMB);
 
 int mb_pred_intra4x4  (Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
 int mb_pred_intra16x16(Macroblock *currMB, ColorPlane curr_plane, StorablePicture *dec_picture);

@@ -15,7 +15,6 @@
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "intra_prediction_common.h"
 #include "intra_prediction.h"
 #include "neighbour.h"
 #include "image.h"
@@ -257,6 +256,7 @@ int intra_pred_4x4(Macroblock *currMB,    //!< current macroblock
     VideoParameters *p_Vid = currMB->p_Vid;
     byte predmode = p_Vid->ipredmode[img_block_y][img_block_x];
     currMB->ipmode_DPCM = predmode; //For residual DPCM
+
     int BitDepth = pl ? p_Vid->bitdepth_chroma : p_Vid->bitdepth_luma;
     Slice *currSlice = currMB->p_Slice;
     imgpel *pred = &currSlice->mb_pred[pl][joff][ioff];
