@@ -460,7 +460,7 @@ void itrans_sp(Macroblock *currMB,   //!< current macroblock
 
   forward4x4(PBlock, PBlock, 0, 0);
 
-  if(currSlice->sp_switch || currSlice->slice_type==SI_SLICE)
+  if(currSlice->sp_for_switch_flag || currSlice->slice_type==SI_SLICE)
   {    
     for (j=0;j<BLOCK_SIZE;++j)
     {
@@ -556,7 +556,7 @@ void itrans_sp_cr(Macroblock *currMB, int uv)
   mp1[2] = (PBlock[0][0] + PBlock[4][0] - PBlock[0][4] - PBlock[4][4]);
   mp1[3] = (PBlock[0][0] - PBlock[4][0] - PBlock[0][4] + PBlock[4][4]);
 
-  if (currSlice->sp_switch || currSlice->slice_type == SI_SLICE)  
+  if (currSlice->sp_for_switch_flag || currSlice->slice_type == SI_SLICE)  
   {        
     for (n2=0; n2 < 2; ++n2 )
     {

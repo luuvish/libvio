@@ -200,14 +200,7 @@ process_nalu:
             // the parameter set ID of the SLice header.  Hence, read the pic_parameter_set_id
             // of the slice header first, then setup the active parameter sets, and then read
             // the rest of the slice header
-            BitsUsedByHeader = FirstPartOfSliceHeader(currSlice);
-            UseParameterSet (currSlice);
-            currSlice->active_sps             = p_Vid->active_sps;
-            currSlice->active_pps             = p_Vid->active_pps;
-            currSlice->Transform8x8Mode       = p_Vid->active_pps->transform_8x8_mode_flag;
-            currSlice->chroma444_not_separate = (Boolean)((p_Vid->active_sps->chroma_format_idc==YUV444)&&((p_Vid->separate_colour_plane_flag == 0)));
-
-            BitsUsedByHeader += RestOfSliceHeader (currSlice);
+            BitsUsedByHeader = slice_header(currSlice);
 #if (MVC_EXTENSION_ENABLE)
             if (currSlice->view_id >= 0)
                 currSlice->p_Dpb = p_Vid->p_Dpb_layer[currSlice->view_id];
@@ -233,9 +226,9 @@ process_nalu:
 
             // From here on, p_Vid->active_sps, p_Vid->active_pps and the slice header are valid
             if (currSlice->mb_aff_frame_flag)
-                currSlice->current_mb_nr = currSlice->start_mb_nr << 1;
+                currSlice->current_mb_nr = currSlice->first_mb_in_slice << 1;
             else
-                currSlice->current_mb_nr = currSlice->start_mb_nr;
+                currSlice->current_mb_nr = currSlice->first_mb_in_slice;
 
             if (p_Vid->active_pps->entropy_coding_mode_flag) {
                 int ByteStartPosition = currStream->frame_bitoffset / 8;
@@ -275,14 +268,7 @@ process_nalu:
             currSlice->anchor_pic_flag = currSlice->idr_flag;
 #endif
 
-            BitsUsedByHeader = FirstPartOfSliceHeader(currSlice);
-            UseParameterSet (currSlice);
-            currSlice->active_sps = p_Vid->active_sps;
-            currSlice->active_pps = p_Vid->active_pps;
-            currSlice->Transform8x8Mode = p_Vid->active_pps->transform_8x8_mode_flag;
-            currSlice->chroma444_not_separate = (Boolean)((p_Vid->active_sps->chroma_format_idc==YUV444)&&((p_Vid->separate_colour_plane_flag == 0)));
-
-            BitsUsedByHeader += RestOfSliceHeader (currSlice);
+            BitsUsedByHeader = slice_header(currSlice);
 #if MVC_EXTENSION_ENABLE
             currSlice->p_Dpb = p_Vid->p_Dpb_layer[currSlice->view_id];
 #endif
@@ -304,9 +290,9 @@ process_nalu:
 
             // From here on, p_Vid->active_sps, p_Vid->active_pps and the slice header are valid
             if (currSlice->mb_aff_frame_flag)
-                currSlice->current_mb_nr = currSlice->start_mb_nr << 1;
+                currSlice->current_mb_nr = currSlice->first_mb_in_slice << 1;
             else
-                currSlice->current_mb_nr = currSlice->start_mb_nr;
+                currSlice->current_mb_nr = currSlice->first_mb_in_slice;
 
             // Now I need to read the slice ID, which depends on the value of
             // redundant_pic_cnt_present_flag

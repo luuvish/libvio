@@ -314,8 +314,8 @@ void init_lists_p_slice_mvc(Slice *currSlice)
   }
 #endif
   // set max size
-  currSlice->listXsize[0] = (char) imin (currSlice->listXsize[0], currSlice->num_ref_idx_active[LIST_0]);
-  currSlice->listXsize[1] = (char) imin (currSlice->listXsize[1], currSlice->num_ref_idx_active[LIST_1]);
+  currSlice->listXsize[0] = (char) imin (currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
+  currSlice->listXsize[1] = (char) imin (currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
 
   // set the unused list entries to NULL
   for (i=currSlice->listXsize[0]; i< (MAX_LIST_SIZE) ; i++)
@@ -565,8 +565,8 @@ void init_lists_b_slice_mvc(Slice *currSlice)
   }
 #endif
   // set max size
-  currSlice->listXsize[0] = (char) imin (currSlice->listXsize[0], currSlice->num_ref_idx_active[LIST_0]);
-  currSlice->listXsize[1] = (char) imin (currSlice->listXsize[1], currSlice->num_ref_idx_active[LIST_1]);
+  currSlice->listXsize[0] = (char) imin (currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
+  currSlice->listXsize[1] = (char) imin (currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
 
   // set the unused list entries to NULL
   for (i=currSlice->listXsize[0]; i< (MAX_LIST_SIZE) ; i++)
@@ -624,7 +624,9 @@ void reorder_ref_pic_list_mvc(Slice *currSlice, int cur_list, int **anchor_ref, 
   int *modification_of_pic_nums_idc = currSlice->modification_of_pic_nums_idc[cur_list];
   int *abs_diff_pic_num_minus1 = currSlice->abs_diff_pic_num_minus1[cur_list];
   int *long_term_pic_idx = currSlice->long_term_pic_idx[cur_list];
-  int num_ref_idx_lX_active_minus1 = currSlice->num_ref_idx_active[cur_list] - 1;
+  int num_ref_idx_lX_active_minus1 =
+    cur_list == 0 ? currSlice->num_ref_idx_l0_active_minus1
+                  : currSlice->num_ref_idx_l1_active_minus1;
   int *abs_diff_view_idx_minus1 = currSlice->abs_diff_view_idx_minus1[cur_list];
 
   int i;
@@ -731,15 +733,15 @@ void reorder_lists_mvc(Slice * currSlice, int currPOC)
         p_Vid->active_subset_sps->non_anchor_ref_l0,
         currSlice->view_id, currSlice->anchor_pic_flag, currPOC, 0);
     }
-    if (p_Vid->no_reference_picture == currSlice->listX[0][currSlice->num_ref_idx_active[LIST_0]-1])
+    if (p_Vid->no_reference_picture == currSlice->listX[0][currSlice->num_ref_idx_l0_active_minus1])
     {
       if (p_Vid->non_conforming_stream)
-        printf("RefPicList0[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_active[LIST_0] - 1);
+        printf("RefPicList0[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_l0_active_minus1);
       else
         error("RefPicList0[ num_ref_idx_l0_active_minus1 ] in MVC layer is equal to 'no reference picture', invalid bitstream",500);
     }
     // that's a definition
-    currSlice->listXsize[0] = (char)currSlice->num_ref_idx_active[LIST_0];
+    currSlice->listXsize[0] = (char)currSlice->num_ref_idx_l0_active_minus1 + 1;
   }
   if (currSlice->slice_type == B_SLICE)
   {
@@ -750,15 +752,15 @@ void reorder_lists_mvc(Slice * currSlice, int currPOC)
         p_Vid->active_subset_sps->non_anchor_ref_l1,
         currSlice->view_id, currSlice->anchor_pic_flag, currPOC, 1);
     }
-    if (p_Vid->no_reference_picture == currSlice->listX[1][currSlice->num_ref_idx_active[LIST_1]-1])
+    if (p_Vid->no_reference_picture == currSlice->listX[1][currSlice->num_ref_idx_l1_active_minus1])
     {
       if (p_Vid->non_conforming_stream)
-        printf("RefPicList1[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_active[LIST_1] - 1);
+        printf("RefPicList1[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_l1_active_minus1);
       else
         error("RefPicList1[ num_ref_idx_l1_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
     }
     // that's a definition
-    currSlice->listXsize[1] = (char)currSlice->num_ref_idx_active[LIST_1];
+    currSlice->listXsize[1] = (char)currSlice->num_ref_idx_l1_active_minus1 + 1;
   }
 
   free_ref_pic_list_reordering_buffer(currSlice);

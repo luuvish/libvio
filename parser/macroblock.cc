@@ -190,9 +190,9 @@ void start_macroblock(Slice *currSlice, Macroblock **currMB)
   }
 
   // store filtering parameters for this MB
-  (*currMB)->DFDisableIdc    = currSlice->DFDisableIdc;
-  (*currMB)->DFAlphaC0Offset = currSlice->DFAlphaC0Offset;
-  (*currMB)->DFBetaOffset    = currSlice->DFBetaOffset;
+  (*currMB)->DFDisableIdc    = currSlice->disable_deblocking_filter_idc;
+  (*currMB)->DFAlphaC0Offset = currSlice->slice_alpha_c0_offset_div2;
+  (*currMB)->DFBetaOffset    = currSlice->slice_beta_offset_div2;
   (*currMB)->list_offset     = 0;
   (*currMB)->mixedModeEdgeFlag = 0;
 }
@@ -507,6 +507,4 @@ void setup_slice_methods(Slice *currSlice)
             break;
         }
     }
-
-    set_intra_prediction_modes(currSlice);
 }

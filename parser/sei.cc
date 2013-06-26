@@ -692,7 +692,7 @@ void interpret_dec_ref_pic_marking_repetition_info( byte* payload, int size, Vid
 
   old_no_output_of_prior_pics_flag = pSlice->no_output_of_prior_pics_flag; //p_Vid->no_output_of_prior_pics_flag;
   old_long_term_reference_flag = pSlice->long_term_reference_flag;
-  old_adaptive_ref_pic_buffering_flag = pSlice->adaptive_ref_pic_buffering_flag;
+  old_adaptive_ref_pic_buffering_flag = pSlice->adaptive_ref_pic_marking_mode_flag;
 
   // set new initial values
   //p_Vid->idr_flag = original_idr_flag;
@@ -715,7 +715,7 @@ void interpret_dec_ref_pic_marking_repetition_info( byte* payload, int size, Vid
   pSlice->no_output_of_prior_pics_flag = old_no_output_of_prior_pics_flag;
   p_Vid->no_output_of_prior_pics_flag = pSlice->no_output_of_prior_pics_flag;
   pSlice->long_term_reference_flag = old_long_term_reference_flag;
-  pSlice->adaptive_ref_pic_buffering_flag = old_adaptive_ref_pic_buffering_flag;
+  pSlice->adaptive_ref_pic_marking_mode_flag = old_adaptive_ref_pic_buffering_flag;
 
   free (buf);
 }

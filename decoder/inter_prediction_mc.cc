@@ -22,6 +22,15 @@
 #include "inter_prediction_mc.h"
 
 
+static inline int RSHIFT_RND(int x, int a)
+{
+    return (a > 0) ? ((x + (1 << (a-1) )) >> a) : (x << (-a));
+}
+static inline int RSHIFT_RND_SF(int x, int a)
+{
+    return ((x + (1 << (a-1) )) >> a);
+}
+
 static void mc_prediction(imgpel *mb_pred,
                           imgpel *block, int block_size_y, int block_size_x,
                           Macroblock *currMB, ColorPlane pl, short l0_refframe, int pred_dir)
@@ -45,7 +54,7 @@ static void mc_prediction(imgpel *mb_pred,
     for (int j = 0; j < block_size_y; j++) {
         for (int i = 0; i < block_size_x; i++) {
             if (currSlice->weighted_pred_flag) {
-                int result = rshift_rnd((weight * block[i]), denom) + offset;
+                int result = RSHIFT_RND((weight * block[i]), denom) + offset;
                 mb_pred[i] = (imgpel)iClip3(0, color_clip, result);
             } else
                 mb_pred[i] = block[i];
@@ -85,7 +94,7 @@ static void bi_prediction(imgpel *mb_pred,
     for (int j = 0; j < block_size_y; j++) {
         for (int i = 0; i < block_size_x; i++) {
             if (weighted_bipred_idc) {
-                int result = rshift_rnd_sf((weight0 * *(block_l0++) + weight1 * *(block_l1++)), denom);
+                int result = RSHIFT_RND((weight0 * *(block_l0++) + weight1 * *(block_l1++)), denom);
                 *(mb_pred++) = (imgpel) iClip1(color_clip, result + offset);
             } else
                 *(mb_pred++) = (imgpel)(((*(block_l0++) + *(block_l1++)) + 1) >> 1);
@@ -332,7 +341,7 @@ void get_block_luma(StorablePicture *curr_ref, int x_pos, int y_pos, int block_s
  ************************************************************************
  */ 
 static void get_chroma_XY(imgpel *block, imgpel *cur_img, int span, int block_size_y, int block_size_x, int w00, int w01, int w10, int w11, int total_scale)
-{ 
+{
     imgpel *cur_row = cur_img;
     imgpel *nxt_row = cur_img + span;
 
@@ -350,7 +359,7 @@ static void get_chroma_XY(imgpel *block, imgpel *cur_img, int span, int block_si
         for (i = 0; i < block_size_x; i++) {
             result  = (w00 * *(cur_line++) + w01 * *(cur_line_p1++));
             result += (w10 * *(cur_line  ) + w11 * *(cur_line_p1  ));
-            *(blk_line++) = (imgpel) rshift_rnd_sf(result, total_scale);
+            *(blk_line++) = (imgpel) RSHIFT_RND_SF(result, total_scale);
         }
     }
 }

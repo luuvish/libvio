@@ -30,7 +30,7 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
     int ioff, joff;
     int i,j;
 
-    currSlice->intra_pred_chroma(currMB);// last argument is ignored, computes needed data for both uv channels
+    intra_pred_chroma(currMB);// last argument is ignored, computes needed data for both uv channels
 
     void (*itrans_4x4)(struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
     itrans_4x4 = (currMB->is_lossless == FALSE) ? itrans4x4 : itrans4x4_ls;
@@ -85,15 +85,6 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
     }
 }
 
-
-void set_intra_prediction_modes(Slice *currSlice)
-{ 
-    currSlice->intra_pred_4x4    = intra_pred_4x4;
-    currSlice->intra_pred_8x8    = intra_pred_8x8;
-    currSlice->intra_pred_16x16  = intra_pred_16x16;
-    currSlice->intra_pred_chroma = intra_pred_chroma;
-}
-
 int mb_pred_intra4x4(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture)
 {
     Slice *currSlice = currMB->p_Slice;
@@ -120,7 +111,7 @@ int mb_pred_intra4x4(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg
 
             // PREDICTION
             //===== INTRA PREDICTION =====
-            if (currSlice->intra_pred_4x4(currMB, curr_plane, ioff, joff, i4, j4) == SEARCH_SYNC)  /* make 4x4 prediction block mpr from given prediction p_Vid->mb_mode */
+            if (intra_pred_4x4(currMB, curr_plane, ioff, joff, i4, j4) == SEARCH_SYNC)  /* make 4x4 prediction block mpr from given prediction p_Vid->mb_mode */
                 return 1;
             // =============== 4x4 itrans ================
             // -------------------------------------------
@@ -144,7 +135,7 @@ int mb_pred_intra16x16(Macroblock *currMB, ColorPlane curr_plane, StorablePictur
 {
     int yuv = dec_picture->chroma_format_idc - 1;
 
-    currMB->p_Slice->intra_pred_16x16(currMB, curr_plane, currMB->i16mode);
+    intra_pred_16x16(currMB, curr_plane, currMB->i16mode);
     currMB->ipmode_DPCM = (char) currMB->i16mode; //For residual DPCM
     // =============== 4x4 itrans ================
     // -------------------------------------------
@@ -173,7 +164,7 @@ int mb_pred_intra8x8(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg
         int joff = (block8x8 >> 1  ) << 3;
 
         //PREDICTION
-        currSlice->intra_pred_8x8(currMB, curr_plane, ioff, joff);
+        intra_pred_8x8(currMB, curr_plane, ioff, joff);
         if (currMB->cbp & (1 << block8x8)) 
             itrans_8x8(currMB, curr_plane, ioff, joff);      // use inverse integer transform and make 8x8 block m7 from prediction block mpr
         else

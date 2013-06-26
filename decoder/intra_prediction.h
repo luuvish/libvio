@@ -86,7 +86,6 @@ typedef enum {
     PLANE_8       =  3
 } I8x8PredModes;
 
-void set_intra_prediction_modes(Slice *currSlice);
 void update_direct_types(Slice *currSlice);
 
 int intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff, int img_block_x, int img_block_y);

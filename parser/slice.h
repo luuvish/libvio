@@ -46,24 +46,65 @@ typedef struct slice_t {
     int                       nal_reference_idc; //!< nal_reference_idc from NAL unit
 
 
-    int                       start_mb_nr;   //!< MUST be set by NAL even in case of ei_flag == 1
-    int                       slice_type;    //!< slice type
-    int                       pic_parameter_set_id;   //!<the ID of the picture parameter set the slice is reffering to
-    int                       colour_plane_id;          //!< colour_plane_id of the current coded slice
-    unsigned int              frame_num;   //frame_num for this frame
-    unsigned int              field_pic_flag;
-    byte                      bottom_field_flag;
-    PictureStructure          structure;     //!< Identify picture structure type
-    int                       idr_pic_id;
-    //the following is for slice header syntax elements of poc
-    // for poc mode 0.
-    unsigned int              pic_order_cnt_lsb;
-    int                       delta_pic_order_cnt_bottom;
-    // for poc mode 1.
-    int                       delta_pic_order_cnt[2];
-    int                       redundant_pic_cnt;
-    int                       direct_spatial_mv_pred_flag;       //!< Indicator for direct mode type (1 for Spatial, 0 for Temporal)
-    int                       num_ref_idx_active[2];             //!< number of available list references
+    uint32_t            first_mb_in_slice;                  // ue(v)
+    uint8_t             slice_type;                         // ue(v)
+    uint8_t             pic_parameter_set_id;               // ue(v)
+    uint8_t             colour_plane_id;                    // u(2)
+    uint32_t            frame_num;                          // u(v)
+    bool                field_pic_flag;                     // u(1)
+    bool                bottom_field_flag;                  // u(1)
+    uint16_t            idr_pic_id;                         // ue(v)
+    uint32_t            pic_order_cnt_lsb;                  // u(v)
+    int32_t             delta_pic_order_cnt_bottom;         // se(v)
+    int32_t             delta_pic_order_cnt[2];             // se(v)
+    uint8_t             redundant_pic_cnt;                  // ue(v)
+    bool                direct_spatial_mv_pred_flag;        // u(1)
+    bool                num_ref_idx_active_override_flag;   // u(1)
+    uint8_t             num_ref_idx_l0_active_minus1;       // ue(v)
+    uint8_t             num_ref_idx_l1_active_minus1;       // ue(v)
+
+    bool                ref_pic_list_modification_flag_l0;  // u(1)
+    bool                ref_pic_list_modification_flag_l1;  // u(1)
+    //uint32_t            modification_of_pic_nums_idc;       // ue(v)
+    //uint32_t            abs_diff_pic_num_minus1;            // ue(v)
+    //uint32_t            long_term_pic_num;                  // ue(v)
+
+#define MAX_NUM_REF_IDX 32
+    uint8_t             luma_log2_weight_denom;             // ue(v)
+    uint8_t             chroma_log2_weight_denom;           // ue(v)
+    bool                luma_weight_l0_flag;                // u(1)
+    int8_t              luma_weight_l0[MAX_NUM_REF_IDX];    // se(v)
+    int8_t              luma_offset_l0[MAX_NUM_REF_IDX];    // se(v)
+    bool                chroma_weight_l0_flag;              // u(1)
+    int8_t              chroma_weight_l0[MAX_NUM_REF_IDX][2]; // se(v)
+    int8_t              chroma_offset_l0[MAX_NUM_REF_IDX][2]; // se(v)
+    bool                luma_weight_l1_flag;                // u(1)
+    int8_t              luma_weight_l1[MAX_NUM_REF_IDX];    // se(v)
+    int8_t              luma_offset_l1[MAX_NUM_REF_IDX];    // se(v)
+    bool                chroma_weight_l1_flag;              // u(1)
+    int8_t              chroma_weight_l1[MAX_NUM_REF_IDX][2]; // se(v)
+    int8_t              chroma_offset_l1[MAX_NUM_REF_IDX][2]; // se(v)
+
+    bool                no_output_of_prior_pics_flag;       // u(1)
+    bool                long_term_reference_flag;           // u(1)
+    bool                adaptive_ref_pic_marking_mode_flag; // u(1)
+    //uint32_t            memory_management_control_operation; // ue(v)
+    //uint32_t            difference_of_pic_nums_minus1;      // ue(v)
+    //uint32_t            long_term_pic_num;                  // ue(v)
+    //uint32_t            long_term_frame_idx;                // ue(v)
+    //uint32_t            max_long_term_frame_idx_plus1;      // ue(v)
+
+    uint8_t             cabac_init_idc;                     // ue(v)
+    int8_t              slice_qp_delta;                     // se(v)
+    bool                sp_for_switch_flag;                 // u(1)
+    int8_t              slice_qs_delta;                     // se(v)
+    uint8_t             disable_deblocking_filter_idc;      // ue(v)
+    int8_t              slice_alpha_c0_offset_div2;         // se(v)
+    int8_t              slice_beta_offset_div2;             // se(v)
+    uint32_t            slice_group_change_cycle;           // u(v)
+
+
+    PictureStructure    structure;     //!< Identify picture structure type
 
     int                       ref_pic_list_reordering_flag[2];
     int                      *modification_of_pic_nums_idc[2];
@@ -77,29 +118,15 @@ typedef struct slice_t {
     //weighted prediction
     unsigned short            weighted_pred_flag;
     unsigned short            weighted_bipred_idc;
-
-    unsigned short            luma_log2_weight_denom;
-    unsigned short            chroma_log2_weight_denom;
     int                    ***wp_weight;  // weight in [list][index][component] order
     int                    ***wp_offset;  // offset in [list][index][component] order
     int                   ****wbp_weight; //weight in [list][fw_index][bw_index][component] order
 
-    int                       no_output_of_prior_pics_flag;
-    int                       long_term_reference_flag;
-    int                       adaptive_ref_pic_buffering_flag;
     DecRefPicMarking_t       *dec_ref_pic_marking_buffer; //!< stores the memory management control operations
 
-    int                       model_number;  //!< cabac model number
-    int                       slice_qp_delta;
-    int                       sp_switch;                //!< 1 for switching sp, 0 for normal sp  
-    int                       slice_qs_delta;
     int                       qp;
     int                       qs;
 
-    short                     DFDisableIdc;     //!< Disable deblocking filter on slice
-    short                     DFAlphaC0Offset;  //!< Alpha and C0 offset for filtering slice
-    short                     DFBetaOffset;     //!< Beta offset for filtering slice
-    int                       slice_group_change_cycle;
 
 
 
@@ -218,11 +245,6 @@ typedef struct slice_t {
     void (*interpret_mb_mode        )(struct macroblock_dec *currMB);
     void (*init_lists               )(struct slice_t *currSlice);
 
-    void (*intra_pred_chroma)(struct macroblock_dec *currMB);
-    int  (*intra_pred_4x4)   (struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff,int i4,int j4);
-    int  (*intra_pred_8x8)   (struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
-    int  (*intra_pred_16x16) (struct macroblock_dec *currMB, ColorPlane pl, int predmode);
-
     void (*linfo_cbp_intra      )(int len, int info, int *cbp, int *dummy);
     void (*linfo_cbp_inter      )(int len, int info, int *cbp, int *dummy);    
     void (*update_direct_mv_info)(struct macroblock_dec *currMB);
@@ -230,8 +252,9 @@ typedef struct slice_t {
 } Slice;
 
 
-int FirstPartOfSliceHeader(Slice *currSlice);
-int RestOfSliceHeader     (Slice *currSlice);
+int slice_header(Slice *currSlice);
+
+void fill_wp_params(Slice *currSlice);
 
 void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *currStream, Slice *pSlice);
 

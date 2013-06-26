@@ -366,7 +366,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   dec_picture->idr_flag = currSlice->idr_flag;
   dec_picture->no_output_of_prior_pics_flag = currSlice->no_output_of_prior_pics_flag;
   dec_picture->long_term_reference_flag     = currSlice->long_term_reference_flag;
-  dec_picture->adaptive_ref_pic_buffering_flag = currSlice->adaptive_ref_pic_buffering_flag;
+  dec_picture->adaptive_ref_pic_buffering_flag = currSlice->adaptive_ref_pic_marking_mode_flag;
 
   dec_picture->dec_ref_pic_marking_buffer = currSlice->dec_ref_pic_marking_buffer;
   currSlice->dec_ref_pic_marking_buffer   = NULL;
@@ -474,134 +474,6 @@ static void MbAffPostProc(VideoParameters *p_Vid)
   }
 }
 
-static void fill_wp_params(Slice *currSlice)
-{
-  if (currSlice->slice_type == B_SLICE)
-  {
-    int i, j, k;
-    int comp;
-    int log_weight_denom;
-    int tb, td;  
-    int tx,DistScaleFactor;
-
-    int max_l0_ref = currSlice->num_ref_idx_active[LIST_0];
-    int max_l1_ref = currSlice->num_ref_idx_active[LIST_1];
-
-    if (currSlice->active_pps->weighted_bipred_idc == 2)
-    {
-      currSlice->luma_log2_weight_denom = 5;
-      currSlice->chroma_log2_weight_denom = 5;
-
-      for (i=0; i<MAX_REFERENCE_PICTURES; ++i)
-      {
-        for (comp=0; comp<3; ++comp)
-        {
-          log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
-          currSlice->wp_weight[0][i][comp] = 1 << log_weight_denom;
-          currSlice->wp_weight[1][i][comp] = 1 << log_weight_denom;
-          currSlice->wp_offset[0][i][comp] = 0;
-          currSlice->wp_offset[1][i][comp] = 0;
-        }
-      }
-    }
-
-    for (i=0; i<max_l0_ref; ++i)
-    {
-      for (j=0; j<max_l1_ref; ++j)
-      {
-        for (comp = 0; comp<3; ++comp)
-        {
-          log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
-          if (currSlice->active_pps->weighted_bipred_idc == 1)
-          {
-            currSlice->wbp_weight[0][i][j][comp] =  currSlice->wp_weight[0][i][comp];
-            currSlice->wbp_weight[1][i][j][comp] =  currSlice->wp_weight[1][j][comp];
-          }
-          else if (currSlice->active_pps->weighted_bipred_idc == 2)
-          {
-            td = iClip3(-128,127,currSlice->listX[LIST_1][j]->poc - currSlice->listX[LIST_0][i]->poc);
-            if (td == 0 || currSlice->listX[LIST_1][j]->is_long_term || currSlice->listX[LIST_0][i]->is_long_term)
-            {
-              currSlice->wbp_weight[0][i][j][comp] = 32;
-              currSlice->wbp_weight[1][i][j][comp] = 32;
-            }
-            else
-            {
-              tb = iClip3(-128,127,currSlice->ThisPOC - currSlice->listX[LIST_0][i]->poc);
-
-              tx = (16384 + iabs(td/2))/td;
-              DistScaleFactor = iClip3(-1024, 1023, (tx*tb + 32 )>>6);
-
-              currSlice->wbp_weight[1][i][j][comp] = DistScaleFactor >> 2;
-              currSlice->wbp_weight[0][i][j][comp] = 64 - currSlice->wbp_weight[1][i][j][comp];
-              if (currSlice->wbp_weight[1][i][j][comp] < -64 || currSlice->wbp_weight[1][i][j][comp] > 128)
-              {
-                currSlice->wbp_weight[0][i][j][comp] = 32;
-                currSlice->wbp_weight[1][i][j][comp] = 32;
-                currSlice->wp_offset[0][i][comp] = 0;
-                currSlice->wp_offset[1][j][comp] = 0;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (currSlice->mb_aff_frame_flag)
-    {
-      for (i=0; i<2*max_l0_ref; ++i)
-      {
-        for (j=0; j<2*max_l1_ref; ++j)
-        {
-          for (comp = 0; comp<3; ++comp)
-          {
-            for (k=2; k<6; k+=2)
-            {
-              currSlice->wp_offset[k+0][i][comp] = currSlice->wp_offset[0][i>>1][comp];
-              currSlice->wp_offset[k+1][j][comp] = currSlice->wp_offset[1][j>>1][comp];
-
-              log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
-              if (currSlice->active_pps->weighted_bipred_idc == 1)
-              {
-                currSlice->wbp_weight[k+0][i][j][comp] =  currSlice->wp_weight[0][i>>1][comp];
-                currSlice->wbp_weight[k+1][i][j][comp] =  currSlice->wp_weight[1][j>>1][comp];
-              }
-              else if (currSlice->active_pps->weighted_bipred_idc == 2)
-              {
-                td = iClip3(-128, 127, currSlice->listX[k+LIST_1][j]->poc - currSlice->listX[k+LIST_0][i]->poc);
-                if (td == 0 || currSlice->listX[k+LIST_1][j]->is_long_term || currSlice->listX[k+LIST_0][i]->is_long_term)
-                {
-                  currSlice->wbp_weight[k+0][i][j][comp] =   32;
-                  currSlice->wbp_weight[k+1][i][j][comp] =   32;
-                }
-                else
-                {
-                  tb = iClip3(-128,127,((k==2)?currSlice->toppoc:currSlice->bottompoc) - currSlice->listX[k+LIST_0][i]->poc);
-
-                  tx = (16384 + iabs(td/2))/td;
-                  DistScaleFactor = iClip3(-1024, 1023, (tx*tb + 32 )>>6);
-
-                  currSlice->wbp_weight[k+1][i][j][comp] = DistScaleFactor >> 2;
-                  currSlice->wbp_weight[k+0][i][j][comp] = 64 - currSlice->wbp_weight[k+1][i][j][comp];
-                  if (currSlice->wbp_weight[k+1][i][j][comp] < -64 || currSlice->wbp_weight[k+1][i][j][comp] > 128)
-                  {
-                    currSlice->wbp_weight[k+1][i][j][comp] = 32;
-                    currSlice->wbp_weight[k+0][i][j][comp] = 32;
-                    currSlice->wp_offset[k+0][i][comp] = 0;
-                    currSlice->wp_offset[k+1][j][comp] = 0;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-
-
 static void init_picture_decoding(VideoParameters *p_Vid)
 {
   Slice *pSlice = p_Vid->ppSliceList[0];
@@ -650,7 +522,7 @@ static void init_picture_decoding(VideoParameters *p_Vid)
   //init mb_data;
   for(j=0; j<p_Vid->iSliceNumOfCurrPic; j++)
   {
-    if(p_Vid->ppSliceList[j]->DFDisableIdc != 1)
+    if(p_Vid->ppSliceList[j]->disable_deblocking_filter_idc != 1)
       iDeblockMode=0;
 #if (MVC_EXTENSION_ENABLE)
     assert(p_Vid->ppSliceList[j]->view_id == i);
@@ -813,16 +685,9 @@ void decode_slice(Slice *currSlice, int current_header)
   if ( (currSlice->active_pps->weighted_bipred_idc > 0  && (currSlice->slice_type == B_SLICE)) || (currSlice->active_pps->weighted_pred_flag && currSlice->slice_type !=I_SLICE))
     fill_wp_params(currSlice);
 
-  //printf("frame picture %d %d %d\n",currSlice->structure,currSlice->ThisPOC,currSlice->direct_spatial_mv_pred_flag);
-
   // decode main slice information
   if ((current_header == SOP || current_header == SOS) && currSlice->ei_flag == 0)
     decode_one_slice(currSlice);
-
-  // setMB-Nr in case this slice was lost
-  // if(currSlice->ei_flag)
-  //   p_Vid->current_mb_nr = currSlice->last_mb_nr + 1;
-
 }
 
 
@@ -844,7 +709,7 @@ static void Error_tracking(VideoParameters *p_Vid, Slice *currSlice)
 
   if(currSlice->redundant_pic_cnt == 0 && p_Vid->type != I_SLICE)
   {
-    for(i=0;i<currSlice->num_ref_idx_active[LIST_0];++i)
+    for(i=0;i<currSlice->num_ref_idx_l0_active_minus1+1;++i)
     {
       if(currSlice->ref_flag[i] == 0)  // any reference of primary slice is incorrect
       {
@@ -959,7 +824,7 @@ int decode_one_frame(DecoderParams *pDecoder)
        if(p_Vid->iSliceNumOfCurrPic >0)
        {
          CopyPOC(*ppSliceList, currSlice);
-         ppSliceList[p_Vid->iSliceNumOfCurrPic-1]->end_mb_nr_plus1 = currSlice->start_mb_nr;
+         ppSliceList[p_Vid->iSliceNumOfCurrPic-1]->end_mb_nr_plus1 = currSlice->first_mb_in_slice;
        }
        p_Vid->iSliceNumOfCurrPic++;
        if(p_Vid->iSliceNumOfCurrPic >= p_Vid->iNumOfSlicesAllocated)
@@ -1321,15 +1186,15 @@ void reorder_lists(Slice *currSlice)
     {
       reorder_ref_pic_list(currSlice, LIST_0);
     }
-    if (p_Vid->no_reference_picture == currSlice->listX[0][currSlice->num_ref_idx_active[LIST_0] - 1])
+    if (p_Vid->no_reference_picture == currSlice->listX[0][currSlice->num_ref_idx_l0_active_minus1])
     {
       if (p_Vid->non_conforming_stream)
-        printf("RefPicList0[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_active[LIST_0] - 1);
+        printf("RefPicList0[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_l0_active_minus1);
       else
         error("RefPicList0[ num_ref_idx_l0_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
     }
     // that's a definition
-    currSlice->listXsize[0] = (char) currSlice->num_ref_idx_active[LIST_0];
+    currSlice->listXsize[0] = (char) currSlice->num_ref_idx_l0_active_minus1 + 1;
   }
 
   if (currSlice->slice_type == B_SLICE)
@@ -1338,15 +1203,15 @@ void reorder_lists(Slice *currSlice)
     {
       reorder_ref_pic_list(currSlice, LIST_1);
     }
-    if (p_Vid->no_reference_picture == currSlice->listX[1][currSlice->num_ref_idx_active[LIST_1]-1])
+    if (p_Vid->no_reference_picture == currSlice->listX[1][currSlice->num_ref_idx_l1_active_minus1])
     {
       if (p_Vid->non_conforming_stream)
-        printf("RefPicList1[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_active[LIST_1] - 1);
+        printf("RefPicList1[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_l1_active_minus1);
       else
         error("RefPicList1[ num_ref_idx_l1_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
     }
     // that's a definition
-    currSlice->listXsize[1] = (char) currSlice->num_ref_idx_active[LIST_1];
+    currSlice->listXsize[1] = (char) currSlice->num_ref_idx_l1_active_minus1 + 1;
   }
 
   free_ref_pic_list_reordering_buffer(currSlice);
@@ -1968,8 +1833,8 @@ void decode_one_slice(Slice *currSlice)
 
     if(currSlice->mb_aff_frame_flag && currMB->mb_field)
     {
-      currSlice->num_ref_idx_active[LIST_0] >>= 1;
-      currSlice->num_ref_idx_active[LIST_1] >>= 1;
+      currSlice->num_ref_idx_l0_active_minus1 = ((currSlice->num_ref_idx_l0_active_minus1 + 1) >> 1) - 1;
+      currSlice->num_ref_idx_l1_active_minus1 = ((currSlice->num_ref_idx_l1_active_minus1 + 1) >> 1) - 1;
     }
 
 #if (DISABLE_ERC == 0)

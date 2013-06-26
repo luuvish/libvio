@@ -1048,7 +1048,7 @@ static void read_motion_info_from_NAL_p_slice (Macroblock *currMB)
   dP = &(currSlice->partArr[partMap[SE_REFFRAME]]);
   
   //  For LIST_0, if multiple ref. pictures, read LIST_0 reference picture indices for the MB ***********
-  prepareListforRefIdx (currMB, &currSE, dP, currSlice->num_ref_idx_active[LIST_0], (currMB->mb_type != P8x8) || (!currSlice->allrefzero));
+  prepareListforRefIdx (currMB, &currSE, dP, currSlice->num_ref_idx_l0_active_minus1 + 1, (currMB->mb_type != P8x8) || (!currSlice->allrefzero));
   readMBRefPictureIdx  (&currSE, dP, currMB, p_mv_info, LIST_0, step_v0, step_h0);
 
   //=====  READ MOTION VECTORS =====
@@ -1111,11 +1111,11 @@ static void read_motion_info_from_NAL_b_slice (Macroblock *currMB)
   dP = &(currSlice->partArr[partMap[SE_REFFRAME]]);
 
   //  For LIST_0, if multiple ref. pictures, read LIST_0 reference picture indices for the MB ***********
-  prepareListforRefIdx (currMB, &currSE, dP, currSlice->num_ref_idx_active[LIST_0], TRUE);
+  prepareListforRefIdx (currMB, &currSE, dP, currSlice->num_ref_idx_l0_active_minus1 + 1, TRUE);
   readMBRefPictureIdx  (&currSE, dP, currMB, p_mv_info, LIST_0, step_v0, step_h0);
 
   //  For LIST_1, if multiple ref. pictures, read LIST_1 reference picture indices for the MB ***********
-  prepareListforRefIdx (currMB, &currSE, dP, currSlice->num_ref_idx_active[LIST_1], TRUE);
+  prepareListforRefIdx (currMB, &currSE, dP, currSlice->num_ref_idx_l1_active_minus1 + 1, TRUE);
   readMBRefPictureIdx  (&currSE, dP, currMB, p_mv_info, LIST_1, step_v0, step_h0);
 
   //=====  READ MOTION VECTORS =====
@@ -2454,8 +2454,8 @@ static void read_one_macroblock_p_slice_cavlc(Macroblock *currMB)
         currSlice->interpret_mb_mode(currMB);
 
         if (currMB->mb_field) {
-            currSlice->num_ref_idx_active[LIST_0] <<=1;
-            currSlice->num_ref_idx_active[LIST_1] <<=1;
+            currSlice->num_ref_idx_l0_active_minus1 = ((currSlice->num_ref_idx_l0_active_minus1 + 1) << 1) - 1;
+            currSlice->num_ref_idx_l1_active_minus1 = ((currSlice->num_ref_idx_l1_active_minus1 + 1) << 1) - 1;
         }
     }
     //init NoMbPartLessThan8x8Flag
@@ -2611,8 +2611,8 @@ static void read_one_macroblock_p_slice_cabac(Macroblock *currMB)
         currSlice->interpret_mb_mode(currMB);
 
         if (currMB->mb_field) {
-            currSlice->num_ref_idx_active[LIST_0] <<=1;
-            currSlice->num_ref_idx_active[LIST_1] <<=1;
+            currSlice->num_ref_idx_l0_active_minus1 = ((currSlice->num_ref_idx_l0_active_minus1 + 1) << 1) - 1;
+            currSlice->num_ref_idx_l1_active_minus1 = ((currSlice->num_ref_idx_l1_active_minus1 + 1) << 1) - 1;
         }
     }
     //init NoMbPartLessThan8x8Flag
@@ -2776,8 +2776,8 @@ static void read_one_macroblock_b_slice_cavlc(Macroblock *currMB)
 
         if (currSlice->mb_aff_frame_flag) {
             if (currMB->mb_field) {
-                currSlice->num_ref_idx_active[LIST_0] <<=1;
-                currSlice->num_ref_idx_active[LIST_1] <<=1;
+                currSlice->num_ref_idx_l0_active_minus1 = ((currSlice->num_ref_idx_l0_active_minus1 + 1) << 1) - 1;
+                currSlice->num_ref_idx_l1_active_minus1 = ((currSlice->num_ref_idx_l1_active_minus1 + 1) << 1) - 1;
             }
         }
     }
@@ -2958,8 +2958,8 @@ static void read_one_macroblock_b_slice_cabac(Macroblock *currMB)
         currSlice->interpret_mb_mode(currMB);
 
         if (currMB->mb_field) {
-            currSlice->num_ref_idx_active[LIST_0] <<= 1;
-            currSlice->num_ref_idx_active[LIST_1] <<= 1;
+            currSlice->num_ref_idx_l0_active_minus1 = ((currSlice->num_ref_idx_l0_active_minus1 + 1) << 1) - 1;
+            currSlice->num_ref_idx_l1_active_minus1 = ((currSlice->num_ref_idx_l1_active_minus1 + 1) << 1) - 1;
         }
     }
 

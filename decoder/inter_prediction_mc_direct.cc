@@ -142,7 +142,7 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
                 (currSlice->field_pic_flag==1 && colocated->ref_pic[refList]->structure==FRAME))) )
               {
                 //! Frame with field co-located
-                for (iref = 0; iref < imin(currSlice->num_ref_idx_active[LIST_0], currSlice->listXsize[LIST_0 + list_offset]); ++iref)
+                for (iref = 0; iref < imin(currSlice->num_ref_idx_l0_active_minus1+1, currSlice->listXsize[LIST_0 + list_offset]); ++iref)
                 {
                   if (currSlice->listX[LIST_0 + list_offset][iref]->top_field == colocated->ref_pic[refList] ||
                     currSlice->listX[LIST_0 + list_offset][iref]->bottom_field == colocated->ref_pic[refList] ||
@@ -164,7 +164,7 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
               }
               else
               {
-                for (iref = 0; iref < imin(currSlice->num_ref_idx_active[LIST_0], currSlice->listXsize[LIST_0 + list_offset]); ++iref)
+                for (iref = 0; iref < imin(currSlice->num_ref_idx_l0_active_minus1+1, currSlice->listXsize[LIST_0 + list_offset]); ++iref)
                 {
                   if (currSlice->listX[LIST_0 + list_offset][iref] == colocated->ref_pic[refList])
                   {
@@ -291,7 +291,7 @@ static inline void update_neighbor_mvs(PicMotionParams **motion, const PicMotion
 *    Colocated info <= direct_inference is disabled. 
 *************************************************************************************
 */
-int get_colocated_info_4x4(Macroblock *currMB, StorablePicture *list1, int i, int j)
+static int get_colocated_info_4x4(Macroblock *currMB, StorablePicture *list1, int i, int j)
 {
   if (list1->is_long_term)
     return 1;
@@ -319,7 +319,7 @@ int get_colocated_info_4x4(Macroblock *currMB, StorablePicture *list1, int i, in
 *    function that will access directly motion information
 *************************************************************************************
 */
-int get_colocated_info_8x8(Macroblock *currMB, StorablePicture *list1, int i, int j)
+static int get_colocated_info_8x8(Macroblock *currMB, StorablePicture *list1, int i, int j)
 {
   if (list1->is_long_term)
     return 1;
@@ -789,7 +789,7 @@ int get_direct8x8temporal(Macroblock *currMB, StorablePicture *dec_picture, int 
                 (!currMB->mb_field && colocated->ref_pic[refList]->structure!=FRAME))) ||
                 (!currSlice->mb_aff_frame_flag && ((currSlice->field_pic_flag==0 && colocated->ref_pic[refList]->structure!=FRAME)
                 ||(currSlice->field_pic_flag==1 && colocated->ref_pic[refList]->structure==FRAME))) ) {
-                for (iref = 0; iref < imin(currSlice->num_ref_idx_active[LIST_0], currSlice->listXsize[LIST_0 + list_offset]);iref++) {
+                for (iref = 0; iref < imin(currSlice->num_ref_idx_l0_active_minus1+1, currSlice->listXsize[LIST_0 + list_offset]);iref++) {
                     if (currSlice->listX[LIST_0 + list_offset][iref]->top_field == colocated->ref_pic[refList] || 
                         currSlice->listX[LIST_0 + list_offset][iref]->bottom_field == colocated->ref_pic[refList] ||
                         currSlice->listX[LIST_0 + list_offset][iref]->frame == colocated->ref_pic[refList]) {
@@ -803,7 +803,7 @@ int get_direct8x8temporal(Macroblock *currMB, StorablePicture *dec_picture, int 
                         mapped_idx=INVALIDINDEX;
                 }
             } else {
-                for (iref = 0; iref < imin(currSlice->num_ref_idx_active[LIST_0], currSlice->listXsize[LIST_0 + list_offset]);iref++) {
+                for (iref = 0; iref < imin(currSlice->num_ref_idx_l0_active_minus1+1, currSlice->listXsize[LIST_0 + list_offset]);iref++) {
                     if (currSlice->listX[LIST_0 + list_offset][iref] == colocated->ref_pic[refList]) {
                         mapped_idx = iref;            
                         break;
@@ -890,7 +890,7 @@ int get_direct4x4temporal(Macroblock *currMB, StorablePicture *dec_picture, int 
             int mapped_idx=0;
             int iref;
 
-            for (iref=0;iref<imin(currSlice->num_ref_idx_active[LIST_0], currSlice->listXsize[LIST_0 + list_offset]);iref++) {
+            for (iref=0;iref<imin(currSlice->num_ref_idx_l0_active_minus1+1, currSlice->listXsize[LIST_0 + list_offset]);iref++) {
                 if (currSlice->listX[LIST_0 + list_offset][iref] == colocated->ref_pic[refList]) {
                     mapped_idx=iref;
                     break;
