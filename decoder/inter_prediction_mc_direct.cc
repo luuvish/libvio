@@ -21,6 +21,7 @@
 #include "transform.h"
 #include "inter_prediction_mc.h"
 #include "intra_prediction.h"
+#include "neighbour.h"
 
 
 //! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
@@ -1297,4 +1298,111 @@ int get_inter8x8(Macroblock *currMB, StorablePicture *dec_picture, int block8x8)
     }
 
     return pred_dir;
+}
+
+
+static inline void set_direct_references(const PixelPos *mb, char *l0_rFrame, char *l1_rFrame, PicMotionParams **mv_info)
+{
+  if (mb->available)
+  {
+    char *ref_idx = mv_info[mb->pos_y][mb->pos_x].ref_idx;
+    *l0_rFrame  = ref_idx[LIST_0];
+    *l1_rFrame  = ref_idx[LIST_1];
+  }
+  else
+  {
+    *l0_rFrame  = -1;
+    *l1_rFrame  = -1;
+  }
+}
+
+
+static void set_direct_references_mb_field(const PixelPos *mb, char *l0_rFrame, char *l1_rFrame, PicMotionParams **mv_info, Macroblock *mb_data)
+{
+  if (mb->available)
+  {
+    char *ref_idx = mv_info[mb->pos_y][mb->pos_x].ref_idx;
+    if (mb_data[mb->mb_addr].mb_field)
+    {
+      *l0_rFrame  = ref_idx[LIST_0];
+      *l1_rFrame  = ref_idx[LIST_1];
+    }
+    else
+    {
+      *l0_rFrame  = (ref_idx[LIST_0] < 0) ? ref_idx[LIST_0] : ref_idx[LIST_0] * 2;
+      *l1_rFrame  = (ref_idx[LIST_1] < 0) ? ref_idx[LIST_1] : ref_idx[LIST_1] * 2;
+    }
+  }
+  else
+  {
+    *l0_rFrame  = -1;
+    *l1_rFrame  = -1;
+  }
+}
+
+static void set_direct_references_mb_frame(const PixelPos *mb, char *l0_rFrame, char *l1_rFrame, PicMotionParams **mv_info, Macroblock *mb_data)
+{
+  if (mb->available)
+  {
+    char *ref_idx = mv_info[mb->pos_y][mb->pos_x].ref_idx;
+    if (mb_data[mb->mb_addr].mb_field)
+    {
+      *l0_rFrame  = (ref_idx[LIST_0] >> 1);
+      *l1_rFrame  = (ref_idx[LIST_1] >> 1);
+    }
+    else
+    {
+      *l0_rFrame  = ref_idx[LIST_0];
+      *l1_rFrame  = ref_idx[LIST_1];
+    }
+  }
+  else
+  {
+    *l0_rFrame  = -1;
+    *l1_rFrame  = -1;
+  }
+}
+
+void prepare_direct_params(Macroblock *currMB, StorablePicture *dec_picture, MotionVector *pmvl0, MotionVector *pmvl1, char *l0_rFrame, char *l1_rFrame)
+{
+  Slice *currSlice = currMB->p_Slice;
+  char l0_refA, l0_refB, l0_refC;
+  char l1_refA, l1_refB, l1_refC;
+  PicMotionParams **mv_info = dec_picture->mv_info;
+  
+  PixelPos mb[4];
+
+  get_neighbors(currMB, mb, 0, 0, 16);
+
+  if (!currSlice->mb_aff_frame_flag)
+  {
+    set_direct_references(&mb[0], &l0_refA, &l1_refA, mv_info);
+    set_direct_references(&mb[1], &l0_refB, &l1_refB, mv_info);
+    set_direct_references(&mb[2], &l0_refC, &l1_refC, mv_info);
+  }
+  else
+  {
+    VideoParameters *p_Vid = currMB->p_Vid;
+    if (currMB->mb_field)
+    {
+      set_direct_references_mb_field(&mb[0], &l0_refA, &l1_refA, mv_info, p_Vid->mb_data);
+      set_direct_references_mb_field(&mb[1], &l0_refB, &l1_refB, mv_info, p_Vid->mb_data);
+      set_direct_references_mb_field(&mb[2], &l0_refC, &l1_refC, mv_info, p_Vid->mb_data);
+    }
+    else
+    {
+      set_direct_references_mb_frame(&mb[0], &l0_refA, &l1_refA, mv_info, p_Vid->mb_data);
+      set_direct_references_mb_frame(&mb[1], &l0_refB, &l1_refB, mv_info, p_Vid->mb_data);
+      set_direct_references_mb_frame(&mb[2], &l0_refC, &l1_refC, mv_info, p_Vid->mb_data);
+    }
+  }
+
+  *l0_rFrame = (char) imin(imin((unsigned char) l0_refA, (unsigned char) l0_refB), (unsigned char) l0_refC);
+  *l1_rFrame = (char) imin(imin((unsigned char) l1_refA, (unsigned char) l1_refB), (unsigned char) l1_refC);
+
+  if (*l0_rFrame >=0)
+    currMB->GetMVPredictor (currMB, mb, pmvl0, *l0_rFrame, mv_info, LIST_0, 0, 0, 16, 16);
+
+  if (*l1_rFrame >=0)
+    currMB->GetMVPredictor (currMB, mb, pmvl1, *l1_rFrame, mv_info, LIST_1, 0, 0, 16, 16);
 }
