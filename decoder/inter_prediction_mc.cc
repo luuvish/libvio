@@ -21,6 +21,13 @@
 #include "transform.h"
 #include "inter_prediction_mc.h"
 
+static inline int iClip1(int high, int x)
+{
+  x = imax(x, 0);
+  x = imin(x, high);
+
+  return x;
+}
 
 static inline int RSHIFT_RND(int x, int a)
 {

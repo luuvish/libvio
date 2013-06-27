@@ -24,6 +24,11 @@
 #include "neighbour.h"
 
 
+static inline int RSD(int x)
+{
+ return ((x&2)?(x|1):(x&(~1)));
+}
+
 //! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
 static const int BLOCK_STEP[8][2] = {
     {0, 0}, {4, 4}, {4, 2}, {2, 4},

@@ -249,9 +249,6 @@ static int alloc_decoder( DecoderParams **p_Dec)
   alloc_video_params(&((*p_Dec)->p_Vid));
   alloc_params(&((*p_Dec)->p_Inp));
   (*p_Dec)->p_Vid->p_Inp = (*p_Dec)->p_Inp;
-  (*p_Dec)->p_trace = NULL;
-  (*p_Dec)->bufferSize = 0;
-  (*p_Dec)->bitcounter = 0;
   return 0;
 }
 
@@ -1077,12 +1074,6 @@ int OpenDecoder(InputParameters *p_Inp)
     pDecoder->p_Vid->conceal_mode = p_Inp->conceal_mode;
     pDecoder->p_Vid->ref_poc_gap = p_Inp->ref_poc_gap;
     pDecoder->p_Vid->poc_gap = p_Inp->poc_gap;
-#if TRACE
-    if ((pDecoder->p_trace = fopen(TRACEFILE,"w")) == 0) { // append new statistic at the end
-        snprintf(errortext, ET_SIZE, "Error open file %s!", TRACEFILE);
-        return -1;
-    }
-#endif
 
 #if (!MVC_EXTENSION_ENABLE)
     if (strcasecmp(p_Inp->outfile, "\"\"") != 0 && strlen(p_Inp->outfile) > 0) {
@@ -1218,10 +1209,6 @@ int CloseDecoder()
 
     if (pDecoder->p_Vid->p_ref != -1)
         close(pDecoder->p_Vid->p_ref);
-
-#if TRACE
-    fclose(pDecoder->p_trace);
-#endif
 
     ercClose(pDecoder->p_Vid, pDecoder->p_Vid->erc_errorVar);
 

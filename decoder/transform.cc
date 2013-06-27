@@ -28,6 +28,28 @@
 
 #include "bitstream_elements.h"
 
+static inline int isign(int x)
+{
+  return ( (x > 0) - (x < 0));
+}
+
+static inline int isignab(int a, int b)
+{
+  return ((b) < 0) ? -iabs(a) : iabs(a);
+}
+
+static inline int rshift_rnd(int x, int a)
+{
+  return (a > 0) ? ((x + (1 << (a-1) )) >> a) : (x << (-a));
+}
+
+static inline int iClip1(int high, int x)
+{
+  x = imax(x, 0);
+  x = imin(x, high);
+
+  return x;
+}
 
 // SP decoding parameter (EQ. 8-425)
 static const int A[4][4] = {

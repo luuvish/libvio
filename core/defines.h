@@ -25,15 +25,6 @@
 extern "C" {
 #endif
 
-#ifdef TRACE
-#undef TRACE
-#endif
-#if defined _DEBUG
-# define TRACE           0     //!< 0:Trace off 1:Trace on 2:detailed CABAC context information
-#else
-# define TRACE           0     //!< 0:Trace off 1:Trace on 2:detailed CABAC context information
-#endif
-
 #define JM                  "18 (FRExt)"
 #define VERSION             "18.5"
 #define EXT_VERSION         "(FRExt)"
@@ -49,7 +40,24 @@ extern "C" {
 #define MAX_VIEW_NUM              1024   
 #define BASE_VIEW_IDX             0
 
-#include "typedefs.h"
+#include "win32.h"
+
+typedef unsigned char  byte;     //!< byte type definition
+typedef unsigned char  uint8;    //!< type definition for unsigned char (same as byte, 8 bits)
+typedef unsigned short uint16;   //!< type definition for unsigned short (16 bits)
+typedef unsigned int   uint32;   //!< type definition for unsigned int (32 bits)
+
+typedef          char  int8;
+typedef          short int16;
+typedef          int   int32;
+
+typedef uint16 imgpel;
+
+enum {
+  FALSE,
+  TRUE
+};
+#define Boolean int
 
 //#define MAX_NUM_SLICES 150
 #define MAX_NUM_SLICES     50

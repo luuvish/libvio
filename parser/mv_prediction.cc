@@ -17,6 +17,30 @@
 #include "dpb.h"
 #include "mv_prediction.h"
 
+
+static inline int imedian(int a,int b,int c)
+{
+  if (a > b) // a > b
+  { 
+    if (b > c) 
+      return(b); // a > b > c
+    else if (a > c) 
+      return(c); // a > c > b
+    else 
+      return(a); // c > a > b
+  }
+  else // b > a
+  { 
+    if (a > c) 
+      return(a); // b > a > c
+    else if (b > c)
+      return(c); // b > c > a
+    else
+      return(b);  // c > b > a
+  }
+}
+
+
 /*!
  ************************************************************************
  * \brief

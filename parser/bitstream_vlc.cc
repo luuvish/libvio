@@ -27,13 +27,6 @@ extern "C" {
 #endif
 
 
-// A little trick to avoid those horrible #if TRACE all over the source code
-#if TRACE
-#define SYMTRACESTRING(s) strncpy(symbol.tracestring,s,TRACESTRING_SIZE)
-#else
-#define SYMTRACESTRING(s) // do nothing
-#endif
-
 // Note that all NA values are filled with 0
 
 /*!
@@ -58,8 +51,6 @@ int read_ue_v(const char *tracestring, Bitstream *bitstream, int *used_bits)
     SyntaxElement symbol;
     symbol.type    = SE_HEADER;
     symbol.mapping = linfo_ue;   // Mapping rule
-
-    SYMTRACESTRING(tracestring);
 
     readSyntaxElement_VLC(&symbol, bitstream);
     *used_bits += symbol.len;
@@ -89,8 +80,6 @@ int read_se_v(const char *tracestring, Bitstream *bitstream, int *used_bits)
     SyntaxElement symbol;
     symbol.type    = SE_HEADER;
     symbol.mapping = linfo_se;   // Mapping rule: signed integer
-
-    SYMTRACESTRING(tracestring);
 
     readSyntaxElement_VLC(&symbol, bitstream);
     *used_bits += symbol.len;
@@ -126,8 +115,6 @@ int read_u_v(int LenInBits, const char *tracestring, Bitstream *bitstream, int *
     symbol.mapping = linfo_ue;   // Mapping rule
     symbol.len     = LenInBits;
 
-    SYMTRACESTRING(tracestring);
-
     readSyntaxElement_FLC(&symbol, bitstream);
     *used_bits += symbol.len;
     return symbol.inf;
@@ -160,8 +147,6 @@ int read_i_v(int LenInBits, const char *tracestring, Bitstream *bitstream, int *
     symbol.type    = SE_HEADER;
     symbol.mapping = linfo_ue;   // Mapping rule
     symbol.len     = LenInBits;
-
-    SYMTRACESTRING(tracestring);
 
     readSyntaxElement_FLC(&symbol, bitstream);
     *used_bits += symbol.len;
@@ -302,10 +287,6 @@ int readSyntaxElement_VLC(SyntaxElement *sym, Bitstream *currStream)
     currStream->frame_bitoffset += sym->len;
     sym->mapping(sym->len, sym->inf, &(sym->value1), &(sym->value2));
 
-#if TRACE
-    tracebits(sym->tracestring, sym->len, sym->inf, sym->value1);
-#endif
-
     return 1;
 }
 
@@ -386,10 +367,6 @@ int readSyntaxElement_FLC(SyntaxElement *sym, Bitstream *currStream)
 
   sym->value1 = sym->inf;
   currStream->frame_bitoffset += sym->len; // move bitstream pointer
-
-#if TRACE
-  tracebits2(sym->tracestring, sym->len, sym->inf);
-#endif
 
   return 1;
 }

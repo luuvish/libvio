@@ -37,12 +37,9 @@ OPENMP?= 0
 DEPEND= dependencies
 
 BINDIR= ../../../bin
-INCDIR= lcommon/inc ldecod/inc parser decoder
+INCDIR= lcommon/inc ldecod/inc core parser decoder
 SRCDIR= ldecod/src
-OBJDIR= ldecod/obj
-
-PARSER= parser
-DECODE= decoder
+OBJDIR= objects
 
 ADDSRCDIR= lcommon/src
 
@@ -91,12 +88,14 @@ OBJSUF= .o$(SUFFIX)
 
 SRC=    $(wildcard $(SRCDIR)/*.cc)
 ADDSRC= $(wildcard $(ADDSRCDIR)/*.cc)
-PARSERSRC= $(wildcard $(PARSER)/*.cc)
-DECODESRC= $(wildcard $(DECODE)/*.cc)
+PARSER= $(wildcard parser/*.cc)
+DECODER= $(wildcard decoder/*.cc)
+CORE= $(wildcard core/*.cc)
 OBJ=    $(SRC:$(SRCDIR)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(ADDSRC:$(ADDSRCDIR)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
-OBJ+=   $(PARSERSRC:$(PARSER)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
-OBJ+=   $(DECODESRC:$(DECODE)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(PARSER:parser/%.cc=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(DECODER:decoder/%.cc=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(CORE:core/%.cc=$(OBJDIR)/%.o$(SUFFIX))
 BIN=    $(BINDIR)/$(NAME)$(SUFFIX)
 
 .PHONY: default distclean clean tags depend
@@ -125,7 +124,7 @@ bin:    $(OBJ)
 depend:
 	@echo
 	@echo 'checking dependencies'
-	@$(SHELL) -ec '$(CC) $(FLAGS) -MM $(CFLAGS) $(INCDIR:%=-I%) $(SRC) $(ADDSRC) $(PARSERSRC) $(DECODESRC) \
+	@$(SHELL) -ec '$(CC) $(FLAGS) -MM $(CFLAGS) $(INCDIR:%=-I%) $(SRC) $(ADDSRC) $(PARSER) $(DECODER) $(CORE) \
          | sed '\''s@\(.*\)\.o[ :]@$(OBJDIR)/\1.o$(SUFFIX):@g'\'' \
          >$(DEPEND)'
 	@echo
@@ -138,11 +137,15 @@ $(OBJDIR)/%.o$(SUFFIX): $(ADDSRCDIR)/%.cc
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
-$(OBJDIR)/%.o$(SUFFIX): $(PARSER)/%.cc
+$(OBJDIR)/%.o$(SUFFIX): parser/%.cc
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
-$(OBJDIR)/%.o$(SUFFIX): $(DECODE)/%.cc
+$(OBJDIR)/%.o$(SUFFIX): decoder/%.cc
+	@echo 'compiling object file "$@" ...'
+	@$(CC) -c -o $@ $(FLAGS) $<
+
+$(OBJDIR)/%.o$(SUFFIX): core/%.cc
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 

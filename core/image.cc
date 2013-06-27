@@ -57,6 +57,16 @@
 
 void reorder_lists(Slice *currSlice);
 
+static inline float psnr(int max_sample_sq, int samples, float sse_distortion ) 
+{
+  return (float) (sse_distortion == 0.0 ? 0.0 : (10.0 * log10(max_sample_sq * (double) ((double) samples / sse_distortion))));
+}
+
+static inline int iabs2(int x) 
+{
+  return (x) * (x);
+}
+
 static inline void reset_mbs(Macroblock *currMB)
 {
   currMB->slice_nr = -1; 
@@ -1821,10 +1831,6 @@ void decode_one_slice(Slice *currSlice)
   while (end_of_slice == FALSE) // loop over macroblocks
   {
 
-#if TRACE
-    fprintf(p_Dec->p_trace,"\n*********** POC: %i (I/P) MB: %i Slice: %i Type %d **********\n", currSlice->ThisPOC, currSlice->current_mb_nr, currSlice->current_slice_nr, currSlice->slice_type);
-#endif
-
     // Initializes the current macroblock
     start_macroblock(currSlice, &currMB);
     // Get the syntax elements from the NAL
@@ -1859,7 +1865,7 @@ int GetVOIdx(VideoParameters *p_Vid, int iViewId)
   }
   else
   {
-    subset_seq_parameter_set_rbsp_t *curr_subset_sps;
+    sub_sps_t *curr_subset_sps;
     int i;
 
     curr_subset_sps = p_Vid->SubsetSeqParSet;

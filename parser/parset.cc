@@ -25,14 +25,6 @@
 #include "dpb.h"
 #include "erc_api.h"
 
-#if TRACE
-#define SYMTRACESTRING(s) strncpy(sym->tracestring,s,TRACESTRING_SIZE)
-#else
-#define SYMTRACESTRING(s) // do nothing
-#endif
-
-
-
 
 // E.1.1 VUI parameter syntax
 void vui_parameters(DataPartition *p, vui_t *vui)
@@ -408,6 +400,115 @@ void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScali
     }
 }
 
+// 7.3.2.2 Picture parameter set RBSP syntax
+void pic_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *p, pps_t *pps)
+{
+    int iGroup;
+    int i;
+    int chroma_format_idc;
+    Bitstream *s = p->bitstream;
+
+    p_Dec->UsedBits = 0;
+
+    pps->pic_parameter_set_id                         = read_ue_v ("PPS: pic_parameter_set_id"                   , s, &p_Dec->UsedBits);
+    pps->seq_parameter_set_id                         = read_ue_v ("PPS: seq_parameter_set_id"                   , s, &p_Dec->UsedBits);
+    pps->entropy_coding_mode_flag                     = read_u_1  ("PPS: entropy_coding_mode_flag"               , s, &p_Dec->UsedBits);
+    pps->bottom_field_pic_order_in_frame_present_flag = read_u_1  ("PPS: bottom_field_pic_order_in_frame_present_flag"                 , s, &p_Dec->UsedBits);
+
+    assert(pps->pic_parameter_set_id >= 0 && pps->pic_parameter_set_id <= 255);
+    assert(pps->seq_parameter_set_id >= 0 && pps->seq_parameter_set_id <= 31);
+
+    chroma_format_idc = p_Vid->SeqParSet[pps->seq_parameter_set_id].chroma_format_idc;
+
+    pps->num_slice_groups_minus1               = read_ue_v ("PPS: num_slice_groups_minus1"                , s, &p_Dec->UsedBits);
+    if (pps->num_slice_groups_minus1 > 0) {
+        pps->slice_group_map_type               = read_ue_v ("PPS: slice_group_map_type"                , s, &p_Dec->UsedBits);
+        if (pps->slice_group_map_type == 0) {
+            for (iGroup = 0; iGroup <= pps->num_slice_groups_minus1; iGroup++)
+                pps->run_length_minus1[iGroup]                  = read_ue_v ("PPS: run_length_minus1 [i]"              , s, &p_Dec->UsedBits);
+        } else if (pps->slice_group_map_type == 2) {
+            for (iGroup = 0; iGroup < pps->num_slice_groups_minus1; iGroup++) {
+                pps->top_left    [iGroup]                      = read_ue_v ("PPS: top_left [i]"                        , s, &p_Dec->UsedBits);
+                pps->bottom_right[iGroup]                      = read_ue_v ("PPS: bottom_right [i]"                    , s, &p_Dec->UsedBits);
+            }
+        } else if (pps->slice_group_map_type == 3 ||
+                   pps->slice_group_map_type == 4 ||
+                   pps->slice_group_map_type == 5) {
+            pps->slice_group_change_direction_flag     = read_u_1  ("PPS: slice_group_change_direction_flag"      , s, &p_Dec->UsedBits);
+            pps->slice_group_change_rate_minus1        = read_ue_v ("PPS: slice_group_change_rate_minus1"         , s, &p_Dec->UsedBits);
+        } else if (pps->slice_group_map_type == 6) {
+            const int bitsSliceGroupId[8] = { 1, 1, 2, 2, 3, 3, 3, 3 };
+            pps->pic_size_in_map_units_minus1      = read_ue_v ("PPS: pic_size_in_map_units_minus1"               , s, &p_Dec->UsedBits);
+            if ((pps->slice_group_id = (byte *)calloc (pps->pic_size_in_map_units_minus1+1, 1)) == NULL)
+                no_mem_exit ("InterpretPPS: slice_group_id");
+            for (i = 0; i <= pps->pic_size_in_map_units_minus1; i++)
+                pps->slice_group_id[i] = (byte) read_u_v (bitsSliceGroupId[pps->num_slice_groups_minus1], "slice_group_id[i]", s, &p_Dec->UsedBits);
+        }
+    }
+
+    assert(pps->num_slice_groups_minus1 >= 0 && pps->num_slice_groups_minus1 <= 7);
+    assert(pps->slice_group_map_type >= 0 && pps->slice_group_map_type <= 6);
+    if (pps->num_slice_groups_minus1 != 1)
+        assert(pps->slice_group_map_type != 3 && pps->slice_group_map_type != 4 && pps->slice_group_map_type != 5);
+    // assert(pps->run_length_minus1[i] <= PicSizeInMapUnits - 1);
+    // assert(pps->top_left[i] <= pps->bottom_right[i] && pps->bottom_right[i] < PicSizeInMapUnits);
+    // assert(pps->top_left[i] % PicWidthInMbs <= pps->bottom_right[i] % PicWidthInMbs);
+
+    // assert(pps->slice_group_change_rate_minus1 >= 0 &&
+    //        pps->slice_group_change_rate_minus1 <= PicSizeInMapUnits - 1);
+    pps->SliceGroupChangeRate = pps->slice_group_change_rate_minus1 + 1;
+    //assert(pps->pic_size_in_map_units_minus1 == PicSizeInMapUnits - 1);
+    //assert(pps->slice_group_id[i] >= 0 && pps->slice_group_id[i] <= pps->num_slice_groups_minus1);
+
+    pps->num_ref_idx_l0_default_active_minus1  = read_ue_v ("PPS: num_ref_idx_l0_default_active_minus1"   , s, &p_Dec->UsedBits);
+    pps->num_ref_idx_l1_default_active_minus1  = read_ue_v ("PPS: num_ref_idx_l1_default_active_minus1"   , s, &p_Dec->UsedBits);
+
+    assert(pps->num_ref_idx_l0_default_active_minus1 >= 0 && pps->num_ref_idx_l0_default_active_minus1 <= 31);
+    assert(pps->num_ref_idx_l1_default_active_minus1 >= 0 && pps->num_ref_idx_l1_default_active_minus1 <= 31);
+
+    pps->weighted_pred_flag                    = read_u_1  ("PPS: weighted_pred_flag"                     , s, &p_Dec->UsedBits);
+    pps->weighted_bipred_idc                   = read_u_v  ( 2, "PPS: weighted_bipred_idc"                , s, &p_Dec->UsedBits);
+
+    assert(pps->weighted_bipred_idc >= 0 && pps->weighted_bipred_idc <= 2);
+
+    pps->pic_init_qp_minus26                   = read_se_v ("PPS: pic_init_qp_minus26"                    , s, &p_Dec->UsedBits);
+    pps->pic_init_qs_minus26                   = read_se_v ("PPS: pic_init_qs_minus26"                    , s, &p_Dec->UsedBits);
+    pps->chroma_qp_index_offset                = read_se_v ("PPS: chroma_qp_index_offset"                 , s, &p_Dec->UsedBits);
+
+    //assert(pps->pic_init_qp_minus26 >= -(26 + QpBdOffsetY) && pps->pic_init_qp_minus26 <= 25);
+    assert(pps->pic_init_qs_minus26 >= -26 && pps->pic_init_qs_minus26 <= 25);
+    assert(pps->chroma_qp_index_offset >= -12 && pps->chroma_qp_index_offset <= 12);
+
+    pps->deblocking_filter_control_present_flag = read_u_1 ("PPS: deblocking_filter_control_present_flag" , s, &p_Dec->UsedBits);
+    pps->constrained_intra_pred_flag           = read_u_1  ("PPS: constrained_intra_pred_flag"            , s, &p_Dec->UsedBits);
+    pps->redundant_pic_cnt_present_flag        = read_u_1  ("PPS: redundant_pic_cnt_present_flag"         , s, &p_Dec->UsedBits);
+
+    pps->transform_8x8_mode_flag         = 0;
+    pps->pic_scaling_matrix_present_flag = 0;
+    pps->second_chroma_qp_index_offset   = pps->chroma_qp_index_offset;
+    if (more_rbsp_data(s->streamBuffer, s->frame_bitoffset, s->bitstream_length)) {
+        pps->transform_8x8_mode_flag           =  read_u_1  ("PPS: transform_8x8_mode_flag"                , s, &p_Dec->UsedBits);
+        pps->pic_scaling_matrix_present_flag   =  read_u_1  ("PPS: pic_scaling_matrix_present_flag"        , s, &p_Dec->UsedBits);
+        if (pps->pic_scaling_matrix_present_flag) {
+            for (i = 0; i < 6 + ((chroma_format_idc != YUV444) ? 2 : 6) * pps->transform_8x8_mode_flag; i++) {
+                pps->pic_scaling_list_present_flag[i]= read_u_1  ("PPS: pic_scaling_list_present_flag"          , s, &p_Dec->UsedBits);
+                if (pps->pic_scaling_list_present_flag[i]) {
+                    if (i < 6)
+                        scaling_list(pps->ScalingList4x4[i], 16,
+                                     &pps->UseDefaultScalingMatrix4x4Flag[i], s);
+                    else
+                        scaling_list(pps->ScalingList8x8[i - 6], 64,
+                                     &pps->UseDefaultScalingMatrix8x8Flag[i - 6], s);
+                }
+            }
+        }
+        pps->second_chroma_qp_index_offset      = read_se_v ("PPS: second_chroma_qp_index_offset"          , s, &p_Dec->UsedBits);
+    }
+    assert(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12);
+
+    pps->Valid = TRUE;
+}
+
 
 
 
@@ -419,7 +520,7 @@ void SPSConsistencyCheck (sps_t *sps);
 void MakeSPSavailable (VideoParameters *p_Vid, int id, sps_t *sps);
 
 #if (MVC_EXTENSION_ENABLE)
-void SubsetSPSConsistencyCheck (subset_seq_parameter_set_rbsp_t *subset_sps);
+void SubsetSPSConsistencyCheck (sub_sps_t *subset_sps);
 #endif
 
 
@@ -498,7 +599,7 @@ static void get_max_dec_frame_buf_size(sps_t *sps)
     sps->max_dec_frame_buffering = size;
 }
 
-static void seq_parameter_set_mvc_extension(subset_seq_parameter_set_rbsp_t *subset_sps, Bitstream *s)
+static void seq_parameter_set_mvc_extension(sub_sps_t *subset_sps, Bitstream *s)
 {
   int i, j, num_views;
 
@@ -627,7 +728,7 @@ static int MemAlloc1D(void** ppBuf, int iEleSize, int iNum)
   return (*ppBuf == NULL);
 }
 
-static void mvc_hrd_parameters(MVCVUI_t *pMVCVUI, Bitstream *s)
+static void mvc_hrd_parameters(mvc_vui_t *pMVCVUI, Bitstream *s)
 {
   int i;
 
@@ -648,7 +749,7 @@ static void mvc_hrd_parameters(MVCVUI_t *pMVCVUI, Bitstream *s)
 
 }
 
-static void mvc_vui_parameters_extension(MVCVUI_t *pMVCVUI, Bitstream *s)
+static void mvc_vui_parameters_extension(mvc_vui_t *pMVCVUI, Bitstream *s)
 {
   int i, j, iNumOps;
 
@@ -700,10 +801,11 @@ static void mvc_vui_parameters_extension(MVCVUI_t *pMVCVUI, Bitstream *s)
 // 7.3.2.1.3 Subset sequence parameter set RBSP syntax
 static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *p, int *curr_seq_set_id)
 {
-  subset_seq_parameter_set_rbsp_t *subset_sps;
-  unsigned int additional_extension2_flag;
-  Bitstream *s = p->bitstream;
-  sps_t *sps = AllocSPS();
+    sub_sps_t *subset_sps;
+    bool additional_extension2_flag;
+    bool additional_extension2_data_flag;
+    Bitstream *s = p->bitstream;
+    sps_t *sps = AllocSPS();
 
   assert (p != NULL);
   assert (p->bitstream != NULL);
@@ -725,130 +827,37 @@ static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *
   assert (subset_sps != NULL);
   subset_sps->Valid = FALSE;
 
-  /*if(subset_sps->sps.profile_idc == SCALABLE_BASELINE_PROFILE || subset_sps->sps.profile_idc == SCALABLE_HIGH_PROFILE)
-  {
-    printf("\nScalable profile is not supported yet!\n");
-  }
-  else*/ 
-  if( is_MVC_profile(subset_sps->sps.profile_idc))
-  {
-    subset_sps->bit_equal_to_one = read_u_1("bit_equal_to_one", s, &p_Dec->UsedBits);
+    if (subset_sps->sps.profile_idc == 83 || subset_sps->sps.profile_idc == 86) {
 
-    if(subset_sps->bit_equal_to_one !=1 )
-    {
-      printf("\nbit_equal_to_one is not equal to 1!\n");
-      return p_Dec->UsedBits;
+    } else if (subset_sps->sps.profile_idc == MVC_HIGH ||
+               subset_sps->sps.profile_idc == STEREO_HIGH) {
+        subset_sps->bit_equal_to_one = read_u_1("bit_equal_to_one", s, &p_Dec->UsedBits);
+
+        if (subset_sps->bit_equal_to_one != 1) {
+            printf("\nbit_equal_to_one is not equal to 1!\n");
+            return p_Dec->UsedBits;
+        }
+
+        seq_parameter_set_mvc_extension(subset_sps, s);
+
+        subset_sps->mvc_vui_parameters_present_flag = read_u_1("mvc_vui_parameters_present_flag", s, &p_Dec->UsedBits);
+        if (subset_sps->mvc_vui_parameters_present_flag)
+            mvc_vui_parameters_extension(&subset_sps->MVCVUIParams, s);
     }
 
-    seq_parameter_set_mvc_extension(subset_sps, s);
-
-    subset_sps->mvc_vui_parameters_present_flag = read_u_1("mvc_vui_parameters_present_flag", s, &p_Dec->UsedBits);
-    if(subset_sps->mvc_vui_parameters_present_flag)
-      mvc_vui_parameters_extension(&(subset_sps->MVCVUIParams), s);
-  }
-
-  additional_extension2_flag = read_u_1("additional_extension2_flag", s, &p_Dec->UsedBits);
-  if(additional_extension2_flag)
-  {
-    while (more_rbsp_data(s->streamBuffer, s->frame_bitoffset,s->bitstream_length))
-      additional_extension2_flag = read_u_1("additional_extension2_flag", s, &p_Dec->UsedBits);
-  }
-
-  if (subset_sps->sps.Valid)
-    subset_sps->Valid = TRUE;
-
-  FreeSPS (sps);
-  return p_Dec->UsedBits;
-
-}
-#endif
-
-// 7.3.2.2 Picture parameter set RBSP syntax
-static int pic_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *p, pps_t *pps)
-{
-    int iGroup;
-    unsigned i;
-    unsigned n_ScalingList;
-    int chroma_format_idc;
-    int NumberBitsPerSliceGroupId;
-    Bitstream *s = p->bitstream;
-    assert (p != NULL);
-    assert (p->bitstream != NULL);
-    assert (p->bitstream->streamBuffer != 0);
-    assert (pps != NULL);
-
-    p_Dec->UsedBits = 0;
-
-    pps->pic_parameter_set_id                  = read_ue_v ("PPS: pic_parameter_set_id"                   , s, &p_Dec->UsedBits);
-    pps->seq_parameter_set_id                  = read_ue_v ("PPS: seq_parameter_set_id"                   , s, &p_Dec->UsedBits);
-    pps->entropy_coding_mode_flag              = read_u_1  ("PPS: entropy_coding_mode_flag"               , s, &p_Dec->UsedBits);
-    pps->bottom_field_pic_order_in_frame_present_flag = read_u_1  ("PPS: bottom_field_pic_order_in_frame_present_flag"                 , s, &p_Dec->UsedBits);
-
-    pps->num_slice_groups_minus1               = read_ue_v ("PPS: num_slice_groups_minus1"                , s, &p_Dec->UsedBits);
-    if (pps->num_slice_groups_minus1 > 0) {
-        pps->slice_group_map_type               = read_ue_v ("PPS: slice_group_map_type"                , s, &p_Dec->UsedBits);
-        if (pps->slice_group_map_type == 0) {
-            for (iGroup = 0; iGroup <= pps->num_slice_groups_minus1; iGroup++)
-                pps->run_length_minus1[iGroup]                  = read_ue_v ("PPS: run_length_minus1 [i]"              , s, &p_Dec->UsedBits);
-        } else if (pps->slice_group_map_type == 2) {
-            for (iGroup = 0; iGroup < pps->num_slice_groups_minus1; iGroup++) {
-                pps->top_left[iGroup]                          = read_ue_v ("PPS: top_left [i]"                        , s, &p_Dec->UsedBits);
-                pps->bottom_right[iGroup]                      = read_ue_v ("PPS: bottom_right [i]"                    , s, &p_Dec->UsedBits);
-            }
-        } else if (pps->slice_group_map_type == 3 ||
-                   pps->slice_group_map_type == 4 ||
-                   pps->slice_group_map_type == 5) {
-            pps->slice_group_change_direction_flag     = read_u_1  ("PPS: slice_group_change_direction_flag"      , s, &p_Dec->UsedBits);
-            pps->slice_group_change_rate_minus1        = read_ue_v ("PPS: slice_group_change_rate_minus1"         , s, &p_Dec->UsedBits);
-        } else if (pps->slice_group_map_type == 6) {
-            if (pps->num_slice_groups_minus1+1 >4)
-                NumberBitsPerSliceGroupId = 3;
-            else if (pps->num_slice_groups_minus1+1 > 2)
-                NumberBitsPerSliceGroupId = 2;
-            else
-                NumberBitsPerSliceGroupId = 1;
-            pps->pic_size_in_map_units_minus1      = read_ue_v ("PPS: pic_size_in_map_units_minus1"               , s, &p_Dec->UsedBits);
-            if ((pps->slice_group_id = (byte *)calloc (pps->pic_size_in_map_units_minus1+1, 1)) == NULL)
-                no_mem_exit ("InterpretPPS: slice_group_id");
-            for (i = 0; i <= pps->pic_size_in_map_units_minus1; i++)
-                pps->slice_group_id[i] = (byte) read_u_v (NumberBitsPerSliceGroupId, "slice_group_id[i]", s, &p_Dec->UsedBits);
-        }
+    additional_extension2_flag = read_u_1("additional_extension2_flag", s, &p_Dec->UsedBits);
+    if (additional_extension2_flag) {
+        while (more_rbsp_data(s->streamBuffer, s->frame_bitoffset,s->bitstream_length))
+            additional_extension2_data_flag = read_u_1("additional_extension2_flag", s, &p_Dec->UsedBits);
     }
 
-    pps->num_ref_idx_l0_default_active_minus1  = read_ue_v ("PPS: num_ref_idx_l0_default_active_minus1"   , s, &p_Dec->UsedBits);
-    pps->num_ref_idx_l1_default_active_minus1  = read_ue_v ("PPS: num_ref_idx_l1_default_active_minus1"   , s, &p_Dec->UsedBits);
-    pps->weighted_pred_flag                    = read_u_1  ("PPS: weighted_pred_flag"                     , s, &p_Dec->UsedBits);
-    pps->weighted_bipred_idc                   = read_u_v  ( 2, "PPS: weighted_bipred_idc"                , s, &p_Dec->UsedBits);
-    pps->pic_init_qp_minus26                   = read_se_v ("PPS: pic_init_qp_minus26"                    , s, &p_Dec->UsedBits);
-    pps->pic_init_qs_minus26                   = read_se_v ("PPS: pic_init_qs_minus26"                    , s, &p_Dec->UsedBits);
-    pps->chroma_qp_index_offset                = read_se_v ("PPS: chroma_qp_index_offset"                 , s, &p_Dec->UsedBits);
-    pps->deblocking_filter_control_present_flag = read_u_1 ("PPS: deblocking_filter_control_present_flag" , s, &p_Dec->UsedBits);
-    pps->constrained_intra_pred_flag           = read_u_1  ("PPS: constrained_intra_pred_flag"            , s, &p_Dec->UsedBits);
-    pps->redundant_pic_cnt_present_flag        = read_u_1  ("PPS: redundant_pic_cnt_present_flag"         , s, &p_Dec->UsedBits);
+    if (subset_sps->sps.Valid)
+        subset_sps->Valid = TRUE;
 
-    if (more_rbsp_data(s->streamBuffer, s->frame_bitoffset, s->bitstream_length)) {
-        pps->transform_8x8_mode_flag           =  read_u_1  ("PPS: transform_8x8_mode_flag"                , s, &p_Dec->UsedBits);
-        pps->pic_scaling_matrix_present_flag   =  read_u_1  ("PPS: pic_scaling_matrix_present_flag"        , s, &p_Dec->UsedBits);
-        if (pps->pic_scaling_matrix_present_flag) {
-            chroma_format_idc = p_Vid->SeqParSet[pps->seq_parameter_set_id].chroma_format_idc;
-            n_ScalingList = 6 + ((chroma_format_idc != YUV444) ? 2 : 6) * pps->transform_8x8_mode_flag;
-            for (i = 0; i < n_ScalingList; i++) {
-                pps->pic_scaling_list_present_flag[i]= read_u_1  ("PPS: pic_scaling_list_present_flag"          , s, &p_Dec->UsedBits);
-                if (pps->pic_scaling_list_present_flag[i]) {
-                    if (i < 6)
-                        scaling_list(pps->ScalingList4x4[i], 16, &pps->UseDefaultScalingMatrix4x4Flag[i], s);
-                    else
-                        scaling_list(pps->ScalingList8x8[i-6], 64, &pps->UseDefaultScalingMatrix8x8Flag[i-6], s);
-                }
-            }
-        }
-        pps->second_chroma_qp_index_offset      = read_se_v ("PPS: second_chroma_qp_index_offset"          , s, &p_Dec->UsedBits);
-    } else
-        pps->second_chroma_qp_index_offset      = pps->chroma_qp_index_offset;
-
-    pps->Valid = TRUE;
+    FreeSPS (sps);
     return p_Dec->UsedBits;
 }
+#endif
 
 
 static int sps_is_equal(sps_t *sps1, sps_t *sps2)
@@ -1014,7 +1023,7 @@ void SPSConsistencyCheck (sps_t *sps)
 }
 
 #if (MVC_EXTENSION_ENABLE)
-void SubsetSPSConsistencyCheck (subset_seq_parameter_set_rbsp_t *subset_sps)
+void SubsetSPSConsistencyCheck (sub_sps_t *subset_sps)
 {
   printf ("Consistency checking a subset sequence parset, to be implemented\n");
 }
@@ -1075,15 +1084,16 @@ void ProcessSPS(VideoParameters *p_Vid, NALU_t *nalu)
         if (p_Vid->active_sps) {
             if (sps->seq_parameter_set_id == p_Vid->active_sps->seq_parameter_set_id) {
                 if (!sps_is_equal(sps, p_Vid->active_sps)) {
-                    if (p_Vid->dec_picture) // && p_Vid->num_dec_mb == p_Vid->PicSizeInMbs) //?
+                    if (p_Vid->dec_picture)
                         // this may only happen on slice loss
                         exit_picture(p_Vid, &p_Vid->dec_picture);
-                    p_Vid->active_sps=NULL;
+                    p_Vid->active_sps = NULL;
                 }
             }
         }
         // SPSConsistencyCheck (pps);
         MakeSPSavailable (p_Vid, sps->seq_parameter_set_id, sps);
+
 #if (MVC_EXTENSION_ENABLE)
         if (p_Vid->profile_idc < (int) sps->profile_idc)
 #endif
@@ -1103,7 +1113,7 @@ void ProcessSPS(VideoParameters *p_Vid, NALU_t *nalu)
 void ProcessSubsetSPS(VideoParameters *p_Vid, NALU_t *nalu)
 {
     DataPartition *dp = AllocPartition(1);
-    subset_seq_parameter_set_rbsp_t *subset_sps;
+    sub_sps_t *subset_sps;
     int curr_seq_set_id;
 
     memcpy (dp->bitstream->streamBuffer, &nalu->buf[1], nalu->len-1);
@@ -1153,7 +1163,7 @@ void ProcessPPS(VideoParameters *p_Vid, NALU_t *nalu)
             if (!pps_is_equal(pps, p_Vid->active_pps)) {
                 //copy to next PPS;
                 memcpy(p_Vid->pNextPPS, p_Vid->active_pps, sizeof (pps_t));
-                if (p_Vid->dec_picture) // && p_Vid->num_dec_mb == p_Vid->PicSizeInMbs)
+                if (p_Vid->dec_picture)
                     // this may only happen on slice loss
                     exit_picture(p_Vid, &p_Vid->dec_picture);
                 p_Vid->active_pps = NULL;
@@ -1678,7 +1688,7 @@ void UseParameterSet (Slice *currSlice)
 
 #if (MVC_EXTENSION_ENABLE)
 
-void init_subset_sps_list(subset_seq_parameter_set_rbsp_t *subset_sps_list, int iSize)
+void init_subset_sps_list(sub_sps_t *subset_sps_list, int iSize)
 {
   int i;
   memset(subset_sps_list, 0, iSize*sizeof(subset_sps_list[0]));
@@ -1691,7 +1701,7 @@ void init_subset_sps_list(subset_seq_parameter_set_rbsp_t *subset_sps_list, int 
   }
 }
 
-void reset_subset_sps(subset_seq_parameter_set_rbsp_t *subset_sps)
+void reset_subset_sps(sub_sps_t *subset_sps)
 {
   int i, j;
 
@@ -1749,7 +1759,7 @@ void reset_subset_sps(subset_seq_parameter_set_rbsp_t *subset_sps)
 
   if(subset_sps && subset_sps->mvc_vui_parameters_present_flag)
   {
-    MVCVUI_t *pMVCVUI = &(subset_sps->MVCVUIParams);
+    mvc_vui_t *pMVCVUI = &(subset_sps->MVCVUIParams);
     if(pMVCVUI->num_ops_minus1 >=0)
     {
       free_pointer(pMVCVUI->temporal_id);
@@ -1772,9 +1782,9 @@ void reset_subset_sps(subset_seq_parameter_set_rbsp_t *subset_sps)
   }
 }
 
-int GetBaseViewId(VideoParameters *p_Vid, subset_seq_parameter_set_rbsp_t **subset_sps)
+int GetBaseViewId(VideoParameters *p_Vid, sub_sps_t **subset_sps)
 {
-  subset_seq_parameter_set_rbsp_t *curr_subset_sps;
+  sub_sps_t *curr_subset_sps;
   int i, iBaseViewId=0; //-1;
 
   *subset_sps = NULL;

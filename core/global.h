@@ -40,12 +40,270 @@ extern "C" {
 #include "win32.h"
 #include "defines.h"
 #include "ifunctions.h"
-#include "types.h"
-#include "io_image.h"
-#include "frame.h"
 
 #include "parser.h"
 #include "parset.h"
+
+typedef enum {
+  CM_UNKNOWN = -1,
+  CM_YUV     =  0,
+  CM_RGB     =  1,
+  CM_XYZ     =  2
+} ColorModel;
+
+typedef enum {
+  CF_UNKNOWN = -1,     //!< Unknown color format
+  YUV400     =  0,     //!< Monochrome
+  YUV420     =  1,     //!< 4:2:0
+  YUV422     =  2,     //!< 4:2:2
+  YUV444     =  3      //!< 4:4:4
+} ColorFormat;
+
+typedef enum {
+  PF_UNKNOWN = -1,     //!< Unknown color ordering
+  UYVY       =  0,     //!< UYVY
+  YUY2       =  1,     //!< YUY2
+  YUYV       =  1,     //!< YUYV
+  YVYU       =  2,     //!< YVYU
+  BGR        =  3,     //!< BGR
+  V210       =  4      //!< Video Clarity 422 format (10 bits)
+} PixelFormat;
+
+
+typedef struct frame_format
+{  
+  ColorFormat yuv_format;                    //!< YUV format (0=4:0:0, 1=4:2:0, 2=4:2:2, 3=4:4:4)
+  ColorModel  color_model;                   //!< 4:4:4 format (0: YUV, 1: RGB, 2: XYZ)
+  PixelFormat pixel_format;                  //!< pixel format support for certain interleaved yuv sources
+  double      frame_rate;                    //!< frame rate
+  int         width[3];                      //!< component frame width
+  int         height[3];                     //!< component frame height    
+  int         auto_crop_right;               //!< luma component auto crop right
+  int         auto_crop_bottom;              //!< luma component auto crop bottom
+  int         auto_crop_right_cr;            //!< chroma component auto crop right
+  int         auto_crop_bottom_cr;           //!< chroma component auto crop bottom
+  int         width_crop;                    //!< width after cropping consideration
+  int         height_crop;                   //!< height after cropping consideration
+  int         mb_width;                      //!< luma component frame width
+  int         mb_height;                     //!< luma component frame height    
+  int         size_cmp[3];                   //!< component sizes (width * height)
+  int         size;                          //!< total image size (sum of size_cmp)
+  int         bit_depth[3];                  //!< component bit depth  
+  int         max_value[3];                  //!< component max value
+  int         max_value_sq[3];               //!< component max value squared
+  int         pic_unit_size_on_disk;         //!< picture sample unit size on storage medium
+  int         pic_unit_size_shift3;          //!< pic_unit_size_on_disk >> 3
+} FrameFormat;
+
+typedef struct image_data
+{
+  FrameFormat format;               //!< image format
+  // Standard data
+  imgpel **frm_data[MAX_PLANE];     //!< Frame Data
+  imgpel **top_data[MAX_PLANE];     //!< pointers to top field data
+  imgpel **bot_data[MAX_PLANE];     //!< pointers to bottom field data
+
+  imgpel **frm_data_buf[2][MAX_PLANE];     //!< Frame Data
+  imgpel **top_data_buf[2][MAX_PLANE];     //!< pointers to top field data
+  imgpel **bot_data_buf[2][MAX_PLANE];     //!< pointers to bottom field data
+  
+  //! Optional data (could also add uint8 data in case imgpel is of type uint16)
+  //! These can be useful for enabling input/conversion of content of different types
+  //! while keeping optimal processing size.
+  uint16 **frm_uint16[MAX_PLANE];   //!< optional frame Data for uint16
+  uint16 **top_uint16[MAX_PLANE];   //!< optional pointers to top field data
+  uint16 **bot_uint16[MAX_PLANE];   //!< optional pointers to bottom field data
+
+  int frm_stride[MAX_PLANE];
+  int top_stride[MAX_PLANE];
+  int bot_stride[MAX_PLANE];
+} ImageData;
+
+/***********************************************************************
+ * T y p e    d e f i n i t i o n s    f o r    T M L
+ ***********************************************************************
+ */
+
+typedef enum
+{
+  // YUV
+  PLANE_Y = 0,  // PLANE_Y
+  PLANE_U = 1,  // PLANE_Cb
+  PLANE_V = 2,  // PLANE_Cr
+  // RGB
+  PLANE_G = 0,
+  PLANE_B = 1,
+  PLANE_R = 2
+} ColorPlane;
+
+enum {
+  LIST_0 = 0,
+  LIST_1 = 1,
+  BI_PRED = 2,
+  BI_PRED_L0 = 3,
+  BI_PRED_L1 = 4
+};
+
+enum {
+  ERROR_SAD = 0,
+  ERROR_SSE = 1,
+  ERROR_SATD = 2,
+  ERROR_PSATD = 3
+};
+
+enum {
+  ME_Y_ONLY = 0,
+  ME_YUV_FP = 1,
+  ME_YUV_FP_SP = 2
+};
+
+
+enum {
+  DISTORTION_MSE = 0
+};
+
+
+//! Data Partitioning Modes
+typedef enum
+{
+  PAR_DP_1,   //!< no data partitioning is supported
+  PAR_DP_3    //!< data partitioning with 3 partitions
+} PAR_DP_TYPE;
+
+
+//! Output File Types
+typedef enum
+{
+  PAR_OF_ANNEXB,    //!< Annex B byte stream format
+  PAR_OF_RTP       //!< RTP packets in outfile
+} PAR_OF_TYPE;
+
+//! Field Coding Types
+typedef enum
+{
+  FRAME_CODING         = 0,
+  FIELD_CODING         = 1,
+  ADAPTIVE_CODING      = 2,
+  FRAME_MB_PAIR_CODING = 3
+} CodingType;
+
+
+//! definition of H.264 syntax elements
+typedef enum
+{
+  SE_HEADER,
+  SE_PTYPE,
+  SE_MBTYPE,
+  SE_REFFRAME,
+  SE_INTRAPREDMODE,
+  SE_MVD,
+  SE_CBP,
+  SE_LUM_DC_INTRA,
+  SE_CHR_DC_INTRA,
+  SE_LUM_AC_INTRA,
+  SE_CHR_AC_INTRA,
+  SE_LUM_DC_INTER,
+  SE_CHR_DC_INTER,
+  SE_LUM_AC_INTER,
+  SE_CHR_AC_INTER,
+  SE_DELTA_QUANT,
+  SE_BFRAME,
+  SE_EOS,
+  SE_MAX_ELEMENTS = 20 //!< number of maximum syntax elements
+} SE_type;             // substituting the definitions in elements.h
+
+
+typedef enum
+{
+  NO_SLICES,
+  FIXED_MB,
+  FIXED_RATE,
+  CALL_BACK
+} SliceMode;
+
+
+typedef enum
+{
+  CAVLC,
+  CABAC
+} SymbolMode;
+
+typedef enum
+{
+  FULL_SEARCH      = -1,
+  FAST_FULL_SEARCH =  0,
+  UM_HEX           =  1,
+  UM_HEX_SIMPLE    =  2,
+  EPZS             =  3
+} SearchType;
+
+
+typedef enum
+{
+  FRAME,
+  TOP_FIELD,
+  BOTTOM_FIELD
+} PictureStructure;           //!< New enum for field processing
+
+typedef enum
+{
+  P_SLICE = 0,
+  B_SLICE = 1,
+  I_SLICE = 2,
+  SP_SLICE = 3,
+  SI_SLICE = 4,
+  NUM_SLICE_TYPES = 5
+} SliceType;
+
+//Motion Estimation levels
+typedef enum
+{
+  F_PEL,   //!< Full Pel refinement
+  H_PEL,   //!< Half Pel refinement
+  Q_PEL    //!< Quarter Pel refinement
+} MELevel;
+
+typedef enum
+{
+  FAST_ACCESS = 0,    //!< Fast/safe reference access
+  UMV_ACCESS = 1      //!< unconstrained reference access
+} REF_ACCESS_TYPE;
+
+typedef enum
+{
+  IS_LUMA = 0,
+  IS_CHROMA = 1
+} Component_Type;
+
+typedef enum
+{
+  RC_MODE_0 = 0,
+  RC_MODE_1 = 1,
+  RC_MODE_2 = 2,
+  RC_MODE_3 = 3
+} RCModeType;
+
+
+typedef enum {
+  SSE              = 0,
+  SSE_RGB          = 1,  
+  PSNR             = 2,
+  PSNR_RGB         = 3,
+  SSIM             = 4,
+  SSIM_RGB         = 5,
+  MS_SSIM          = 6,
+  MS_SSIM_RGB      = 7,
+  TOTAL_DIST_TYPES = 8
+} distortion_types;
+
+typedef enum {
+  WP_MCPREC_PLUS0 =       4,
+  WP_MCPREC_PLUS1 =       5,
+  WP_MCPREC_MINUS0 =      6,
+  WP_MCPREC_MINUS1 =      7,
+  WP_MCPREC_MINUS_PLUS0 = 8,
+  WP_REGULAR =            9
+} weighted_prediction_types;
 
 
 #define ET_SIZE 300      //!< size of error text buffer
@@ -218,9 +476,9 @@ typedef struct video_par {
   LayerParameters *p_LayerPar[MAX_NUM_DPB_LAYERS];
 
 #if (MVC_EXTENSION_ENABLE)
-  subset_seq_parameter_set_rbsp_t *active_subset_sps;
+  sub_sps_t *active_subset_sps;
   //int svc_extension_flag;
-  subset_seq_parameter_set_rbsp_t SubsetSeqParSet[MAXSPS];
+  sub_sps_t SubsetSeqParSet[MAXSPS];
   int last_pic_width_in_mbs_minus1;
   int last_pic_height_in_map_units_minus1;
   int last_max_dec_frame_buffering;
@@ -542,10 +800,7 @@ typedef struct decoder_params
 {
   InputParameters   *p_Inp;          //!< Input Parameters
   VideoParameters   *p_Vid;          //!< Image Parameters
-  int64              bufferSize;     //!< buffersize for tiff reads (not currently supported)
   int                UsedBits;      // for internal statistics, is adjusted by read_se_v, read_ue_v, read_u_1
-  FILE              *p_trace;        //!< Trace file
-  int                bitcounter;
 } DecoderParams;
 
 extern DecoderParams  *p_Dec;

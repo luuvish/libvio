@@ -23,9 +23,10 @@
 #include "biaridecod.h"
 #include "neighbour.h"
 
-#if TRACE
-int symbolCount = 0;
-#endif
+static inline int get_bit(int64 x,int n)
+{
+  return (int)(((x >> n) & 1));
+}
 
 #define IS_DIRECT(MB)   ((MB)->mb_type==0     && (currSlice->slice_type == B_SLICE ))
 
@@ -238,11 +239,6 @@ void readFieldModeInfo_CABAC(Macroblock *currMB,
   int act_ctx = a + b;
 
   se->value1 = biari_decode_symbol (dep_dp, &ctx->mb_aff_contexts[act_ctx]);
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
 }
 
 
@@ -293,9 +289,6 @@ int check_next_mb_and_get_field_mode_CABAC_p_slice( Slice *currSlice,
   memcpy(mb_aff_ctx_copy, mot_ctx->mb_aff_contexts,NUM_MB_AFF_CTX*sizeof(BiContextType) );
 
   //check_next_mb
-#if TRACE
-  strncpy(se->tracestring, "mb_skip_flag (of following bottom MB)", TRACESTRING_SIZE);
-#endif
   currSlice->last_dquant = 0;
   read_skip_flag_CABAC_p_slice(currMB, se, dep_dp);
 
@@ -303,9 +296,6 @@ int check_next_mb_and_get_field_mode_CABAC_p_slice( Slice *currSlice,
 
   if (!skip)
   {
-#if TRACE
-    strncpy(se->tracestring, "mb_field_decoding_flag (of following bottom MB)", TRACESTRING_SIZE);
-#endif
     readFieldModeInfo_CABAC( currMB, se,dep_dp);
     field = se->value1;
     currSlice->mb_data[currSlice->current_mb_nr-1].mb_field = (Boolean)field;
@@ -380,18 +370,12 @@ int check_next_mb_and_get_field_mode_CABAC_b_slice( Slice *currSlice,
   memcpy(mb_aff_ctx_copy, mot_ctx->mb_aff_contexts,NUM_MB_AFF_CTX*sizeof(BiContextType) );
 
   //check_next_mb
-#if TRACE
-  strncpy(se->tracestring, "mb_skip_flag (of following bottom MB)", TRACESTRING_SIZE);
-#endif
   currSlice->last_dquant = 0;
   read_skip_flag_CABAC_b_slice(currMB, se, dep_dp);
 
   skip = (se->value1==0 && se->value2==0);
   if (!skip)
   {
-#if TRACE
-    strncpy(se->tracestring, "mb_field_decoding_flag (of following bottom MB)", TRACESTRING_SIZE);
-#endif
     readFieldModeInfo_CABAC( currMB, se,dep_dp);
     field = se->value1;
     currSlice->mb_data[currSlice->current_mb_nr-1].mb_field = (Boolean)field;
@@ -438,10 +422,6 @@ void read_skip_flag_CABAC_p_slice( Macroblock *currMB,
 
   se->value1 = (biari_decode_symbol(dep_dp, mb_type_contexts) != 1);
 
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
   if (!se->value1)
   {
     currMB->p_Slice->last_dquant = 0;
@@ -465,10 +445,6 @@ void read_skip_flag_CABAC_b_slice( Macroblock *currMB,
 
   se->value1 = se->value2 = (biari_decode_symbol (dep_dp, mb_type_contexts) != 1);
 
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n", symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
   if (!se->value1)
   {
     currMB->p_Slice->last_dquant = 0;
@@ -496,12 +472,6 @@ void readMB_transform_size_flag_CABAC( Macroblock *currMB,
   int act_sym = biari_decode_symbol(dep_dp, ctx->transform_size_contexts + a + b );
 
   se->value1 = act_sym;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
-
 }
 
 /*!
@@ -570,12 +540,6 @@ void readRefFrame_CABAC(Macroblock *currMB,
     ++act_sym;
   }
   se->value1 = act_sym;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-//  fprintf(p_Dec->p_trace," c: %d :%d \n",ctx->ref_no_contexts[addctx][act_ctx].cum_freq[0],ctx->ref_no_contexts[addctx][act_ctx].cum_freq[1]);
-  fflush(p_Dec->p_trace);
-#endif
 }
 
 /*!
@@ -635,11 +599,6 @@ void read_MVD_CABAC( Macroblock *currMB,
       act_sym = -act_sym;
   }
   se->value1 = act_sym;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
 }
 
 /*!
@@ -713,11 +672,6 @@ void read_mvd_CABAC_mbaff( Macroblock *currMB,
       act_sym = -act_sym;
   }
   se->value1 = act_sym;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
 }
 
 
@@ -752,11 +706,6 @@ void read_dQuant_CABAC( Macroblock *currMB,
     *dquant = 0;
 
   currSlice->last_dquant = *dquant;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
 }
 /*!
  ************************************************************************
@@ -885,11 +834,6 @@ void read_CBP_CABAC(Macroblock *currMB,
   {
     currSlice->last_dquant = 0;
   }
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
 }
 
 /*!
@@ -918,12 +862,6 @@ void readCIPredMode_CABAC(Macroblock *currMB,
 
   if (*act_sym != 0)
     *act_sym = unary_bin_max_decode(dep_dp, ctx->cipr_contexts + 3, 0, 1) + 1;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, se->tracestring, se->value1);
-  fflush(p_Dec->p_trace);
-#endif
-
 }
 
 
@@ -1713,11 +1651,6 @@ void readRunLevel_CABAC (Macroblock *currMB,
   //--- decrement coefficient counter and re-set position ---
   if ((*coeff_ctr)-- == 0) 
     currSlice->pos = 0;
-
-#if TRACE
-  fprintf(p_Dec->p_trace, "@%-6d %-53s %3d  %3d\n",symbolCount++, se->tracestring, se->value1,se->value2);
-  fflush(p_Dec->p_trace);
-#endif
 }
 
 /*!
@@ -1735,11 +1668,6 @@ int readSyntaxElement_CABAC(Macroblock *currMB, SyntaxElement *se, DataPartition
   se->reading(currMB, se, dep_dp);
   //read again and minus curr_len = arideco_bits_read(dep_dp); from above
   se->len = (arideco_bits_read(dep_dp) - curr_len);
-
-#if (TRACE==2)
-  fprintf(p_Dec->p_trace, "curr_len: %d\n",curr_len);
-  fprintf(p_Dec->p_trace, "se_len: %d\n",se->len);
-#endif
 
   return (se->len); 
 }
@@ -1834,11 +1762,6 @@ int cabac_startcode_follows(Slice *currSlice, int eos_bit)
     DecodingEnvironmentPtr dep_dp = &(dP->de_cabac);
 
     bit = biari_decode_final (dep_dp); //GB
-
-#if TRACE
-    fprintf(p_Dec->p_trace, "@%-6d %-63s (%3d)\n",symbolCount++, "end_of_slice_flag", bit);
-    fflush(p_Dec->p_trace);
-#endif
   }
   else
   {
@@ -1889,9 +1812,6 @@ void readIPCM_CABAC(Slice *currSlice, struct datapartition_dec *dP)
     for(j=0;j<MB_BLOCK_SIZE;++j)
     {
       bits_read += GetBits(buf, bitoffset, &val, BitstreamLengthInBits, bitdepth);
-#if TRACE
-      tracebits2("pcm_byte luma", bitdepth, val);
-#endif
       currSlice->cof[0][i][j] = val;
 
       bitoffset += bitdepth;
@@ -1909,9 +1829,6 @@ void readIPCM_CABAC(Slice *currSlice, struct datapartition_dec *dP)
         for(j = 0; j < p_Vid->mb_cr_size_x; ++j)
         {
           bits_read += GetBits(buf, bitoffset, &val, BitstreamLengthInBits, bitdepth);
-#if TRACE
-          tracebits2("pcm_byte chroma", bitdepth, val);
-#endif
           currSlice->cof[uv][i][j] = val;
 
           bitoffset += bitdepth;

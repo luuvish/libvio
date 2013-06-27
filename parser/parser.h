@@ -55,11 +55,6 @@ typedef struct syntaxelement_dec {
     int           context;               //!< CABAC context
     int           k;                     //!< CABAC context for coeff_count,uv
 
-#if TRACE
-    #define       TRACESTRING_SIZE 100           //!< size of trace string
-    char          tracestring[TRACESTRING_SIZE]; //!< trace string
-#endif
-
     //! for mapping of CAVLC to syntaxElement
     void (*mapping)(int len, int info, int *value1, int *value2);
     //! used for CABAC: refers to actual coding method of each individual syntax element type

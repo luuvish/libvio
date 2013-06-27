@@ -31,6 +31,23 @@
 #include "memalloc.h"
 #include "output.h"
 
+static inline int RSD(int x)
+{
+ return ((x&2)?(x|1):(x&(~1)));
+}
+
+static inline int RoundLog2 (int iValue)
+{
+  int iRet = 0;
+  int iValue_square = iValue * iValue;
+  while ((1 << (iRet + 1)) <= iValue_square)
+    ++iRet;
+
+  iRet = (iRet + 1) >> 1;
+  return iRet;
+}
+
+
 static void insert_picture_in_dpb    (VideoParameters *p_Vid, FrameStore* fs, StorablePicture* p);
 static int output_one_frame_from_dpb (DecodedPictureBuffer *p_Dpb);
 static void gen_field_ref_ids        (VideoParameters *p_Vid, StorablePicture *p);
@@ -2659,7 +2676,7 @@ void compute_colocated (Slice *currSlice, StorablePicture **listX[6])
 int GetMaxDecFrameBuffering(VideoParameters *p_Vid)
 {
   int i, j, iMax, iMax_1 = 0, iMax_2 = 0;
-  subset_seq_parameter_set_rbsp_t *curr_subset_sps;
+  sub_sps_t *curr_subset_sps;
   sps_t *curr_sps;
 
   curr_subset_sps = p_Vid->SubsetSeqParSet;

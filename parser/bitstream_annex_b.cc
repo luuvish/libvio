@@ -206,12 +206,6 @@ int get_nalu_from_annex_b(NALU_t *nalu, ANNEXB_t *annex_b)
             nalu->nal_unit_type     = (NaluType) ((*(nalu->buf)) & 0x1f);
             annex_b->nextstartcodebytes = 0;
 
-#if TRACE
-            fprintf(p_Dec->p_trace, "\n\nLast NALU in File\n\n");
-            fprintf(p_Dec->p_trace, "Annex B NALU w/ %s startcode, len %d, forbidden_bit %d, nal_reference_idc %d, nal_unit_type %d\n\n",
-                    nalu->startcodeprefix_len == 4?"long":"short", nalu->len, nalu->forbidden_bit, nalu->nal_reference_idc, nalu->nal_unit_type);
-            fflush(p_Dec->p_trace);
-#endif
             return (pos - 1);
         }
 
@@ -253,12 +247,6 @@ int get_nalu_from_annex_b(NALU_t *nalu, ANNEXB_t *annex_b)
     nalu->nal_reference_idc = (NalRefIdc) ((*(nalu->buf) >> 5) & 3);
     nalu->nal_unit_type     = (NaluType) ((*(nalu->buf)) & 0x1f);
     nalu->lost_packets      = 0;
-
-#if TRACE
-    fprintf(p_Dec->p_trace, "\n\nAnnex B NALU w/ %s startcode, len %d, forbidden_bit %d, nal_reference_idc %d, nal_unit_type %d\n\n",
-            nalu->startcodeprefix_len == 4?"long":"short", nalu->len, nalu->forbidden_bit, nalu->nal_reference_idc, nalu->nal_unit_type);
-    fflush(p_Dec->p_trace);
-#endif
 
     return (pos);
 }

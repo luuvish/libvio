@@ -20,18 +20,6 @@
 #include "transform.h"
 #include "neighbour.h"
 
-#if TRACE
-#define TRACE_STRING(s) strncpy(currSE.tracestring, s, TRACESTRING_SIZE)
-#define TRACE_DECBITS(i) dectracebitcnt(1)
-#define TRACE_PRINTF(s) sprintf(type, "%s", s);
-#define TRACE_STRING_P(s) strncpy(currSE->tracestring, s, TRACESTRING_SIZE)
-#else
-#define TRACE_STRING(s)
-#define TRACE_DECBITS(i)
-#define TRACE_PRINTF(s) 
-#define TRACE_STRING_P(s)
-#endif
-
 #define IS_I16MB(MB)    ((MB)->mb_type==I16MB  || (MB)->mb_type==IPCM)
 #define IS_DIRECT(MB)   ((MB)->mb_type==0     && (currSlice->slice_type == B_SLICE ))
 
@@ -199,12 +187,6 @@ static int readSyntaxElement_NumCoeffTrailingOnes(SyntaxElement *sym,
     }
   }
 
-#if TRACE
-  snprintf(sym->tracestring, TRACESTRING_SIZE, "%s # c & tr.1s vlc=%d #c=%d #t1=%d",
-           type, vlcnum, sym->value1, sym->value2);
-  tracebits2(sym->tracestring, sym->len, code);
-#endif
-
   return retval;
 }
 
@@ -266,13 +248,6 @@ static int readSyntaxElement_NumCoeffTrailingOnesChromaDC(VideoParameters *p_Vid
     exit(-1);
   }
 
-#if TRACE
-  snprintf(sym->tracestring, TRACESTRING_SIZE, "ChrDC # c & tr.1s  #c=%d #t1=%d",
-    sym->value1, sym->value2);
-  tracebits2(sym->tracestring, sym->len, code);
-
-#endif
-
   return retval;
 }
 
@@ -325,10 +300,6 @@ static int readSyntaxElement_Level_VLC0(SyntaxElement *sym, Bitstream *currStrea
 
   sym->inf = (sign) ? -level : level ;
   sym->len = len;
-
-#if TRACE
-  tracebits2(sym->tracestring, sym->len, code);
-#endif
 
   currStream->frame_bitoffset = frame_bitoffset;
   return 0;
@@ -401,10 +372,6 @@ static int readSyntaxElement_Level_VLCN(SyntaxElement *sym, int vlc, Bitstream *
 
   currStream->frame_bitoffset = frame_bitoffset + len;
 
-#if TRACE
-  tracebits2(sym->tracestring, sym->len, code);
-#endif
-
   return 0;
 }
 
@@ -464,10 +431,6 @@ static int readSyntaxElement_TotalZeros(SyntaxElement *sym,  Bitstream *currStre
     printf("ERROR: failed to find Total Zeros !cdc\n");
     exit(-1);
   }
-
-#if TRACE
-  tracebits2(sym->tracestring, sym->len, code);
-#endif
 
   return retval;
 }
@@ -555,10 +518,6 @@ static int readSyntaxElement_TotalZerosChromaDC(VideoParameters *p_Vid, SyntaxEl
     exit(-1);
   }
 
-#if TRACE
-  tracebits2(sym->tracestring, sym->len, code);
-#endif
-
   return retval;
 }
 
@@ -602,10 +561,6 @@ static int readSyntaxElement_Run(SyntaxElement *sym, Bitstream *currStream)
     exit(-1);
   }
 
-#if TRACE
-  tracebits2(sym->tracestring, sym->len, code);
-#endif
-
   return retval;
 }
 
@@ -646,33 +601,28 @@ static void read_coeff_4x4_CAVLC(Macroblock *currMB,
   {
   case LUMA:
     max_coeff_num = 16;
-    TRACE_PRINTF("Luma");
     dptype = (currMB->is_intra_block == TRUE) ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   case LUMA_INTRA16x16DC:
     max_coeff_num = 16;
-    TRACE_PRINTF("Lum16DC");
     dptype = SE_LUM_DC_INTRA;
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   case LUMA_INTRA16x16AC:
     max_coeff_num = 15;
-    TRACE_PRINTF("Lum16AC");
     dptype = SE_LUM_AC_INTRA;
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   case CHROMA_DC:
     max_coeff_num = p_Vid->num_cdc_coeff;
     cdc = 1;
-    TRACE_PRINTF("ChrDC");
     dptype = (currMB->is_intra_block == TRUE) ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER;
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   case CHROMA_AC:
     max_coeff_num = 15;
     cac = 1;
-    TRACE_PRINTF("ChrAC");
     dptype = (currMB->is_intra_block == TRUE) ? SE_CHR_AC_INTRA : SE_CHR_AC_INTER;
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
@@ -721,11 +671,6 @@ static void read_coeff_4x4_CAVLC(Macroblock *currMB,
     {      
       currSE.len = numtrailingones;
 
-#if TRACE
-      snprintf(currSE.tracestring,
-        TRACESTRING_SIZE, "%s trailing ones sign (%d,%d)", type, i, j);
-#endif
-
       readSyntaxElement_FLC (&currSE, currStream);
 
       code = currSE.inf;
@@ -743,12 +688,6 @@ static void read_coeff_4x4_CAVLC(Macroblock *currMB,
 
     for (k = numcoeff - 1 - numtrailingones; k >= 0; k--)
     {
-
-#if TRACE
-      snprintf(currSE.tracestring,
-        TRACESTRING_SIZE, "%s lev (%d,%d) k=%d vlc=%d ", type, i, j, k, vlcnum);
-#endif
-
       if (vlcnum == 0)
         readSyntaxElement_Level_VLC0(&currSE, currStream);
       else
@@ -779,10 +718,6 @@ static void read_coeff_4x4_CAVLC(Macroblock *currMB,
       vlcnum = numcoeff - 1;
       currSE.value1 = vlcnum;
 
-#if TRACE
-      snprintf(currSE.tracestring,
-        TRACESTRING_SIZE, "%s totalrun (%d,%d) vlc=%d ", type, i,j, vlcnum);
-#endif
       if (cdc)
         readSyntaxElement_TotalZerosChromaDC(p_Vid, &currSE, currStream);
       else
@@ -807,11 +742,6 @@ static void read_coeff_4x4_CAVLC(Macroblock *currMB,
         vlcnum = imin(zerosleft - 1, RUNBEFORE_NUM_M1);
 
         currSE.value1 = vlcnum;
-#if TRACE
-        snprintf(currSE.tracestring,
-          TRACESTRING_SIZE, "%s run (%d,%d) k=%d vlc=%d ",
-          type, i, j, i, vlcnum);
-#endif
 
         readSyntaxElement_Run(&currSE, currStream);
         runarr[i] = currSE.value1;
@@ -860,69 +790,58 @@ static void read_coeff_4x4_CAVLC_444(Macroblock *currMB,
   {
   case LUMA:
     max_coeff_num = 16;
-    TRACE_PRINTF("Luma");
     dptype = (currMB->is_intra_block == TRUE) ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   case LUMA_INTRA16x16DC:
     max_coeff_num = 16;
-    TRACE_PRINTF("Lum16DC");
     dptype = SE_LUM_DC_INTRA;
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   case LUMA_INTRA16x16AC:
     max_coeff_num = 15;
-    TRACE_PRINTF("Lum16AC");
     dptype = SE_LUM_AC_INTRA;
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   case CB:
     max_coeff_num = 16;
-    TRACE_PRINTF("Luma_add1");
     dptype = ((currMB->is_intra_block == TRUE)) ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
     p_Vid->nz_coeff[mb_nr][1][j][i] = 0; 
     break;
   case CB_INTRA16x16DC:
     max_coeff_num = 16;
-    TRACE_PRINTF("Luma_add1_16DC");
     dptype = SE_LUM_DC_INTRA;
     p_Vid->nz_coeff[mb_nr][1][j][i] = 0; 
     break;
   case CB_INTRA16x16AC:
     max_coeff_num = 15;
-    TRACE_PRINTF("Luma_add1_16AC");
     dptype = SE_LUM_AC_INTRA;
     p_Vid->nz_coeff[mb_nr][1][j][i] = 0; 
     break;
   case CR:
     max_coeff_num = 16;
-    TRACE_PRINTF("Luma_add2");
     dptype = ((currMB->is_intra_block == TRUE)) ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
     p_Vid->nz_coeff[mb_nr][2][j][i] = 0; 
     break;
   case CR_INTRA16x16DC:
     max_coeff_num = 16;
-    TRACE_PRINTF("Luma_add2_16DC");
     dptype = SE_LUM_DC_INTRA;
     p_Vid->nz_coeff[mb_nr][2][j][i] = 0; 
     break;
   case CR_INTRA16x16AC:
     max_coeff_num = 15;
-    TRACE_PRINTF("Luma_add1_16AC");
     dptype = SE_LUM_AC_INTRA;
     p_Vid->nz_coeff[mb_nr][2][j][i] = 0; 
     break;        
   case CHROMA_DC:
     max_coeff_num = p_Vid->num_cdc_coeff;
     cdc = 1;
-    TRACE_PRINTF("ChrDC");
     dptype = (currMB->is_intra_block == TRUE) ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER;
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
   case CHROMA_AC:
     max_coeff_num = 15;
     cac = 1;
-    TRACE_PRINTF("ChrAC");
     dptype = (currMB->is_intra_block == TRUE) ? SE_CHR_AC_INTRA : SE_CHR_AC_INTER;
     p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
     break;
@@ -987,11 +906,6 @@ static void read_coeff_4x4_CAVLC_444(Macroblock *currMB,
     {      
       currSE.len = numtrailingones;
 
-#if TRACE
-      snprintf(currSE.tracestring,
-        TRACESTRING_SIZE, "%s trailing ones sign (%d,%d)", type, i, j);
-#endif
-
       readSyntaxElement_FLC (&currSE, currStream);
 
       code = currSE.inf;
@@ -1009,11 +923,6 @@ static void read_coeff_4x4_CAVLC_444(Macroblock *currMB,
 
     for (k = numcoeff - 1 - numtrailingones; k >= 0; k--)
     {
-
-#if TRACE
-      snprintf(currSE.tracestring,
-        TRACESTRING_SIZE, "%s lev (%d,%d) k=%d vlc=%d ", type, i, j, k, vlcnum);
-#endif
 
       if (vlcnum == 0)
         readSyntaxElement_Level_VLC0(&currSE, currStream);
@@ -1045,10 +954,6 @@ static void read_coeff_4x4_CAVLC_444(Macroblock *currMB,
       vlcnum = numcoeff - 1;
       currSE.value1 = vlcnum;
 
-#if TRACE
-      snprintf(currSE.tracestring,
-        TRACESTRING_SIZE, "%s totalrun (%d,%d) vlc=%d ", type, i,j, vlcnum);
-#endif
       if (cdc)
         readSyntaxElement_TotalZerosChromaDC(p_Vid, &currSE, currStream);
       else
@@ -1073,11 +978,6 @@ static void read_coeff_4x4_CAVLC_444(Macroblock *currMB,
         vlcnum = imin(zerosleft - 1, RUNBEFORE_NUM_M1);
 
         currSE.value1 = vlcnum;
-#if TRACE
-        snprintf(currSE.tracestring,
-          TRACESTRING_SIZE, "%s run (%d,%d) k=%d vlc=%d ",
-          type, i, j, i, vlcnum);
-#endif
 
         readSyntaxElement_Run(&currSE, currStream);
         runarr[i] = currSE.value1;
@@ -1489,7 +1389,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_400(Macroblock *currMB)
       ? currSlice->linfo_cbp_intra
       : currSlice->linfo_cbp_inter;
 
-    TRACE_STRING("coded_block_pattern");
     dP->readSyntaxElement(currMB, &currSE, dP);
     currMB->cbp = cbp = currSE.value1;
 
@@ -1507,7 +1406,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_400(Macroblock *currMB)
     {
       currSE.type   =  SE_HEADER;
       dP = &(currSlice->partArr[partMap[SE_HEADER]]);
-      TRACE_STRING("transform_size_8x8_flag");
 
       // read CAVLC transform_size_8x8_flag
       currSE.len = 1;
@@ -1672,7 +1570,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
       ? currSlice->linfo_cbp_intra
       : currSlice->linfo_cbp_inter;
 
-    TRACE_STRING("coded_block_pattern");
     dP->readSyntaxElement(currMB, &currSE, dP);
     currMB->cbp = cbp = currSE.value1;
 
@@ -1690,7 +1587,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
     {
       currSE.type   =  SE_HEADER;
       dP = &(currSlice->partArr[partMap[SE_HEADER]]);
-      TRACE_STRING("transform_size_8x8_flag");
 
       // read CAVLC transform_size_8x8_flag
       currSE.len = 1;
@@ -2013,7 +1909,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
       ? currSlice->linfo_cbp_intra
       : currSlice->linfo_cbp_inter;
 
-    TRACE_STRING("coded_block_pattern");
     dP->readSyntaxElement(currMB, &currSE, dP);
     currMB->cbp = cbp = currSE.value1;
 
@@ -2031,7 +1926,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
     {
       currSE.type   =  SE_HEADER;
       dP = &(currSlice->partArr[partMap[SE_HEADER]]);
-      TRACE_STRING("transform_size_8x8_flag");
 
       // read CAVLC transform_size_8x8_flag
       currSE.len = 1;
@@ -2230,7 +2124,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
                          ? currSlice->linfo_cbp_intra : currSlice->linfo_cbp_inter;
         dP = &(currSlice->partArr[partMap[currSE.type]]);
 
-        TRACE_STRING("coded_block_pattern");
         dP->readSyntaxElement(currMB, &currSE, dP);
         currMB->cbp = cbp = currSE.value1;
 
@@ -2246,7 +2139,6 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
         if (need_transform_size_flag) {
             currSE.type = SE_HEADER;
             dP = &(currSlice->partArr[partMap[SE_HEADER]]);
-            TRACE_STRING("transform_size_8x8_flag");
 
             // read CAVLC transform_size_8x8_flag
             currSE.len = 1;

@@ -39,7 +39,6 @@
 #include "mv_prediction.h"
 #include "inter_prediction.h"
 #include "intra_prediction.h"
-#include "filehandle.h"
 
 #include "mb.h"
 
