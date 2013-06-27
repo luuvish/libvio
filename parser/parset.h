@@ -31,109 +31,108 @@ extern "C" {
 #define MAXSPS  32
 #define MAXPPS  256
 
-#define MAXIMUMVALUEOFcpb_cnt   32
+#define MAX_NUM_HRD_CPB_CNT 32
+#define MAX_NUM_REF_FRAMES 256
+
+#define Extended_SAR 255
+
 typedef struct hrd_parameters_t {
-    unsigned int     cpb_cnt_minus1;                                   // ue(v)
-    unsigned int     bit_rate_scale;                                   // u(4)
-    unsigned int     cpb_size_scale;                                   // u(4)
-    unsigned int     bit_rate_value_minus1[MAXIMUMVALUEOFcpb_cnt];    // ue(v)
-    unsigned int     cpb_size_value_minus1[MAXIMUMVALUEOFcpb_cnt];    // ue(v)
-    unsigned int     cbr_flag             [MAXIMUMVALUEOFcpb_cnt];    // u(1)
-    unsigned int     initial_cpb_removal_delay_length_minus1;          // u(5)
-    unsigned int     cpb_removal_delay_length_minus1;                  // u(5)
-    unsigned int     dpb_output_delay_length_minus1;                   // u(5)
-    unsigned int     time_offset_length;                               // u(5)
-} hrd_parameters_t;
+    uint8_t         cpb_cnt_minus1;                                   // ue(v)
+    uint8_t         bit_rate_scale;                                   // u(4)
+    uint8_t         cpb_size_scale;                                   // u(4)
+    uint32_t        bit_rate_value_minus1[MAX_NUM_HRD_CPB_CNT];       // ue(v)
+    uint32_t        cpb_size_value_minus1[MAX_NUM_HRD_CPB_CNT];       // ue(v)
+    bool            cbr_flag             [MAX_NUM_HRD_CPB_CNT];       // u(1)
+    uint8_t         initial_cpb_removal_delay_length_minus1;          // u(5)
+    uint8_t         cpb_removal_delay_length_minus1;                  // u(5)
+    uint8_t         dpb_output_delay_length_minus1;                   // u(5)
+    uint8_t         time_offset_length;                               // u(5)
+} hrd_t;
 
 typedef struct vui_parameters_t {
-    Boolean          aspect_ratio_info_present_flag;                   // u(1)
-    unsigned int     aspect_ratio_idc;                                 // u(8)
-    unsigned short   sar_width;                                        // u(16)
-    unsigned short   sar_height;                                       // u(16)
-    Boolean          overscan_info_present_flag;                       // u(1)
-    Boolean          overscan_appropriate_flag;                        // u(1)
-    Boolean          video_signal_type_present_flag;                   // u(1)
-    unsigned int     video_format;                                     // u(3)
-    Boolean          video_full_range_flag;                            // u(1)
-    Boolean          colour_description_present_flag;                  // u(1)
-    unsigned int     colour_primaries;                                 // u(8)
-    unsigned int     transfer_characteristics;                         // u(8)
-    unsigned int     matrix_coefficients;                              // u(8)
-    Boolean          chroma_loc_info_present_flag;                     // u(1)
-    unsigned int     chroma_sample_loc_type_top_field;                 // ue(v)
-    unsigned int     chroma_sample_loc_type_bottom_field;              // ue(v)
-    Boolean          timing_info_present_flag;                         // u(1)
-    unsigned int     num_units_in_tick;                                // u(32)
-    unsigned int     time_scale;                                       // u(32)
-    Boolean          fixed_frame_rate_flag;                            // u(1)
-    Boolean          nal_hrd_parameters_present_flag;                  // u(1)
-    hrd_parameters_t nal_hrd_parameters;                               // hrd_paramters_t
-    Boolean          vcl_hrd_parameters_present_flag;                  // u(1)
-    hrd_parameters_t vcl_hrd_parameters;                               // hrd_paramters_t
-    Boolean          low_delay_hrd_flag;                               // u(1)
-    Boolean          pic_struct_present_flag;                          // u(1)
-    Boolean          bitstream_restriction_flag;                       // u(1)
-    Boolean          motion_vectors_over_pic_boundaries_flag;          // u(1)
-    unsigned int     max_bytes_per_pic_denom;                          // ue(v)
-    unsigned int     max_bits_per_mb_denom;                            // ue(v)
-    unsigned int     log2_max_mv_length_horizontal;                    // ue(v)
-    unsigned int     log2_max_mv_length_vertical;                      // ue(v)
-    unsigned int     max_num_reorder_frames;                           // ue(v)
-    unsigned int     max_dec_frame_buffering;                          // ue(v)
-} vui_parameters_t;
+    bool            aspect_ratio_info_present_flag;                   // u(1)
+    uint8_t         aspect_ratio_idc;                                 // u(8)
+    uint16_t        sar_width;                                        // u(16)
+    uint16_t        sar_height;                                       // u(16)
+    bool            overscan_info_present_flag;                       // u(1)
+    bool            overscan_appropriate_flag;                        // u(1)
+    bool            video_signal_type_present_flag;                   // u(1)
+    uint8_t         video_format;                                     // u(3)
+    bool            video_full_range_flag;                            // u(1)
+    bool            colour_description_present_flag;                  // u(1)
+    uint8_t         colour_primaries;                                 // u(8)
+    uint8_t         transfer_characteristics;                         // u(8)
+    uint8_t         matrix_coefficients;                              // u(8)
+    bool            chroma_loc_info_present_flag;                     // u(1)
+    uint8_t         chroma_sample_loc_type_top_field;                 // ue(v)
+    uint8_t         chroma_sample_loc_type_bottom_field;              // ue(v)
+    bool            timing_info_present_flag;                         // u(1)
+    uint32_t        num_units_in_tick;                                // u(32)
+    uint32_t        time_scale;                                       // u(32)
+    bool            fixed_frame_rate_flag;                            // u(1)
+    bool            nal_hrd_parameters_present_flag;                  // u(1)
+    hrd_t           nal_hrd_parameters;
+    bool            vcl_hrd_parameters_present_flag;                  // u(1)
+    hrd_t           vcl_hrd_parameters;
+    bool            low_delay_hrd_flag;                               // u(1)
+    bool            pic_struct_present_flag;                          // u(1)
+    bool            bitstream_restriction_flag;                       // u(1)
+    bool            motion_vectors_over_pic_boundaries_flag;          // u(1)
+    uint8_t         max_bytes_per_pic_denom;                          // ue(v)
+    uint8_t         max_bits_per_mb_denom;                            // ue(v)
+    uint8_t         log2_max_mv_length_horizontal;                    // ue(v)
+    uint8_t         log2_max_mv_length_vertical;                      // ue(v)
+    uint8_t         max_num_reorder_frames;                           // ue(v)
+    uint8_t         max_dec_frame_buffering;                          // ue(v)
+} vui_t;
 
-
-#define MAXnum_ref_frames_in_pic_order_cnt_cycle  256
 typedef struct seq_parameter_set_rbsp_t {
-    Boolean          Valid;                  // indicates the parameter set is valid
+    bool            Valid;                  // indicates the parameter set is valid
 
-    unsigned int     profile_idc;                                      // u(8)
-    Boolean          constraint_set0_flag;                             // u(1)
-    Boolean          constraint_set1_flag;                             // u(1)
-    Boolean          constraint_set2_flag;                             // u(1)
-    Boolean          constraint_set3_flag;                             // u(1)
-    Boolean          constraint_set4_flag;                             // u(1)
-    Boolean          constraint_set5_flag;                             // u(2)
-    unsigned int     level_idc;                                        // u(8)
-    unsigned int     seq_parameter_set_id;                             // ue(v)
+    uint8_t         profile_idc;                                      // u(8)
+    bool            constraint_set0_flag;                             // u(1)
+    bool            constraint_set1_flag;                             // u(1)
+    bool            constraint_set2_flag;                             // u(1)
+    bool            constraint_set3_flag;                             // u(1)
+    bool            constraint_set4_flag;                             // u(1)
+    bool            constraint_set5_flag;                             // u(1)
+    uint8_t         level_idc;                                        // u(8)
+    uint8_t         seq_parameter_set_id;                             // ue(v)
+    uint8_t         chroma_format_idc;                                // ue(v)
+    bool            separate_colour_plane_flag;                       // u(1)
+    uint8_t         bit_depth_luma_minus8;                            // ue(v)
+    uint8_t         bit_depth_chroma_minus8;                          // ue(v)
+    bool            qpprime_y_zero_transform_bypass_flag;             // u(1)
+    bool            seq_scaling_matrix_present_flag;                  // u(1)
+    bool            seq_scaling_list_present_flag[12];                // u(1)
 
-    unsigned int     chroma_format_idc;                                // ue(v)
-    unsigned         separate_colour_plane_flag;                       // u(1)
-    unsigned int     bit_depth_luma_minus8;                            // ue(v)
-    unsigned int     bit_depth_chroma_minus8;                          // ue(v)
-    int              qpprime_y_zero_transform_bypass_flag;
-    Boolean          seq_scaling_matrix_present_flag;                   // u(1)
-    int              seq_scaling_list_present_flag[12];                 // u(1)
-    int              ScalingList4x4[6][16];                             // se(v)
-    int              ScalingList8x8[6][64];                             // se(v)
-    Boolean          UseDefaultScalingMatrix4x4Flag[6];
-    Boolean          UseDefaultScalingMatrix8x8Flag[6];
+    int             ScalingList4x4[6][16];
+    int             ScalingList8x8[6][64];
+    bool            UseDefaultScalingMatrix4x4Flag[6];
+    bool            UseDefaultScalingMatrix8x8Flag[6];
 
-    unsigned int     log2_max_frame_num_minus4;                        // ue(v)
-    unsigned int     pic_order_cnt_type;
-    unsigned int     log2_max_pic_order_cnt_lsb_minus4;              // ue(v)
-    Boolean          delta_pic_order_always_zero_flag;               // u(1)
-    int              offset_for_non_ref_pic;                         // se(v)
-    int              offset_for_top_to_bottom_field;                 // se(v)
-    unsigned int     num_ref_frames_in_pic_order_cnt_cycle;          // ue(v)
-    int              offset_for_ref_frame[MAXnum_ref_frames_in_pic_order_cnt_cycle]; // se(v)
-    unsigned int     max_num_ref_frames;                               // ue(v)
-    Boolean          gaps_in_frame_num_value_allowed_flag;             // u(1)
-
-    unsigned int     pic_width_in_mbs_minus1;                          // ue(v)
-    unsigned int     pic_height_in_map_units_minus1;                   // ue(v)
-    Boolean          frame_mbs_only_flag;                              // u(1)
-    Boolean          mb_adaptive_frame_field_flag;                   // u(1)
-    Boolean          direct_8x8_inference_flag;                      // u(1)
-    Boolean          frame_cropping_flag;                            // u(1)
-    unsigned int     frame_crop_left_offset;                         // ue(v)
-    unsigned int     frame_crop_right_offset;                        // ue(v)
-    unsigned int     frame_crop_top_offset;                          // ue(v)
-    unsigned int     frame_crop_bottom_offset;                       // ue(v)
-    Boolean          vui_parameters_present_flag;                    // u(1)
-    vui_parameters_t vui_seq_parameters;                  // vui_parameters_t
-
-
+    uint8_t         log2_max_frame_num_minus4;                        // ue(v)
+    uint8_t         pic_order_cnt_type;                               // ue(v)
+    uint8_t         log2_max_pic_order_cnt_lsb_minus4;                // ue(v)
+    bool            delta_pic_order_always_zero_flag;                 // u(1)
+    int32_t         offset_for_non_ref_pic;                           // se(v)
+    int32_t         offset_for_top_to_bottom_field;                   // se(v)
+    uint8_t         num_ref_frames_in_pic_order_cnt_cycle;            // ue(v)
+    int32_t         offset_for_ref_frame[MAX_NUM_REF_FRAMES];         // se(v)
+    uint8_t         max_num_ref_frames;                               // ue(v)
+    bool            gaps_in_frame_num_value_allowed_flag;             // u(1)
+    uint32_t        pic_width_in_mbs_minus1;                          // ue(v)
+    uint32_t        pic_height_in_map_units_minus1;                   // ue(v)
+    bool            frame_mbs_only_flag;                              // u(1)
+    bool            mb_adaptive_frame_field_flag;                     // u(1)
+    bool            direct_8x8_inference_flag;                        // u(1)
+    bool            frame_cropping_flag;                              // u(1)
+    uint32_t        frame_crop_left_offset;                           // ue(v)
+    uint32_t        frame_crop_right_offset;                          // ue(v)
+    uint32_t        frame_crop_top_offset;                            // ue(v)
+    uint32_t        frame_crop_bottom_offset;                         // ue(v)
+    bool            vui_parameters_present_flag;                      // u(1)
+    vui_t           vui_seq_parameters;
 
 #if (MVC_EXTENSION_ENABLE)
     int max_dec_frame_buffering;
@@ -238,8 +237,8 @@ typedef struct pic_parameter_set_rbsp_t {
     int              pic_scaling_list_present_flag[12];                // u(1)
     int              ScalingList4x4[6][16];                            // se(v)
     int              ScalingList8x8[6][64];                            // se(v)
-    Boolean          UseDefaultScalingMatrix4x4Flag[6];
-    Boolean          UseDefaultScalingMatrix8x8Flag[6];
+    bool             UseDefaultScalingMatrix4x4Flag[6];
+    bool             UseDefaultScalingMatrix8x8Flag[6];
     int              second_chroma_qp_index_offset;                    // se(v)
 } pic_parameter_set_rbsp_t;
 
