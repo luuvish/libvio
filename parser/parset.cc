@@ -32,45 +32,10 @@
 #endif
 
 
-// E.1.2 HRD parameters syntax
-static void hrd_parameters(DataPartition *p, hrd_t *hrd)
-{
-    Bitstream *s = p->bitstream;
-    int SchedSelIdx;
 
-    hrd->cpb_cnt_minus1                                      = read_ue_v (   "VUI: cpb_cnt_minus1"                       , s, &p_Dec->UsedBits);
-    hrd->bit_rate_scale                                      = read_u_v  ( 4,"VUI: bit_rate_scale"                       , s, &p_Dec->UsedBits);
-    hrd->cpb_size_scale                                      = read_u_v  ( 4,"VUI: cpb_size_scale"                       , s, &p_Dec->UsedBits);
-
-    assert(hrd->cpb_cnt_minus1 >= 0 && hrd->cpb_cnt_minus1 <= 31);
-
-    // if (profile_idc == 66, 77, 88)
-    //     BitRate[SchedSelIdx] = 1200 * MaxBR;
-    //     CpbSize[SchedSelIdx] = 1000 * MaxCPB;
-    // else
-    //     BitRate[SchedSelIdx] = cpbBrVcl(Nal)Factor * MaxBR
-    //     CpbSize[SchedSelIdx] = cpbBrVcl(Nal)Factor * MaxCPB
-
-    for (SchedSelIdx = 0; SchedSelIdx <= hrd->cpb_cnt_minus1; SchedSelIdx++) {
-        hrd->bit_rate_value_minus1[SchedSelIdx]             = read_ue_v  ( "VUI: bit_rate_value_minus1"                  , s, &p_Dec->UsedBits);
-        hrd->cpb_size_value_minus1[SchedSelIdx]             = read_ue_v  ( "VUI: cpb_size_value_minus1"                  , s, &p_Dec->UsedBits);
-        hrd->cbr_flag             [SchedSelIdx]             = read_u_1   ( "VUI: cbr_flag"                               , s, &p_Dec->UsedBits);
-        // BitRate[SchedSelIdx] = (bit_rate_value_minus1[SchedSelIdx] + 1) * (1 << (6 + bit_rate_scale));
-        // CpbSize[SchedSelIdx] = (cpb_size_value_minus1[SchedSelIdx] + 1) * (1 << (4 + cpb_size_scale));
-    }
-
-    hrd->initial_cpb_removal_delay_length_minus1 = 23;
-    hrd->cpb_removal_delay_length_minus1         = 23;
-    hrd->dpb_output_delay_length_minus1          = 23;
-    hrd->time_offset_length                      = 24;
-    hrd->initial_cpb_removal_delay_length_minus1            = read_u_v  ( 5,"VUI: initial_cpb_removal_delay_length_minus1" , s, &p_Dec->UsedBits);
-    hrd->cpb_removal_delay_length_minus1                    = read_u_v  ( 5,"VUI: cpb_removal_delay_length_minus1"         , s, &p_Dec->UsedBits);
-    hrd->dpb_output_delay_length_minus1                     = read_u_v  ( 5,"VUI: dpb_output_delay_length_minus1"          , s, &p_Dec->UsedBits);
-    hrd->time_offset_length                                 = read_u_v  ( 5,"VUI: time_offset_length"          , s, &p_Dec->UsedBits);
-}
 
 // E.1.1 VUI parameter syntax
-static void vui_parameters(DataPartition *p, vui_t *vui)
+void vui_parameters(DataPartition *p, vui_t *vui)
 {
     Bitstream *s = p->bitstream;
 
@@ -185,9 +150,228 @@ static void vui_parameters(DataPartition *p, vui_t *vui)
            vui->max_num_reorder_frames <= vui->max_dec_frame_buffering);
 }
 
+// E.1.2 HRD parameters syntax
+void hrd_parameters(DataPartition *p, hrd_t *hrd)
+{
+    Bitstream *s = p->bitstream;
+    int SchedSelIdx;
 
+    hrd->cpb_cnt_minus1                                      = read_ue_v (   "VUI: cpb_cnt_minus1"                       , s, &p_Dec->UsedBits);
+    hrd->bit_rate_scale                                      = read_u_v  ( 4,"VUI: bit_rate_scale"                       , s, &p_Dec->UsedBits);
+    hrd->cpb_size_scale                                      = read_u_v  ( 4,"VUI: cpb_size_scale"                       , s, &p_Dec->UsedBits);
 
+    assert(hrd->cpb_cnt_minus1 >= 0 && hrd->cpb_cnt_minus1 <= 31);
 
+    // if (profile_idc == 66, 77, 88)
+    //     BitRate[SchedSelIdx] = 1200 * MaxBR;
+    //     CpbSize[SchedSelIdx] = 1000 * MaxCPB;
+    // else
+    //     BitRate[SchedSelIdx] = cpbBrVcl(Nal)Factor * MaxBR
+    //     CpbSize[SchedSelIdx] = cpbBrVcl(Nal)Factor * MaxCPB
+
+    for (SchedSelIdx = 0; SchedSelIdx <= hrd->cpb_cnt_minus1; SchedSelIdx++) {
+        hrd->bit_rate_value_minus1[SchedSelIdx]             = read_ue_v  ( "VUI: bit_rate_value_minus1"                  , s, &p_Dec->UsedBits);
+        hrd->cpb_size_value_minus1[SchedSelIdx]             = read_ue_v  ( "VUI: cpb_size_value_minus1"                  , s, &p_Dec->UsedBits);
+        hrd->cbr_flag             [SchedSelIdx]             = read_u_1   ( "VUI: cbr_flag"                               , s, &p_Dec->UsedBits);
+        // BitRate[SchedSelIdx] = (bit_rate_value_minus1[SchedSelIdx] + 1) * (1 << (6 + bit_rate_scale));
+        // CpbSize[SchedSelIdx] = (cpb_size_value_minus1[SchedSelIdx] + 1) * (1 << (4 + cpb_size_scale));
+    }
+
+    hrd->initial_cpb_removal_delay_length_minus1 = 23;
+    hrd->cpb_removal_delay_length_minus1         = 23;
+    hrd->dpb_output_delay_length_minus1          = 23;
+    hrd->time_offset_length                      = 24;
+    hrd->initial_cpb_removal_delay_length_minus1            = read_u_v  ( 5,"VUI: initial_cpb_removal_delay_length_minus1" , s, &p_Dec->UsedBits);
+    hrd->cpb_removal_delay_length_minus1                    = read_u_v  ( 5,"VUI: cpb_removal_delay_length_minus1"         , s, &p_Dec->UsedBits);
+    hrd->dpb_output_delay_length_minus1                     = read_u_v  ( 5,"VUI: dpb_output_delay_length_minus1"          , s, &p_Dec->UsedBits);
+    hrd->time_offset_length                                 = read_u_v  ( 5,"VUI: time_offset_length"          , s, &p_Dec->UsedBits);
+}
+
+// 7.3.2.1 Sequence parameter set data syntax
+void seq_parameter_set_rbsp(DataPartition *p, sps_t *sps)
+{
+    unsigned i;
+    Bitstream *s = p->bitstream;
+
+    uint8_t reserved_zero_2bits;
+
+    p_Dec->UsedBits = 0;
+
+    sps->profile_idc                            = read_u_v  (8, "SPS: profile_idc"                           , s, &p_Dec->UsedBits);
+    sps->constraint_set0_flag                  = read_u_1  (   "SPS: constrained_set0_flag"                 , s, &p_Dec->UsedBits);
+    sps->constraint_set1_flag                  = read_u_1  (   "SPS: constrained_set1_flag"                 , s, &p_Dec->UsedBits);
+    sps->constraint_set2_flag                  = read_u_1  (   "SPS: constrained_set2_flag"                 , s, &p_Dec->UsedBits);
+    sps->constraint_set3_flag                  = read_u_1  (   "SPS: constrained_set3_flag"                 , s, &p_Dec->UsedBits);
+    sps->constraint_set4_flag                  = read_u_1  (   "SPS: constrained_set4_flag"                 , s, &p_Dec->UsedBits);
+    sps->constraint_set5_flag                  = read_u_1  (   "SPS: constrained_set5_flag"                 , s, &p_Dec->UsedBits);
+    reserved_zero_2bits                        = read_u_v  (2, "SPS: reserved_zero_2bits"                   , s, &p_Dec->UsedBits);
+
+    if ((sps->profile_idc!=BASELINE       ) &&
+        (sps->profile_idc!=MAIN           ) &&
+        (sps->profile_idc!=EXTENDED       ) &&
+        (sps->profile_idc!=FREXT_HP       ) &&
+        (sps->profile_idc!=FREXT_Hi10P    ) &&
+        (sps->profile_idc!=FREXT_Hi422    ) &&
+        (sps->profile_idc!=FREXT_Hi444    ) &&
+        (sps->profile_idc!=FREXT_CAVLC444 )
+        && (sps->profile_idc!=MVC_HIGH)
+        && (sps->profile_idc!=STEREO_HIGH)) {
+        printf("Invalid Profile IDC (%d) encountered. \n", sps->profile_idc);
+        return;
+    }
+
+    // assert(reserved_zero_2bits == 0);
+
+    sps->level_idc                              = read_u_v  (8, "SPS: level_idc"                             , s, &p_Dec->UsedBits);
+    sps->seq_parameter_set_id                   = read_ue_v ("SPS: seq_parameter_set_id"                     , s, &p_Dec->UsedBits);
+
+    assert(sps->seq_parameter_set_id >= 0 && sps->seq_parameter_set_id <= 31);
+
+    sps->chroma_format_idc                    = YUV420;
+    sps->separate_colour_plane_flag           = 0;
+    sps->bit_depth_luma_minus8                = 0;
+    sps->bit_depth_chroma_minus8              = 0;
+    sps->qpprime_y_zero_transform_bypass_flag = 0;
+    sps->seq_scaling_matrix_present_flag      = 0;
+    if (sps->profile_idc == FREXT_HP    || sps->profile_idc == FREXT_Hi10P ||
+        sps->profile_idc == FREXT_Hi422 || sps->profile_idc == FREXT_Hi444 ||
+        sps->profile_idc == FREXT_CAVLC444 || sps->profile_idc == MVC_HIGH ||
+        sps->profile_idc == STEREO_HIGH) {
+
+        sps->chroma_format_idc                      = read_ue_v ("SPS: chroma_format_idc"                       , s, &p_Dec->UsedBits);
+        if (sps->chroma_format_idc == YUV444)
+            sps->separate_colour_plane_flag           = read_u_1  ("SPS: separate_colour_plane_flag"              , s, &p_Dec->UsedBits);
+        sps->bit_depth_luma_minus8                  = read_ue_v ("SPS: bit_depth_luma_minus8"                   , s, &p_Dec->UsedBits);
+        sps->bit_depth_chroma_minus8                = read_ue_v ("SPS: bit_depth_chroma_minus8"                 , s, &p_Dec->UsedBits);
+        sps->qpprime_y_zero_transform_bypass_flag   = read_u_1  ("SPS: lossless_qpprime_y_zero_flag"            , s, &p_Dec->UsedBits);
+        sps->seq_scaling_matrix_present_flag        = read_u_1  ("SPS: seq_scaling_matrix_present_flag"       , s, &p_Dec->UsedBits);
+        if (sps->seq_scaling_matrix_present_flag) {
+            for (i = 0; i < ((sps->chroma_format_idc != YUV444) ? 8 : 12); i++) {
+                sps->seq_scaling_list_present_flag[i]   = read_u_1  (   "SPS: seq_scaling_list_present_flag"         , s, &p_Dec->UsedBits);
+                if (sps->seq_scaling_list_present_flag[i]) {
+                    if (i < 6)
+                        scaling_list(sps->ScalingList4x4[i], 16,
+                                     &sps->UseDefaultScalingMatrix4x4Flag[i], s);
+                    else
+                        scaling_list(sps->ScalingList8x8[i - 6], 64,
+                                     &sps->UseDefaultScalingMatrix8x8Flag[i - 6], s);
+                }
+            }
+        }
+    }
+
+    if (!sps->separate_colour_plane_flag)
+        sps->ChromaArrayType = sps->chroma_format_idc;
+    else
+        sps->ChromaArrayType = 0;
+    sps->SubWidthC = sps->chroma_format_idc < 3 ? 2 : 1;
+    sps->SubHeightC = sps->chroma_format_idc < 2 ? 2 : 1;
+    if (sps->chroma_format_idc == 0 || sps->separate_colour_plane_flag == 1) {
+        sps->MbWidthC = 0;
+        sps->MbHeightC = 0;
+    } else {
+        sps->MbWidthC = 16 / sps->SubWidthC;
+        sps->MbHeightC = 16 / sps->SubHeightC;
+    }
+
+    assert(sps->bit_depth_luma_minus8 >= 0 && sps->bit_depth_luma_minus8 <= 6);
+    assert(sps->bit_depth_chroma_minus8 >= 0 && sps->bit_depth_chroma_minus8 <= 6);
+
+    sps->BitDepthY   = 8 + sps->bit_depth_luma_minus8;
+    sps->QpBdOffsetY = 6 * sps->bit_depth_luma_minus8;
+    sps->BitDepthC   = 8 + sps->bit_depth_chroma_minus8;
+    sps->QpBdOffsetC = 6 * sps->bit_depth_chroma_minus8;
+    sps->RawMbBits   = 256 * sps->BitDepthY + 2 * sps->MbWidthC * sps->MbHeightC * sps->BitDepthC;
+
+    sps->log2_max_frame_num_minus4              = read_ue_v ("SPS: log2_max_frame_num_minus4"                , s, &p_Dec->UsedBits);
+
+    assert(sps->log2_max_frame_num_minus4 >= 0 && sps->log2_max_frame_num_minus4 <= 12);
+    sps->MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4);
+
+    sps->pic_order_cnt_type                     = read_ue_v ("SPS: pic_order_cnt_type"                       , s, &p_Dec->UsedBits);
+
+    assert(sps->pic_order_cnt_type >= 0 && sps->pic_order_cnt_type <= 2);
+
+    if (sps->pic_order_cnt_type == 0)
+        sps->log2_max_pic_order_cnt_lsb_minus4 = read_ue_v ("SPS: log2_max_pic_order_cnt_lsb_minus4"           , s, &p_Dec->UsedBits);
+    else if (sps->pic_order_cnt_type == 1) {
+        sps->delta_pic_order_always_zero_flag      = read_u_1  ("SPS: delta_pic_order_always_zero_flag"       , s, &p_Dec->UsedBits);
+        sps->offset_for_non_ref_pic                = read_se_v ("SPS: offset_for_non_ref_pic"                 , s, &p_Dec->UsedBits);
+        sps->offset_for_top_to_bottom_field        = read_se_v ("SPS: offset_for_top_to_bottom_field"         , s, &p_Dec->UsedBits);
+        sps->num_ref_frames_in_pic_order_cnt_cycle = read_ue_v ("SPS: num_ref_frames_in_pic_order_cnt_cycle"  , s, &p_Dec->UsedBits);
+        for (i = 0; i < sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
+            sps->offset_for_ref_frame[i]               = read_se_v ("SPS: offset_for_ref_frame[i]"              , s, &p_Dec->UsedBits);
+    }
+
+    assert(sps->log2_max_pic_order_cnt_lsb_minus4 >= 0 && sps->log2_max_pic_order_cnt_lsb_minus4 <= 12);
+    sps->MaxPicOrderCntLsb = 1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4);
+    assert(sps->offset_for_non_ref_pic >= -(1 << 31) + 1 && sps->offset_for_non_ref_pic <= (1 << 31) - 1);
+    assert(sps->offset_for_top_to_bottom_field >= -(1 << 31) + 1 && sps->offset_for_top_to_bottom_field <= (1 << 31) - 1);
+    assert(sps->num_ref_frames_in_pic_order_cnt_cycle >= 0 && sps->num_ref_frames_in_pic_order_cnt_cycle <= 255);
+
+    // ExpectedDeltaPerPicOrderCntCycle = 0;
+    // for (i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++)
+    //     ExpectedDeltaPerPicOrderCntCycle += offset_for_ref_frame[i];
+
+    sps->max_num_ref_frames                        = read_ue_v ("SPS: num_ref_frames"                         , s, &p_Dec->UsedBits);
+
+    // assert(sps->max_num_ref_frames >= 0 && sps->max_num_ref_frames <= MaxDpbFrames);
+
+    sps->gaps_in_frame_num_value_allowed_flag  = read_u_1  ("SPS: gaps_in_frame_num_value_allowed_flag"   , s, &p_Dec->UsedBits);
+
+    sps->pic_width_in_mbs_minus1               = read_ue_v ("SPS: pic_width_in_mbs_minus1"                , s, &p_Dec->UsedBits);
+    sps->pic_height_in_map_units_minus1        = read_ue_v ("SPS: pic_height_in_map_units_minus1"         , s, &p_Dec->UsedBits);
+
+    sps->PicWidthInMbs = sps->pic_width_in_mbs_minus1 + 1;
+    sps->PicWidthInSamplesL = sps->PicWidthInMbs * 16;
+    sps->PicWidthInSamplesC = sps->PicWidthInMbs * sps->MbWidthC;
+    sps->PicHeightInMapUnits = sps->pic_height_in_map_units_minus1 + 1;
+    sps->PicSizeInMapUnits = sps->PicWidthInMbs * sps->PicHeightInMapUnits;
+
+    sps->frame_mbs_only_flag                   = read_u_1  ("SPS: frame_mbs_only_flag"                    , s, &p_Dec->UsedBits);
+
+    sps->FrameHeightInMbs = (2 - sps->frame_mbs_only_flag) * sps->PicHeightInMapUnits;
+
+    sps->mb_adaptive_frame_field_flag = 0;
+    if (!sps->frame_mbs_only_flag)
+        sps->mb_adaptive_frame_field_flag        = read_u_1  ("SPS: mb_adaptive_frame_field_flag"           , s, &p_Dec->UsedBits);
+
+    sps->direct_8x8_inference_flag             = read_u_1  ("SPS: direct_8x8_inference_flag"              , s, &p_Dec->UsedBits);
+
+    if (!sps->frame_mbs_only_flag)
+        assert(sps->direct_8x8_inference_flag == 1);
+
+    sps->frame_cropping_flag                   = read_u_1  ("SPS: frame_cropping_flag"                    , s, &p_Dec->UsedBits);
+    if (sps->frame_cropping_flag) {
+        sps->frame_crop_left_offset      = read_ue_v ("SPS: frame_crop_left_offset"           , s, &p_Dec->UsedBits);
+        sps->frame_crop_right_offset     = read_ue_v ("SPS: frame_crop_right_offset"          , s, &p_Dec->UsedBits);
+        sps->frame_crop_top_offset       = read_ue_v ("SPS: frame_crop_top_offset"            , s, &p_Dec->UsedBits);
+        sps->frame_crop_bottom_offset    = read_ue_v ("SPS: frame_crop_bottom_offset"         , s, &p_Dec->UsedBits);
+    }
+
+    if (sps->frame_cropping_flag) {
+        if (sps->ChromaArrayType == 0) {
+            sps->CropUnitX = 1;
+            sps->CropUnitY = 2 - sps->frame_mbs_only_flag;
+        } else {
+            sps->CropUnitX = sps->SubWidthC;
+            sps->CropUnitY = sps->SubHeightC * (2 - sps->frame_mbs_only_flag);
+        }
+        assert(sps->frame_crop_left_offset >= 0 &&
+               sps->frame_crop_left_offset <= (sps->PicWidthInSamplesL / sps->CropUnitX) -
+                                              (sps->frame_crop_right_offset + 1));
+        assert(sps->frame_crop_top_offset >= 0 &&
+               sps->frame_crop_top_offset <= (16 * sps->FrameHeightInMbs / sps->CropUnitY) -
+                                             (sps->frame_crop_bottom_offset + 1));
+    }
+
+    sps->vui_parameters_present_flag           = read_u_1  ("SPS: vui_parameters_present_flag"      , s, &p_Dec->UsedBits);
+    sps->vui_parameters.matrix_coefficients = 2;
+    if (sps->vui_parameters_present_flag)
+        vui_parameters(p, &sps->vui_parameters);
+
+    sps->Valid = TRUE;
+}
 
 static const byte ZZ_SCAN[16] = {
      0,  1,  4,  8,  5,  2,  3,  6,
@@ -205,19 +389,8 @@ static const byte ZZ_SCAN8[64] = {
     53, 60, 61, 54, 47, 55, 62, 63
 };
 
-
-void PPSConsistencyCheck (pic_parameter_set_rbsp_t *pps);
-void SPSConsistencyCheck (seq_parameter_set_rbsp_t *sps);
-
-void MakeSPSavailable (VideoParameters *p_Vid, int id, seq_parameter_set_rbsp_t *sps);
-
-#if (MVC_EXTENSION_ENABLE)
-void SubsetSPSConsistencyCheck (subset_seq_parameter_set_rbsp_t *subset_sps);
-#endif
-
-
 // 7.3.2.1.1.1 Scaling list syntax
-static void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScalingMatrixFlag, Bitstream *s)
+void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScalingMatrixFlag, Bitstream *s)
 {
     int lastScale = 8;
     int nextScale = 8;
@@ -235,138 +408,26 @@ static void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefau
     }
 }
 
-// 7.3.2.1.1 Sequence parameter set data syntax
-static int seq_parameter_set_data(VideoParameters *p_Vid, DataPartition *p, seq_parameter_set_rbsp_t *sps)
-{
-    unsigned i;
-    unsigned n_ScalingList;
-    Bitstream *s = p->bitstream;
-    int reserved_zero_2bits;
 
-    assert (p != NULL);
-    assert (p->bitstream != NULL);
-    assert (p->bitstream->streamBuffer != 0);
-    assert (sps != NULL);
 
-    p_Dec->UsedBits = 0;
 
-    sps->profile_idc                            = read_u_v  (8, "SPS: profile_idc"                           , s, &p_Dec->UsedBits);
 
-    if ((sps->profile_idc!=BASELINE       ) &&
-        (sps->profile_idc!=MAIN           ) &&
-        (sps->profile_idc!=EXTENDED       ) &&
-        (sps->profile_idc!=FREXT_HP       ) &&
-        (sps->profile_idc!=FREXT_Hi10P    ) &&
-        (sps->profile_idc!=FREXT_Hi422    ) &&
-        (sps->profile_idc!=FREXT_Hi444    ) &&
-        (sps->profile_idc!=FREXT_CAVLC444 )
-        && (sps->profile_idc!=MVC_HIGH)
-        && (sps->profile_idc!=STEREO_HIGH)) {
-        printf("Invalid Profile IDC (%d) encountered. \n", sps->profile_idc);
-        return p_Dec->UsedBits;
-    }
 
-    sps->constraint_set0_flag                  = read_u_1  (   "SPS: constrained_set0_flag"                 , s, &p_Dec->UsedBits);
-    sps->constraint_set1_flag                  = read_u_1  (   "SPS: constrained_set1_flag"                 , s, &p_Dec->UsedBits);
-    sps->constraint_set2_flag                  = read_u_1  (   "SPS: constrained_set2_flag"                 , s, &p_Dec->UsedBits);
-    sps->constraint_set3_flag                  = read_u_1  (   "SPS: constrained_set3_flag"                 , s, &p_Dec->UsedBits);
-    sps->constraint_set4_flag                  = read_u_1  (   "SPS: constrained_set4_flag"                 , s, &p_Dec->UsedBits);
-    sps->constraint_set5_flag                  = read_u_1  (   "SPS: constrained_set5_flag"                 , s, &p_Dec->UsedBits);
-    reserved_zero_2bits                        = read_u_v  (2, "SPS: reserved_zero_2bits"                   , s, &p_Dec->UsedBits);
+void PPSConsistencyCheck (pps_t *pps);
+void SPSConsistencyCheck (sps_t *sps);
 
-    if (reserved_zero_2bits != 0)
-        printf("Warning, reserved_zero flag not equal to 0. Possibly new constrained_setX flag introduced.\n");
+void MakeSPSavailable (VideoParameters *p_Vid, int id, sps_t *sps);
 
-    sps->level_idc                              = read_u_v  (8, "SPS: level_idc"                             , s, &p_Dec->UsedBits);
-    sps->seq_parameter_set_id                   = read_ue_v ("SPS: seq_parameter_set_id"                     , s, &p_Dec->UsedBits);
+#if (MVC_EXTENSION_ENABLE)
+void SubsetSPSConsistencyCheck (subset_seq_parameter_set_rbsp_t *subset_sps);
+#endif
 
-    // Fidelity Range Extensions stuff
-    sps->chroma_format_idc                    = 1;
-    sps->separate_colour_plane_flag           = false;
-    sps->bit_depth_luma_minus8                = 0;
-    sps->bit_depth_chroma_minus8              = 0;
-    sps->qpprime_y_zero_transform_bypass_flag = false;
-    sps->seq_scaling_matrix_present_flag      = false;
-
-    if ((sps->profile_idc==FREXT_HP   ) ||
-        (sps->profile_idc==FREXT_Hi10P) ||
-        (sps->profile_idc==FREXT_Hi422) ||
-        (sps->profile_idc==FREXT_Hi444) ||
-        (sps->profile_idc==FREXT_CAVLC444)
-     || (sps->profile_idc==MVC_HIGH)
-     || (sps->profile_idc==STEREO_HIGH) ) {
-        sps->chroma_format_idc                      = read_ue_v ("SPS: chroma_format_idc"                       , s, &p_Dec->UsedBits);
-
-        if (sps->chroma_format_idc == YUV444)
-            sps->separate_colour_plane_flag           = read_u_1  ("SPS: separate_colour_plane_flag"              , s, &p_Dec->UsedBits);
-
-        sps->bit_depth_luma_minus8                  = read_ue_v ("SPS: bit_depth_luma_minus8"                   , s, &p_Dec->UsedBits);
-        sps->bit_depth_chroma_minus8                = read_ue_v ("SPS: bit_depth_chroma_minus8"                 , s, &p_Dec->UsedBits);
-        //checking;
-        if ((sps->bit_depth_luma_minus8+8 > sizeof(imgpel)*8) || (sps->bit_depth_chroma_minus8+8> sizeof(imgpel)*8))
-            error ("Source picture has higher bit depth than imgpel data type. \nPlease recompile with larger data type for imgpel.", 500);
-
-        sps->qpprime_y_zero_transform_bypass_flag   = read_u_1  ("SPS: lossless_qpprime_y_zero_flag"            , s, &p_Dec->UsedBits);
-        sps->seq_scaling_matrix_present_flag        = read_u_1  ("SPS: seq_scaling_matrix_present_flag"       , s, &p_Dec->UsedBits);
-        if (sps->seq_scaling_matrix_present_flag) {
-            n_ScalingList = (sps->chroma_format_idc != YUV444) ? 8 : 12;
-            for (i = 0; i < n_ScalingList; i++) {
-                sps->seq_scaling_list_present_flag[i]   = read_u_1  (   "SPS: seq_scaling_list_present_flag"         , s, &p_Dec->UsedBits);
-                if (sps->seq_scaling_list_present_flag[i]) {
-                    if (i < 6)
-                        scaling_list(sps->ScalingList4x4[i], 16,
-                                     &sps->UseDefaultScalingMatrix4x4Flag[i], s);
-                    else
-                        scaling_list(sps->ScalingList8x8[i - 6], 64,
-                                     &sps->UseDefaultScalingMatrix8x8Flag[i - 6], s);
-                }
-            }
-        }
-    }
-
-    sps->log2_max_frame_num_minus4              = read_ue_v ("SPS: log2_max_frame_num_minus4"                , s, &p_Dec->UsedBits);
-    sps->pic_order_cnt_type                     = read_ue_v ("SPS: pic_order_cnt_type"                       , s, &p_Dec->UsedBits);
-    if (sps->pic_order_cnt_type == 0)
-        sps->log2_max_pic_order_cnt_lsb_minus4 = read_ue_v ("SPS: log2_max_pic_order_cnt_lsb_minus4"           , s, &p_Dec->UsedBits);
-    else if (sps->pic_order_cnt_type == 1) {
-        sps->delta_pic_order_always_zero_flag      = read_u_1  ("SPS: delta_pic_order_always_zero_flag"       , s, &p_Dec->UsedBits);
-        sps->offset_for_non_ref_pic                = read_se_v ("SPS: offset_for_non_ref_pic"                 , s, &p_Dec->UsedBits);
-        sps->offset_for_top_to_bottom_field        = read_se_v ("SPS: offset_for_top_to_bottom_field"         , s, &p_Dec->UsedBits);
-        sps->num_ref_frames_in_pic_order_cnt_cycle = read_ue_v ("SPS: num_ref_frames_in_pic_order_cnt_cycle"  , s, &p_Dec->UsedBits);
-        for (i = 0; i < sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
-            sps->offset_for_ref_frame[i]               = read_se_v ("SPS: offset_for_ref_frame[i]"              , s, &p_Dec->UsedBits);
-    }
-    sps->max_num_ref_frames                        = read_ue_v ("SPS: num_ref_frames"                         , s, &p_Dec->UsedBits);
-    sps->gaps_in_frame_num_value_allowed_flag  = read_u_1  ("SPS: gaps_in_frame_num_value_allowed_flag"   , s, &p_Dec->UsedBits);
-
-    sps->pic_width_in_mbs_minus1               = read_ue_v ("SPS: pic_width_in_mbs_minus1"                , s, &p_Dec->UsedBits);
-    sps->pic_height_in_map_units_minus1        = read_ue_v ("SPS: pic_height_in_map_units_minus1"         , s, &p_Dec->UsedBits);
-    sps->frame_mbs_only_flag                   = read_u_1  ("SPS: frame_mbs_only_flag"                    , s, &p_Dec->UsedBits);
-    if (!sps->frame_mbs_only_flag)
-        sps->mb_adaptive_frame_field_flag        = read_u_1  ("SPS: mb_adaptive_frame_field_flag"           , s, &p_Dec->UsedBits);
-    sps->direct_8x8_inference_flag             = read_u_1  ("SPS: direct_8x8_inference_flag"              , s, &p_Dec->UsedBits);
-    sps->frame_cropping_flag                   = read_u_1  ("SPS: frame_cropping_flag"                    , s, &p_Dec->UsedBits);
-    if (sps->frame_cropping_flag) {
-        sps->frame_crop_left_offset      = read_ue_v ("SPS: frame_crop_left_offset"           , s, &p_Dec->UsedBits);
-        sps->frame_crop_right_offset     = read_ue_v ("SPS: frame_crop_right_offset"          , s, &p_Dec->UsedBits);
-        sps->frame_crop_top_offset       = read_ue_v ("SPS: frame_crop_top_offset"            , s, &p_Dec->UsedBits);
-        sps->frame_crop_bottom_offset    = read_ue_v ("SPS: frame_crop_bottom_offset"         , s, &p_Dec->UsedBits);
-    }
-
-    sps->vui_parameters_present_flag           = read_u_1  ("SPS: vui_parameters_present_flag"      , s, &p_Dec->UsedBits);
-    sps->vui_seq_parameters.matrix_coefficients = 2;
-    if (sps->vui_parameters_present_flag)
-        vui_parameters(p, &sps->vui_seq_parameters);
-
-    sps->Valid = TRUE;
-    return p_Dec->UsedBits;
-}
 
 
 // fill subset_sps with content of p
 #if (MVC_EXTENSION_ENABLE)
 
-static void get_max_dec_frame_buf_size(seq_parameter_set_rbsp_t *sps)
+static void get_max_dec_frame_buf_size(sps_t *sps)
 {
   int pic_size = (sps->pic_width_in_mbs_minus1 + 1) * (sps->pic_height_in_map_units_minus1 + 1) * (sps->frame_mbs_only_flag?1:2) * 384;
 
@@ -642,24 +703,24 @@ static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *
   subset_seq_parameter_set_rbsp_t *subset_sps;
   unsigned int additional_extension2_flag;
   Bitstream *s = p->bitstream;
-  seq_parameter_set_rbsp_t *sps = AllocSPS();
+  sps_t *sps = AllocSPS();
 
   assert (p != NULL);
   assert (p->bitstream != NULL);
   assert (p->bitstream->streamBuffer != 0);
 
-  seq_parameter_set_data(p_Vid, p, sps);
+  seq_parameter_set_rbsp(p, sps);
   get_max_dec_frame_buf_size(sps);
 
   *curr_seq_set_id = sps->seq_parameter_set_id;
   subset_sps = p_Vid->SubsetSeqParSet + sps->seq_parameter_set_id;
   if(subset_sps->Valid || subset_sps->num_views_minus1>=0)
   {
-    if(memcmp(&subset_sps->sps, sps, sizeof (seq_parameter_set_rbsp_t)-sizeof(int)))
+    if(memcmp(&subset_sps->sps, sps, sizeof (sps_t)-sizeof(int)))
       assert(0);
     reset_subset_sps(subset_sps);
   }
-  memcpy (&subset_sps->sps, sps, sizeof (seq_parameter_set_rbsp_t));
+  memcpy (&subset_sps->sps, sps, sizeof (sps_t));
 
   assert (subset_sps != NULL);
   subset_sps->Valid = FALSE;
@@ -703,7 +764,7 @@ static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *
 #endif
 
 // 7.3.2.2 Picture parameter set RBSP syntax
-static int pic_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *p, pic_parameter_set_rbsp_t *pps)
+static int pic_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *p, pps_t *pps)
 {
     int iGroup;
     unsigned i;
@@ -790,7 +851,7 @@ static int pic_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *p, pic_
 }
 
 
-static int sps_is_equal(seq_parameter_set_rbsp_t *sps1, seq_parameter_set_rbsp_t *sps2)
+static int sps_is_equal(sps_t *sps1, sps_t *sps2)
 {
   unsigned i;
   int equal = 1;
@@ -851,7 +912,7 @@ static int sps_is_equal(seq_parameter_set_rbsp_t *sps1, seq_parameter_set_rbsp_t
   return equal;
 }
 
-static int pps_is_equal(pic_parameter_set_rbsp_t *pps1, pic_parameter_set_rbsp_t *pps2)
+static int pps_is_equal(pps_t *pps1, pps_t *pps2)
 {
   unsigned i, j;
   int equal = 1;
@@ -941,13 +1002,13 @@ static int pps_is_equal(pic_parameter_set_rbsp_t *pps1, pic_parameter_set_rbsp_t
 }
 
 
-void PPSConsistencyCheck (pic_parameter_set_rbsp_t *pps)
+void PPSConsistencyCheck (pps_t *pps)
 {
   printf ("Consistency checking a picture parset, to be implemented\n");
 //  if (pps->seq_parameter_set_id invalid then do something)
 }
 
-void SPSConsistencyCheck (seq_parameter_set_rbsp_t *sps)
+void SPSConsistencyCheck (sps_t *sps)
 {
   printf ("Consistency checking a sequence parset, to be implemented\n");
 }
@@ -959,14 +1020,14 @@ void SubsetSPSConsistencyCheck (subset_seq_parameter_set_rbsp_t *subset_sps)
 }
 #endif
 
-void MakePPSavailable (VideoParameters *p_Vid, int id, pic_parameter_set_rbsp_t *pps)
+void MakePPSavailable (VideoParameters *p_Vid, int id, pps_t *pps)
 {
   assert (pps->Valid == TRUE);
 
   if (p_Vid->PicParSet[id].Valid == TRUE && p_Vid->PicParSet[id].slice_group_id != NULL)
     free (p_Vid->PicParSet[id].slice_group_id);
 
-  memcpy (&p_Vid->PicParSet[id], pps, sizeof (pic_parameter_set_rbsp_t));
+  memcpy (&p_Vid->PicParSet[id], pps, sizeof (pps_t));
 
   // we can simply use the memory provided with the pps. the PPS is destroyed after this function
   // call and will not try to free if pps->slice_group_id == NULL
@@ -988,24 +1049,24 @@ void CleanUpPPS(VideoParameters *p_Vid)
 }
 
 
-void MakeSPSavailable (VideoParameters *p_Vid, int id, seq_parameter_set_rbsp_t *sps)
+void MakeSPSavailable (VideoParameters *p_Vid, int id, sps_t *sps)
 {
   assert (sps->Valid == TRUE);
-  memcpy (&p_Vid->SeqParSet[id], sps, sizeof (seq_parameter_set_rbsp_t));
+  memcpy (&p_Vid->SeqParSet[id], sps, sizeof (sps_t));
 }
 
 
 void ProcessSPS(VideoParameters *p_Vid, NALU_t *nalu)
 {  
     DataPartition *dp = AllocPartition(1);
-    seq_parameter_set_rbsp_t *sps = AllocSPS();
+    sps_t *sps = AllocSPS();
 
     memcpy (dp->bitstream->streamBuffer, &nalu->buf[1], nalu->len-1);
     dp->bitstream->code_len = dp->bitstream->bitstream_length = RBSPtoSODB (dp->bitstream->streamBuffer, nalu->len-1);
     dp->bitstream->ei_flag  = 0;
     dp->bitstream->read_len = dp->bitstream->frame_bitoffset = 0;
 
-    seq_parameter_set_data(p_Vid, dp, sps);
+    seq_parameter_set_rbsp(dp, sps);
 #if (MVC_EXTENSION_ENABLE)
     get_max_dec_frame_buf_size(sps);
 #endif
@@ -1079,7 +1140,7 @@ void ProcessSubsetSPS(VideoParameters *p_Vid, NALU_t *nalu)
 void ProcessPPS(VideoParameters *p_Vid, NALU_t *nalu)
 {
     DataPartition *dp = AllocPartition(1);
-    pic_parameter_set_rbsp_t *pps = AllocPPS();
+    pps_t *pps = AllocPPS();
 
     memcpy (dp->bitstream->streamBuffer, &nalu->buf[1], nalu->len-1);
     dp->bitstream->code_len = dp->bitstream->bitstream_length = RBSPtoSODB (dp->bitstream->streamBuffer, nalu->len-1);
@@ -1091,7 +1152,7 @@ void ProcessPPS(VideoParameters *p_Vid, NALU_t *nalu)
         if (pps->pic_parameter_set_id == p_Vid->active_pps->pic_parameter_set_id) {
             if (!pps_is_equal(pps, p_Vid->active_pps)) {
                 //copy to next PPS;
-                memcpy(p_Vid->pNextPPS, p_Vid->active_pps, sizeof (pic_parameter_set_rbsp_t));
+                memcpy(p_Vid->pNextPPS, p_Vid->active_pps, sizeof (pps_t));
                 if (p_Vid->dec_picture) // && p_Vid->num_dec_mb == p_Vid->PicSizeInMbs)
                     // this may only happen on slice loss
                     exit_picture(p_Vid, &p_Vid->dec_picture);
@@ -1129,7 +1190,7 @@ static void updateMaxValue(FrameFormat *format)
  *
  ************************************************************************
  */
-static void reset_format_info(seq_parameter_set_rbsp_t *sps, VideoParameters *p_Vid, FrameFormat *source, FrameFormat *output)
+static void reset_format_info(sps_t *sps, VideoParameters *p_Vid, FrameFormat *source, FrameFormat *output)
 {
   InputParameters *p_Inp = p_Vid->p_Inp;
   static const int SubWidthC  [4]= { 1, 2, 2, 1};
@@ -1255,7 +1316,7 @@ static void reset_format_info(seq_parameter_set_rbsp_t *sps, VideoParameters *p_
   }
 }
 
-static void setup_layer_info(VideoParameters *p_Vid, seq_parameter_set_rbsp_t *sps, LayerParameters *p_Lps)
+static void setup_layer_info(VideoParameters *p_Vid, sps_t *sps, LayerParameters *p_Lps)
 {
   int layer_id = p_Lps->layer_id;
   p_Lps->p_Vid = p_Vid;
@@ -1264,7 +1325,7 @@ static void setup_layer_info(VideoParameters *p_Vid, seq_parameter_set_rbsp_t *s
   p_Lps->p_Dpb = p_Vid->p_Dpb_layer[layer_id];
 }
 
-static void set_coding_par(seq_parameter_set_rbsp_t *sps, CodingParameters *cps)
+static void set_coding_par(sps_t *sps, CodingParameters *cps)
 {
   // maximum vertical motion vector range in luma quarter pixel units
   cps->profile_idc = sps->profile_idc;
@@ -1398,7 +1459,7 @@ static void set_coding_par(seq_parameter_set_rbsp_t *sps, CodingParameters *cps)
   cps->mb_size_shift[1][0] = cps->mb_size_shift[2][0] = CeilLog2_sf (cps->mb_size[1][0]);
   cps->mb_size_shift[1][1] = cps->mb_size_shift[2][1] = CeilLog2_sf (cps->mb_size[1][1]);
 
-  cps->rgb_output =  (sps->vui_seq_parameters.matrix_coefficients==0);
+  cps->rgb_output =  (sps->vui_parameters.matrix_coefficients==0);
 }
 
 /*!
@@ -1408,7 +1469,7 @@ static void set_coding_par(seq_parameter_set_rbsp_t *sps, CodingParameters *cps)
  *
  ************************************************************************
  */
-void activate_sps (VideoParameters *p_Vid, seq_parameter_set_rbsp_t *sps)
+void activate_sps (VideoParameters *p_Vid, sps_t *sps)
 {
   InputParameters *p_Inp = p_Vid->p_Inp;  
 
@@ -1508,7 +1569,7 @@ void activate_sps (VideoParameters *p_Vid, seq_parameter_set_rbsp_t *sps)
   reset_format_info(sps, p_Vid, &p_Inp->source, &p_Inp->output);
 }
 
-void activate_pps(VideoParameters *p_Vid, pic_parameter_set_rbsp_t *pps)
+void activate_pps(VideoParameters *p_Vid, pps_t *pps)
 {  
   if (p_Vid->active_pps != pps)
   {
@@ -1544,8 +1605,8 @@ void UseParameterSet (Slice *currSlice)
 {
   VideoParameters *p_Vid = currSlice->p_Vid;
   int PicParsetId = currSlice->pic_parameter_set_id;  
-  pic_parameter_set_rbsp_t *pps = &p_Vid->PicParSet[PicParsetId];
-  seq_parameter_set_rbsp_t *sps = &p_Vid->SeqParSet[pps->seq_parameter_set_id];
+  pps_t *pps = &p_Vid->PicParSet[PicParsetId];
+  sps_t *sps = &p_Vid->SeqParSet[pps->seq_parameter_set_id];
   int i;
 
   if (pps->Valid != TRUE)
@@ -1744,11 +1805,11 @@ int GetBaseViewId(VideoParameters *p_Vid, subset_seq_parameter_set_rbsp_t **subs
  *************************************************************************************
  */
 
-pic_parameter_set_rbsp_t *AllocPPS ()
+pps_t *AllocPPS ()
  {
-   pic_parameter_set_rbsp_t *p;
+   pps_t *p;
 
-   if ((p=(pic_parameter_set_rbsp_t *)calloc (1, sizeof (pic_parameter_set_rbsp_t))) == NULL)
+   if ((p=(pps_t *)calloc (1, sizeof (pps_t))) == NULL)
      no_mem_exit ("AllocPPS: PPS");
    p->slice_group_id = NULL;
    return p;
@@ -1765,11 +1826,11 @@ pic_parameter_set_rbsp_t *AllocPPS ()
  *************************************************************************************
  */
 
-seq_parameter_set_rbsp_t *AllocSPS ()
+sps_t *AllocSPS ()
  {
-   seq_parameter_set_rbsp_t *p;
+   sps_t *p;
 
-   if ((p=(seq_parameter_set_rbsp_t *)calloc (1, sizeof (seq_parameter_set_rbsp_t))) == NULL)
+   if ((p=(sps_t *)calloc (1, sizeof (sps_t))) == NULL)
      no_mem_exit ("AllocSPS: SPS");
    return p;
  }
@@ -1785,7 +1846,7 @@ seq_parameter_set_rbsp_t *AllocSPS ()
  *************************************************************************************
  */
 
- void FreePPS (pic_parameter_set_rbsp_t *pps)
+ void FreePPS (pps_t *pps)
  {
    assert (pps != NULL);
    if (pps->slice_group_id != NULL) 
@@ -1804,7 +1865,7 @@ seq_parameter_set_rbsp_t *AllocSPS ()
  *************************************************************************************
  */
 
- void FreeSPS (seq_parameter_set_rbsp_t *sps)
+ void FreeSPS (sps_t *sps)
  {
    assert (sps != NULL);
    free (sps);

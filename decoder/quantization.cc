@@ -21,8 +21,73 @@
 #include "transform.h"
 #include "quantization.h"
 
+
+
+int Flat_4x4_16[16] = {
+    16, 16, 16, 16,
+    16, 16, 16, 16,
+    16, 16, 16, 16,
+    16, 16, 16, 16
+};
+
+int Flat_8x8_16[64] = {
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16
+};
+
+// Table 7-3 Specification of default scaling lists Default_4x4_Intra and Default_4x4_Inter
+
+int Default_4x4_Intra[16] = {
+     6, 13, 20, 28,
+    13, 20, 28, 32,
+    20, 28, 32, 37,
+    28, 32, 37, 42
+};
+
+int Default_4x4_Inter[16] = {
+    10, 14, 20, 24,
+    14, 20, 24, 27,
+    20, 24, 27, 30,
+    24, 27, 30, 34
+};
+
+// Table 7-4 Specification of default scaling lists Default_8x8_Intra and Default_8x8_Inter
+
+int Default_8x8_Intra[64] = {
+     6, 10, 13, 16, 18, 23, 25, 27,
+    10, 11, 16, 18, 23, 25, 27, 29,
+    13, 16, 18, 23, 25, 27, 29, 31,
+    16, 18, 23, 25, 27, 29, 31, 33,
+    18, 23, 25, 27, 29, 31, 33, 36,
+    23, 25, 27, 29, 31, 33, 36, 38,
+    25, 27, 29, 31, 33, 36, 38, 40,
+    27, 29, 31, 33, 36, 38, 40, 42
+};
+
+int Default_8x8_Inter[64] = {
+     9, 13, 15, 17, 19, 21, 22, 24,
+    13, 13, 17, 19, 21, 22, 24, 25,
+    15, 17, 19, 21, 22, 24, 25, 27,
+    17, 19, 21, 22, 24, 25, 27, 28,
+    19, 21, 22, 24, 25, 27, 28, 30,
+    21, 22, 24, 25, 27, 28, 30, 32,
+    22, 24, 25, 27, 28, 30, 32, 33,
+    24, 25, 27, 28, 30, 32, 33, 35
+};
+
+
+
+
 static void CalculateQuant4x4Param(struct slice_t *currslice);
 static void CalculateQuant8x8Param(struct slice_t *currslice);
+
+
 
 // exported variables
 static const int dequant_coef8[6][8][8] =
@@ -90,61 +155,6 @@ static const int dequant_coef8[6][8][8] =
 };
 
 
-
-int quant_intra_default[16] = {
-   6,13,20,28,
-  13,20,28,32,
-  20,28,32,37,
-  28,32,37,42
-};
-
-int quant_inter_default[16] = {
-  10,14,20,24,
-  14,20,24,27,
-  20,24,27,30,
-  24,27,30,34
-};
-
-int quant8_intra_default[64] = {
- 6,10,13,16,18,23,25,27,
-10,11,16,18,23,25,27,29,
-13,16,18,23,25,27,29,31,
-16,18,23,25,27,29,31,33,
-18,23,25,27,29,31,33,36,
-23,25,27,29,31,33,36,38,
-25,27,29,31,33,36,38,40,
-27,29,31,33,36,38,40,42
-};
-
-int quant8_inter_default[64] = {
- 9,13,15,17,19,21,22,24,
-13,13,17,19,21,22,24,25,
-15,17,19,21,22,24,25,27,
-17,19,21,22,24,25,27,28,
-19,21,22,24,25,27,28,30,
-21,22,24,25,27,28,30,32,
-22,24,25,27,28,30,32,33,
-24,25,27,28,30,32,33,35
-};
-
-int quant_org[16] = { //to be use if no q matrix is chosen
-16,16,16,16,
-16,16,16,16,
-16,16,16,16,
-16,16,16,16
-};
-
-int quant8_org[64] = { //to be use if no q matrix is chosen
-16,16,16,16,16,16,16,16,
-16,16,16,16,16,16,16,16,
-16,16,16,16,16,16,16,16,
-16,16,16,16,16,16,16,16,
-16,16,16,16,16,16,16,16,
-16,16,16,16,16,16,16,16,
-16,16,16,16,16,16,16,16,
-16,16,16,16,16,16,16,16
-};
-
 /*!
  ***********************************************************************
  * \brief
@@ -204,125 +214,93 @@ void free_qp_matrices(CodingParameters *cps)
  */
 void assign_quant_params(Slice *currSlice)
 {
-  seq_parameter_set_rbsp_t* sps = currSlice->active_sps;
-  pic_parameter_set_rbsp_t* pps = currSlice->active_pps;
-  int i;
-  int n_ScalingList;
+    sps_t* sps = currSlice->active_sps;
+    pps_t* pps = currSlice->active_pps;
+    int i;
+    int n_ScalingList;
 
-  if(!pps->pic_scaling_matrix_present_flag && !sps->seq_scaling_matrix_present_flag)
-  {
-    for(i=0; i<12; i++)
-      currSlice->qmatrix[i] = (i < 6) ? quant_org : quant8_org;
-  }
-  else
-  {
-    n_ScalingList = (sps->chroma_format_idc != YUV444) ? 8 : 12;
-    if(sps->seq_scaling_matrix_present_flag) // check sps first
-    {
-      for(i=0; i<n_ScalingList; i++)
-      {
-        if(i<6)
-        {
-          if(!sps->seq_scaling_list_present_flag[i]) // fall-back rule A
-          {
-            if(i==0)
-              currSlice->qmatrix[i] = quant_intra_default;
-            else if(i==3)
-              currSlice->qmatrix[i] = quant_inter_default;
-            else
-              currSlice->qmatrix[i] = currSlice->qmatrix[i-1];
-          }
-          else
-          {
-            if(sps->UseDefaultScalingMatrix4x4Flag[i])
-              currSlice->qmatrix[i] = (i<3) ? quant_intra_default : quant_inter_default;
-            else
-              currSlice->qmatrix[i] = sps->ScalingList4x4[i];
-          }
+    if (!pps->pic_scaling_matrix_present_flag &&
+        !sps->seq_scaling_matrix_present_flag) {
+        for(i=0; i<12; i++)
+            currSlice->qmatrix[i] = (i < 6) ? Flat_4x4_16 : Flat_8x8_16;
+    } else {
+        n_ScalingList = (sps->chroma_format_idc != YUV444) ? 8 : 12;
+        if (sps->seq_scaling_matrix_present_flag) { // check sps first
+            for (i=0; i<n_ScalingList; i++) {
+                if (i<6) {
+                    if (!sps->seq_scaling_list_present_flag[i]) { // fall-back rule A
+                        if (i==0)
+                            currSlice->qmatrix[i] = Default_4x4_Intra;
+                        else if (i==3)
+                            currSlice->qmatrix[i] = Default_4x4_Inter;
+                        else
+                            currSlice->qmatrix[i] = currSlice->qmatrix[i-1];
+                    } else {
+                        if (sps->UseDefaultScalingMatrix4x4Flag[i])
+                            currSlice->qmatrix[i] = (i<3) ? Default_4x4_Intra : Default_4x4_Inter;
+                        else
+                            currSlice->qmatrix[i] = sps->ScalingList4x4[i];
+                    }
+                } else {
+                    if (!sps->seq_scaling_list_present_flag[i]) { // fall-back rule A
+                        if (i==6)
+                            currSlice->qmatrix[i] = Default_8x8_Intra;
+                        else if (i==7)
+                            currSlice->qmatrix[i] = Default_8x8_Inter;
+                        else
+                            currSlice->qmatrix[i] = currSlice->qmatrix[i-2];
+                    } else {
+                        if (sps->UseDefaultScalingMatrix8x8Flag[i-6])
+                            currSlice->qmatrix[i] = (i==6 || i==8 || i==10) ? Default_8x8_Intra:Default_8x8_Inter;
+                        else
+                            currSlice->qmatrix[i] = sps->ScalingList8x8[i-6];
+                    }
+                }
+            }
         }
-        else
-        {
-          if(!sps->seq_scaling_list_present_flag[i]) // fall-back rule A
-          {
-            if(i==6)
-              currSlice->qmatrix[i] = quant8_intra_default;
-            else if(i==7)
-              currSlice->qmatrix[i] = quant8_inter_default;
-            else
-              currSlice->qmatrix[i] = currSlice->qmatrix[i-2];
-          }
-          else
-          {
-            if(sps->UseDefaultScalingMatrix8x8Flag[i-6])
-              currSlice->qmatrix[i] = (i==6 || i==8 || i==10) ? quant8_intra_default:quant8_inter_default;
-            else
-              currSlice->qmatrix[i] = sps->ScalingList8x8[i-6];
-          }
+
+        if (pps->pic_scaling_matrix_present_flag) { // then check pps
+            for (i=0; i<n_ScalingList; i++) {
+                if (i<6) {
+                    if (!pps->pic_scaling_list_present_flag[i]) { // fall-back rule B
+                        if (i==0) {
+                            if (!sps->seq_scaling_matrix_present_flag)
+                                currSlice->qmatrix[i] = Default_4x4_Intra;
+                        } else if (i==3) {
+                            if (!sps->seq_scaling_matrix_present_flag)
+                                currSlice->qmatrix[i] = Default_4x4_Inter;
+                        } else
+                            currSlice->qmatrix[i] = currSlice->qmatrix[i-1];
+                    } else {
+                        if (pps->UseDefaultScalingMatrix4x4Flag[i])
+                            currSlice->qmatrix[i] = (i<3) ? Default_4x4_Intra : Default_4x4_Inter;
+                        else
+                            currSlice->qmatrix[i] = pps->ScalingList4x4[i];
+                    }
+                } else {
+                    if (!pps->pic_scaling_list_present_flag[i]) { // fall-back rule B
+                        if (i==6) {
+                            if (!sps->seq_scaling_matrix_present_flag)
+                                currSlice->qmatrix[i] = Default_8x8_Intra;
+                        } else if (i==7) {
+                            if (!sps->seq_scaling_matrix_present_flag)
+                                currSlice->qmatrix[i] = Default_8x8_Inter;
+                        } else  
+                            currSlice->qmatrix[i] = currSlice->qmatrix[i-2];
+                    } else {
+                        if (pps->UseDefaultScalingMatrix8x8Flag[i-6])
+                            currSlice->qmatrix[i] = (i==6 || i==8 || i==10) ? Default_8x8_Intra:Default_8x8_Inter;
+                        else
+                            currSlice->qmatrix[i] = pps->ScalingList8x8[i-6];
+                    }
+                }
+            }
         }
-      }
     }
 
-    if(pps->pic_scaling_matrix_present_flag) // then check pps
-    {
-      for(i=0; i<n_ScalingList; i++)
-      {
-        if(i<6)
-        {
-          if(!pps->pic_scaling_list_present_flag[i]) // fall-back rule B
-          {
-            if (i==0)
-            {
-              if(!sps->seq_scaling_matrix_present_flag)
-                currSlice->qmatrix[i] = quant_intra_default;
-            }
-            else if (i==3)
-            {
-              if(!sps->seq_scaling_matrix_present_flag)
-                currSlice->qmatrix[i] = quant_inter_default;
-            }
-            else
-              currSlice->qmatrix[i] = currSlice->qmatrix[i-1];
-          }
-          else
-          {
-            if(pps->UseDefaultScalingMatrix4x4Flag[i])
-              currSlice->qmatrix[i] = (i<3) ? quant_intra_default:quant_inter_default;
-            else
-              currSlice->qmatrix[i] = pps->ScalingList4x4[i];
-          }
-        }
-        else
-        {
-          if(!pps->pic_scaling_list_present_flag[i]) // fall-back rule B
-          {
-            if (i==6)
-            {
-              if(!sps->seq_scaling_matrix_present_flag)
-                currSlice->qmatrix[i] = quant8_intra_default;
-            }
-            else if(i==7)
-            {
-              if(!sps->seq_scaling_matrix_present_flag)
-                currSlice->qmatrix[i] = quant8_inter_default;
-            }
-            else  
-              currSlice->qmatrix[i] = currSlice->qmatrix[i-2];
-          }
-          else
-          {
-            if(pps->UseDefaultScalingMatrix8x8Flag[i-6])
-              currSlice->qmatrix[i] = (i==6 || i==8 || i==10) ? quant8_intra_default:quant8_inter_default;
-            else
-              currSlice->qmatrix[i] = pps->ScalingList8x8[i-6];
-          }
-        }
-      }
-    }
-  }
-
-  CalculateQuant4x4Param(currSlice);
-  if(pps->transform_8x8_mode_flag)
-    CalculateQuant8x8Param(currSlice);
+    CalculateQuant4x4Param(currSlice);
+    if (pps->transform_8x8_mode_flag)
+        CalculateQuant8x8Param(currSlice);
 }
 
 static void set_dequant4x4(int (*InvLevelScale4x4)[4],  const int (*dequant)[4], int *qmatrix)

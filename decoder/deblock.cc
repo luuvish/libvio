@@ -110,7 +110,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         Slice  *currSlice = MbQ->p_Slice;
         int       mvlimit = ((p->structure!=FRAME) || (p->mb_aff_frame_flag && MbQ->mb_field)) ? 2 : 4;
 
-        seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+        sps_t *active_sps = p_Vid->active_sps;
 
         MbQ->DeblockCall = (Boolean)1;
         get_mb_pos (p_Vid, MbQAddr, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);

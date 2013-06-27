@@ -1401,7 +1401,7 @@ void update_ref_list_for_concealment(DecodedPictureBuffer *p_Dpb)
 void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSliceType, PictureStructure currPicStructure)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
-  seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+  sps_t *active_sps = p_Vid->active_sps;
 
   unsigned i;
   int j;

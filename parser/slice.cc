@@ -478,7 +478,7 @@ void fill_wp_params(Slice *currSlice)
 static void pred_weight_table(Slice *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
-    seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+    sps_t *active_sps = p_Vid->active_sps;
     byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
     DataPartition *partition = &(currSlice->partArr[dP_nr]);
     Bitstream *currStream = partition->bitstream;
@@ -664,7 +664,7 @@ int slice_header(Slice *currSlice)
     currSlice->chroma444_not_separate = (Boolean)((p_Vid->active_sps->chroma_format_idc==YUV444)&&((p_Vid->separate_colour_plane_flag == 0)));
 
     InputParameters *p_Inp = currSlice->p_Inp;
-    seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+    sps_t *active_sps = p_Vid->active_sps;
 
     int val, len;
 
@@ -848,7 +848,7 @@ int slice_header(Slice *currSlice)
  */
 void decode_poc(VideoParameters *p_Vid, Slice *pSlice)
 {
-    seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+    sps_t *active_sps = p_Vid->active_sps;
     int i;
     // for POC mode 0:
     unsigned int MaxPicOrderCntLsb = (1<<(active_sps->log2_max_pic_order_cnt_lsb_minus4+4));

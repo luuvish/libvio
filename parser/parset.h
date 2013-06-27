@@ -24,6 +24,9 @@ extern "C" {
 #include "bitstream_nal.h"
 
 #include "defines.h"
+struct video_par;
+struct slice_t;
+
 
 #define MAXIMUMPARSETRBSPSIZE   1500
 #define MAXIMUMPARSETNALUSIZE   1500
@@ -33,8 +36,10 @@ extern "C" {
 
 #define MAX_NUM_HRD_CPB_CNT 32
 #define MAX_NUM_REF_FRAMES 256
+#define MAX_NUM_SLICE_GROUPS 8
 
 #define Extended_SAR 255
+
 
 typedef struct hrd_parameters_t {
     uint8_t         cpb_cnt_minus1;                                   // ue(v)
@@ -86,7 +91,20 @@ typedef struct vui_parameters_t {
     uint8_t         max_dec_frame_buffering;                          // ue(v)
 } vui_t;
 
-typedef struct seq_parameter_set_rbsp_t {
+
+// A.2 Profiles
+enum {
+    CAVLC444_Profile =  44,
+    Baseline_Profile =  66,
+    Main_Profile     =  77,
+    Extended_Profile =  88,
+    High_Profile     = 100,
+    High10_Profile   = 110,
+    High422_Profile  = 122,
+    High444_Profile  = 244
+};
+
+typedef struct seq_parameter_set_t {
     bool            Valid;                  // indicates the parameter set is valid
 
     uint8_t         profile_idc;                                      // u(8)
@@ -132,12 +150,34 @@ typedef struct seq_parameter_set_rbsp_t {
     uint32_t        frame_crop_top_offset;                            // ue(v)
     uint32_t        frame_crop_bottom_offset;                         // ue(v)
     bool            vui_parameters_present_flag;                      // u(1)
-    vui_t           vui_seq_parameters;
+    vui_t           vui_parameters;
+
+    uint8_t         ChromaArrayType;
+    uint8_t         SubWidthC;
+    uint8_t         SubHeightC;
+    uint8_t         MbWidthC;
+    uint8_t         MbHeightC;
+    uint8_t         BitDepthY;
+    uint8_t         BitDepthC;
+    uint8_t         QpBdOffsetY;
+    uint8_t         QpBdOffsetC;
+    uint16_t        RawMbBits;
+
+    uint32_t        MaxFrameNum;
+    uint32_t        MaxPicOrderCntLsb;
+    uint32_t        PicWidthInMbs;
+    uint32_t        PicWidthInSamplesL;
+    uint32_t        PicWidthInSamplesC;
+    uint32_t        PicHeightInMapUnits;
+    uint32_t        PicSizeInMapUnits;
+    uint32_t        FrameHeightInMbs;
+    uint8_t         CropUnitX;
+    uint8_t         CropUnitY;
 
 #if (MVC_EXTENSION_ENABLE)
     int max_dec_frame_buffering;
 #endif
-} seq_parameter_set_rbsp_t;
+} sps_t;
 
 
 
@@ -172,7 +212,7 @@ typedef struct mvcvui_tag {
 typedef struct subset_seq_parameter_set_rbsp_t {
     Boolean      Valid;                  // indicates the parameter set is valid
 
-    seq_parameter_set_rbsp_t sps;
+    sps_t sps;
 
     unsigned int bit_equal_to_one;
     int          num_views_minus1;
@@ -202,8 +242,7 @@ typedef struct subset_seq_parameter_set_rbsp_t {
 
 
 
-#define MAXnum_slice_groups_minus1  8
-typedef struct pic_parameter_set_rbsp_t {
+typedef struct pic_parameter_set_t {
     Boolean          Valid;                  // indicates the parameter set is valid
 
     unsigned int     pic_parameter_set_id;                             // ue(v)
@@ -213,9 +252,9 @@ typedef struct pic_parameter_set_rbsp_t {
 
     unsigned int     num_slice_groups_minus1;                       // ue(v)
     unsigned int     slice_group_map_type;                          // ue(v)
-    unsigned int     run_length_minus1[MAXnum_slice_groups_minus1]; // ue(v)
-    unsigned int     top_left[MAXnum_slice_groups_minus1];          // ue(v)
-    unsigned int     bottom_right[MAXnum_slice_groups_minus1];      // ue(v)
+    unsigned int     run_length_minus1[MAX_NUM_SLICE_GROUPS]; // ue(v)
+    unsigned int     top_left         [MAX_NUM_SLICE_GROUPS];          // ue(v)
+    unsigned int     bottom_right     [MAX_NUM_SLICE_GROUPS];      // ue(v)
     Boolean          slice_group_change_direction_flag;             // u(1)
     unsigned int     slice_group_change_rate_minus1;                // ue(v)
     unsigned int     pic_size_in_map_units_minus1;                  // ue(v)
@@ -240,27 +279,38 @@ typedef struct pic_parameter_set_rbsp_t {
     bool             UseDefaultScalingMatrix4x4Flag[6];
     bool             UseDefaultScalingMatrix8x8Flag[6];
     int              second_chroma_qp_index_offset;                    // se(v)
-} pic_parameter_set_rbsp_t;
+} pps_t;
 
 
-struct video_par;
-struct slice_t;
+// E.1.1 VUI parameter syntax
+void vui_parameters(DataPartition *p, vui_t *vui);
 
-pic_parameter_set_rbsp_t *AllocPPS (void);
-seq_parameter_set_rbsp_t *AllocSPS (void);
+// E.1.2 HRD parameters syntax
+void hrd_parameters(DataPartition *p, hrd_t *hrd);
 
-void FreePPS (pic_parameter_set_rbsp_t *pps);
-void FreeSPS (seq_parameter_set_rbsp_t *sps);
+// 7.3.2.1 Sequence parameter set data syntax
+void seq_parameter_set_rbsp(DataPartition *p, sps_t *sps);
 
-void MakePPSavailable (struct video_par *p_Vid, int id, pic_parameter_set_rbsp_t *pps);
+// 7.3.2.1.1.1 Scaling list syntax
+void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScalingMatrixFlag, Bitstream *s);
+
+
+
+pps_t *AllocPPS (void);
+sps_t *AllocSPS (void);
+
+void FreePPS (pps_t *pps);
+void FreeSPS (sps_t *sps);
+
+void MakePPSavailable (struct video_par *p_Vid, int id, pps_t *pps);
 
 void ProcessSPS (struct video_par *p_Vid, NALU_t *nalu);
 void ProcessPPS (struct video_par *p_Vid, NALU_t *nalu);
 
 void CleanUpPPS(struct video_par *p_Vid);
 
-void activate_sps (struct video_par *p_Vid, seq_parameter_set_rbsp_t *sps);
-void activate_pps (struct video_par *p_Vid, pic_parameter_set_rbsp_t *pps);
+void activate_sps (struct video_par *p_Vid, sps_t *sps);
+void activate_pps (struct video_par *p_Vid, pps_t *pps);
 
 void UseParameterSet (struct slice_t *currSlice);
 

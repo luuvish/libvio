@@ -202,17 +202,17 @@ typedef struct layer_par {
   int                            layer_id;
   struct video_par              *p_Vid;
   CodingParameters              *p_Cps;
-  seq_parameter_set_rbsp_t      *p_SPS;
+  sps_t      *p_SPS;
   struct decoded_picture_buffer *p_Dpb;
 } LayerParameters;
 
 // video parameters
 typedef struct video_par {
   struct inp_par      *p_Inp;
-  pic_parameter_set_rbsp_t *active_pps;
-  seq_parameter_set_rbsp_t *active_sps;
-  seq_parameter_set_rbsp_t SeqParSet[MAXSPS];
-  pic_parameter_set_rbsp_t PicParSet[MAXPPS];
+  pps_t *active_pps;
+  sps_t *active_sps;
+  sps_t SeqParSet[MAXSPS];
+  pps_t PicParSet[MAXPPS];
   struct decoded_picture_buffer *p_Dpb_layer[MAX_NUM_DPB_LAYERS];
   CodingParameters *p_EncodePar[MAX_NUM_DPB_LAYERS];
   LayerParameters *p_LayerPar[MAX_NUM_DPB_LAYERS];
@@ -405,7 +405,7 @@ typedef struct video_par {
   int bDeblockEnable;
   int iPostProcess;
   int bFrameInit;
-  pic_parameter_set_rbsp_t *pNextPPS;
+  pps_t *pNextPPS;
   int last_dec_poc;
   int last_dec_view_id;
   int last_dec_layer_id;

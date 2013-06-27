@@ -512,7 +512,7 @@ void init_frext(VideoParameters *p_Vid)  //!< video parameters
 static void Report(VideoParameters *p_Vid)
 {
   static const char yuv_formats[4][4]= { {"400"}, {"420"}, {"422"}, {"444"} };
-  pic_parameter_set_rbsp_t *active_pps = p_Vid->active_pps;
+  pps_t *active_pps = p_Vid->active_pps;
   InputParameters *p_Inp = p_Vid->p_Inp;
   SNRParameters   *snr   = p_Vid->snr;
 #define OUTSTRING_SIZE 255

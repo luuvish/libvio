@@ -1110,7 +1110,7 @@ void interpret_buffering_period_info( byte* payload, int size, VideoParameters *
   unsigned int k;
 
   Bitstream* buf;
-  seq_parameter_set_rbsp_t *sps;
+  sps_t *sps;
 
   buf = (Bitstream *)malloc(sizeof(Bitstream));
   buf->bitstream_length = size;
@@ -1129,22 +1129,22 @@ void interpret_buffering_period_info( byte* payload, int size, VideoParameters *
   if (sps->vui_parameters_present_flag)
   {
 
-    if (sps->vui_seq_parameters.nal_hrd_parameters_present_flag)
+    if (sps->vui_parameters.nal_hrd_parameters_present_flag)
     {
-      for (k=0; k<sps->vui_seq_parameters.nal_hrd_parameters.cpb_cnt_minus1+1; k++)
+      for (k=0; k<sps->vui_parameters.nal_hrd_parameters.cpb_cnt_minus1+1; k++)
       {
-        initial_cpb_removal_delay        = read_u_v(sps->vui_seq_parameters.nal_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay"        , buf, &p_Dec->UsedBits);
-        initial_cpb_removal_delay_offset = read_u_v(sps->vui_seq_parameters.nal_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay_offset" , buf, &p_Dec->UsedBits);
+        initial_cpb_removal_delay        = read_u_v(sps->vui_parameters.nal_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay"        , buf, &p_Dec->UsedBits);
+        initial_cpb_removal_delay_offset = read_u_v(sps->vui_parameters.nal_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay_offset" , buf, &p_Dec->UsedBits);
 
       }
     }
 
-    if (sps->vui_seq_parameters.vcl_hrd_parameters_present_flag)
+    if (sps->vui_parameters.vcl_hrd_parameters_present_flag)
     {
-      for (k=0; k<sps->vui_seq_parameters.vcl_hrd_parameters.cpb_cnt_minus1+1; k++)
+      for (k=0; k<sps->vui_parameters.vcl_hrd_parameters.cpb_cnt_minus1+1; k++)
       {
-        initial_cpb_removal_delay        = read_u_v(sps->vui_seq_parameters.vcl_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay"        , buf, &p_Dec->UsedBits);
-        initial_cpb_removal_delay_offset = read_u_v(sps->vui_seq_parameters.vcl_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay_offset" , buf, &p_Dec->UsedBits);
+        initial_cpb_removal_delay        = read_u_v(sps->vui_parameters.vcl_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay"        , buf, &p_Dec->UsedBits);
+        initial_cpb_removal_delay_offset = read_u_v(sps->vui_parameters.vcl_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay_offset" , buf, &p_Dec->UsedBits);
       }
     }
   }
@@ -1168,7 +1168,7 @@ void interpret_buffering_period_info( byte* payload, int size, VideoParameters *
  */
 void interpret_picture_timing_info( byte* payload, int size, VideoParameters *p_Vid )
 {
-  seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+  sps_t *active_sps = p_Vid->active_sps;
 
   int cpb_removal_delay, dpb_output_delay, pic_struct_present_flag, pic_struct;
   int clock_timestamp_flag;
@@ -1199,27 +1199,27 @@ void interpret_picture_timing_info( byte* payload, int size, VideoParameters *p_
 
   // CpbDpbDelaysPresentFlag can also be set "by some means not specified in this Recommendation | International Standard"
   CpbDpbDelaysPresentFlag =  (Boolean) (active_sps->vui_parameters_present_flag
-                              && (   (active_sps->vui_seq_parameters.nal_hrd_parameters_present_flag != 0)
-                                   ||(active_sps->vui_seq_parameters.vcl_hrd_parameters_present_flag != 0)));
+                              && (   (active_sps->vui_parameters.nal_hrd_parameters_present_flag != 0)
+                                   ||(active_sps->vui_parameters.vcl_hrd_parameters_present_flag != 0)));
 
   if (CpbDpbDelaysPresentFlag )
   {
     if (active_sps->vui_parameters_present_flag)
     {
-      if (active_sps->vui_seq_parameters.nal_hrd_parameters_present_flag)
+      if (active_sps->vui_parameters.nal_hrd_parameters_present_flag)
       {
-        cpb_removal_len = active_sps->vui_seq_parameters.nal_hrd_parameters.cpb_removal_delay_length_minus1 + 1;
-        dpb_output_len  = active_sps->vui_seq_parameters.nal_hrd_parameters.dpb_output_delay_length_minus1  + 1;
+        cpb_removal_len = active_sps->vui_parameters.nal_hrd_parameters.cpb_removal_delay_length_minus1 + 1;
+        dpb_output_len  = active_sps->vui_parameters.nal_hrd_parameters.dpb_output_delay_length_minus1  + 1;
       }
-      else if (active_sps->vui_seq_parameters.vcl_hrd_parameters_present_flag)
+      else if (active_sps->vui_parameters.vcl_hrd_parameters_present_flag)
       {
-        cpb_removal_len = active_sps->vui_seq_parameters.vcl_hrd_parameters.cpb_removal_delay_length_minus1 + 1;
-        dpb_output_len  = active_sps->vui_seq_parameters.vcl_hrd_parameters.dpb_output_delay_length_minus1  + 1;
+        cpb_removal_len = active_sps->vui_parameters.vcl_hrd_parameters.cpb_removal_delay_length_minus1 + 1;
+        dpb_output_len  = active_sps->vui_parameters.vcl_hrd_parameters.dpb_output_delay_length_minus1  + 1;
       }
     }
 
-    if ((active_sps->vui_seq_parameters.nal_hrd_parameters_present_flag)||
-      (active_sps->vui_seq_parameters.vcl_hrd_parameters_present_flag))
+    if ((active_sps->vui_parameters.nal_hrd_parameters_present_flag)||
+      (active_sps->vui_parameters.vcl_hrd_parameters_present_flag))
     {
       cpb_removal_delay = read_u_v(cpb_removal_len, "SEI: cpb_removal_delay" , buf, &p_Dec->UsedBits);
       dpb_output_delay  = read_u_v(dpb_output_len,  "SEI: dpb_output_delay"  , buf, &p_Dec->UsedBits);
@@ -1232,7 +1232,7 @@ void interpret_picture_timing_info( byte* payload, int size, VideoParameters *p_
   }
   else
   {
-    pic_struct_present_flag  =  active_sps->vui_seq_parameters.pic_struct_present_flag;
+    pic_struct_present_flag  =  active_sps->vui_parameters.pic_struct_present_flag;
   }
 
   if (pic_struct_present_flag)
@@ -1297,10 +1297,10 @@ void interpret_picture_timing_info( byte* payload, int size, VideoParameters *p_
         }
         {
           int time_offset_length;
-          if (active_sps->vui_seq_parameters.vcl_hrd_parameters_present_flag)
-            time_offset_length = active_sps->vui_seq_parameters.vcl_hrd_parameters.time_offset_length;
-          else if (active_sps->vui_seq_parameters.nal_hrd_parameters_present_flag)
-            time_offset_length = active_sps->vui_seq_parameters.nal_hrd_parameters.time_offset_length;
+          if (active_sps->vui_parameters.vcl_hrd_parameters_present_flag)
+            time_offset_length = active_sps->vui_parameters.vcl_hrd_parameters.time_offset_length;
+          else if (active_sps->vui_parameters.nal_hrd_parameters_present_flag)
+            time_offset_length = active_sps->vui_parameters.nal_hrd_parameters.time_offset_length;
           else
             time_offset_length = 24;
           if (time_offset_length)

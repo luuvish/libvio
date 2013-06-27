@@ -254,7 +254,7 @@ extern void fill_frame_num_gap(VideoParameters *p_Vid, struct slice_t *pSlice);
 extern void compute_colocated (struct slice_t *currSlice, StorablePicture **listX[6]);
 
 
-extern int  init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, seq_parameter_set_rbsp_t *sps);
+extern int  init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps);
 extern void free_img_data(VideoParameters *p_Vid, ImageData *p_ImgData);
 extern void pad_dec_picture(VideoParameters *p_Vid, StorablePicture *dec_picture);
 extern void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, int iPadY);

@@ -45,7 +45,7 @@ static void gen_field_ref_ids        (VideoParameters *p_Vid, StorablePicture *p
  *
  ************************************************************************
  */
-int getDpbSize(VideoParameters *p_Vid, seq_parameter_set_rbsp_t *active_sps)
+int getDpbSize(VideoParameters *p_Vid, sps_t *active_sps)
 {
   int pic_size = (active_sps->pic_width_in_mbs_minus1 + 1) * (active_sps->pic_height_in_map_units_minus1 + 1) * (active_sps->frame_mbs_only_flag?1:2) * 384;
 
@@ -125,14 +125,14 @@ int getDpbSize(VideoParameters *p_Vid, seq_parameter_set_rbsp_t *active_sps)
     size = imin( size, 16);
   }
 
-  if (active_sps->vui_parameters_present_flag && active_sps->vui_seq_parameters.bitstream_restriction_flag)
+  if (active_sps->vui_parameters_present_flag && active_sps->vui_parameters.bitstream_restriction_flag)
   {
     int size_vui;
-    if ((int)active_sps->vui_seq_parameters.max_dec_frame_buffering > size)
+    if ((int)active_sps->vui_parameters.max_dec_frame_buffering > size)
     {
       error("max_dec_frame_buffering larger than MaxDpbSize", 500);
     }
-    size_vui = imax (1, active_sps->vui_seq_parameters.max_dec_frame_buffering);
+    size_vui = imax (1, active_sps->vui_parameters.max_dec_frame_buffering);
 #ifdef _DEBUG
     if(size_vui < size)
     {
@@ -172,7 +172,7 @@ void check_num_ref(DecodedPictureBuffer *p_Dpb)
 void init_dpb(VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb, int type)
 {
   unsigned i; 
-  seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+  sps_t *active_sps = p_Vid->active_sps;
 
   p_Dpb->p_Vid = p_Vid;
   if (p_Dpb->init_done)
@@ -277,7 +277,7 @@ void init_dpb(VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb, int type)
 void re_init_dpb(VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb, int type)
 {
   int i; 
-  seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+  sps_t *active_sps = p_Vid->active_sps;
   int iDpbSize;
 
   iDpbSize = getDpbSize(p_Vid, active_sps)+p_Vid->p_Inp->dpb_plus[type==2? 1: 0];
@@ -471,7 +471,7 @@ void alloc_pic_motion(PicMotionParamsOld *motion, int size_y, int size_x)
  */
 StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure structure, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output)
 {
-  seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;  
+  sps_t *active_sps = p_Vid->active_sps;  
 
   StorablePicture *s;
   int   nplane;
@@ -790,7 +790,7 @@ void update_pic_num(Slice *currSlice)
   unsigned int i;
   VideoParameters *p_Vid = currSlice->p_Vid;
   DecodedPictureBuffer *p_Dpb = currSlice->p_Dpb;
-  seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+  sps_t *active_sps = p_Vid->active_sps;
 
   int add_top = 0, add_bottom = 0;
   int max_frame_num = 1 << (active_sps->log2_max_frame_num_minus4 + 4);
@@ -2554,7 +2554,7 @@ void free_ref_pic_list_reordering_buffer(Slice *currSlice)
  */
 void fill_frame_num_gap(VideoParameters *p_Vid, Slice *currSlice)
 {
-  seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+  sps_t *active_sps = p_Vid->active_sps;
   
   int CurrFrameNum;
   int UnusedShortTermFrameNum;
@@ -2660,7 +2660,7 @@ int GetMaxDecFrameBuffering(VideoParameters *p_Vid)
 {
   int i, j, iMax, iMax_1 = 0, iMax_2 = 0;
   subset_seq_parameter_set_rbsp_t *curr_subset_sps;
-  seq_parameter_set_rbsp_t *curr_sps;
+  sps_t *curr_sps;
 
   curr_subset_sps = p_Vid->SubsetSeqParSet;
   curr_sps = p_Vid->SeqParSet;
@@ -2670,13 +2670,13 @@ int GetMaxDecFrameBuffering(VideoParameters *p_Vid)
     {
       j = curr_subset_sps->sps.max_dec_frame_buffering;
 
-      if (curr_subset_sps->sps.vui_parameters_present_flag && curr_subset_sps->sps.vui_seq_parameters.bitstream_restriction_flag)
+      if (curr_subset_sps->sps.vui_parameters_present_flag && curr_subset_sps->sps.vui_parameters.bitstream_restriction_flag)
       {
-        if ((int)curr_subset_sps->sps.vui_seq_parameters.max_dec_frame_buffering > j)
+        if ((int)curr_subset_sps->sps.vui_parameters.max_dec_frame_buffering > j)
         {
           error ("max_dec_frame_buffering larger than MaxDpbSize", 500);
         }
-        j = imax (1, curr_subset_sps->sps.vui_seq_parameters.max_dec_frame_buffering);
+        j = imax (1, curr_subset_sps->sps.vui_parameters.max_dec_frame_buffering);
       }
 
       if(j > iMax_2)
@@ -2687,13 +2687,13 @@ int GetMaxDecFrameBuffering(VideoParameters *p_Vid)
     {
       j = curr_sps->max_dec_frame_buffering;
 
-      if (curr_sps->vui_parameters_present_flag && curr_sps->vui_seq_parameters.bitstream_restriction_flag)
+      if (curr_sps->vui_parameters_present_flag && curr_sps->vui_parameters.bitstream_restriction_flag)
       {
-        if ((int)curr_sps->vui_seq_parameters.max_dec_frame_buffering > j)
+        if ((int)curr_sps->vui_parameters.max_dec_frame_buffering > j)
         {
           error ("max_dec_frame_buffering larger than MaxDpbSize", 500);
         }
-        j = imax (1, curr_sps->vui_seq_parameters.max_dec_frame_buffering);
+        j = imax (1, curr_sps->vui_parameters.max_dec_frame_buffering);
       }
 
       if(j > iMax_1)
@@ -2837,7 +2837,7 @@ void process_picture_in_dpb_s(VideoParameters *p_Vid, StorablePicture *p_pic)
   }
 }
 
-int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, seq_parameter_set_rbsp_t *sps)
+int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
 {
   InputParameters *p_Inp = p_Vid->p_Inp;
   int memory_size = 0;

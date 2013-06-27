@@ -42,8 +42,8 @@ static void FmoGenerateType6MapUnitMap (VideoParameters *p_Vid, unsigned PicSize
  */
 static int FmoGenerateMapUnitToSliceGroupMap (VideoParameters *p_Vid, Slice *currSlice)
 {
-  seq_parameter_set_rbsp_t* sps = p_Vid->active_sps;
-  pic_parameter_set_rbsp_t* pps = p_Vid->active_pps;
+  sps_t *sps = p_Vid->active_sps;
+  pps_t* pps = p_Vid->active_pps;
 
   unsigned int NumSliceGroupMapUnits;
 
@@ -115,7 +115,7 @@ static int FmoGenerateMapUnitToSliceGroupMap (VideoParameters *p_Vid, Slice *cur
  */
 static int FmoGenerateMbToSliceGroupMap (VideoParameters *p_Vid, Slice *pSlice)
 {
-  seq_parameter_set_rbsp_t* sps = p_Vid->active_sps;
+  sps_t* sps = p_Vid->active_sps;
 
   unsigned i;
 
@@ -169,7 +169,7 @@ static int FmoGenerateMbToSliceGroupMap (VideoParameters *p_Vid, Slice *pSlice)
  */
 int fmo_init(VideoParameters *p_Vid, Slice *pSlice)
 {
-  pic_parameter_set_rbsp_t* pps = p_Vid->active_pps;
+  pps_t* pps = p_Vid->active_pps;
 
 #ifdef PRINT_FMO_MAPS
   unsigned i,j;
@@ -342,7 +342,7 @@ int FmoGetNextMBNr (VideoParameters *p_Vid, int CurrentMbNr)
  */
 static void FmoGenerateType0MapUnitMap (VideoParameters *p_Vid, unsigned PicSizeInMapUnits )
 {
-  pic_parameter_set_rbsp_t* pps = p_Vid->active_pps;
+  pps_t* pps = p_Vid->active_pps;
   unsigned iGroup, j;
   unsigned i = 0;
   do
@@ -368,7 +368,7 @@ static void FmoGenerateType0MapUnitMap (VideoParameters *p_Vid, unsigned PicSize
  */
 static void FmoGenerateType1MapUnitMap (VideoParameters *p_Vid, unsigned PicSizeInMapUnits )
 {
-  pic_parameter_set_rbsp_t* pps = p_Vid->active_pps;
+  pps_t* pps = p_Vid->active_pps;
   unsigned i;
   for( i = 0; i < PicSizeInMapUnits; i++ )
   {
@@ -386,7 +386,7 @@ static void FmoGenerateType1MapUnitMap (VideoParameters *p_Vid, unsigned PicSize
  */
 static void FmoGenerateType2MapUnitMap (VideoParameters *p_Vid, unsigned PicSizeInMapUnits )
 {
-  pic_parameter_set_rbsp_t* pps = p_Vid->active_pps;
+  pps_t* pps = p_Vid->active_pps;
   int iGroup;
   unsigned i, x, y;
   unsigned yTopLeft, xTopLeft, yBottomRight, xBottomRight;
@@ -416,7 +416,7 @@ static void FmoGenerateType2MapUnitMap (VideoParameters *p_Vid, unsigned PicSize
  */
 static void FmoGenerateType3MapUnitMap (VideoParameters *p_Vid, unsigned PicSizeInMapUnits, Slice *currSlice )
 {
-  pic_parameter_set_rbsp_t* pps = p_Vid->active_pps;
+  pps_t* pps = p_Vid->active_pps;
   unsigned i, k;
   int leftBound, topBound, rightBound, bottomBound;
   int x, y, xDir, yDir;
@@ -493,7 +493,7 @@ static void FmoGenerateType3MapUnitMap (VideoParameters *p_Vid, unsigned PicSize
  */
 static void FmoGenerateType4MapUnitMap (VideoParameters *p_Vid, unsigned PicSizeInMapUnits, Slice *currSlice )
 {
-  pic_parameter_set_rbsp_t* pps = p_Vid->active_pps;
+  pps_t* pps = p_Vid->active_pps;
 
   unsigned mapUnitsInSliceGroup0 = imin((pps->slice_group_change_rate_minus1 + 1) * currSlice->slice_group_change_cycle, PicSizeInMapUnits);
   unsigned sizeOfUpperLeftGroup = pps->slice_group_change_direction_flag ? ( PicSizeInMapUnits - mapUnitsInSliceGroup0 ) : mapUnitsInSliceGroup0;
@@ -517,7 +517,7 @@ static void FmoGenerateType4MapUnitMap (VideoParameters *p_Vid, unsigned PicSize
  */
 static void FmoGenerateType5MapUnitMap (VideoParameters *p_Vid, unsigned PicSizeInMapUnits, Slice *currSlice )
 {
-  pic_parameter_set_rbsp_t* pps = p_Vid->active_pps;
+  pps_t* pps = p_Vid->active_pps;
 
   unsigned mapUnitsInSliceGroup0 = imin((pps->slice_group_change_rate_minus1 + 1) * currSlice->slice_group_change_cycle, PicSizeInMapUnits);
   unsigned sizeOfUpperLeftGroup = pps->slice_group_change_direction_flag ? ( PicSizeInMapUnits - mapUnitsInSliceGroup0 ) : mapUnitsInSliceGroup0;
@@ -542,7 +542,7 @@ static void FmoGenerateType5MapUnitMap (VideoParameters *p_Vid, unsigned PicSize
  */
 static void FmoGenerateType6MapUnitMap (VideoParameters *p_Vid, unsigned PicSizeInMapUnits )
 {
-  pic_parameter_set_rbsp_t* pps = p_Vid->active_pps; 
+  pps_t* pps = p_Vid->active_pps; 
   unsigned i;
   for (i=0; i<PicSizeInMapUnits; i++)
   {

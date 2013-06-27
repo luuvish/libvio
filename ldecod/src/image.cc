@@ -173,7 +173,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   int i;
   int nplane;
   StorablePicture *dec_picture = NULL;
-  seq_parameter_set_rbsp_t *active_sps = p_Vid->active_sps;
+  sps_t *active_sps = p_Vid->active_sps;
   DecodedPictureBuffer *p_Dpb = currSlice->p_Dpb;
 
   p_Vid->PicHeightInMbs = p_Vid->FrameHeightInMbs / ( 1 + currSlice->field_pic_flag );
@@ -486,11 +486,11 @@ static void init_picture_decoding(VideoParameters *p_Vid)
 
   if(p_Vid->pNextPPS->Valid && (int) p_Vid->pNextPPS->pic_parameter_set_id == pSlice->pic_parameter_set_id)
   {
-    pic_parameter_set_rbsp_t tmpPPS;
-    memcpy(&tmpPPS, &(p_Vid->PicParSet[pSlice->pic_parameter_set_id]), sizeof (pic_parameter_set_rbsp_t));
+    pps_t tmpPPS;
+    memcpy(&tmpPPS, &(p_Vid->PicParSet[pSlice->pic_parameter_set_id]), sizeof (pps_t));
     (p_Vid->PicParSet[pSlice->pic_parameter_set_id]).slice_group_id = NULL;
     MakePPSavailable (p_Vid, p_Vid->pNextPPS->pic_parameter_set_id, p_Vid->pNextPPS);
-    memcpy(p_Vid->pNextPPS, &tmpPPS, sizeof (pic_parameter_set_rbsp_t));
+    memcpy(p_Vid->pNextPPS, &tmpPPS, sizeof (pps_t));
     tmpPPS.slice_group_id = NULL;
   }
 
@@ -1083,7 +1083,7 @@ void find_snr(VideoParameters *p_Vid,
 
   unsigned int max_pix_value_sqd[3];
 
-  Boolean rgb_output = (Boolean) (p_Vid->active_sps->vui_seq_parameters.matrix_coefficients==0);
+  Boolean rgb_output = (Boolean) (p_Vid->active_sps->vui_parameters.matrix_coefficients==0);
   unsigned char *buf;
   imgpel **cur_ref [3];
   imgpel **cur_comp[3]; 
