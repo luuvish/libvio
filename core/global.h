@@ -296,15 +296,6 @@ typedef enum {
   TOTAL_DIST_TYPES = 8
 } distortion_types;
 
-typedef enum {
-  WP_MCPREC_PLUS0 =       4,
-  WP_MCPREC_PLUS1 =       5,
-  WP_MCPREC_MINUS0 =      6,
-  WP_MCPREC_MINUS1 =      7,
-  WP_MCPREC_MINUS_PLUS0 = 8,
-  WP_REGULAR =            9
-} weighted_prediction_types;
-
 
 #define ET_SIZE 300      //!< size of error text buffer
 extern char errortext[ET_SIZE]; //!< buffer for error message for exit with error()
@@ -351,19 +342,6 @@ typedef struct {
  * N e w   D a t a    t y p e s   f o r    T M L
  ***********************************************************************
  */
-
-#if (MVC_EXTENSION_ENABLE)
-typedef struct nalunitheadermvcext_tag {
-    unsigned int non_idr_flag;
-    unsigned int priority_id;
-    unsigned int view_id;
-    unsigned int temporal_id;
-    unsigned int anchor_pic_flag;
-    unsigned int inter_view_flag;
-    unsigned int reserved_one_bit;
-    unsigned int iPrefixNALU;
-} NALUnitHeaderMVCExt_t;
-#endif
 
 typedef struct decodedpic_t {
     int                  bValid;                 //0: invalid, 1: valid, 3: valid for 3D output;
@@ -812,9 +790,6 @@ extern void error(const char *text, int code);
 extern int  init_global_buffers( VideoParameters *p_Vid, int layer_id );
 extern void free_global_buffers( VideoParameters *p_Vid);
 extern void free_layer_buffers( VideoParameters *p_Vid, int layer_id );
-
-extern void tracebits (const char *trace_str, int len, int info, int value1);
-extern void tracebits2(const char *trace_str, int len, int info);
 
 extern unsigned CeilLog2   ( unsigned uiVal);
 extern unsigned CeilLog2_sf( unsigned uiVal);

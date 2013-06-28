@@ -25,7 +25,7 @@
 #include "memalloc.h"
 #include "erc_do.h"
 #include "image.h"
-#include "inter_prediction_mc.h"
+#include "inter_prediction.h"
 #include "macroblock.h"
 
 

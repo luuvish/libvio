@@ -339,6 +339,26 @@ void end_of_seq_rbsp();
 void end_of_stream_rbsp();
 
 
+#if (MVC_EXTENSION_ENABLE)
+typedef struct nalunitheadermvcext_tag {
+    unsigned int non_idr_flag;
+    unsigned int priority_id;
+    unsigned int view_id;
+    unsigned int temporal_id;
+    unsigned int anchor_pic_flag;
+    unsigned int inter_view_flag;
+    unsigned int reserved_one_bit;
+    unsigned int iPrefixNALU;
+} NALUnitHeaderMVCExt_t;
+#endif
+
+
+#if (MVC_EXTENSION_ENABLE)
+struct nalunitheadermvcext_tag;
+void nal_unit_header_mvc_extension(struct nalunitheadermvcext_tag *NaluHeaderMVCExt, struct bit_stream_dec *bitstream);
+void nal_unit_header_svc_extension();
+void prefix_nal_unit_svc();
+#endif
 
 pps_t *AllocPPS (void);
 sps_t *AllocSPS (void);

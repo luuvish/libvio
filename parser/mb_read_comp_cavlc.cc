@@ -23,6 +23,9 @@
 #define IS_I16MB(MB)    ((MB)->mb_type==I16MB  || (MB)->mb_type==IPCM)
 #define IS_DIRECT(MB)   ((MB)->mb_type==0     && (currSlice->slice_type == B_SLICE ))
 
+#define TOTRUN_NUM       15
+#define RUNBEFORE_NUM_M1  6
+
 
 /*!
  ************************************************************************

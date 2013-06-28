@@ -19,13 +19,7 @@
 extern "C" {
 #endif
 
-/*
-pred_l[xO + x, yO + y] = pred4x4_l[x, y]
-Intra4x4PredMode[luma4x4BlkIdx]
-Intra8x8PredMode[luma8x8BlkIdx]
-Intra16x16PredMode
-intra_chroma_pred_mode
-*/
+
 enum {
     Intra_4x4_Vertical = 0,
     Intra_4x4_Horizontal,
@@ -86,17 +80,10 @@ typedef enum {
     PLANE_8       =  3
 } I8x8PredModes;
 
-void update_direct_types(Slice *currSlice);
-
-int intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff, int img_block_x, int img_block_y);
-int intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff);
-int intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int predmode);
+void intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff);
+void intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff);
+void intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int ioff, int joff);
 void intra_pred_chroma(Macroblock *currMB);
-
-int mb_pred_intra4x4  (Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
-int mb_pred_intra16x16(Macroblock *currMB, ColorPlane curr_plane, StorablePicture *dec_picture);
-int mb_pred_intra8x8  (Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture);
-int mb_pred_ipcm      (Macroblock *currMB);
 
 #ifdef __cplusplus
 }

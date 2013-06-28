@@ -21,6 +21,7 @@
 #include "transform.h"
 #include "quantization.h"
 
+#define MAX_QP          51
 
 
 int Flat_4x4_16[16] = {

@@ -19,9 +19,12 @@
 #include "macroblock.h"
 #include "dpb.h"
 #include "transform.h"
-#include "inter_prediction_mc.h"
+#include "inter_prediction.h"
 #include "intra_prediction.h"
 #include "neighbour.h"
+
+
+#define INVALIDINDEX  (-135792468)
 
 
 static inline int RSD(int x)

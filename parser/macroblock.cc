@@ -42,6 +42,9 @@
 
 #include "mb.h"
 
+#define MB_PIXELS            256 // MB_BLOCK_SIZE * MB_BLOCK_SIZE
+#define MB_BLOCK_SHIFT         4
+#define MB_BLOCK_PARTITIONS   16 // (BLOCK_MULTIPLE * BLOCK_MULTIPLE)
 
 void set_chroma_qp(Macroblock* currMB)
 {
@@ -432,7 +435,6 @@ static void interpret_mb_mode_SI(Macroblock *currMB)
 void setup_slice_methods(Slice *currSlice)
 {
     setup_read_macroblock(currSlice);
-    setup_decode_mb(currSlice);
 
     switch (currSlice->slice_type) {
     case P_SLICE: 

@@ -28,6 +28,45 @@
 extern "C" {
 #endif
 
+// CAVLC block types
+typedef enum {
+  LUMA              =  0,
+  LUMA_INTRA16x16DC =  1,
+  LUMA_INTRA16x16AC =  2,
+  CB                =  3,
+  CB_INTRA16x16DC   =  4,
+  CB_INTRA16x16AC   =  5,
+  CR                =  8,
+  CR_INTRA16x16DC   =  9,
+  CR_INTRA16x16AC   = 10
+} CAVLCBlockTypes;
+
+// CABAC block types
+typedef enum {
+  LUMA_16DC     =   0,
+  LUMA_16AC     =   1,
+  LUMA_8x8      =   2,
+  LUMA_8x4      =   3,
+  LUMA_4x8      =   4,
+  LUMA_4x4      =   5,
+  CHROMA_DC     =   6,
+  CHROMA_AC     =   7,
+  CHROMA_DC_2x4 =   8,
+  CHROMA_DC_4x4 =   9,
+  CB_16DC       =  10,
+  CB_16AC       =  11,
+  CB_8x8        =  12,
+  CB_8x4        =  13,
+  CB_4x8        =  14,
+  CB_4x4        =  15,
+  CR_16DC       =  16,
+  CR_16AC       =  17,
+  CR_8x8        =  18,
+  CR_8x4        =  19,
+  CR_4x8        =  20,
+  CR_4x4        =  21
+} CABACBlockTypes;
+
 struct annex_b_struct;
 
 //! Bitstream

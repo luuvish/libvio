@@ -28,6 +28,11 @@
 
 #include "bitstream_elements.h"
 
+// Macro defines
+#define Q_BITS          15
+#define DQ_BITS          6
+#define DQ_BITS_8        6 
+
 static inline int isign(int x)
 {
   return ( (x > 0) - (x < 0));

@@ -22,6 +22,10 @@
 #include "bitstream.h"
 #endif
 
+//Start code and Emulation Prevention need this to be defined in identical manner at encoder and decoder
+#define ZEROBYTES_SHORTSTARTCODE 2 //indicates the number of zero bytes in the short start-code prefix
+
+
 /*!
  *************************************************************************************
  * \brief
@@ -187,32 +191,6 @@ void CheckZeroByteVCL(struct bitstream_t *bitstream, NALU_t *nalu)
         printf("warning: zero_byte shall exist\n");
         //because it is not a very serious problem, we do not exit here
 }
-
-#if (MVC_EXTENSION_ENABLE)
-void nal_unit_header_mvc_extension(NALUnitHeaderMVCExt_t *NaluHeaderMVCExt, Bitstream *s)
-{  
-    //to be implemented;  
-    NaluHeaderMVCExt->non_idr_flag     = read_u_v(1, "non_idr_flag",     s, &p_Dec->UsedBits);
-    NaluHeaderMVCExt->priority_id      = read_u_v(6, "priority_id",      s, &p_Dec->UsedBits);
-    NaluHeaderMVCExt->view_id          = read_u_v(10, "view_id",         s, &p_Dec->UsedBits);
-    NaluHeaderMVCExt->temporal_id      = read_u_v(3, "temporal_id",      s, &p_Dec->UsedBits);
-    NaluHeaderMVCExt->anchor_pic_flag  = read_u_v(1, "anchor_pic_flag",  s, &p_Dec->UsedBits);
-    NaluHeaderMVCExt->inter_view_flag  = read_u_v(1, "inter_view_flag",  s, &p_Dec->UsedBits);
-    NaluHeaderMVCExt->reserved_one_bit = read_u_v(1, "reserved_one_bit", s, &p_Dec->UsedBits);
-    if (NaluHeaderMVCExt->reserved_one_bit != 1)
-        printf("Nalu Header MVC Extension: reserved_one_bit is not 1!\n");
-}
-
-void nal_unit_header_svc_extension(void)
-{
-    //to be implemented for Annex G;
-}
-
-void prefix_nal_unit_svc(void)
-{
-    //to be implemented for Annex G;
-}
-#endif
 
  /*!
  ************************************************************************

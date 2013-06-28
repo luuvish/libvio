@@ -237,7 +237,6 @@ typedef struct slice_t {
     char                      chroma_vector_adjustment[6][32];
 
     void (*read_CBP_and_coeffs_from_NAL)(struct macroblock_dec *currMB);
-    int  (*decode_one_component     )(struct macroblock_dec *currMB, ColorPlane curr_plane, imgpel **currImg, struct storable_picture *dec_picture);
     int  (*readSlice                )(struct video_par *, struct inp_par *);  
     int  (*nal_startcode_follows    )(struct slice_t *, int );
     void (*read_motion_info_from_NAL)(struct macroblock_dec *currMB);

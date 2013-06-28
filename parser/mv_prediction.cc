@@ -18,6 +18,15 @@
 #include "mv_prediction.h"
 
 
+// MV Prediction types
+typedef enum {
+  MVPRED_MEDIAN   = 0,
+  MVPRED_L        = 1,
+  MVPRED_U        = 2,
+  MVPRED_UR       = 3
+} MVPredTypes;
+
+
 static inline int imedian(int a,int b,int c)
 {
   if (a > b) // a > b
