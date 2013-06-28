@@ -299,6 +299,36 @@ static void allocate_p_dec_pic(VideoParameters *p_Vid, DecodedPicList *pDecPic, 
   pDecPic->iUVBufStride = iChromaSizeX*symbol_size_in_bytes; //p->size_x_cr*symbol_size_in_bytes;
 }
 
+
+static DecodedPicList *get_one_avail_dec_pic_from_list(DecodedPicList *pDecPicList, int b3D, int view_id)
+{
+  DecodedPicList *pPic = pDecPicList, *pPrior = NULL;
+  if(b3D)
+  {
+    while(pPic && (pPic->bValid &(1<<view_id)))
+    {
+      pPrior = pPic;
+      pPic = pPic->pNext;
+    }
+  }
+  else
+  {
+    while(pPic && (pPic->bValid))
+    {
+      pPrior = pPic;
+      pPic = pPic->pNext;
+    }
+  }
+
+  if(!pPic)
+  {
+    pPic = (DecodedPicList *)calloc(1, sizeof(*pPic));
+    pPrior->pNext = pPic;
+  }
+
+  return pPic;
+}
+
 /*!
 ************************************************************************
 * \brief

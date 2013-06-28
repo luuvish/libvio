@@ -73,6 +73,38 @@ static inline int64 i64_power2(int x)
 }
 
 /*!
+ ************************************************************************
+ * \brief
+ *    calculate Ceil(Log2(uiVal))
+ ************************************************************************
+ */
+static inline unsigned CeilLog2( unsigned uiVal)
+{
+  unsigned uiTmp = uiVal-1;
+  unsigned uiRet = 0;
+
+  while( uiTmp != 0 )
+  {
+    uiTmp >>= 1;
+    uiRet++;
+  }
+  return uiRet;
+}
+
+static inline unsigned CeilLog2_sf( unsigned uiVal)
+{
+  unsigned uiTmp = uiVal-1;
+  unsigned uiRet = 0;
+
+  while( uiTmp > 0 )
+  {
+    uiTmp >>= 1;
+    uiRet++;
+  }
+  return uiRet;
+}
+
+/*!
 ************************************************************************
 * \brief
 *    calculate RoundLog2(uiVal)

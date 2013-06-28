@@ -155,9 +155,6 @@ void start_macroblock(Slice *currSlice, Macroblock **currMB)
 
   CheckAvailabilityOfNeighbors(*currMB);
 
-  // Select appropriate MV predictor function
-  init_motion_vector_prediction(*currMB, currSlice->mb_aff_frame_flag);
-
   set_read_and_store_CBP(currMB, currSlice->active_sps->chroma_format_idc);
 
   // Reset syntax element entries in MB struct

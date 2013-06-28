@@ -144,25 +144,6 @@ enum {
   BI_PRED_L1 = 4
 };
 
-enum {
-  ERROR_SAD = 0,
-  ERROR_SSE = 1,
-  ERROR_SATD = 2,
-  ERROR_PSATD = 3
-};
-
-enum {
-  ME_Y_ONLY = 0,
-  ME_YUV_FP = 1,
-  ME_YUV_FP_SP = 2
-};
-
-
-enum {
-  DISTORTION_MSE = 0
-};
-
-
 //! Data Partitioning Modes
 typedef enum
 {
@@ -188,54 +169,11 @@ typedef enum
 } CodingType;
 
 
-//! definition of H.264 syntax elements
-typedef enum
-{
-  SE_HEADER,
-  SE_PTYPE,
-  SE_MBTYPE,
-  SE_REFFRAME,
-  SE_INTRAPREDMODE,
-  SE_MVD,
-  SE_CBP,
-  SE_LUM_DC_INTRA,
-  SE_CHR_DC_INTRA,
-  SE_LUM_AC_INTRA,
-  SE_CHR_AC_INTRA,
-  SE_LUM_DC_INTER,
-  SE_CHR_DC_INTER,
-  SE_LUM_AC_INTER,
-  SE_CHR_AC_INTER,
-  SE_DELTA_QUANT,
-  SE_BFRAME,
-  SE_EOS,
-  SE_MAX_ELEMENTS = 20 //!< number of maximum syntax elements
-} SE_type;             // substituting the definitions in elements.h
-
-
-typedef enum
-{
-  NO_SLICES,
-  FIXED_MB,
-  FIXED_RATE,
-  CALL_BACK
-} SliceMode;
-
-
 typedef enum
 {
   CAVLC,
   CABAC
 } SymbolMode;
-
-typedef enum
-{
-  FULL_SEARCH      = -1,
-  FAST_FULL_SEARCH =  0,
-  UM_HEX           =  1,
-  UM_HEX_SIMPLE    =  2,
-  EPZS             =  3
-} SearchType;
 
 
 typedef enum
@@ -255,46 +193,11 @@ typedef enum
   NUM_SLICE_TYPES = 5
 } SliceType;
 
-//Motion Estimation levels
-typedef enum
-{
-  F_PEL,   //!< Full Pel refinement
-  H_PEL,   //!< Half Pel refinement
-  Q_PEL    //!< Quarter Pel refinement
-} MELevel;
-
-typedef enum
-{
-  FAST_ACCESS = 0,    //!< Fast/safe reference access
-  UMV_ACCESS = 1      //!< unconstrained reference access
-} REF_ACCESS_TYPE;
-
 typedef enum
 {
   IS_LUMA = 0,
   IS_CHROMA = 1
 } Component_Type;
-
-typedef enum
-{
-  RC_MODE_0 = 0,
-  RC_MODE_1 = 1,
-  RC_MODE_2 = 2,
-  RC_MODE_3 = 3
-} RCModeType;
-
-
-typedef enum {
-  SSE              = 0,
-  SSE_RGB          = 1,  
-  PSNR             = 2,
-  PSNR_RGB         = 3,
-  SSIM             = 4,
-  SSIM_RGB         = 5,
-  MS_SSIM          = 6,
-  MS_SSIM_RGB      = 7,
-  TOTAL_DIST_TYPES = 8
-} distortion_types;
 
 
 #define ET_SIZE 300      //!< size of error text buffer
@@ -442,41 +345,145 @@ typedef struct layer_par {
   struct decoded_picture_buffer *p_Dpb;
 } LayerParameters;
 
+
+
+// input parameters from configuration file
+typedef struct inp_par
+{
+    char infile[FILE_NAME_SIZE];                       //!< H.264 inputfile
+    char outfile[FILE_NAME_SIZE];                      //!< Decoded YUV 4:2:0 output
+    char reffile[FILE_NAME_SIZE];                      //!< Optional YUV 4:2:0 reference file for SNR measurement
+
+    int FileFormat;                         //!< File format of the Input file, PAR_OF_ANNEXB or PAR_OF_RTP
+    int ref_offset;
+    int poc_scale;
+    int write_uv;
+    int silent;
+    int intra_profile_deblocking;               //!< Loop filter usage determined by flags and parameters in bitstream 
+
+    // Input/output sequence format related variables
+    FrameFormat source;                   //!< source related information
+    FrameFormat output;                   //!< output related information
+
+#if (MVC_EXTENSION_ENABLE)
+    int  DecodeAllLayers;
+#endif
+
+    // picture error concealment
+    int conceal_mode;
+    int ref_poc_gap;
+    int poc_gap;
+
+    // Needed to allow compilation for decoder. May be used later for distortion computation operations
+    int stdRange;                         //!< 1 - standard range, 0 - full range
+    int videoCode;                        //!< 1 - 709, 3 - 601:  See VideoCode in io_tiff.
+    int export_views;
+  
+    int iDecFrmNum;
+
+    int bDisplayDecParams;
+    int dpb_plus[2];
+} InputParameters;
+
+typedef struct old_slice_par
+{
+    unsigned field_pic_flag;   
+    unsigned frame_num;
+    int      nal_ref_idc;
+    unsigned pic_oder_cnt_lsb;
+    int      delta_pic_oder_cnt_bottom;
+    int      delta_pic_order_cnt[2];
+    byte     bottom_field_flag;
+    byte     idr_flag;
+    int      idr_pic_id;
+    int      pps_id;
+#if (MVC_EXTENSION_ENABLE)
+    int      view_id;
+    int      inter_view_flag;
+    int      anchor_pic_flag;
+#endif
+    int      layer_id;
+} OldSliceParams;
+
+// signal to noise ratio parameters
+typedef struct snr_par
+{
+    int   frame_ctr;
+    float snr[3];                                //!< current SNR (component)
+    float snr1[3];                               //!< SNR (dB) first frame (component)
+    float snra[3];                               //!< Average component SNR (dB) remaining frames
+    float sse[3];                                //!< component SSE 
+    float msse[3];                                //!< Average component SSE 
+} SNRParameters;
+
 // video parameters
 typedef struct video_par {
-  struct inp_par      *p_Inp;
+    InputParameters      *p_Inp;
+
+    int p_out; // FILE handle for YUV output file
+#if (MVC_EXTENSION_ENABLE)
+    int p_out_mvc[MAX_VIEW_NUM];
+#endif
+    int p_ref;
+
+    struct bitstream_t *bitstream;
+
+
+
+    OldSliceParams               *old_slice;
+    SNRParameters                *snr;
+
+    struct decoded_picture_buffer *p_Dpb_layer[MAX_NUM_DPB_LAYERS];
+    CodingParameters              *p_EncodePar[MAX_NUM_DPB_LAYERS];
+    LayerParameters               *p_LayerPar [MAX_NUM_DPB_LAYERS];
+
+    bool global_init_done[2];
+
+#if (ENABLE_OUTPUT_TONEMAPPING)
+    struct tone_mapping_struct_s *seiToneMapping;
+#endif
+
+    int iNumOfSlicesAllocated;
+    struct slice_t **ppSliceList;
+    struct slice_t  *pNextSlice;
+
+    struct nalu_t *nalu;
+
+    DecodedPicList *pDecOuputPic;
+    pps_t *pNextPPS;
+    bool first_sps; // use only for print first sps
+
+
+    struct frame_store *out_buffer;
+
+
+
+
   pps_t *active_pps;
   sps_t *active_sps;
   sps_t SeqParSet[MAXSPS];
   pps_t PicParSet[MAXPPS];
-  struct decoded_picture_buffer *p_Dpb_layer[MAX_NUM_DPB_LAYERS];
-  CodingParameters *p_EncodePar[MAX_NUM_DPB_LAYERS];
-  LayerParameters *p_LayerPar[MAX_NUM_DPB_LAYERS];
+
 
 #if (MVC_EXTENSION_ENABLE)
-  sub_sps_t *active_subset_sps;
-  //int svc_extension_flag;
-  sub_sps_t SubsetSeqParSet[MAXSPS];
-  int last_pic_width_in_mbs_minus1;
-  int last_pic_height_in_map_units_minus1;
-  int last_max_dec_frame_buffering;
-  int last_profile_idc;
+    sub_sps_t *active_subset_sps;
+    sub_sps_t SubsetSeqParSet[MAXSPS];
+    int last_pic_width_in_mbs_minus1;
+    int last_pic_height_in_map_units_minus1;
+    int last_max_dec_frame_buffering;
+    int last_profile_idc;
 #endif
 
   struct sei_params        *p_SEI;
 
-  struct old_slice_par *old_slice;
-  struct snr_par       *snr;
   int number;                                 //!< frame number
-  
+
   //current picture property;
   unsigned int num_dec_mb;
   int iSliceNumOfCurrPic;
-  int iNumOfSlicesAllocated;
-  int iNumOfSlicesDecoded;
-  struct slice_t **ppSliceList;
-  char  *intra_block;
-  char  *intra_block_JV[MAX_PLANE];
+    int iNumOfSlicesDecoded;
+    char  *intra_block;
+    char  *intra_block_JV[MAX_PLANE];
 
   int type;                                   //!< image type INTER/INTRA
 
@@ -490,7 +497,6 @@ typedef struct video_par {
   int newframe;
   int structure;                     //!< Identify picture structure type
 
-  struct slice_t      *pNextSlice;             //!< pointer to first Slice of next picture;
   struct macroblock_dec *mb_data;               //!< array containing all MBs of a whole frame
   struct macroblock_dec *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
   int ChromaArrayType;
@@ -542,7 +548,6 @@ typedef struct video_par {
   int IDR_concealment_flag;
   int conceal_slice_type;
 
-  Boolean first_sps;
   // random access point decoding
   int recovery_point;
   int recovery_point_found;
@@ -562,19 +567,11 @@ typedef struct video_par {
   // Time 
   int64 tot_time;
 
-  // files
-  int p_out;                       //!< file descriptor to output YUV file
-#if (MVC_EXTENSION_ENABLE)
-  int p_out_mvc[MAX_VIEW_NUM];     //!< file descriptor to output YUV file for MVC
-#endif
-  int p_ref;                       //!< pointer to input original reference YUV file file
-
   // B pictures
   int  Bframe_ctr;
   int  frame_no;
 
   int  g_nFrame;
-  Boolean global_init_done[2];
 
   // global picture format dependent buffers, memory allocation in decod.c
   imgpel **imgY_ref;                              //!< reference frame find snr
@@ -597,14 +594,10 @@ typedef struct video_par {
   int erc_mvperMB;
   struct video_par *erc_img;
 
-  struct frame_store *out_buffer;
-
   struct storable_picture *pending_output;
   int    pending_output_state;
   int    recovery_flag;
 
-
-    struct bitstream_t *bitstream;
 
 
   // report
@@ -613,10 +606,6 @@ typedef struct video_par {
   int *MbToSliceGroupMap;
   int *MapUnitToSliceGroupMap;
   int  NumberOfSliceGroups;    // the number of slice groups -1 (0 == scan order, 7 == maximum)
-
-#if (ENABLE_OUTPUT_TONEMAPPING)
-  struct tone_mapping_struct_s *seiToneMapping;
-#endif
 
   void (*buf2img)          (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int o_size_x, int o_size_y, int symbol_size_in_bytes, int bitshift);
   void (*getNeighbour)     (struct macroblock_dec *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
@@ -630,9 +619,7 @@ typedef struct video_par {
   void (*img2buf)          (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
   ImageData tempData3;
-  DecodedPicList *pDecOuputPic;
   int iDeblockMode;  //0: deblock in picture, 1: deblock in slice;
-  struct nalu_t *nalu;
   int iLumaPadX;
   int iLumaPadY;
   int iChromaPadX;
@@ -641,7 +628,6 @@ typedef struct video_par {
   int bDeblockEnable;
   int iPostProcess;
   int bFrameInit;
-  pps_t *pNextPPS;
   int last_dec_poc;
   int last_dec_view_id;
   int last_dec_layer_id;
@@ -699,81 +685,6 @@ typedef struct video_par {
 } VideoParameters;
 
 
-// signal to noise ratio parameters
-typedef struct snr_par
-{
-  int   frame_ctr;
-  float snr[3];                                //!< current SNR (component)
-  float snr1[3];                               //!< SNR (dB) first frame (component)
-  float snra[3];                               //!< Average component SNR (dB) remaining frames
-  float sse[3];                                //!< component SSE 
-  float msse[3];                                //!< Average component SSE 
-} SNRParameters;
-
-// input parameters from configuration file
-typedef struct inp_par
-{
-  char infile[FILE_NAME_SIZE];                       //!< H.264 inputfile
-  char outfile[FILE_NAME_SIZE];                      //!< Decoded YUV 4:2:0 output
-  char reffile[FILE_NAME_SIZE];                      //!< Optional YUV 4:2:0 reference file for SNR measurement
-
-  int FileFormat;                         //!< File format of the Input file, PAR_OF_ANNEXB or PAR_OF_RTP
-  int ref_offset;
-  int poc_scale;
-  int write_uv;
-  int silent;
-  int intra_profile_deblocking;               //!< Loop filter usage determined by flags and parameters in bitstream 
-
-  // Input/output sequence format related variables
-  FrameFormat source;                   //!< source related information
-  FrameFormat output;                   //!< output related information
-
-  int  ProcessInput;
-  int  enable_32_pulldown;
-#if (MVC_EXTENSION_ENABLE)
-  int  DecodeAllLayers;
-#endif
-
-  // picture error concealment
-  int conceal_mode;
-  int ref_poc_gap;
-  int poc_gap;
-
-
-  // dummy for encoder
-  int start_frame;
-
-  // Needed to allow compilation for decoder. May be used later for distortion computation operations
-  int stdRange;                         //!< 1 - standard range, 0 - full range
-  int videoCode;                        //!< 1 - 709, 3 - 601:  See VideoCode in io_tiff.
-  int export_views;
-  
-  int iDecFrmNum;
-
-  int bDisplayDecParams;
-  int dpb_plus[2];
-} InputParameters;
-
-typedef struct old_slice_par
-{
-  unsigned field_pic_flag;   
-  unsigned frame_num;
-  int      nal_ref_idc;
-  unsigned pic_oder_cnt_lsb;
-  int      delta_pic_oder_cnt_bottom;
-  int      delta_pic_order_cnt[2];
-  byte     bottom_field_flag;
-  byte     idr_flag;
-  int      idr_pic_id;
-  int      pps_id;
-#if (MVC_EXTENSION_ENABLE)
-  int      view_id;
-  int      inter_view_flag;
-  int      anchor_pic_flag;
-#endif
-  int      layer_id;
-} OldSliceParams;
-
 typedef struct decoder_params
 {
   InputParameters   *p_Inp;          //!< Input Parameters
@@ -787,49 +698,14 @@ extern DecoderParams  *p_Dec;
 extern void error(const char *text, int code);
 
 // dynamic mem allocation
-extern int  init_global_buffers( VideoParameters *p_Vid, int layer_id );
-extern void free_global_buffers( VideoParameters *p_Vid);
 extern void free_layer_buffers( VideoParameters *p_Vid, int layer_id );
-
-extern unsigned CeilLog2   ( unsigned uiVal);
-extern unsigned CeilLog2_sf( unsigned uiVal);
-
-
-extern void FreeDecPicList ( DecodedPicList *pDecPicList );
-extern void ClearDecPicList( VideoParameters *p_Vid );
-extern DecodedPicList *get_one_avail_dec_pic_from_list(DecodedPicList *pDecPicList, int b3D, int view_id);
-extern struct slice_t *malloc_slice( InputParameters *p_Inp, VideoParameters *p_Vid );
-extern void copy_slice_info (struct slice_t *currSlice, OldSliceParams *p_old_slice );
 extern void OpenOutputFiles(VideoParameters *p_Vid, int view0_id, int view1_id);
-extern void set_global_coding_par(VideoParameters *p_Vid, CodingParameters *cps);
 
 static inline int is_FREXT_profile(unsigned int profile_idc) 
 {
   return ( profile_idc >= FREXT_HP || profile_idc == FREXT_CAVLC444 );
 }
-static inline int HI_intra_only_profile(unsigned int profile_idc, Boolean constraint_set3_flag)
-{
-  return ( ((profile_idc >= FREXT_Hi10P) && constraint_set3_flag) || (profile_idc == FREXT_CAVLC444) );
-}
-static inline int is_BL_profile(unsigned int profile_idc) 
-{
-  return ( profile_idc == FREXT_CAVLC444 || profile_idc == BASELINE || profile_idc == MAIN || profile_idc == EXTENDED ||
-           profile_idc == FREXT_HP || profile_idc == FREXT_Hi10P || profile_idc == FREXT_Hi422 || profile_idc == FREXT_Hi444);
-}
-static inline int is_EL_profile(unsigned int profile_idc) 
-{
-  return ( (profile_idc == MVC_HIGH) || (profile_idc == STEREO_HIGH)
-           );
-}
 
-static inline int is_MVC_profile(unsigned int profile_idc)
-{
-  return ( (0)
-#if (MVC_EXTENSION_ENABLE)
-  || (profile_idc == MVC_HIGH) || (profile_idc == STEREO_HIGH)
-#endif
-  );
-}
 
 #ifdef __cplusplus
 }

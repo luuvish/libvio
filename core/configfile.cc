@@ -63,13 +63,402 @@
 #include "global.h"
 #include "memalloc.h"
 #include "bitstream_cabac.h"
-#include "config_common.h"
 #include "configfile.h"
-#define MAX_ITEMS_TO_PARSE  10000
 
-static void PatchInp                (InputParameters *p_Inp);
+
+#define MAX_ITEMS_TO_PARSE  10000
+#define DEFAULTCONFIGFILENAME "decoder.cfg"
 
 InputParameters cfgparams;
+
+//! Maps parameter name to its address, type etc.
+typedef struct {
+  const char *TokenName;    //!< name
+  void *Place;        //!< address
+  int Type;           //!< type:  0-int, 1-char[], 2-double
+  double Default;     //!< default value
+  int param_limits;   //!< 0: no limits, 1: both min and max, 2: only min (i.e. no negatives), 3: special case for QPs since min needs bitdepth_qp_scale
+  double min_limit;
+  double max_limit;
+  int    char_size;   //!< Dimension of type char[]
+} Mapping;
+
+// Mapping_Map Syntax:
+// {NAMEinConfigFile,  &cfgparams.VariableName, Type, InitialValue, LimitType, MinLimit, MaxLimit, CharSize}
+// Types : {0:int, 1:text, 2: double}
+// LimitType: {0:none, 1:both, 2:minimum, 3: QP based}
+// We could separate this based on types to make it more flexible and allow also defaults for text types.
+Mapping Map[] = {
+    {"InputFile",                &cfgparams.infile,                       1,   0.0,                       0,  0.0,              0.0,             FILE_NAME_SIZE, },
+    {"OutputFile",               &cfgparams.outfile,                      1,   0.0,                       0,  0.0,              0.0,             FILE_NAME_SIZE, },
+    {"RefFile",                  &cfgparams.reffile,                      1,   0.0,                       0,  0.0,              0.0,             FILE_NAME_SIZE, },
+    {"WriteUV",                  &cfgparams.write_uv,                     0,   1.0,                       1,  0.0,              1.0,                             },
+    {"FileFormat",               &cfgparams.FileFormat,                   0,   0.0,                       1,  0.0,              1.0,                             },
+    {"RefOffset",                &cfgparams.ref_offset,                   0,   0.0,                       1,  0.0,              256.0,                             },
+    {"POCScale",                 &cfgparams.poc_scale,                    0,   2.0,                       1,  1.0,              10.0,                            },
+    {"DisplayDecParams",         &cfgparams.bDisplayDecParams,            0,   1.0,                       1,  0.0,              1.0,                             },
+    {"ConcealMode",              &cfgparams.conceal_mode,                 0,   0.0,                       1,  0.0,              2.0,                             },
+    {"RefPOCGap",                &cfgparams.ref_poc_gap,                  0,   2.0,                       1,  0.0,              4.0,                             },
+    {"POCGap",                   &cfgparams.poc_gap,                      0,   2.0,                       1,  0.0,              4.0,                             },
+    {"Silent",                   &cfgparams.silent,                       0,   0.0,                       1,  0.0,              1.0,                             },
+    {"IntraProfileDeblocking",   &cfgparams.intra_profile_deblocking,     0,   1.0,                       1,  0.0,              1.0,                             },
+    {"DecFrmNum",                &cfgparams.iDecFrmNum,                   0,   0.0,                       2,  0.0,              0.0,                             },
+#if (MVC_EXTENSION_ENABLE)
+    {"DecodeAllLayers",          &cfgparams.DecodeAllLayers,              0,   0.0,                       1,  0.0,              1.0,                             },
+#endif
+    {"DPBPLUS0",                 &cfgparams.dpb_plus[0],                  0,   1.0,                       1,  -16.0,            16.0,                             },
+    {"DPBPLUS1",                 &cfgparams.dpb_plus[1],                  0,   0.0,                       1,  -16.0,            16.0,                             },
+    {NULL,                       NULL,                                   -1,   0.0,                       0,  0.0,              0.0,                             },
+};
+
+/*!
+ ***********************************************************************
+ * \brief
+ *    allocates memory buf, opens file Filename in f, reads contents into
+ *    buf and returns buf
+ * \param Filename
+ *    name of config file
+ * \return
+ *    if successfull, content of config file
+ *    NULL in case of error. Error message will be set in errortext
+ ***********************************************************************
+ */
+static char *GetConfigFileContent (const char *Filename)
+{
+  long FileSize;
+  FILE *f;
+  char *buf;
+
+  if (NULL == (f = fopen (Filename, "r")))
+  {
+      snprintf (errortext, ET_SIZE, "Cannot open configuration file %s.", Filename);
+      return NULL;
+  }
+
+  if (0 != fseek (f, 0, SEEK_END))
+  {
+    snprintf (errortext, ET_SIZE, "Cannot fseek in configuration file %s.", Filename);
+    return NULL;
+  }
+
+  FileSize = ftell (f);
+
+  if (FileSize < 0 || FileSize > 150000)
+  {
+    snprintf (errortext, ET_SIZE, "\nUnreasonable Filesize %ld reported by ftell for configuration file %s.", FileSize, Filename);
+    return NULL;
+  }
+  if (0 != fseek (f, 0, SEEK_SET))
+  {
+    snprintf (errortext, ET_SIZE, "Cannot fseek in configuration file %s.", Filename);
+    return NULL;
+  }
+
+  if ((buf = (char *)malloc (FileSize + 1))==NULL) no_mem_exit("GetConfigFileContent: buf");
+
+  // Note that ftell() gives us the file size as the file system sees it.  The actual file size,
+  // as reported by fread() below will be often smaller due to CR/LF to CR conversion and/or
+  // control characters after the dos EOF marker in the file.
+
+  FileSize = (long) fread (buf, 1, FileSize, f);
+  buf[FileSize] = '\0';
+
+
+  fclose (f);
+  return buf;
+}
+
+
+/*!
+ ***********************************************************************
+ * \brief
+ *    Returns the index number from Map[] for a given parameter name.
+ * \param Map
+ *    Mapping structure
+ * \param s
+ *    parameter name string
+ * \return
+ *    the index number if the string is a valid parameter name,         \n
+ *    -1 for error
+ ***********************************************************************
+ */
+static int ParameterNameToMapIndex (Mapping *Map, char *s)
+{
+  int i = 0;
+
+  while (Map[i].TokenName != NULL)
+    if (0==strcasecmp (Map[i].TokenName, s))
+      return i;
+    else
+      i++;
+  return -1;
+}
+
+/*!
+ ***********************************************************************
+ * \brief
+ *    Parses the character array buf and writes global variable input, which is defined in
+ *    configfile.h.  This hack will continue to be necessary to facilitate the addition of
+ *    new parameters through the Map[] mechanism (Need compiler-generated addresses in map[]).
+ * \param p_Inp
+ *    InputParameters of configuration
+ * \param Map
+ *    Mapping structure to specify the name and value mapping relation
+ * \param buf
+ *    buffer to be parsed
+ * \param bufsize
+ *    buffer size of buffer
+ ***********************************************************************
+ */
+static void ParseContent (InputParameters *p_Inp, Mapping *Map, char *buf, int bufsize)
+{
+  char *items[MAX_ITEMS_TO_PARSE] = {NULL};
+  int MapIdx;
+  int item = 0;
+  int InString = 0, InItem = 0;
+  char *p = buf;
+  char *bufend = &buf[bufsize];
+  int IntContent;
+  double DoubleContent;
+  int i;
+
+  // Stage one: Generate an argc/argv-type list in items[], without comments and whitespace.
+  // This is context insensitive and could be done most easily with lex(1).
+
+  while (p < bufend)
+  {
+    switch (*p)
+    {
+    case 13:
+      ++p;
+      break;
+    case '#':                 // Found comment
+      *p = '\0';              // Replace '#' with '\0' in case of comment immediately following integer or string
+      while (*p != '\n' && p < bufend)  // Skip till EOL or EOF, whichever comes first
+        ++p;
+      InString = 0;
+      InItem = 0;
+      break;
+    case '\n':
+      InItem = 0;
+      InString = 0;
+      *p++='\0';
+      break;
+    case ' ':
+    case '\t':              // Skip whitespace, leave state unchanged
+      if (InString)
+        p++;
+      else
+      {                     // Terminate non-strings once whitespace is found
+        *p++ = '\0';
+        InItem = 0;
+      }
+      break;
+
+    case '"':               // Begin/End of String
+      *p++ = '\0';
+      if (!InString)
+      {
+        items[item++] = p;
+        InItem = ~InItem;
+      }
+      else
+        InItem = 0;
+      InString = ~InString; // Toggle
+      break;
+
+    default:
+      if (!InItem)
+      {
+        items[item++] = p;
+        InItem = ~InItem;
+      }
+      p++;
+    }
+  }
+
+  item--;
+
+  for (i=0; i<item; i+= 3)
+  {
+    if (0 > (MapIdx = ParameterNameToMapIndex (Map, items[i])))
+    {
+      //snprintf (errortext, ET_SIZE, " Parsing error in config file: Parameter Name '%s' not recognized.", items[i]);
+      //error (errortext, 300);
+      printf ("\n\tParsing error in config file: Parameter Name '%s' not recognized.", items[i]);
+      i -= 2 ;
+      continue;
+    }
+    if (strcasecmp ("=", items[i+1]))
+    {
+      snprintf (errortext, ET_SIZE, " Parsing error in config file: '=' expected as the second token in each line.");
+      error (errortext, 300);
+    }
+
+    // Now interpret the Value, context sensitive...
+
+    switch (Map[MapIdx].Type)
+    {
+    case 0:           // Numerical
+      if (1 != sscanf (items[i+2], "%d", &IntContent))
+      {
+        snprintf (errortext, ET_SIZE, " Parsing error: Expected numerical value for Parameter of %s, found '%s'.", items[i], items[i+2]);
+        error (errortext, 300);
+      }
+      * (int *) (Map[MapIdx].Place) = IntContent;
+      printf (".");
+      break;
+    case 1:
+      if (items[i + 2] == NULL)
+        memset((char *) Map[MapIdx].Place, 0, Map[MapIdx].char_size);
+      else
+        strncpy ((char *) Map[MapIdx].Place, items [i+2], Map[MapIdx].char_size);
+      printf (".");
+      break;
+    case 2:           // Numerical double
+      if (1 != sscanf (items[i+2], "%lf", &DoubleContent))
+      {
+        snprintf (errortext, ET_SIZE, " Parsing error: Expected numerical value for Parameter of %s, found '%s'.", items[i], items[i+2]);
+        error (errortext, 300);
+      }
+      * (double *) (Map[MapIdx].Place) = DoubleContent;
+      printf (".");
+      break;
+    default:
+      error ((char *)"Unknown value type in the map definition of configfile.h",-1);
+    }
+  }
+  *p_Inp = cfgparams;
+}
+
+/*!
+ ***********************************************************************
+ * \brief
+ *    Sets initial values for encoding parameters.
+ * \return
+ *    -1 for error
+ ***********************************************************************
+ */
+static int InitParams(Mapping *Map)
+{
+  int i = 0;
+
+  while (Map[i].TokenName != NULL)
+  {
+    if (Map[i].Type == 0)
+        * (int *) (Map[i].Place) = (int) Map[i].Default;
+    else if (Map[i].Type == 2)
+    * (double *) (Map[i].Place) = Map[i].Default;
+      i++;
+  }
+  return -1;
+}
+
+/*!
+ ***********************************************************************
+ * \brief
+ *    Validates encoding parameters.
+ * \return
+ *    -1 for error
+ ***********************************************************************
+ */
+static int TestParams(Mapping *Map, int bitdepth_qp_scale[3])
+{
+  int i = 0;
+
+  while (Map[i].TokenName != NULL)
+  {
+    if (Map[i].param_limits == 1)
+    {
+      if (Map[i].Type == 0)
+      {
+        if ( * (int *) (Map[i].Place) < (int) Map[i].min_limit || * (int *) (Map[i].Place) > (int) Map[i].max_limit )
+        {
+          snprintf(errortext, ET_SIZE, "Error in input parameter %s. Check configuration file. Value should be in [%d, %d] range.", Map[i].TokenName, (int) Map[i].min_limit,(int)Map[i].max_limit );
+          error (errortext, 400);
+        }
+
+      }
+      else if (Map[i].Type == 2)
+      {
+        if ( * (double *) (Map[i].Place) < Map[i].min_limit || * (double *) (Map[i].Place) > Map[i].max_limit )
+        {
+          snprintf(errortext, ET_SIZE, "Error in input parameter %s. Check configuration file. Value should be in [%.2f, %.2f] range.", Map[i].TokenName,Map[i].min_limit ,Map[i].max_limit );
+          error (errortext, 400);
+        }
+      }
+    }
+    else if (Map[i].param_limits == 2)
+    {
+      if (Map[i].Type == 0)
+      {
+        if ( * (int *) (Map[i].Place) < (int) Map[i].min_limit )
+        {
+          snprintf(errortext, ET_SIZE, "Error in input parameter %s. Check configuration file. Value should not be smaller than %d.", Map[i].TokenName, (int) Map[i].min_limit);
+          error (errortext, 400);
+        }
+      }
+      else if (Map[i].Type == 2)
+      {
+        if ( * (double *) (Map[i].Place) < Map[i].min_limit )
+        {
+          snprintf(errortext, ET_SIZE, "Error in input parameter %s. Check configuration file. Value should not be smaller than %2.f.", Map[i].TokenName,Map[i].min_limit);
+          error (errortext, 400);
+        }
+      }
+    }
+    else if (Map[i].param_limits == 3) // Only used for QPs
+    {
+      
+      if (Map[i].Type == 0)
+      {
+        int cur_qp = * (int *) (Map[i].Place);
+        int min_qp = (int) (Map[i].min_limit - (bitdepth_qp_scale? bitdepth_qp_scale[0]: 0));
+        int max_qp = (int) Map[i].max_limit;
+        
+        if (( cur_qp < min_qp ) || ( cur_qp > max_qp ))
+        {
+          snprintf(errortext, ET_SIZE, "Error in input parameter %s. Check configuration file. Value should be in [%d, %d] range.", Map[i].TokenName, min_qp, max_qp );
+          error (errortext, 400);
+        }
+      }
+    }
+
+    i++;
+  }
+  return -1;
+}
+
+
+
+/*!
+ ***********************************************************************
+ * \brief
+ *    Outputs encoding parameters.
+ * \return
+ *    -1 for error
+ ***********************************************************************
+ */
+static int DisplayParams(Mapping *Map, char *message)
+{
+  int i = 0;
+
+  printf("******************************************************\n");
+  printf("*               %s                   *\n", message);
+  printf("******************************************************\n");
+  while (Map[i].TokenName != NULL)
+  {
+    if (Map[i].Type == 0)
+      printf("Parameter %s = %d\n",Map[i].TokenName,* (int *) (Map[i].Place));
+    else if (Map[i].Type == 1)
+      printf("Parameter %s = ""%s""\n",Map[i].TokenName,(char *)  (Map[i].Place));
+    else if (Map[i].Type == 2)
+      printf("Parameter %s = %.2f\n",Map[i].TokenName,* (double *) (Map[i].Place));
+      i++;
+  }
+  printf("******************************************************\n");
+  return i;
+}
 
 /*!
  ***********************************************************************
@@ -77,7 +466,7 @@ InputParameters cfgparams;
  *   print help message and exit
  ***********************************************************************
  */
-void JMDecHelpExit (void)
+static void JMDecHelpExit (void)
 {
   fprintf( stderr, "\n   ldecod [-h] [-d defdec.cfg] {[-f curenc1.cfg]...[-f curencN.cfg]}"
     " {[-p EncParam1=EncValue1]..[-p EncParamM=EncValueM]}\n\n"
@@ -102,19 +491,19 @@ void JMDecHelpExit (void)
   exit(-1);
 }
 
-
 /*!
-************************************************************************
-* \brief
-*    exit with error message if reading from config file failed
-************************************************************************
-*/
-static inline void conf_read_check (int val, int expected)
+ ***********************************************************************
+ * \brief
+ *    Checks the input parameters for consistency.
+ ***********************************************************************
+ */
+static void PatchInp (InputParameters *p_Inp)
 {
-  if (val != expected)
-  {
-    error ("init_conf: error reading from config file", 500);
-  }
+  //int i;
+  //int storedBplus1;
+  TestParams(Map, NULL);
+  if(p_Inp->export_views == 1)
+    p_Inp->dpb_plus[1] = imax(1, p_Inp->dpb_plus[1]);
 }
 
 /*!
@@ -134,7 +523,7 @@ static inline void conf_read_check (int val, int expected)
 void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
 {
   char *content = NULL;
-  int CLcount, ContentLen, NumberParams;
+  int CLcount;
   const char *filename=DEFAULTCONFIGFILENAME;
 
   if (ac==2)
@@ -162,14 +551,6 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
 
   if (ac>=3)
   {
-    if ((strlen(av[1])==2) && (0 == strncmp (av[1], "-d", 2)))
-    {
-      if(0 == strncmp (av[2], "null", 4))
-        filename=NULL;
-      else
-        filename=av[2];
-      CLcount = 3;
-    }
     if (0 == strncmp (av[1], "-h", 2))
     {
       JMDecHelpExit();
@@ -181,7 +562,6 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
     content = GetConfigFileContent (filename);
     if (NULL != content)
     {
-      //error (errortext, 300);
       ParseContent (p_Inp, Map, content, (int) strlen(content));
       printf ("\n");
       free (content);
@@ -196,25 +576,9 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
       JMDecHelpExit();
     }
 
-    if (0 == strncmp (av[CLcount], "-f", 2) || 0 == strncmp (av[CLcount], "-F", 2))  // A file parameter?
-    {
-      content = GetConfigFileContent (av[CLcount+1]);
-      if (NULL==content)
-        error (errortext, 300);
-      printf ("Parsing Configfile %s", av[CLcount+1]);
-      ParseContent (p_Inp, Map, content, (int) strlen (content));
-      printf ("\n");
-      free (content);
-      CLcount += 2;
-    } 
-    else if (0 == strncmp (av[CLcount], "-i", 2) || 0 == strncmp (av[CLcount], "-I", 2))  // A file parameter?
+    if (0 == strncmp (av[CLcount], "-i", 2) || 0 == strncmp (av[CLcount], "-I", 2))  // A file parameter?
     {
       strncpy(p_Inp->infile, av[CLcount+1], FILE_NAME_SIZE);
-      CLcount += 2;
-    } 
-    else if (0 == strncmp (av[CLcount], "-r", 2) || 0 == strncmp (av[CLcount], "-R", 2))  // A file parameter?
-    {
-      strncpy(p_Inp->reffile, av[CLcount+1], FILE_NAME_SIZE);
       CLcount += 2;
     } 
     else if (0 == strncmp (av[CLcount], "-o", 2) || 0 == strncmp (av[CLcount], "-O", 2))  // A file parameter?
@@ -222,66 +586,6 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
       strncpy(p_Inp->outfile, av[CLcount+1], FILE_NAME_SIZE);
       CLcount += 2;
     } 
-    else if (0 == strncmp (av[CLcount], "-s", 2) || 0 == strncmp (av[CLcount], "-S", 2))  // A file parameter?
-    {
-      p_Inp->silent = 1;
-      CLcount += 1;
-    }
-    else if (0 == strncmp (av[CLcount], "-n", 2) || 0 == strncmp (av[CLcount], "-N", 2))  // A file parameter?
-    {
-      conf_read_check (sscanf(av[CLcount+1],"%d", &p_Inp->iDecFrmNum), 1);
-      CLcount += 2;
-    }
-#if (MVC_EXTENSION_ENABLE)
-    else if (0 == strncmp (av[CLcount], "-mpr", 4) || 0 == strncmp (av[CLcount], "-MPR", 4))  // A file parameter?
-    {
-      conf_read_check (sscanf(av[CLcount+1],"%d", &p_Inp->DecodeAllLayers), 1);
-      CLcount += 2;
-    } 
-#endif
-    else if (0 == strncmp (av[CLcount], "-p", 2) || 0 == strncmp (av[CLcount], "-P", 2))  // A config change?
-    {
-      // Collect all data until next parameter (starting with -<x> (x is any character)),
-      // put it into content, and parse content.
-
-      ++CLcount;
-      ContentLen = 0;
-      NumberParams = CLcount;
-
-      // determine the necessary size for content
-      while (NumberParams < ac && av[NumberParams][0] != '-')
-        ContentLen += (int) strlen (av[NumberParams++]);        // Space for all the strings
-      ContentLen += 1000;                     // Additional 1000 bytes for spaces and \0s
-
-
-      if ((content = (char *)malloc (ContentLen))==NULL) no_mem_exit("Configure: content");;
-      content[0] = '\0';
-
-      // concatenate all parameters identified before
-
-      while (CLcount < NumberParams)
-      {
-        char *source = &av[CLcount][0];
-        char *destin = &content[(int) strlen (content)];
-
-        while (*source != '\0')
-        {
-          if (*source == '=')  // The Parser expects whitespace before and after '='
-          {
-            *destin++=' '; *destin++='='; *destin++=' ';  // Hence make sure we add it
-          } 
-          else
-            *destin++=*source;
-          source++;
-        }
-        *destin = '\0';
-        CLcount++;
-      }
-      printf ("Parsing command line string '%s'", content);
-      ParseContent (p_Inp, Map, content, (int) strlen(content));
-      free (content);
-      printf ("\n");
-    }
     else
     {
       snprintf (errortext, ET_SIZE, "Error in command line, ac %d, around string '%s', missing -f or -p parameters?", CLcount, av[CLcount]);
@@ -292,24 +596,6 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
 
   PatchInp(p_Inp);
   cfgparams = *p_Inp;
-  p_Inp->enable_32_pulldown = 0;
   if (p_Inp->bDisplayDecParams)
     DisplayParams(Map, (char *)"Decoder Parameters");
 }
-
-
-/*!
- ***********************************************************************
- * \brief
- *    Checks the input parameters for consistency.
- ***********************************************************************
- */
-static void PatchInp (InputParameters *p_Inp)
-{
-  //int i;
-  //int storedBplus1;
-  TestParams(Map, NULL);
-  if(p_Inp->export_views == 1)
-    p_Inp->dpb_plus[1] = imax(1, p_Inp->dpb_plus[1]);
-}
-

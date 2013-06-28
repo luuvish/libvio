@@ -110,10 +110,6 @@ typedef struct macroblock_dec {
     Boolean                luma_transform_size_8x8_flag;
     Boolean                NoMbPartLessThan8x8Flag;
 
-    void (*GetMVPredictor)(struct macroblock_dec *currMB, PixelPos *block, 
-        MotionVector *pmv, short ref_frame, struct pic_motion_params **mv_info,
-        int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
-
     int  (*read_and_store_CBP_block_bit)(struct macroblock_dec *currMB,
         DecodingEnvironmentPtr dep_dp, int type);
     char (*readRefPictureIdx)           (struct macroblock_dec *currMB,

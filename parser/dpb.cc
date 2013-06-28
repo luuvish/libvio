@@ -2079,11 +2079,8 @@ void flush_dpb(DecodedPictureBuffer *p_Dpb)
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   uint32 i;
 
-  // diagnostics
-  // printf("Flush remaining frames from the dpb. p_Dpb->size=%d, p_Dpb->used_size=%d\n",p_Dpb->size,p_Dpb->used_size);
   if(!p_Dpb->init_done)
     return;
-//  if(p_Vid->conceal_mode == 0)
   if (p_Vid->conceal_mode != 0)
     conceal_non_ref_pics(p_Dpb, 0);
 
@@ -2111,10 +2108,6 @@ void flush_dpbs(DecodedPictureBuffer **p_Dpb_layers, int nLayers)
   DecodedPictureBuffer *p_Dpb;
   int i, j, used_size;
 
-  // diagnostics
-  // printf("Flush remaining frames from the dpb. p_Dpb->size=%d, p_Dpb->used_size=%d\n",p_Dpb->size,p_Dpb->used_size);
-
-//  if(p_Vid->conceal_mode == 0)
   if (p_Vid->conceal_mode != 0)
   {
     conceal_non_ref_pics(p_Dpb_layers[0], 0);

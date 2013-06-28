@@ -49,6 +49,30 @@ extern "C" {
  *  TYPE_EOS        | SE_EOS
 */
 
+
+//! definition of H.264 syntax elements
+typedef enum {
+  	SE_HEADER,
+  	SE_PTYPE,
+  	SE_MBTYPE,
+  	SE_REFFRAME,
+  	SE_INTRAPREDMODE,
+  	SE_MVD,
+  	SE_CBP,
+  	SE_LUM_DC_INTRA,
+  	SE_CHR_DC_INTRA,
+  	SE_LUM_AC_INTRA,
+  	SE_CHR_AC_INTRA,
+  	SE_LUM_DC_INTER,
+  	SE_CHR_DC_INTER,
+  	SE_LUM_AC_INTER,
+  	SE_CHR_AC_INTER,
+  	SE_DELTA_QUANT,
+  	SE_BFRAME,
+  	SE_EOS,
+  	SE_MAX_ELEMENTS = 20
+} SE_type;
+
 #define SE_HEADER             0
 #define SE_PTYPE              1
 #define SE_MBTYPE             2

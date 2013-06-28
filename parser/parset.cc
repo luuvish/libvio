@@ -24,9 +24,31 @@
 #include "fmo.h"
 #include "dpb.h"
 #include "erc_api.h"
+#include "macroblock.h"
 
+#define MAX_QP          51
 
 #define BASE_VIEW_IDX             0
+
+static inline int is_BL_profile(unsigned int profile_idc) 
+{
+  return ( profile_idc == FREXT_CAVLC444 || profile_idc == BASELINE || profile_idc == MAIN || profile_idc == EXTENDED ||
+           profile_idc == FREXT_HP || profile_idc == FREXT_Hi10P || profile_idc == FREXT_Hi422 || profile_idc == FREXT_Hi444);
+}
+static inline int is_EL_profile(unsigned int profile_idc) 
+{
+  return ( (profile_idc == MVC_HIGH) || (profile_idc == STEREO_HIGH)
+           );
+}
+
+static inline int is_MVC_profile(unsigned int profile_idc)
+{
+  return ( (0)
+#if (MVC_EXTENSION_ENABLE)
+  || (profile_idc == MVC_HIGH) || (profile_idc == STEREO_HIGH)
+#endif
+  );
+}
 
 
 // E.1.1 VUI parameter syntax
@@ -1205,6 +1227,142 @@ void ProcessPPS(VideoParameters *p_Vid, NALU_t *nalu)
     FreePPS(pps);
 }
 
+static void init_qp_process(CodingParameters *cps)
+{
+  int bitdepth_qp_scale = imax(cps->bitdepth_luma_qp_scale, cps->bitdepth_chroma_qp_scale);
+  int i;
+
+  // We should allocate memory outside of this process since maybe we will have a change of SPS 
+  // and we may need to recreate these. Currently should only support same bitdepth
+  if (cps->qp_per_matrix == NULL)
+    if ((cps->qp_per_matrix = (int*)malloc((MAX_QP + 1 +  bitdepth_qp_scale)*sizeof(int))) == NULL)
+      no_mem_exit("init_qp_process: cps->qp_per_matrix");
+
+  if (cps->qp_rem_matrix == NULL)
+    if ((cps->qp_rem_matrix = (int*)malloc((MAX_QP + 1 +  bitdepth_qp_scale)*sizeof(int))) == NULL)
+      no_mem_exit("init_qp_process: cps->qp_rem_matrix");
+
+  for (i = 0; i < MAX_QP + bitdepth_qp_scale + 1; i++)
+  {
+    cps->qp_per_matrix[i] = i / 6;
+    cps->qp_rem_matrix[i] = i % 6;
+  }
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    Dynamic memory allocation of frame size related global buffers
+ *    buffers are defined in global.h, allocated memory must be freed in
+ *    void free_global_buffers()
+ *
+ *  \par Input:
+ *    Input Parameters VideoParameters *p_Vid
+ *
+ *  \par Output:
+ *     Number of allocated bytes
+ ***********************************************************************
+ */
+static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
+{
+  int memory_size=0;
+  int i;
+  CodingParameters *cps = p_Vid->p_EncodePar[layer_id];
+  BlockPos* PicPos;
+
+  if (p_Vid->global_init_done[layer_id])
+  {
+    free_layer_buffers(p_Vid, layer_id);
+  }
+
+  // allocate memory for reference frame in find_snr
+  memory_size += get_mem2Dpel(&cps->imgY_ref, cps->height, cps->width);
+  if (cps->yuv_format != YUV400)
+  {
+    memory_size += get_mem3Dpel(&cps->imgUV_ref, 2, cps->height_cr, cps->width_cr);
+  }
+  else
+    cps->imgUV_ref = NULL;
+
+  // allocate memory in structure p_Vid
+  if( (cps->separate_colour_plane_flag != 0) )
+  {
+    for( i=0; i<MAX_PLANE; ++i )
+    {
+      if(((cps->mb_data_JV[i]) = (Macroblock *) calloc(cps->FrameSizeInMbs, sizeof(Macroblock))) == NULL)
+        no_mem_exit("init_global_buffers: cps->mb_data_JV");
+    }
+    cps->mb_data = NULL;
+  }
+  else
+  {
+    if(((cps->mb_data) = (Macroblock *) calloc(cps->FrameSizeInMbs, sizeof(Macroblock))) == NULL)
+      no_mem_exit("init_global_buffers: cps->mb_data");
+  }
+  if( (cps->separate_colour_plane_flag != 0) )
+  {
+    for( i=0; i<MAX_PLANE; ++i )
+    {
+      if(((cps->intra_block_JV[i]) = (char*) calloc(cps->FrameSizeInMbs, sizeof(char))) == NULL)
+        no_mem_exit("init_global_buffers: cps->intra_block_JV");
+    }
+    cps->intra_block = NULL;
+  }
+  else
+  {
+    if(((cps->intra_block) = (char*) calloc(cps->FrameSizeInMbs, sizeof(char))) == NULL)
+      no_mem_exit("init_global_buffers: cps->intra_block");
+  }
+
+
+  if(((cps->PicPos) = (BlockPos*) calloc(cps->FrameSizeInMbs + 1, sizeof(BlockPos))) == NULL)
+    no_mem_exit("init_global_buffers: PicPos");
+
+  PicPos = cps->PicPos;
+  for (i = 0; i < (int) cps->FrameSizeInMbs + 1;++i)
+  {
+    PicPos[i].x = (short) (i % cps->PicWidthInMbs);
+    PicPos[i].y = (short) (i / cps->PicWidthInMbs);
+  }
+
+  if( (cps->separate_colour_plane_flag != 0) )
+  {
+    for( i=0; i<MAX_PLANE; ++i )
+    {
+      get_mem2D(&(cps->ipredmode_JV[i]), 4*cps->FrameHeightInMbs, 4*cps->PicWidthInMbs);
+    }
+    cps->ipredmode = NULL;
+  }
+  else
+   memory_size += get_mem2D(&(cps->ipredmode), 4*cps->FrameHeightInMbs, 4*cps->PicWidthInMbs);
+
+  // CAVLC mem
+  memory_size += get_mem4D(&(cps->nz_coeff), cps->FrameSizeInMbs, 3, BLOCK_SIZE, BLOCK_SIZE);
+  if( (cps->separate_colour_plane_flag != 0) )
+  {
+    for( i=0; i<MAX_PLANE; ++i )
+    {
+      get_mem2Dint(&(cps->siblock_JV[i]), cps->FrameHeightInMbs, cps->PicWidthInMbs);
+      if(cps->siblock_JV[i]== NULL)
+        no_mem_exit("init_global_buffers: p_Vid->siblock_JV");
+    }
+    cps->siblock = NULL;
+  }
+  else
+  {
+    memory_size += get_mem2Dint(&(cps->siblock), cps->FrameHeightInMbs, cps->PicWidthInMbs);
+  }
+  init_qp_process(cps);
+  cps->oldFrameSizeInMbs = cps->FrameSizeInMbs;
+
+  if(layer_id == 0 )
+    init_output(cps, ((cps->pic_unit_bitsize_on_disk+7) >> 3));
+  else
+    cps->img2buf = p_Vid->p_EncodePar[0]->img2buf;
+  p_Vid->global_init_done[layer_id] = 1;
+
+  return (memory_size);
+}
 
 /*!
  ************************************************************************
@@ -1329,8 +1487,8 @@ static void reset_format_info(sps_t *sps, VideoParameters *p_Vid, FrameFormat *s
   updateMaxValue(source);
   updateMaxValue(output);
 
-  if (p_Vid->first_sps == TRUE) {
-    p_Vid->first_sps = FALSE;
+  if (p_Vid->first_sps) {
+    p_Vid->first_sps = 0;
     if(!p_Inp->bDisplayDecParams) {
       fprintf(stdout,"Profile IDC  : %d\n", sps->profile_idc);
       fprintf(stdout,"Image Format : %dx%d (%dx%d)\n", source->width[0], source->height[0], p_Vid->width, p_Vid->height);
@@ -1503,6 +1661,125 @@ static void set_coding_par(sps_t *sps, CodingParameters *cps)
 }
 
 /*!
+ ***********************************************************************
+ * \brief
+ *    Initialize FREXT variables
+ ***********************************************************************
+ */
+void init_frext(VideoParameters *p_Vid)  //!< video parameters
+{
+  //pel bitdepth init
+  p_Vid->bitdepth_luma_qp_scale   = 6 * (p_Vid->bitdepth_luma - 8);
+
+  if(p_Vid->bitdepth_luma > p_Vid->bitdepth_chroma || p_Vid->active_sps->chroma_format_idc == YUV400)
+    p_Vid->pic_unit_bitsize_on_disk = (p_Vid->bitdepth_luma > 8)? 16:8;
+  else
+    p_Vid->pic_unit_bitsize_on_disk = (p_Vid->bitdepth_chroma > 8)? 16:8;
+  p_Vid->dc_pred_value_comp[0]    = 1<<(p_Vid->bitdepth_luma - 1);
+  p_Vid->max_pel_value_comp[0] = (1<<p_Vid->bitdepth_luma) - 1;
+  p_Vid->mb_size[0][0] = p_Vid->mb_size[0][1] = MB_BLOCK_SIZE;
+
+  if (p_Vid->active_sps->chroma_format_idc != YUV400)
+  {
+    //for chrominance part
+    p_Vid->bitdepth_chroma_qp_scale = 6 * (p_Vid->bitdepth_chroma - 8);
+    p_Vid->dc_pred_value_comp[1]    = (1 << (p_Vid->bitdepth_chroma - 1));
+    p_Vid->dc_pred_value_comp[2]    = p_Vid->dc_pred_value_comp[1];
+    p_Vid->max_pel_value_comp[1]    = (1 << p_Vid->bitdepth_chroma) - 1;
+    p_Vid->max_pel_value_comp[2]    = (1 << p_Vid->bitdepth_chroma) - 1;
+    p_Vid->num_blk8x8_uv = (1 << p_Vid->active_sps->chroma_format_idc) & (~(0x1));
+    p_Vid->num_uv_blocks = (p_Vid->num_blk8x8_uv >> 1);
+    p_Vid->num_cdc_coeff = (p_Vid->num_blk8x8_uv << 1);
+    p_Vid->mb_size[1][0] = p_Vid->mb_size[2][0] = p_Vid->mb_cr_size_x  = (p_Vid->active_sps->chroma_format_idc==YUV420 || p_Vid->active_sps->chroma_format_idc==YUV422)?  8 : 16;
+    p_Vid->mb_size[1][1] = p_Vid->mb_size[2][1] = p_Vid->mb_cr_size_y  = (p_Vid->active_sps->chroma_format_idc==YUV444 || p_Vid->active_sps->chroma_format_idc==YUV422)? 16 :  8;
+
+    p_Vid->subpel_x    = p_Vid->mb_cr_size_x == 8 ? 7 : 3;
+    p_Vid->subpel_y    = p_Vid->mb_cr_size_y == 8 ? 7 : 3;
+    p_Vid->shiftpel_x  = p_Vid->mb_cr_size_x == 8 ? 3 : 2;
+    p_Vid->shiftpel_y  = p_Vid->mb_cr_size_y == 8 ? 3 : 2;
+    p_Vid->total_scale = p_Vid->shiftpel_x + p_Vid->shiftpel_y;
+  }
+  else
+  {
+    p_Vid->bitdepth_chroma_qp_scale = 0;
+    p_Vid->max_pel_value_comp[1] = 0;
+    p_Vid->max_pel_value_comp[2] = 0;
+    p_Vid->num_blk8x8_uv = 0;
+    p_Vid->num_uv_blocks = 0;
+    p_Vid->num_cdc_coeff = 0;
+    p_Vid->mb_size[1][0] = p_Vid->mb_size[2][0] = p_Vid->mb_cr_size_x  = 0;
+    p_Vid->mb_size[1][1] = p_Vid->mb_size[2][1] = p_Vid->mb_cr_size_y  = 0;
+    p_Vid->subpel_x      = 0;
+    p_Vid->subpel_y      = 0;
+    p_Vid->shiftpel_x    = 0;
+    p_Vid->shiftpel_y    = 0;
+    p_Vid->total_scale   = 0;
+  }
+
+  p_Vid->mb_cr_size = p_Vid->mb_cr_size_x * p_Vid->mb_cr_size_y;
+  p_Vid->mb_size_blk[0][0] = p_Vid->mb_size_blk[0][1] = p_Vid->mb_size[0][0] >> 2;
+  p_Vid->mb_size_blk[1][0] = p_Vid->mb_size_blk[2][0] = p_Vid->mb_size[1][0] >> 2;
+  p_Vid->mb_size_blk[1][1] = p_Vid->mb_size_blk[2][1] = p_Vid->mb_size[1][1] >> 2;
+
+  p_Vid->mb_size_shift[0][0] = p_Vid->mb_size_shift[0][1] = CeilLog2_sf (p_Vid->mb_size[0][0]);
+  p_Vid->mb_size_shift[1][0] = p_Vid->mb_size_shift[2][0] = CeilLog2_sf (p_Vid->mb_size[1][0]);
+  p_Vid->mb_size_shift[1][1] = p_Vid->mb_size_shift[2][1] = CeilLog2_sf (p_Vid->mb_size[1][1]);
+}
+
+static void set_global_coding_par(VideoParameters *p_Vid, CodingParameters *cps)
+{
+    p_Vid->bitdepth_chroma = 0;
+    p_Vid->width_cr        = 0;
+    p_Vid->height_cr       = 0;
+    p_Vid->lossless_qpprime_flag   = cps->lossless_qpprime_flag;
+    p_Vid->max_vmv_r = cps->max_vmv_r;
+
+    // Fidelity Range Extensions stuff (part 1)
+    p_Vid->bitdepth_luma       = cps->bitdepth_luma;
+    p_Vid->bitdepth_scale[0]   = cps->bitdepth_scale[0];
+    p_Vid->bitdepth_chroma = cps->bitdepth_chroma;
+    p_Vid->bitdepth_scale[1] = cps->bitdepth_scale[1];
+
+    p_Vid->max_frame_num = cps->max_frame_num;
+    p_Vid->PicWidthInMbs = cps->PicWidthInMbs;
+    p_Vid->PicHeightInMapUnits = cps->PicHeightInMapUnits;
+    p_Vid->FrameHeightInMbs = cps->FrameHeightInMbs;
+    p_Vid->FrameSizeInMbs = cps->FrameSizeInMbs;
+
+    p_Vid->yuv_format = cps->yuv_format;
+    p_Vid->separate_colour_plane_flag = cps->separate_colour_plane_flag;
+    p_Vid->ChromaArrayType = cps->ChromaArrayType;
+
+    p_Vid->width = cps->width;
+    p_Vid->height = cps->height;
+    p_Vid->iLumaPadX = MCBUF_LUMA_PAD_X;
+    p_Vid->iLumaPadY = MCBUF_LUMA_PAD_Y;
+    p_Vid->iChromaPadX = MCBUF_CHROMA_PAD_X;
+    p_Vid->iChromaPadY = MCBUF_CHROMA_PAD_Y;
+    if (p_Vid->yuv_format == YUV420)
+    {
+      p_Vid->width_cr  = (p_Vid->width  >> 1);
+      p_Vid->height_cr = (p_Vid->height >> 1);
+    }
+    else if (p_Vid->yuv_format == YUV422)
+    {
+      p_Vid->width_cr  = (p_Vid->width >> 1);
+      p_Vid->height_cr = p_Vid->height;
+      p_Vid->iChromaPadY = MCBUF_CHROMA_PAD_Y*2;
+    }
+    else if (p_Vid->yuv_format == YUV444)
+    {
+      //YUV444
+      p_Vid->width_cr = p_Vid->width;
+      p_Vid->height_cr = p_Vid->height;
+      p_Vid->iChromaPadX = p_Vid->iLumaPadX;
+      p_Vid->iChromaPadY = p_Vid->iLumaPadY;
+    }
+
+    init_frext(p_Vid);
+}
+
+/*!
  ************************************************************************
  * \brief
  *    Activate Sequence Parameter Sets
@@ -1538,13 +1815,11 @@ void activate_sps (VideoParameters *p_Vid, sps_t *sps)
 //end;
 
 #if (MVC_EXTENSION_ENABLE)
-    //init_frext(p_Vid);
     if (/*p_Vid->last_pic_width_in_mbs_minus1 != p_Vid->active_sps->pic_width_in_mbs_minus1
         || p_Vid->last_pic_height_in_map_units_minus1 != p_Vid->active_sps->pic_height_in_map_units_minus1
         || p_Vid->last_max_dec_frame_buffering != GetMaxDecFrameBuffering(p_Vid)
         || */(p_Vid->last_profile_idc != p_Vid->active_sps->profile_idc && is_BL_profile(p_Vid->active_sps->profile_idc) && !p_Vid->p_Dpb_layer[0]->init_done /*&& is_BL_profile(p_Vid->last_profile_idc)*/))
     {
-      //init_frext(p_Vid);
       init_global_buffers(p_Vid, 0);
 
       if (!p_Vid->no_output_of_prior_pics_flag)
@@ -1559,7 +1834,6 @@ void activate_sps (VideoParameters *p_Vid, sps_t *sps)
             )&& (!p_Vid->p_Dpb_layer[1]->init_done))
     {
       assert(p_Vid->p_Dpb_layer[0]->init_done);
-      //init_frext(p_Vid);
       if(p_Vid->p_Dpb_layer[0]->init_done)
       {
         free_dpb(p_Vid->p_Dpb_layer[0]);
@@ -1582,7 +1856,6 @@ void activate_sps (VideoParameters *p_Vid, sps_t *sps)
     p_Vid->last_profile_idc = p_Vid->active_sps->profile_idc;
 
 #else
-    //init_frext(p_Vid);
     init_global_buffers(p_Vid, 0);
 
     if (!p_Vid->no_output_of_prior_pics_flag)

@@ -745,6 +745,119 @@ static void CopyPOC(Slice *pSlice0, Slice *currSlice)
 }
 
 
+/*!
+ ************************************************************************
+ * \brief
+ *    Allocates the slice structure along with its dependent
+ *    data structures
+ *
+ * \par Input:
+ *    Input Parameters InputParameters *p_Inp,  VideoParameters *p_Vid
+ ************************************************************************
+ */
+static Slice *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
+{
+  int i, j, memory_size = 0;
+  Slice *currSlice;
+
+  currSlice = (Slice *) calloc(1, sizeof(Slice));
+  if ( currSlice  == NULL)
+  {
+    snprintf(errortext, ET_SIZE, "Memory allocation for Slice datastruct in NAL-mode %d failed", p_Inp->FileFormat);
+    error(errortext,100);
+  }
+
+  // create all context models
+  currSlice->mot_ctx = create_contexts_MotionInfo();
+  currSlice->tex_ctx = create_contexts_TextureInfo();
+
+  currSlice->max_part_nr = 3;  //! assume data partitioning (worst case) for the following mallocs()
+  currSlice->partArr = AllocPartition(currSlice->max_part_nr);
+
+  memory_size += get_mem3Dint(&(currSlice->wp_weight), 2, MAX_REFERENCE_PICTURES, 3);
+  memory_size += get_mem3Dint(&(currSlice->wp_offset), 6, MAX_REFERENCE_PICTURES, 3);
+  memory_size += get_mem4Dint(&(currSlice->wbp_weight), 6, MAX_REFERENCE_PICTURES, MAX_REFERENCE_PICTURES, 3);
+
+  memory_size += get_mem3Dpel(&(currSlice->mb_pred), MAX_PLANE, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  memory_size += get_mem3Dpel(&(currSlice->mb_rec ), MAX_PLANE, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  memory_size += get_mem3Dint(&(currSlice->mb_rres), MAX_PLANE, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  memory_size += get_mem3Dint(&(currSlice->cof    ), MAX_PLANE, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+
+  memory_size += get_mem2Dpel(&currSlice->tmp_block_l0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  memory_size += get_mem2Dpel(&currSlice->tmp_block_l1, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  memory_size += get_mem2Dpel(&currSlice->tmp_block_l2, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  memory_size += get_mem2Dpel(&currSlice->tmp_block_l3, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+  memory_size += get_mem2Dint(&currSlice->tmp_res, MB_BLOCK_SIZE + 5, MB_BLOCK_SIZE + 5);
+
+#if (MVC_EXTENSION_ENABLE)
+  currSlice->view_id = MVC_INIT_VIEW_ID;
+  currSlice->inter_view_flag = 0;
+  currSlice->anchor_pic_flag = 0;
+#endif
+  // reference flag initialization
+  for(i=0;i<17;++i)
+  {
+    currSlice->ref_flag[i] = 1;
+  }
+  for (i = 0; i < 6; i++)
+  {
+    currSlice->listX[i] = (StorablePicture **)calloc(MAX_LIST_SIZE, sizeof (StorablePicture*)); // +1 for reordering
+    if (NULL==currSlice->listX[i])
+      no_mem_exit("malloc_slice: currSlice->listX[i]");
+  }
+  for (j = 0; j < 6; j++)
+  {
+    for (i = 0; i < MAX_LIST_SIZE; i++)
+    {
+      currSlice->listX[j][i] = NULL;
+    }
+    currSlice->listXsize[j]=0;
+  }
+
+  return currSlice;
+}
+
+
+
+static void copy_slice_info(Slice *currSlice, OldSliceParams *p_old_slice)
+{
+  VideoParameters *p_Vid = currSlice->p_Vid;
+
+  p_old_slice->pps_id         = currSlice->pic_parameter_set_id;
+  p_old_slice->frame_num      = currSlice->frame_num; //p_Vid->frame_num;
+  p_old_slice->field_pic_flag = currSlice->field_pic_flag; //p_Vid->field_pic_flag;
+
+  if(currSlice->field_pic_flag)
+  {
+    p_old_slice->bottom_field_flag = currSlice->bottom_field_flag;
+  }
+
+  p_old_slice->nal_ref_idc = currSlice->nal_reference_idc;
+  p_old_slice->idr_flag    = (byte) currSlice->idr_flag;
+
+  if (currSlice->idr_flag)
+  {
+    p_old_slice->idr_pic_id = currSlice->idr_pic_id;
+  }
+
+  if (p_Vid->active_sps->pic_order_cnt_type == 0)
+  {
+    p_old_slice->pic_oder_cnt_lsb          = currSlice->pic_order_cnt_lsb;
+    p_old_slice->delta_pic_oder_cnt_bottom = currSlice->delta_pic_order_cnt_bottom;
+  }
+
+  if (p_Vid->active_sps->pic_order_cnt_type == 1)
+  {
+    p_old_slice->delta_pic_order_cnt[0] = currSlice->delta_pic_order_cnt[0];
+    p_old_slice->delta_pic_order_cnt[1] = currSlice->delta_pic_order_cnt[1];
+  }
+#if (MVC_EXTENSION_ENABLE)
+  p_old_slice->view_id = currSlice->view_id;
+  p_old_slice->inter_view_flag = currSlice->inter_view_flag; 
+  p_old_slice->anchor_pic_flag = currSlice->anchor_pic_flag;
+#endif
+  p_old_slice->layer_id = currSlice->layer_id;
+}
 
 /*!
  ***********************************************************************
@@ -1588,68 +1701,6 @@ void ercWriteMBMODEandMV(Macroblock *currMB)
   }
 }
 
-/*!
- ************************************************************************
- * \brief
- *    set defaults for old_slice
- *    NAL unit of a picture"
- ************************************************************************
- */
-void init_old_slice(OldSliceParams *p_old_slice)
-{
-  p_old_slice->field_pic_flag = 0;
-  p_old_slice->pps_id         = INT_MAX;
-  p_old_slice->frame_num      = INT_MAX;
-  p_old_slice->nal_ref_idc    = INT_MAX;
-  p_old_slice->idr_flag       = FALSE;
-
-  p_old_slice->pic_oder_cnt_lsb          = UINT_MAX;
-  p_old_slice->delta_pic_oder_cnt_bottom = INT_MAX;
-
-  p_old_slice->delta_pic_order_cnt[0] = INT_MAX;
-  p_old_slice->delta_pic_order_cnt[1] = INT_MAX;
-}
-
-
-void copy_slice_info(Slice *currSlice, OldSliceParams *p_old_slice)
-{
-  VideoParameters *p_Vid = currSlice->p_Vid;
-
-  p_old_slice->pps_id         = currSlice->pic_parameter_set_id;
-  p_old_slice->frame_num      = currSlice->frame_num; //p_Vid->frame_num;
-  p_old_slice->field_pic_flag = currSlice->field_pic_flag; //p_Vid->field_pic_flag;
-
-  if(currSlice->field_pic_flag)
-  {
-    p_old_slice->bottom_field_flag = currSlice->bottom_field_flag;
-  }
-
-  p_old_slice->nal_ref_idc = currSlice->nal_reference_idc;
-  p_old_slice->idr_flag    = (byte) currSlice->idr_flag;
-
-  if (currSlice->idr_flag)
-  {
-    p_old_slice->idr_pic_id = currSlice->idr_pic_id;
-  }
-
-  if (p_Vid->active_sps->pic_order_cnt_type == 0)
-  {
-    p_old_slice->pic_oder_cnt_lsb          = currSlice->pic_order_cnt_lsb;
-    p_old_slice->delta_pic_oder_cnt_bottom = currSlice->delta_pic_order_cnt_bottom;
-  }
-
-  if (p_Vid->active_sps->pic_order_cnt_type == 1)
-  {
-    p_old_slice->delta_pic_order_cnt[0] = currSlice->delta_pic_order_cnt[0];
-    p_old_slice->delta_pic_order_cnt[1] = currSlice->delta_pic_order_cnt[1];
-  }
-#if (MVC_EXTENSION_ENABLE)
-  p_old_slice->view_id = currSlice->view_id;
-  p_old_slice->inter_view_flag = currSlice->inter_view_flag; 
-  p_old_slice->anchor_pic_flag = currSlice->anchor_pic_flag;
-#endif
-  p_old_slice->layer_id = currSlice->layer_id;
-}
 
 /*!
  ************************************************************************

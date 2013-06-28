@@ -21,19 +21,11 @@
  * ===========================================================================
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <sys/stat.h>
 
 #include "win32.h"
 #include "h264decoder.h"
 #include "configfile.h"
-
-#ifdef __cplusplus
-}
-#endif
 
 
 static void Configure(InputParameters *p_Inp, int ac, char *av[])

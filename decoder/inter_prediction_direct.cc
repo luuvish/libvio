@@ -22,6 +22,7 @@
 #include "inter_prediction.h"
 #include "intra_prediction.h"
 #include "neighbour.h"
+#include "mv_prediction.h"
 
 
 #define INVALIDINDEX  (-135792468)
@@ -1409,8 +1410,8 @@ void prepare_direct_params(Macroblock *currMB, StorablePicture *dec_picture, Mot
   *l1_rFrame = (char) imin(imin((unsigned char) l1_refA, (unsigned char) l1_refB), (unsigned char) l1_refC);
 
   if (*l0_rFrame >=0)
-    currMB->GetMVPredictor (currMB, mb, pmvl0, *l0_rFrame, mv_info, LIST_0, 0, 0, 16, 16);
+    GetMVPredictor (currMB, mb, pmvl0, *l0_rFrame, mv_info, LIST_0, 0, 0, 16, 16);
 
   if (*l1_rFrame >=0)
-    currMB->GetMVPredictor (currMB, mb, pmvl1, *l1_rFrame, mv_info, LIST_1, 0, 0, 16, 16);
+    GetMVPredictor (currMB, mb, pmvl1, *l1_rFrame, mv_info, LIST_1, 0, 0, 16, 16);
 }

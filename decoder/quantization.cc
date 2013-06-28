@@ -162,27 +162,6 @@ static const int dequant_coef8[6][8][8] =
  *    Initiate quantization process arrays
  ***********************************************************************
  */
-void init_qp_process(CodingParameters *cps)
-{
-  int bitdepth_qp_scale = imax(cps->bitdepth_luma_qp_scale, cps->bitdepth_chroma_qp_scale);
-  int i;
-
-  // We should allocate memory outside of this process since maybe we will have a change of SPS 
-  // and we may need to recreate these. Currently should only support same bitdepth
-  if (cps->qp_per_matrix == NULL)
-    if ((cps->qp_per_matrix = (int*)malloc((MAX_QP + 1 +  bitdepth_qp_scale)*sizeof(int))) == NULL)
-      no_mem_exit("init_qp_process: cps->qp_per_matrix");
-
-  if (cps->qp_rem_matrix == NULL)
-    if ((cps->qp_rem_matrix = (int*)malloc((MAX_QP + 1 +  bitdepth_qp_scale)*sizeof(int))) == NULL)
-      no_mem_exit("init_qp_process: cps->qp_rem_matrix");
-
-  for (i = 0; i < MAX_QP + bitdepth_qp_scale + 1; i++)
-  {
-    cps->qp_per_matrix[i] = i / 6;
-    cps->qp_rem_matrix[i] = i % 6;
-  }
-}
 
 void free_qp_matrices(CodingParameters *cps)
 {

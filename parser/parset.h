@@ -28,9 +28,6 @@ struct video_par;
 struct slice_t;
 
 
-#define MAXIMUMPARSETRBSPSIZE   1500
-#define MAXIMUMPARSETNALUSIZE   1500
-
 #define MAXSPS  32
 #define MAXPPS  256
 

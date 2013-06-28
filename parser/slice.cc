@@ -20,6 +20,10 @@
 
 #include "ctx_tables.h"
 
+static inline int HI_intra_only_profile(unsigned int profile_idc, Boolean constraint_set3_flag)
+{
+  return ( ((profile_idc >= FREXT_Hi10P) && constraint_set3_flag) || (profile_idc == FREXT_CAVLC444) );
+}
 
 
 /*!

@@ -30,7 +30,6 @@ extern int  read_new_slice    (struct slice_t *currSlice);
 extern void exit_picture      (VideoParameters *p_Vid, StorablePicture **dec_picture);
 extern int  decode_one_frame  (DecoderParams *pDecoder);
 
-extern void init_old_slice(OldSliceParams *p_old_slice);
 // For 4:4:4 independent mode
 extern void copy_dec_picture_JV (VideoParameters *p_Vid, StorablePicture *dst, StorablePicture *src );
 

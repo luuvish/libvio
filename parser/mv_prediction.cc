@@ -16,6 +16,7 @@
 #include "macroblock.h"
 #include "dpb.h"
 #include "mv_prediction.h"
+#include "slice.h"
 
 
 // MV Prediction types
@@ -289,10 +290,16 @@ static void GetMotionVectorPredictorNormal (Macroblock *currMB,
     }
 }
 
-void init_motion_vector_prediction(Macroblock *currMB, int mb_aff_frame_flag)
+void GetMVPredictor(Macroblock *currMB, PixelPos *block, MotionVector *pmv,
+                    short ref_frame, PicMotionParams **mv_info,
+                    int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y)
 {
-    if (mb_aff_frame_flag)
-        currMB->GetMVPredictor = GetMotionVectorPredictorMBAFF;
+    Slice *currSlice = currMB->p_Slice;
+
+    if (currSlice->mb_aff_frame_flag)
+        GetMotionVectorPredictorMBAFF(currMB, block, pmv, ref_frame, mv_info,
+                                      list, mb_x, mb_y, blockshape_x, blockshape_y);
     else
-        currMB->GetMVPredictor = GetMotionVectorPredictorNormal;
+        GetMotionVectorPredictorNormal(currMB, block, pmv, ref_frame, mv_info,
+                                       list, mb_x, mb_y, blockshape_x, blockshape_y);
 }

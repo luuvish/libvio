@@ -830,7 +830,7 @@ static void readMBMotionVectors (SyntaxElement *currSE, DataPartition *dP, Macro
       get_neighbors(currMB, block, 0, 0, step_h0 << 2);
 
       // first get MV predictor
-      currMB->GetMVPredictor (currMB, block, &pred_mv, mv_info[j4][i4].ref_idx[list], mv_info, list, 0, 0, step_h0 << 2, step_v0 << 2);
+      GetMVPredictor (currMB, block, &pred_mv, mv_info[j4][i4].ref_idx[list], mv_info, list, 0, 0, step_h0 << 2, step_v0 << 2);
 
       // X component
       currSE->value2 = list; // identifies the component; only used for context determination
@@ -909,7 +909,7 @@ static void readMBMotionVectors (SyntaxElement *currSE, DataPartition *dP, Macro
               get_neighbors(currMB, block, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4);
 
               // first get MV predictor
-              currMB->GetMVPredictor (currMB, block, &pred_mv, cur_ref_idx, mv_info, list, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4, step_v4);
+              GetMVPredictor (currMB, block, &pred_mv, cur_ref_idx, mv_info, list, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4, step_v4);
 
               for (k=0; k < 2; ++k)
               {
@@ -1864,7 +1864,7 @@ static void skip_macroblock(Macroblock *currMB)
     PicMotionParams **dec_mv_info = &dec_picture->mv_info[img_block_y];
     PicMotionParams *mv_info = NULL;
     StorablePicture *cur_pic = currSlice->listX[list_offset][0];
-    currMB->GetMVPredictor (currMB, mb, &pred_mv, 0, dec_picture->mv_info, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+    GetMVPredictor (currMB, mb, &pred_mv, 0, dec_picture->mv_info, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
     // Set first block line (position img_block_y)
     for(j = 0; j < BLOCK_SIZE; ++j)

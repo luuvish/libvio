@@ -18,7 +18,9 @@
 extern "C" {
 #endif
 
-void init_motion_vector_prediction(Macroblock *currMB, int mb_aff_frame_flag);
+void GetMVPredictor(Macroblock *currMB, PixelPos *block, MotionVector *pmv,
+                    short ref_frame, PicMotionParams **mv_info,
+                    int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
 
 #ifdef __cplusplus
 }
