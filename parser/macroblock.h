@@ -56,7 +56,7 @@ typedef struct macroblock_dec {
     int                    qp;                    //!< QP luma
     int                    qpc[2];                //!< QP chroma
     int                    qp_scaled[MAX_PLANE];  //!< QP scaled for all comps.
-    Boolean                is_lossless;
+    bool                   is_lossless;
     Boolean                is_intra_block;
     Boolean                is_v_block;
     Boolean                DeblockCall;
@@ -127,11 +127,11 @@ typedef struct macroblock_dec {
         ColorPlane pl, int (*InvLevelScale8x8)[8], int qp_per, int cbp, byte **nzcoeff);
 } Macroblock;
 
-void setup_slice_methods(struct slice_t *currSlice);
+void interpret_mb_mode(Macroblock *currMB);
 
-void    start_macroblock(struct slice_t *currSlice, Macroblock **currMB);
-Boolean exit_macroblock (struct slice_t *currSlice, int eos_bit);
-void    update_qp       (Macroblock *currMB, int qp);
+void start_macroblock(Macroblock *currMB);
+bool exit_macroblock (struct slice_t *currSlice);
+void update_qp       (Macroblock *currMB, int qp);
 
 
 #ifdef __cplusplus

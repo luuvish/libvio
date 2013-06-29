@@ -713,14 +713,21 @@ static void update_direct_mv_info_spatial_4x4(Macroblock *currMB)
 }
 
 
-void update_direct_types(Slice *currSlice)
+void update_direct_mv_info(Macroblock *currMB)
 {
-  if (currSlice->active_sps->direct_8x8_inference_flag)
-    currSlice->update_direct_mv_info     = currSlice->direct_spatial_mv_pred_flag ? update_direct_mv_info_spatial_8x8 : update_direct_mv_info_temporal;
-  else
-    currSlice->update_direct_mv_info     = currSlice->direct_spatial_mv_pred_flag ? update_direct_mv_info_spatial_4x4 : update_direct_mv_info_temporal;
+    Slice *currSlice = currMB->p_Slice;
+    if (currSlice->active_sps->direct_8x8_inference_flag) {
+        if (currSlice->direct_spatial_mv_pred_flag)
+            update_direct_mv_info_spatial_8x8(currMB);
+        else
+            update_direct_mv_info_temporal(currMB);
+    } else {
+        if (currSlice->direct_spatial_mv_pred_flag)
+            update_direct_mv_info_spatial_4x4(currMB);
+        else
+            update_direct_mv_info_temporal(currMB);
+    }
 }
-
 
 
 int get_direct8x8temporal(Macroblock *currMB, StorablePicture *dec_picture, int block8x8)

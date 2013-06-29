@@ -16,6 +16,7 @@
 #include "neighbour.h"
 #include "memalloc.h"
 #include "macroblock.h"
+#include "mb_read.h"
 
 #include "deblock.h"
 
@@ -173,7 +174,7 @@ static int parse_idr(Slice *currSlice)
     } else
         current_header = SOS;
 
-    setup_slice_methods(currSlice);
+    setup_read_macroblock(currSlice);
 
     // From here on, p_Vid->active_sps, p_Vid->active_pps and the slice header are valid
     if (currSlice->mb_aff_frame_flag)
@@ -246,7 +247,7 @@ static int parse_dpa(Slice *currSlice)
     } else
         current_header = SOS;
 
-    setup_slice_methods(currSlice);
+    setup_read_macroblock(currSlice);
 
     // From here on, p_Vid->active_sps, p_Vid->active_pps and the slice header are valid
     if (currSlice->mb_aff_frame_flag)

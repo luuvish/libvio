@@ -1427,12 +1427,12 @@ static int read_and_store_CBP_block_bit_normal (Macroblock              *currMB,
 }
 
 
-void set_read_and_store_CBP(Macroblock **currMB, int chroma_format_idc)
+void set_read_and_store_CBP(Macroblock *currMB, int chroma_format_idc)
 {
   if (chroma_format_idc == YUV444)
-    (*currMB)->read_and_store_CBP_block_bit = read_and_store_CBP_block_bit_444;
+    currMB->read_and_store_CBP_block_bit = read_and_store_CBP_block_bit_444;
   else
-    (*currMB)->read_and_store_CBP_block_bit = read_and_store_CBP_block_bit_normal; 
+    currMB->read_and_store_CBP_block_bit = read_and_store_CBP_block_bit_normal; 
 }
 
 
@@ -1766,9 +1766,21 @@ int cabac_startcode_follows(Slice *currSlice, int eos_bit)
   return (bit == 1 ? 1 : 0);
 }
 
+/*!
+ ************************************************************************
+ * \brief
+ *    Check if there are symbols for the next MB
+ ************************************************************************
+ */
+int uvlc_startcode_follows(Slice *currSlice, int dummy)
+{
+  byte            dp_Nr = assignSE2partition[currSlice->dp_mode][SE_MBTYPE];
+  DataPartition     *dP = &(currSlice->partArr[dp_Nr]);
+  Bitstream *currStream = dP->bitstream;
+  byte             *buf = currStream->streamBuffer;
 
-
-
+  return (!(more_rbsp_data(buf, currStream->frame_bitoffset,currStream->bitstream_length)));
+}
 
 /*!
  ************************************************************************

@@ -117,13 +117,14 @@ void readMB_transform_size_flag_CABAC(struct macroblock_dec *currMB, SyntaxEleme
 void readIPCM_CABAC(struct slice_t *currSlice, struct datapartition_dec *dP);
 
 int  cabac_startcode_follows(struct slice_t *currSlice, int eos_bit);
+int  uvlc_startcode_follows(struct slice_t *currSlice, int dummy);
 
 int  readSyntaxElement_CABAC         (struct macroblock_dec *currMB, SyntaxElement *se, DataPartition *this_dataPart);
 
 int  check_next_mb_and_get_field_mode_CABAC_p_slice(struct slice_t *currSlice, SyntaxElement *se, DataPartition  *act_dp);
 int  check_next_mb_and_get_field_mode_CABAC_b_slice(struct slice_t *currSlice, SyntaxElement *se, DataPartition  *act_dp);
 
-void set_read_and_store_CBP(struct macroblock_dec **currMB, int chroma_format_idc);
+void set_read_and_store_CBP(struct macroblock_dec *currMB, int chroma_format_idc);
 
 
 

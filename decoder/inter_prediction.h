@@ -38,7 +38,7 @@ int get_direct8x8spatial_ne(struct macroblock_dec *currMB, StorablePicture *dec_
 int get_direct4x4spatial(struct macroblock_dec *currMB, StorablePicture *dec_picture, int block8x8, MotionVector *pmvl0, MotionVector *pmvl1, char l0_rFrame, char l1_rFrame);
 int get_inter8x8(struct macroblock_dec *currMB, StorablePicture *dec_picture, int block8x8);
 
-void update_direct_types(Slice *currSlice);
+void update_direct_mv_info(struct macroblock_dec *currMB);
 
 
 #ifdef __cplusplus

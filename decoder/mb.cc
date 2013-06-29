@@ -587,10 +587,11 @@ static void init_cur_imgy(VideoParameters *p_Vid, Slice *currSlice, int pl)
     }
 }
 
-void decode_one_macroblock(Macroblock *currMB, StorablePicture *dec_picture)
+void decode_one_macroblock(Macroblock *currMB)
 {
     Slice *currSlice = currMB->p_Slice;
     VideoParameters *p_Vid = currMB->p_Vid;  
+    StorablePicture *dec_picture = currSlice->dec_picture;
 
     // macroblock decoding **************************************************
     if (currSlice->chroma444_not_separate) {

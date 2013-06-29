@@ -1185,7 +1185,7 @@ static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoPar
         dst->slice_type, p_Vid->ppSliceList[0]->structure);
     }
     else
-      p_Vid->ppSliceList[0]->init_lists(p_Vid->ppSliceList[0]); //p_Vid->currentSlice);
+      init_lists(p_Vid->ppSliceList[0]);
 
     multiplier = BLOCK_SIZE;
 

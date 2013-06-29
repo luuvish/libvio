@@ -117,6 +117,28 @@ int  ShowBits (byte buffer[],int totbitoffset,int bitcount, int numbits);
 
 int  more_rbsp_data (byte buffer[],int totbitoffset,int bytecount);
 
+
+bool byte_aligned(void);
+bool more_data_in_byte_stream(void);
+//bool more_rbsp_data(void);
+bool more_rbsp_trailing_data(void);
+
+uint32_t next_bits(uint8_t n);
+uint32_t read_bits(uint8_t n);
+
+uint32_t ae(uint8_t v);
+uint32_t b (uint8_t n=8);
+uint32_t ce(uint8_t v);
+uint32_t f (uint8_t n);
+int32_t  i (uint8_t n);
+uint32_t me(uint8_t v);
+int32_t  se(uint8_t v);
+uint32_t te(uint8_t v);
+uint32_t u (uint8_t n);
+uint32_t ue(uint8_t v);
+
+
+
 #ifdef __cplusplus
 }
 #endif

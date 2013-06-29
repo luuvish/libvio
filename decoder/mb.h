@@ -21,7 +21,7 @@ extern "C" {
 #include "global.h"
 #include "dpb.h"
 
-void decode_one_macroblock(Macroblock *currMB, StorablePicture *dec_picture);
+void decode_one_macroblock(Macroblock *currMB);
 
 #ifdef __cplusplus
 }

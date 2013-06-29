@@ -17,6 +17,7 @@
 #include "memalloc.h"
 #include "macroblock.h"
 #include "mb.h"
+#include "mb_read.h"
 
 #include "intra_prediction.h"
 #include "deblock.h"
@@ -351,7 +352,6 @@ static void decode_one_slice(Slice *currSlice)
     int current_header = currSlice->current_header;
 
     bool end_of_slice = 0;
-    Macroblock *currMB = NULL;
     currSlice->cod_counter = -1;
 
     init_slice(p_Vid, currSlice);
@@ -376,11 +376,17 @@ static void decode_one_slice(Slice *currSlice)
         init_cur_imgy(currSlice, p_Vid); 
 
     while (!end_of_slice) { // loop over macroblocks
+        int mb_nr = currSlice->current_mb_nr;
+        Macroblock *currMB = &currSlice->mb_data[mb_nr]; 
+        currMB->p_Slice = currSlice;
+        currMB->p_Vid   = p_Vid;
+        currMB->mbAddrX = mb_nr;
+
         // Initializes the current macroblock
-        start_macroblock(currSlice, &currMB);
+        start_macroblock(currMB);
         // Get the syntax elements from the NAL
-        currSlice->read_one_macroblock(currMB);
-        decode_one_macroblock(currMB, currSlice->dec_picture);
+        read_one_macroblock(currMB);
+        decode_one_macroblock(currMB);
 
         if (currSlice->mb_aff_frame_flag && currMB->mb_field) {
             currSlice->num_ref_idx_l0_active_minus1 = ((currSlice->num_ref_idx_l0_active_minus1 + 1) >> 1) - 1;
@@ -391,7 +397,7 @@ static void decode_one_slice(Slice *currSlice)
         ercWriteMBMODEandMV(currMB);
 #endif
 
-        end_of_slice = exit_macroblock(currSlice, (!currSlice->mb_aff_frame_flag|| currSlice->current_mb_nr%2));
+        end_of_slice = exit_macroblock(currSlice);
     }
 }
 

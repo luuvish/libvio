@@ -145,6 +145,9 @@ static const unsigned char cofuv_blk_y[3][8][4] = {
 
 struct slice_t;
 
+void read_one_macroblock(Macroblock *currMB);
+void read_motion_info_from_NAL(Macroblock *currMB);
+
 void setup_read_macroblock(struct slice_t *currSlice);
 
 void read_delta_quant(SyntaxElement *currSE, DataPartition *dP, Macroblock *currMB, const byte *partMap, int type);

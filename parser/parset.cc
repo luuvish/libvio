@@ -1895,22 +1895,6 @@ void activate_pps(VideoParameters *p_Vid, pps_t *pps)
 }
 
 
-/*!
- ************************************************************************
- * \brief
- *    Check if there are symbols for the next MB
- ************************************************************************
- */
-static int uvlc_startcode_follows(Slice *currSlice, int dummy)
-{
-  byte            dp_Nr = assignSE2partition[currSlice->dp_mode][SE_MBTYPE];
-  DataPartition     *dP = &(currSlice->partArr[dp_Nr]);
-  Bitstream *currStream = dP->bitstream;
-  byte             *buf = currStream->streamBuffer;
-
-  return (!(more_rbsp_data(buf, currStream->frame_bitoffset,currStream->bitstream_length)));
-}
-
 
 void UseParameterSet (Slice *currSlice)
 {
@@ -1970,7 +1954,6 @@ void UseParameterSet (Slice *currSlice)
   // currSlice->dp_mode is set by read_new_slice (NALU first byte available there)
   if (pps->entropy_coding_mode_flag == (Boolean) CAVLC)
   {
-    currSlice->nal_startcode_follows = uvlc_startcode_follows;
     for (i=0; i<3; i++)
     {
       currSlice->partArr[i].readSyntaxElement = readSyntaxElement_UVLC;      
@@ -1978,7 +1961,6 @@ void UseParameterSet (Slice *currSlice)
   }
   else
   {
-    currSlice->nal_startcode_follows = cabac_startcode_follows;
     for (i=0; i<3; i++)
     {
       currSlice->partArr[i].readSyntaxElement = readSyntaxElement_CABAC;
