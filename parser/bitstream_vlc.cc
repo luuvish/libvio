@@ -13,18 +13,10 @@
  ************************************************************************
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "global.h"
 #include "macroblock.h"
 #include "bitstream.h"
 #include "bitstream_elements.h"
-
-#ifdef __cplusplus
-}
-#endif
 
 
 // Note that all NA values are filled with 0

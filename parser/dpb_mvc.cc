@@ -28,6 +28,38 @@
 
 #if (MVC_EXTENSION_ENABLE)
 
+static int GetViewIdx(VideoParameters *p_Vid, int iVOIdx)
+{
+  int iViewIdx = -1;
+  int *piViewIdMap;
+
+  if( p_Vid->active_subset_sps )
+  {
+    assert( p_Vid->active_subset_sps->num_views_minus1 >= iVOIdx && iVOIdx >= 0 );
+    piViewIdMap = p_Vid->active_subset_sps->view_id;
+    iViewIdx = piViewIdMap[iVOIdx];    
+  }
+
+  return iViewIdx;
+}
+
+static int get_maxViewIdx (VideoParameters *p_Vid, int view_id, int anchor_pic_flag, int listidx)
+{
+  int VOIdx;
+  int maxViewIdx = 0;
+
+  VOIdx = view_id; 
+  if(VOIdx >= 0)
+  {
+    if(anchor_pic_flag)
+      maxViewIdx = listidx? p_Vid->active_subset_sps->num_anchor_refs_l1[VOIdx] : p_Vid->active_subset_sps->num_anchor_refs_l0[VOIdx];
+    else
+      maxViewIdx = listidx? p_Vid->active_subset_sps->num_non_anchor_refs_l1[VOIdx] : p_Vid->active_subset_sps->num_non_anchor_refs_l0[VOIdx];
+  }
+
+  return maxViewIdx;
+}
+
 /*!
  ************************************************************************
  * \brief

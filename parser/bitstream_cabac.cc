@@ -152,11 +152,6 @@ static unsigned int unary_exp_golomb_mv_decode(DecodingEnvironmentPtr dep_dp,
 }
 
 
-void cabac_new_slice(Slice *currSlice)
-{
-  currSlice->last_dquant = 0;
-}
-
 /*!
  ************************************************************************
  * \brief

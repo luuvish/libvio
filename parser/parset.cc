@@ -1884,16 +1884,14 @@ void activate_sps (VideoParameters *p_Vid, sps_t *sps)
 
 void activate_pps(VideoParameters *p_Vid, pps_t *pps)
 {  
-  if (p_Vid->active_pps != pps)
-  {
-    if (p_Vid->dec_picture) // && p_Vid->num_dec_mb == p_Vid->pi)
-    {
-      // this may only happen on slice loss
-      exit_picture(p_Vid, &p_Vid->dec_picture);
-    }
+    if (p_Vid->active_pps != pps) {
+        if (p_Vid->dec_picture) {
+            // this may only happen on slice loss
+            exit_picture(p_Vid, &p_Vid->dec_picture);
+        }
 
-    p_Vid->active_pps = pps;
-  }
+        p_Vid->active_pps = pps;
+    }
 }
 
 

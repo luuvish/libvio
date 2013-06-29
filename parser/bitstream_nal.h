@@ -23,9 +23,6 @@ extern "C" {
 
 #include "defines.h"
 
-#define MAXRBSPSIZE 64000
-#define MAXNALUSIZE 64000
-
 //! values for nal_unit_type
 typedef enum {
     NALU_TYPE_SLICE    =  1,

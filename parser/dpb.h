@@ -263,6 +263,8 @@ extern StorablePicture * clone_storable_picture( VideoParameters *p_Vid, Storabl
 extern void store_proc_picture_in_dpb(DecodedPictureBuffer *p_Dpb, StorablePicture* p);
 
 
+void init_lists(struct slice_t *currSlice);
+
 #ifdef __cplusplus
 }
 #endif

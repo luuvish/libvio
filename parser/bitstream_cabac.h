@@ -101,8 +101,6 @@ TextureInfoContexts* create_contexts_TextureInfo(void);
 void delete_contexts_MotionInfo(MotionInfoContexts *enco_ctx);
 void delete_contexts_TextureInfo(TextureInfoContexts *enco_ctx);
 
-void cabac_new_slice(struct slice_t *currSlice);
-
 void readRefFrame_CABAC(struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
 void read_MVD_CABAC( struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
 void read_mvd_CABAC_mbaff( struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
@@ -126,6 +124,10 @@ int  check_next_mb_and_get_field_mode_CABAC_p_slice(struct slice_t *currSlice, S
 int  check_next_mb_and_get_field_mode_CABAC_b_slice(struct slice_t *currSlice, SyntaxElement *se, DataPartition  *act_dp);
 
 void set_read_and_store_CBP(struct macroblock_dec **currMB, int chroma_format_idc);
+
+
+
+void  init_contexts(struct slice_t *currslice);
 
 #ifdef __cplusplus
 }

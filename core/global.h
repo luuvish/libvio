@@ -443,9 +443,11 @@ typedef struct video_par {
     struct tone_mapping_struct_s *seiToneMapping;
 #endif
 
-    int iNumOfSlicesAllocated;
+    int              iNumOfSlicesAllocated;
+    int              iSliceNumOfCurrPic;
     struct slice_t **ppSliceList;
     struct slice_t  *pNextSlice;
+    int              newframe;
 
     struct nalu_t *nalu;
 
@@ -480,8 +482,6 @@ typedef struct video_par {
 
   //current picture property;
   unsigned int num_dec_mb;
-  int iSliceNumOfCurrPic;
-    int iNumOfSlicesDecoded;
     char  *intra_block;
     char  *intra_block_JV[MAX_PLANE];
 
@@ -494,7 +494,6 @@ typedef struct video_par {
   int **siblock_JV[MAX_PLANE];
   BlockPos *PicPos;
 
-  int newframe;
   int structure;                     //!< Identify picture structure type
 
   struct macroblock_dec *mb_data;               //!< array containing all MBs of a whole frame

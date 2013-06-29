@@ -212,7 +212,6 @@ Boolean exit_macroblock(Slice *currSlice, int eos_bit)
   //! In an error prone environment, one can only be sure to have a new
   //! picture by checking the tr of the next slice header!
 
-// printf ("exit_macroblock: FmoGetLastMBOfPicture %d, p_Vid->current_mb_nr %d\n", FmoGetLastMBOfPicture(), p_Vid->current_mb_nr);
   ++(currSlice->num_dec_mb);
 
   if(currSlice->current_mb_nr == p_Vid->PicSizeInMbs - 1) //if (p_Vid->num_dec_mb == p_Vid->PicSizeInMbs)
@@ -465,44 +464,5 @@ void setup_slice_methods(Slice *currSlice)
     default:
         printf("Unsupported slice type\n");
         break;
-    }
-
-#if (MVC_EXTENSION_ENABLE)
-    if (currSlice->view_id) {
-        switch (currSlice->slice_type) {
-        case P_SLICE: 
-        case SP_SLICE:
-            currSlice->init_lists = init_lists_p_slice_mvc;
-            break;
-        case B_SLICE:
-            currSlice->init_lists = init_lists_b_slice_mvc;
-            break;
-        case I_SLICE: 
-        case SI_SLICE: 
-            currSlice->init_lists = init_lists_i_slice_mvc;
-            break;
-        default:
-            printf("Unsupported slice type\n");
-            break;
-        }
-    } else
-#endif
-    {
-        switch (currSlice->slice_type) {
-        case P_SLICE:
-        case SP_SLICE:
-            currSlice->init_lists = init_lists_p_slice;
-            break;
-        case B_SLICE:
-            currSlice->init_lists = init_lists_b_slice;
-            break;
-        case I_SLICE:
-        case SI_SLICE:
-            currSlice->init_lists = init_lists_i_slice;
-            break;
-        default:
-            printf("Unsupported slice type\n");
-            break;
-        }
     }
 }

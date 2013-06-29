@@ -157,7 +157,6 @@ typedef struct slice_t {
     int                       mb_aff_frame_flag;
 
     int                       ei_flag;       //!< 0 if the partArr[0] contains valid information
-    int                       end_mb_nr_plus1;
     int                       max_part_nr;
     int                       dp_mode;       //!< data partitioning mode
     int                       current_header;

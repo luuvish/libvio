@@ -1101,11 +1101,6 @@ void init_lists_b_slice(Slice *currSlice)
 
       currSlice->listXsize[0] = currSlice->listXsize[1] = (char) list0idx;
 
-      //printf("listX[0] (PicNum): "); for (i=0; i<currSlice->listXsize[0]; i++){printf ("%d  ", currSlice->listX[0][i]->pic_num);} printf("\n");
-      //printf("listX[1] (PicNum): "); for (i=0; i<currSlice->listXsize[1]; i++){printf ("%d  ", currSlice->listX[1][i]->pic_num);} printf("\n");
-      //printf("currSlice->listX[0] currPoc=%d (Poc): ", p_Vid->framepoc); for (i=0; i<currSlice->listXsize[0]; i++){printf ("%d  ", currSlice->listX[0][i]->poc);} printf("\n");
-      //printf("currSlice->listX[1] currPoc=%d (Poc): ", p_Vid->framepoc); for (i=0; i<currSlice->listXsize[1]; i++){printf ("%d  ", currSlice->listX[1][i]->poc);} printf("\n");
-
       // long term handling
       for (i=0; i<p_Dpb->ltref_frames_in_buffer; i++)
       {
@@ -3209,4 +3204,47 @@ StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePictur
 }
 #endif
 
+
+
+void init_lists(Slice *currSlice)
+{
+#if (MVC_EXTENSION_ENABLE)
+    if (currSlice->view_id) {
+        switch (currSlice->slice_type) {
+        case P_SLICE: 
+        case SP_SLICE:
+            init_lists_p_slice_mvc(currSlice);
+            return;
+        case B_SLICE:
+            init_lists_b_slice_mvc(currSlice);
+            return;
+        case I_SLICE: 
+        case SI_SLICE: 
+            init_lists_i_slice_mvc(currSlice);
+            return;
+        default:
+            printf("Unsupported slice type\n");
+            break;
+        }
+    } else
+#endif
+    {
+        switch (currSlice->slice_type) {
+        case P_SLICE:
+        case SP_SLICE:
+            init_lists_p_slice(currSlice);
+            return;
+        case B_SLICE:
+            init_lists_b_slice(currSlice);
+            return;
+        case I_SLICE:
+        case SI_SLICE:
+            init_lists_i_slice(currSlice);
+            return;
+        default:
+            printf("Unsupported slice type\n");
+            break;
+        }
+    }
+}
 
