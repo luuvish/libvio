@@ -74,7 +74,31 @@ typedef struct macroblock_dec {
     struct macroblock_dec *mbleft; // neighbors for loopfilter
 
     // some storage of macroblock syntax elements for global access
-    short                  mb_type;
+    short       mb_type;
+    bool        transform_size_8x8_flag;
+    uint8_t     coded_block_pattern;
+    int8_t      mb_qp_delta;
+    bool        prev_intra4x4_pred_mode_flag[16];
+    uint8_t     rem_intra4x4_pred_mode      [16];
+    bool        prev_intra8x8_pred_mode_flag[16];
+    uint8_t     rem_intra8x8_pred_mode      [16];
+    uint8_t     intra_chroma_pred_mode;
+    uint8_t     ref_idx_l0 [4];
+    uint8_t     ref_idx_l1 [4];
+    uint32_t    mvd_l0     [4][4][2];
+    uint32_t    mvd_l1     [4][4][2];
+    uint8_t     sub_mb_type[4];
+
+    bool        noSubMbPartSizeLessThan8x8Flag;
+    uint8_t     MbPartPredMode[4];
+    uint8_t     Intra16x16PredMode;
+    uint8_t     CodedBlockPatternLuma;
+    uint8_t     CodedBlockPatternChroma;
+    uint8_t     QPy;
+    bool        TransformBypassModeFlag;
+    uint8_t     SubMbPredMode[4][4];
+
+
     short                  mvd[2][BLOCK_MULTIPLE][BLOCK_MULTIPLE][2]; //!< indices correspond to [forw,backw][block_y][block_x][x,y]
     int                    cbp;
     CBPStructure           s_cbp[3];

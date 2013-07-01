@@ -127,7 +127,7 @@ void start_macroblock(Macroblock *currMB)
         else
             memset(currMB->mvd[0][0][0], 0, 2 * MB_BLOCK_PARTITIONS * 2 * sizeof(short));
     }
-  
+
     memset(currMB->s_cbp, 0, 3 * sizeof(CBPStructure));
 
     // initialize currSlice->mb_rres
