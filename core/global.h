@@ -41,7 +41,6 @@ extern "C" {
 #include "defines.h"
 #include "ifunctions.h"
 
-#include "parser.h"
 #include "parset.h"
 
 typedef enum {
@@ -143,21 +142,6 @@ enum {
   BI_PRED_L0 = 3,
   BI_PRED_L1 = 4
 };
-
-//! Data Partitioning Modes
-typedef enum
-{
-  PAR_DP_1,   //!< no data partitioning is supported
-  PAR_DP_3    //!< data partitioning with 3 partitions
-} PAR_DP_TYPE;
-
-
-//! Output File Types
-typedef enum
-{
-  PAR_OF_ANNEXB,    //!< Annex B byte stream format
-  PAR_OF_RTP       //!< RTP packets in outfile
-} PAR_OF_TYPE;
 
 //! Field Coding Types
 typedef enum
@@ -688,7 +672,6 @@ typedef struct decoder_params
 {
   InputParameters   *p_Inp;          //!< Input Parameters
   VideoParameters   *p_Vid;          //!< Image Parameters
-  int                UsedBits;      // for internal statistics, is adjusted by read_se_v, read_ue_v, read_u_1
 } DecoderParams;
 
 extern DecoderParams  *p_Dec;

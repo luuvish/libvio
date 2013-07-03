@@ -45,14 +45,6 @@ typedef enum {
 #endif
 } NaluType;
 
-//! values for nal_ref_idc
-typedef enum {
-    NALU_PRIORITY_HIGHEST     = 3,
-    NALU_PRIORITY_HIGH        = 2,
-    NALU_PRIORITY_LOW         = 1,
-    NALU_PRIORITY_DISPOSABLE  = 0
-} NalRefIdc;
-
 //! NAL unit structure
 typedef struct nalu_t {
     int       startcodeprefix_len;   //!< 4 for parameter sets and first slice in picture, 3 for everything else (suggested)
@@ -60,7 +52,7 @@ typedef struct nalu_t {
     unsigned  max_size;              //!< NAL Unit Buffer size
     int       forbidden_bit;         //!< should be always FALSE
     NaluType  nal_unit_type;         //!< NALU_TYPE_xxxx
-    NalRefIdc nal_reference_idc;     //!< NALU_PRIORITY_xxxx  
+    uint8_t   nal_reference_idc;     //!< NALU_PRIORITY_xxxx  
     byte     *buf;                   //!< contains the first byte followed by the EBSP
     uint16    lost_packets;          //!< true, if packet loss is detected
 #if (MVC_EXTENSION_ENABLE)
@@ -75,10 +67,8 @@ typedef struct nalu_t {
 #endif
 } NALU_t;
 
-//! allocate one NAL Unit
-NALU_t *AllocNALU(int);
 
-//! free one NAL Unit
+NALU_t *AllocNALU(int);
 void FreeNALU(NALU_t *n);
 
 void CheckZeroByteNonVCL(struct bitstream_t *bitstream, NALU_t *nalu);

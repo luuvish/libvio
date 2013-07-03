@@ -25,6 +25,7 @@
 #include "bitstream.h"
 #include "bitstream_annex_b.h"
 #include "bitstream_rtp.h"
+#include "bitstream_nal.h"
 
 
 void open_bitstream(struct bitstream_t **bitstream, char *name, int format, unsigned max_size)
@@ -68,4 +69,59 @@ void reset_bitstream(struct bitstream_t *bitstream)
 {
     if (bitstream->FileFormat == PAR_OF_ANNEXB)
         reset_annex_b(bitstream->annex_b); 
+}
+
+
+
+DataPartition *AllocPartition(int n)
+{
+    DataPartition *partArr, *dataPart;
+    int i;
+
+    partArr = (DataPartition *)calloc(n, sizeof(DataPartition));
+    if (partArr == NULL) {
+        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
+        error(errortext, 100);
+    }
+
+    for (i = 0; i < n; ++i) { // loop over all data partitions
+        dataPart = &(partArr[i]);
+        dataPart->bitstream = (Bitstream *)calloc(1, sizeof(Bitstream));
+        if (dataPart->bitstream == NULL) {
+            snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Bitstream failed");
+            error(errortext, 100);
+        }
+        dataPart->bitstream->streamBuffer = (byte *)calloc(MAX_CODED_FRAME_SIZE, sizeof(byte));
+        if (dataPart->bitstream->streamBuffer == NULL) {
+            snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for streamBuffer failed");
+            error(errortext, 100);
+        }
+    }
+    return partArr;
+}
+
+void FreePartition(DataPartition *dp, int n)
+{
+    int i;
+
+    assert(dp != NULL);
+    assert(dp->bitstream != NULL);
+    assert(dp->bitstream->streamBuffer != NULL);
+    for (i = 0; i < n; ++i) {
+        free(dp[i].bitstream->streamBuffer);
+        free(dp[i].bitstream);
+    }
+    free(dp);
+}
+
+Bitstream *InitPartition(DataPartition *dp, struct nalu_t *nalu)
+{
+    Bitstream *currStream = dp->bitstream;
+    currStream->ei_flag    = 0;
+    currStream->frame_bitoffset = currStream->read_len = 0;
+
+    memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
+    currStream->code_len = currStream->bitstream_length = RBSPtoSODB(currStream->streamBuffer, nalu->len-1);
+
+    return currStream;
 }

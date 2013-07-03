@@ -205,16 +205,15 @@ static inline unsigned int getword(DecodingEnvironmentPtr dep)
 void arideco_start_decoding(DecodingEnvironmentPtr dep, unsigned char *code_buffer,
                             int firstbyte, int *code_len)
 {
+    dep->Dcodestrm      = code_buffer;
+    dep->Dcodestrm_len  = code_len;
+    *dep->Dcodestrm_len = firstbyte;
 
-  dep->Dcodestrm      = code_buffer;
-  dep->Dcodestrm_len  = code_len;
-  *dep->Dcodestrm_len = firstbyte;
-
-  dep->Dvalue = getbyte(dep);
-  dep->Dvalue = (dep->Dvalue << 16) | getword(dep); // lookahead of 2 bytes: always make sure that bitstream buffer
+    dep->Dvalue = getbyte(dep);
+    dep->Dvalue = (dep->Dvalue << 16) | getword(dep); // lookahead of 2 bytes: always make sure that bitstream buffer
                                         // contains 2 more bytes than actual bitstream
-  dep->DbitsLeft = 15;
-  dep->Drange = HALF;
+    dep->DbitsLeft = 15;
+    dep->Drange = HALF;
 }
 
 

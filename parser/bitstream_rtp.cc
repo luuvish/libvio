@@ -205,7 +205,7 @@ int get_nalu_from_rtp(NALU_t *nalu, int BitStreamFile)
         nalu->len = p->paylen;
         memcpy(nalu->buf, p->payload, p->paylen);
         nalu->forbidden_bit = (nalu->buf[0] >> 7) & 1;
-        nalu->nal_reference_idc = (NalRefIdc)((nalu->buf[0] >> 5) & 3);
+        nalu->nal_reference_idc = (nalu->buf[0] >> 5) & 3;
         nalu->nal_unit_type = (NaluType)(nalu->buf[0] & 0x1f);
         if (nalu->lost_packets)
             printf("Warning: RTP sequence number discontinuity detected\n");

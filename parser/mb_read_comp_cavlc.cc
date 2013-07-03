@@ -672,11 +672,7 @@ static void read_coeff_4x4_CAVLC(Macroblock *currMB,
   {
     if (numtrailingones)
     {      
-      currSE.len = numtrailingones;
-
-      readSyntaxElement_FLC (&currSE, currStream);
-
-      code = currSE.inf;
+      code = currStream->f(numtrailingones);
       ntr = numtrailingones;
       for (k = numcoeff - 1; k > numcoeff - 1 - numtrailingones; k--)
       {
@@ -907,11 +903,7 @@ static void read_coeff_4x4_CAVLC_444(Macroblock *currMB,
   {
     if (numtrailingones)
     {      
-      currSE.len = numtrailingones;
-
-      readSyntaxElement_FLC (&currSE, currStream);
-
-      code = currSE.inf;
+      code = currStream->f(numtrailingones);
       ntr = numtrailingones;
       for (k = numcoeff - 1; k > numcoeff - 1 - numtrailingones; k--)
       {
@@ -1410,11 +1402,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_400(Macroblock *currMB)
       currSE.type   =  SE_HEADER;
       dP = &(currSlice->partArr[partMap[SE_HEADER]]);
 
-      // read CAVLC transform_size_8x8_flag
-      currSE.len = 1;
-      readSyntaxElement_FLC(&currSE, dP->bitstream);
-
-      currMB->luma_transform_size_8x8_flag = (Boolean) currSE.value1;
+      currMB->luma_transform_size_8x8_flag = dP->bitstream->f(1);
     }
 
     //=====   DQUANT   =====
@@ -1591,11 +1579,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
       currSE.type   =  SE_HEADER;
       dP = &(currSlice->partArr[partMap[SE_HEADER]]);
 
-      // read CAVLC transform_size_8x8_flag
-      currSE.len = 1;
-      readSyntaxElement_FLC(&currSE, dP->bitstream);
-
-      currMB->luma_transform_size_8x8_flag = (Boolean) currSE.value1;
+      currMB->luma_transform_size_8x8_flag = dP->bitstream->f(1);
     }
 
     //=====   DQUANT   =====
@@ -1930,11 +1914,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
       currSE.type   =  SE_HEADER;
       dP = &(currSlice->partArr[partMap[SE_HEADER]]);
 
-      // read CAVLC transform_size_8x8_flag
-      currSE.len = 1;
-      readSyntaxElement_FLC(&currSE, dP->bitstream);
-
-      currMB->luma_transform_size_8x8_flag = (Boolean) currSE.value1;
+      currMB->luma_transform_size_8x8_flag = dP->bitstream->f(1);
     }
 
     //=====   DQUANT   =====
@@ -2143,11 +2123,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
             currSE.type = SE_HEADER;
             dP = &(currSlice->partArr[partMap[SE_HEADER]]);
 
-            // read CAVLC transform_size_8x8_flag
-            currSE.len = 1;
-            readSyntaxElement_FLC(&currSE, dP->bitstream);
-
-            currMB->luma_transform_size_8x8_flag = (Boolean)currSE.value1;
+            currMB->luma_transform_size_8x8_flag = dP->bitstream->f(1);
         }
 
         //=====   DQUANT   =====

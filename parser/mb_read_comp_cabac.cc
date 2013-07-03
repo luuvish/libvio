@@ -598,8 +598,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
 
             // read CAVLC transform_size_8x8_flag
             if (dP->bitstream->ei_flag) {
-                currSE.len = 1;
-                readSyntaxElement_FLC(&currSE, dP->bitstream);
+                currSE.value1 = dP->bitstream->f(1);
             } else
                 dP->readSyntaxElement(currMB, &currSE, dP);
 
@@ -901,8 +900,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_400(Macroblock *currMB)
       // read CAVLC transform_size_8x8_flag
       if (dP->bitstream->ei_flag)
       {
-        currSE.len = 1;
-        readSyntaxElement_FLC(&currSE, dP->bitstream);
+        currSE.value1 = dP->bitstream->f(1);
       } 
       else
       {
@@ -1112,8 +1110,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
       // read CAVLC transform_size_8x8_flag
       if (dP->bitstream->ei_flag)
       {
-        currSE.len = 1;
-        readSyntaxElement_FLC(&currSE, dP->bitstream);
+        currSE.value1 = dP->bitstream->f(1);
       } 
       else
       {
@@ -1415,8 +1412,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
       // read CAVLC transform_size_8x8_flag
       if (dP->bitstream->ei_flag)
       {
-        currSE.len = 1;
-        readSyntaxElement_FLC(&currSE, dP->bitstream);
+        currSE.value1 = dP->bitstream->f(1);
       } 
       else
       {

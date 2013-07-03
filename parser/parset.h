@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 
+#include "bitstream.h"
 #include "bitstream_nal.h"
 
 #include "defines.h"

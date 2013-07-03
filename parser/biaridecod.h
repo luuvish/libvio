@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-#include "parser.h"
+#include "bitstream.h"
 
 /************************************************************************
  * D e f i n i t i o n s

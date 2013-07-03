@@ -1777,9 +1777,8 @@ int uvlc_startcode_follows(Slice *currSlice, int dummy)
   byte            dp_Nr = assignSE2partition[currSlice->dp_mode][SE_MBTYPE];
   DataPartition     *dP = &(currSlice->partArr[dp_Nr]);
   Bitstream *currStream = dP->bitstream;
-  byte             *buf = currStream->streamBuffer;
 
-  return (!(more_rbsp_data(buf, currStream->frame_bitoffset,currStream->bitstream_length)));
+  return !currStream->more_rbsp_data();
 }
 
 /*!

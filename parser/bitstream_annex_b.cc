@@ -202,7 +202,7 @@ int get_nalu_from_annex_b(NALU_t *nalu, ANNEXB_t *annex_b)
             nalu->len = (pos - 1) - LeadingZero8BitsCount;
             memcpy(nalu->buf, annex_b->Buf + LeadingZero8BitsCount, nalu->len);
             nalu->forbidden_bit     = (*(nalu->buf) >> 7) & 1;
-            nalu->nal_reference_idc = (NalRefIdc) ((*(nalu->buf) >> 5) & 3);
+            nalu->nal_reference_idc = (*(nalu->buf) >> 5) & 3;
             nalu->nal_unit_type     = (NaluType) ((*(nalu->buf)) & 0x1f);
             annex_b->nextstartcodebytes = 0;
 
@@ -244,7 +244,7 @@ int get_nalu_from_annex_b(NALU_t *nalu, ANNEXB_t *annex_b)
     nalu->len = pos - LeadingZero8BitsCount;
     memcpy(nalu->buf, annex_b->Buf + LeadingZero8BitsCount, nalu->len);
     nalu->forbidden_bit     = (*(nalu->buf) >> 7) & 1;
-    nalu->nal_reference_idc = (NalRefIdc) ((*(nalu->buf) >> 5) & 3);
+    nalu->nal_reference_idc = (*(nalu->buf) >> 5) & 3;
     nalu->nal_unit_type     = (NaluType) ((*(nalu->buf)) & 0x1f);
     nalu->lost_packets      = 0;
 

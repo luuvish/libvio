@@ -106,11 +106,7 @@ static int parse_idr(Slice *currSlice)
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->svc_extension_flag != 0) {
 #endif
-        currStream = currSlice->partArr[0].bitstream;
-        currStream->ei_flag = 0;
-        currStream->frame_bitoffset = currStream->read_len = 0;
-        memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
-        currStream->code_len = currStream->bitstream_length = RBSPtoSODB(currStream->streamBuffer, nalu->len-1);
+        currStream = InitPartition(&currSlice->partArr[0], nalu);
 #if (MVC_EXTENSION_ENABLE)
     }
 #endif
@@ -217,11 +213,7 @@ static int parse_dpa(Slice *currSlice)
 #if MVC_EXTENSION_ENABLE
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[0];
 #endif
-    currStream             = currSlice->partArr[0].bitstream;
-    currStream->ei_flag    = 0;
-    currStream->frame_bitoffset = currStream->read_len = 0;
-    memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
-    currStream->code_len = currStream->bitstream_length = RBSPtoSODB(currStream->streamBuffer, nalu->len-1);
+    currStream = InitPartition(&currSlice->partArr[0], nalu);
 #if MVC_EXTENSION_ENABLE
     currSlice->view_id = GetBaseViewId(p_Vid, &p_Vid->active_subset_sps);
     currSlice->inter_view_flag = 1;
@@ -258,7 +250,7 @@ static int parse_dpa(Slice *currSlice)
     // Now I need to read the slice ID, which depends on the value of
     // redundant_pic_cnt_present_flag
 
-    slice_id_a = read_ue_v("NALU: DP_A slice_id", currStream, &p_Dec->UsedBits);
+    slice_id_a = currStream->ue("NALU: DP_A slice_id");
 
     if (p_Vid->active_pps->entropy_coding_mode_flag)
         error ("received data partition with CABAC, this is not allowed", 500);
@@ -269,14 +261,9 @@ static int parse_dpa(Slice *currSlice)
 
     if ( NALU_TYPE_DPB == nalu->nal_unit_type) {
         // we got a DPB
-        currStream             = currSlice->partArr[1].bitstream;
-        currStream->ei_flag    = 0;
-        currStream->frame_bitoffset = currStream->read_len = 0;
+        currStream = InitPartition(&currSlice->partArr[1], nalu);
 
-        memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
-        currStream->code_len = currStream->bitstream_length = RBSPtoSODB(currStream->streamBuffer, nalu->len-1);
-
-        slice_id_b = read_ue_v("NALU: DP_B slice_id", currStream, &p_Dec->UsedBits);
+        slice_id_b = currStream->ue("NALU: DP_B slice_id");
 
         currSlice->dpB_NotPresent = 0; 
 
@@ -286,7 +273,7 @@ static int parse_dpa(Slice *currSlice)
             currSlice->dpC_NotPresent = 1;
         } else {
             if (p_Vid->active_pps->redundant_pic_cnt_present_flag)
-                read_ue_v("NALU: DP_B redundant_pic_cnt", currStream, &p_Dec->UsedBits);
+                currStream->ue("NALU: DP_B redundant_pic_cnt");
 
             // we're finished with DP_B, so let's continue with next DP
             if (0 == read_next_nalu(p_Vid->bitstream, nalu))
@@ -297,23 +284,18 @@ static int parse_dpa(Slice *currSlice)
 
     // check if we got DP_C
     if ( NALU_TYPE_DPC == nalu->nal_unit_type) {
-        currStream             = currSlice->partArr[2].bitstream;
-        currStream->ei_flag    = 0;
-        currStream->frame_bitoffset = currStream->read_len = 0;
-
-        memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
-        currStream->code_len = currStream->bitstream_length = RBSPtoSODB(currStream->streamBuffer, nalu->len-1);
+        currStream = InitPartition(&currSlice->partArr[2], nalu);
 
         currSlice->dpC_NotPresent = 0;
 
-        slice_id_c = read_ue_v("NALU: DP_C slice_id", currStream, &p_Dec->UsedBits);
+        slice_id_c = currStream->ue("NALU: DP_C slice_id");
         if ((slice_id_c != slice_id_a)|| (nalu->lost_packets)) {
             printf ("Warning: got a data partition C which does not match DP_A(DP loss!)\n");
             currSlice->dpC_NotPresent =1;
         }
 
         if (p_Vid->active_pps->redundant_pic_cnt_present_flag)
-            read_ue_v("NALU:SLICE_C redudand_pic_cnt", currStream, &p_Dec->UsedBits);
+            currStream->ue("NALU:SLICE_C redudand_pic_cnt");
     } else
         currSlice->dpC_NotPresent = 1;
 
@@ -361,13 +343,9 @@ int read_new_slice(Slice *currSlice)
 #if (MVC_EXTENSION_ENABLE)
         if (p_Inp->DecodeAllLayers == 1 &&
             (nalu->nal_unit_type == NALU_TYPE_PREFIX || nalu->nal_unit_type == NALU_TYPE_SLC_EXT)) {
-            currStream = currSlice->partArr[0].bitstream;
-            currStream->ei_flag = 0;
-            currStream->frame_bitoffset = currStream->read_len = 0;
-            memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
-            currStream->code_len = currStream->bitstream_length = RBSPtoSODB(currStream->streamBuffer, nalu->len-1);
+            currStream = InitPartition(&currSlice->partArr[0], nalu);
 
-            currSlice->svc_extension_flag = read_u_1 ("svc_extension_flag"        , currStream, &p_Dec->UsedBits);
+            currSlice->svc_extension_flag = currStream->u(1, "svc_extension_flag");
 
             if (currSlice->svc_extension_flag)
                 nal_unit_header_svc_extension();

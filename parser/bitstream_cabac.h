@@ -24,9 +24,7 @@ extern "C" {
 #endif
 
 #include "global.h"
-#include "parser.h"
-
-#define NUM_BLOCK_TYPES 22  
+#include "bitstream.h"
 
 /***********************************************************************
  * D a t a    t y p e s   f o r  C A B A C
@@ -49,17 +47,11 @@ typedef BiContextType *BiContextTypePtr;
  */
 
 #define NUM_MB_TYPE_CTX  11
-#define NUM_B8_TYPE_CTX  9
+#define NUM_B8_TYPE_CTX   9
 #define NUM_MV_RES_CTX   10
-#define NUM_REF_NO_CTX   6
-#define NUM_DELTA_QP_CTX 4
-#define NUM_MB_AFF_CTX 4
-#define NUM_TRANSFORM_SIZE_CTX 3
-
-// structures that will be declared somewhere else
-struct storable_picture;
-struct datapartition_dec;
-struct syntaxelement_dec;
+#define NUM_REF_NO_CTX    6
+#define NUM_DELTA_QP_CTX  4
+#define NUM_MB_AFF_CTX    4
 
 typedef struct motion_info_context_t {
     BiContextType mb_type_contexts [3][NUM_MB_TYPE_CTX];
@@ -70,14 +62,17 @@ typedef struct motion_info_context_t {
     BiContextType mb_aff_contexts     [NUM_MB_AFF_CTX];
 } MotionInfoContexts;
 
-#define NUM_IPR_CTX    2
-#define NUM_CIPR_CTX   4
-#define NUM_CBP_CTX    4
-#define NUM_BCBP_CTX   4
-#define NUM_MAP_CTX   15
-#define NUM_LAST_CTX  15
-#define NUM_ONE_CTX    5
-#define NUM_ABS_CTX    5
+#define NUM_BLOCK_TYPES        22
+
+#define NUM_TRANSFORM_SIZE_CTX  3
+#define NUM_IPR_CTX             2
+#define NUM_CIPR_CTX            4
+#define NUM_CBP_CTX             4
+#define NUM_BCBP_CTX            4
+#define NUM_MAP_CTX            15
+#define NUM_LAST_CTX           15
+#define NUM_ONE_CTX             5
+#define NUM_ABS_CTX             5
 
 typedef struct texture_info_context_t {
     BiContextType transform_size_contexts   [NUM_TRANSFORM_SIZE_CTX];
@@ -93,6 +88,10 @@ typedef struct texture_info_context_t {
 
 //*********************** end of data type definition for CABAC *******************
 
+// structures that will be declared somewhere else
+struct storable_picture;
+struct datapartition_dec;
+struct syntaxelement_dec;
 struct slice_t;
 struct macroblock_dec;
 
