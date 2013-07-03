@@ -17,7 +17,7 @@
  */
 static void readMB_typeInfo_CABAC_i_slice(Macroblock *currMB,  
                                           SyntaxElement *se,
-                                          DecodingEnvironmentPtr dep_dp)
+                                          DecodingEnvironment *dep_dp)
 {
     Slice *currSlice = currMB->p_Slice;
     MotionInfoContexts *ctx = currSlice->mot_ctx;
@@ -138,7 +138,7 @@ static void readMB_typeInfo_CABAC_i_slice(Macroblock *currMB,
  */
 static void readMB_typeInfo_CABAC_p_slice(Macroblock *currMB,  
                            SyntaxElement *se,
-                           DecodingEnvironmentPtr dep_dp)
+                           DecodingEnvironment *dep_dp)
 {
   Slice *currSlice = currMB->p_Slice;
   MotionInfoContexts *ctx = currSlice->mot_ctx;
@@ -225,7 +225,7 @@ static void readMB_typeInfo_CABAC_p_slice(Macroblock *currMB,
  */
 static void readMB_typeInfo_CABAC_b_slice(Macroblock *currMB,  
                            SyntaxElement *se,
-                           DecodingEnvironmentPtr dep_dp)
+                           DecodingEnvironment *dep_dp)
 {
   Slice *currSlice = currMB->p_Slice;
   MotionInfoContexts *ctx = currSlice->mot_ctx;

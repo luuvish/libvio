@@ -135,7 +135,7 @@ typedef struct macroblock_dec {
     Boolean                NoMbPartLessThan8x8Flag;
 
     int  (*read_and_store_CBP_block_bit)(struct macroblock_dec *currMB,
-        DecodingEnvironmentPtr dep_dp, int type);
+        DecodingEnvironment *dep_dp, int type);
     char (*readRefPictureIdx)           (struct macroblock_dec *currMB,
         struct syntaxelement_dec *currSE, struct datapartition_dec *dP,
         char b8mode, int list);

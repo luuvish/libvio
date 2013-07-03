@@ -100,18 +100,18 @@ TextureInfoContexts* create_contexts_TextureInfo(void);
 void delete_contexts_MotionInfo(MotionInfoContexts *enco_ctx);
 void delete_contexts_TextureInfo(TextureInfoContexts *enco_ctx);
 
-void readRefFrame_CABAC(struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-void read_MVD_CABAC( struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-void read_mvd_CABAC_mbaff( struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void readRefFrame_CABAC(struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
+void read_MVD_CABAC( struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
+void read_mvd_CABAC_mbaff( struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
 
-void read_CBP_CABAC                  (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-void readRunLevel_CABAC              (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-void read_dQuant_CABAC               (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-void readCIPredMode_CABAC            (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-void read_skip_flag_CABAC_p_slice    (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-void read_skip_flag_CABAC_b_slice    (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-void readFieldModeInfo_CABAC         (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
-void readMB_transform_size_flag_CABAC(struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironmentPtr dep_dp);
+void read_CBP_CABAC                  (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
+void readRunLevel_CABAC              (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
+void read_dQuant_CABAC               (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
+void readCIPredMode_CABAC            (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
+void read_skip_flag_CABAC_p_slice    (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
+void read_skip_flag_CABAC_b_slice    (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
+void readFieldModeInfo_CABAC         (struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
+void readMB_transform_size_flag_CABAC(struct macroblock_dec *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
 
 void readIPCM_CABAC(struct slice_t *currSlice, struct datapartition_dec *dP);
 

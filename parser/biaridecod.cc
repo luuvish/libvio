@@ -126,40 +126,6 @@ static const byte renorm_table_32[32] = {
 #define HALF      0x01FE  //(1 << (B_BITS-1)) - 2
 #define QUARTER   0x0100  //(1 << (B_BITS-2))
 
-/*!
- ************************************************************************
- * \brief
- *    Allocates memory for the DecodingEnvironment struct
- * \return DecodingContextPtr
- *    allocates memory
- ************************************************************************
- */
-DecodingEnvironmentPtr arideco_create_decoding_environment()
-{
-  DecodingEnvironmentPtr dep;
-
-  if ((dep = (DecodingEnvironmentPtr)calloc(1,sizeof(DecodingEnvironment))) == NULL)
-    no_mem_exit("arideco_create_decoding_environment: dep");
-  return dep;
-}
-
-
-/*!
- ***********************************************************************
- * \brief
- *    Frees memory of the DecodingEnvironment struct
- ***********************************************************************
- */
-void arideco_delete_decoding_environment(DecodingEnvironmentPtr dep)
-{
-  if (dep == NULL)
-  {
-    snprintf(errortext, ET_SIZE, "Error freeing dep (NULL pointer)");
-    error (errortext, 200);
-  }
-  else
-    free(dep);
-}
 
 /*!
  ************************************************************************
@@ -167,7 +133,7 @@ void arideco_delete_decoding_environment(DecodingEnvironmentPtr dep)
  *    finalize arithetic decoding():
  ************************************************************************
  */
-void arideco_done_decoding(DecodingEnvironmentPtr dep)
+void arideco_done_decoding(DecodingEnvironment *dep)
 {
   (*dep->Dcodestrm_len)++;
 }
@@ -178,7 +144,7 @@ void arideco_done_decoding(DecodingEnvironmentPtr dep)
  *    read one byte from the bitstream
  ************************************************************************
  */
-static inline unsigned int getbyte(DecodingEnvironmentPtr dep)
+static inline unsigned int getbyte(DecodingEnvironment *dep)
 {     
   return dep->Dcodestrm[(*dep->Dcodestrm_len)++];
 }
@@ -189,7 +155,7 @@ static inline unsigned int getbyte(DecodingEnvironmentPtr dep)
  *    read two bytes from the bitstream
  ************************************************************************
  */
-static inline unsigned int getword(DecodingEnvironmentPtr dep)
+static inline unsigned int getword(DecodingEnvironment *dep)
 {
   int *len = dep->Dcodestrm_len;
   byte *p_code_strm = &dep->Dcodestrm[*len];
@@ -202,7 +168,7 @@ static inline unsigned int getword(DecodingEnvironmentPtr dep)
  *    Initializes the DecodingEnvironment for the arithmetic coder
  ************************************************************************
  */
-void arideco_start_decoding(DecodingEnvironmentPtr dep, unsigned char *code_buffer,
+void arideco_start_decoding(DecodingEnvironment *dep, unsigned char *code_buffer,
                             int firstbyte, int *code_len)
 {
     dep->Dcodestrm      = code_buffer;
@@ -223,7 +189,7 @@ void arideco_start_decoding(DecodingEnvironmentPtr dep, unsigned char *code_buff
  *    arideco_bits_read
  ************************************************************************
  */
-int arideco_bits_read(DecodingEnvironmentPtr dep)
+int arideco_bits_read(DecodingEnvironment *dep)
 { 
  return (((*dep->Dcodestrm_len) << 3) - dep->DbitsLeft);
 }
@@ -237,58 +203,49 @@ int arideco_bits_read(DecodingEnvironmentPtr dep)
 *    the decoded symbol
 ************************************************************************
 */
-unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct )
+unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct)
 {  
-  unsigned int bit    = bi_ct->MPS;
-  unsigned int *value = &dep->Dvalue;
-  unsigned int *range = &dep->Drange;  
-  uint16       *state = &bi_ct->state;
-  unsigned int rLPS   = rLPS_table_64x4[*state][(*range>>6) & 0x03];
-  int *DbitsLeft = &dep->DbitsLeft;
+    unsigned int bit    = bi_ct->MPS;
+    unsigned int *value = &dep->Dvalue;
+    unsigned int *range = &dep->Drange;  
+    uint16       *state = &bi_ct->state;
+    unsigned int rLPS   = rLPS_table_64x4[*state][(*range>>6) & 0x03];
+    int *DbitsLeft = &dep->DbitsLeft;
 
-  *range -= rLPS;
+    *range -= rLPS;
 
-  if(*value < (*range << *DbitsLeft))   //MPS
-  {
-    *state = AC_next_state_MPS_64[*state]; // next state 
-    if( *range >= QUARTER )
-    {
-      return (bit);
+    if (*value < (*range << *DbitsLeft)) { //MPS
+        *state = AC_next_state_MPS_64[*state]; // next state 
+        if (*range >= QUARTER)
+            return bit;
+        else {
+            *range <<= 1;
+            (*DbitsLeft)--;
+        }
+    } else {       // LPS 
+        int renorm = renorm_table_32[(rLPS>>3) & 0x1F];
+        *value -= (*range << *DbitsLeft);
+
+        *range = (rLPS << renorm);
+        (*DbitsLeft) -= renorm;
+
+        bit ^= 0x01;
+        if (!(*state))          // switch meaning of MPS if necessary 
+            bi_ct->MPS ^= 0x01; 
+
+        *state = AC_next_state_LPS_64[*state]; // next state 
     }
-    else 
-    {
-      *range <<= 1;
-      (*DbitsLeft)--;
+
+    if (*DbitsLeft > 0)
+        return bit;
+    else {
+        *value <<= 16;
+        *value |= getword(dep);    // lookahead of 2 bytes: always make sure that bitstream buffer
+        // contains 2 more bytes than actual bitstream
+        (*DbitsLeft) += 16;
+
+        return bit;
     }
-  }
-  else         // LPS 
-  {
-    int renorm = renorm_table_32[(rLPS>>3) & 0x1F];
-    *value -= (*range << *DbitsLeft);
-
-    *range = (rLPS << renorm);
-    (*DbitsLeft) -= renorm;
-
-    bit ^= 0x01;
-    if (!(*state))          // switch meaning of MPS if necessary 
-      bi_ct->MPS ^= 0x01; 
-
-    *state = AC_next_state_LPS_64[*state]; // next state 
-  }
-
-  if( *DbitsLeft > 0 )
-  {     
-    return (bit);
-  } 
-  else
-  {
-    *value <<= 16;
-    *value |=  getword(dep);    // lookahead of 2 bytes: always make sure that bitstream buffer
-    // contains 2 more bytes than actual bitstream
-    (*DbitsLeft) += 16;
-
-    return (bit);
-  }
 }
 
 
@@ -300,7 +257,7 @@ unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct 
  *    the decoded symbol
  ************************************************************************
  */
-unsigned int biari_decode_symbol_eq_prob(DecodingEnvironmentPtr dep)
+unsigned int biari_decode_symbol_eq_prob(DecodingEnvironment *dep)
 {
    int tmp_value;
    unsigned int *value = &dep->Dvalue;
@@ -333,7 +290,7 @@ unsigned int biari_decode_symbol_eq_prob(DecodingEnvironmentPtr dep)
  *    the decoded symbol
  ************************************************************************
  */
-unsigned int biari_decode_final(DecodingEnvironmentPtr dep)
+unsigned int biari_decode_final(DecodingEnvironment *dep)
 {
   unsigned int range  = dep->Drange - 2;
   int value  = dep->Dvalue;

@@ -101,7 +101,7 @@ static int readSyntaxElement_Intra4x4PredictionMode(SyntaxElement *sym, Bitstrea
  */
 static void readB8_typeInfo_CABAC_p_slice (Macroblock *currMB, 
                                     SyntaxElement *se,
-                                    DecodingEnvironmentPtr dep_dp)
+                                    DecodingEnvironment *dep_dp)
 {
   Slice *currSlice = currMB->p_Slice;
   int act_sym = 0;
@@ -135,7 +135,7 @@ static void readB8_typeInfo_CABAC_p_slice (Macroblock *currMB,
  */
 static void readB8_typeInfo_CABAC_b_slice (Macroblock *currMB, 
                                     SyntaxElement *se,
-                                    DecodingEnvironmentPtr dep_dp)
+                                    DecodingEnvironment *dep_dp)
 {
   Slice *currSlice = currMB->p_Slice;
   int act_sym = 0;
@@ -196,7 +196,7 @@ static void readB8_typeInfo_CABAC_b_slice (Macroblock *currMB,
  */
 static void readIntraPredMode_CABAC( Macroblock *currMB, 
                               SyntaxElement *se,
-                              DecodingEnvironmentPtr dep_dp)
+                              DecodingEnvironment *dep_dp)
 {
   Slice *currSlice = currMB->p_Slice;
   TextureInfoContexts *ctx     = currSlice->tex_ctx;
@@ -1245,7 +1245,7 @@ static void init_decoding_engine_IPCM(Slice *currSlice)
     currStream = currSlice->partArr[i].bitstream;
     ByteStartPosition = currStream->read_len;
 
-    arideco_start_decoding (&currSlice->partArr[i].de_cabac, currStream->streamBuffer, ByteStartPosition, &currStream->read_len);
+    arideco_start_decoding (&currSlice->partArr[i].bitstream->de_cabac, currStream->streamBuffer, ByteStartPosition, &currStream->read_len);
   }
 }
 

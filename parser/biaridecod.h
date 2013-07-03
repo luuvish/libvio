@@ -31,13 +31,13 @@ extern "C" {
  ***********************************************************************
  */
 
-void arideco_start_decoding(DecodingEnvironmentPtr eep, unsigned char *code_buffer, int firstbyte, int *code_len);
-int  arideco_bits_read(DecodingEnvironmentPtr dep);
-void arideco_done_decoding(DecodingEnvironmentPtr dep);
+void arideco_start_decoding(DecodingEnvironment *eep, unsigned char *code_buffer, int firstbyte, int *code_len);
+int  arideco_bits_read(DecodingEnvironment *dep);
+void arideco_done_decoding(DecodingEnvironment *dep);
 void biari_init_context (int qp, BiContextTypePtr ctx, const char* ini);
 unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct );
-unsigned int biari_decode_symbol_eq_prob(DecodingEnvironmentPtr dep);
-unsigned int biari_decode_final(DecodingEnvironmentPtr dep);
+unsigned int biari_decode_symbol_eq_prob(DecodingEnvironment *dep);
+unsigned int biari_decode_final(DecodingEnvironment *dep);
 
 #ifdef __cplusplus
 }

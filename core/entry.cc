@@ -182,7 +182,7 @@ static int parse_idr(Slice *currSlice)
         int ByteStartPosition = currStream->frame_bitoffset / 8;
         if (currStream->frame_bitoffset % 8 != 0)
             ++ByteStartPosition;
-        arideco_start_decoding (&currSlice->partArr[0].de_cabac, currStream->streamBuffer, ByteStartPosition, &currStream->read_len);
+        arideco_start_decoding (&currSlice->partArr[0].bitstream->de_cabac, currStream->streamBuffer, ByteStartPosition, &currStream->read_len);
     }
     p_Vid->recovery_point = 0;
     return current_header;

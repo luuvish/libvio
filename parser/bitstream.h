@@ -97,6 +97,15 @@ typedef struct bitstream_t {
 } bitstream_t;
 
 
+//! struct to characterize the state of the arithmetic coding engine
+typedef struct {
+    unsigned int  Drange;
+    unsigned int  Dvalue;
+    int           DbitsLeft;
+    byte         *Dcodestrm;
+    int          *Dcodestrm_len;
+} DecodingEnvironment;
+
 //! Bitstream
 typedef struct bit_stream_dec {
     // CABAC Decoding
@@ -108,6 +117,8 @@ typedef struct bit_stream_dec {
     // ErrorConcealment
     byte          *streamBuffer;      //!< actual codebuffer for read bytes
     int           ei_flag;            //!< error indication, 0: no error, else unspecified error
+
+    DecodingEnvironment de_cabac;
 
     uint32_t nal_unit_header_bytes;
     uint8_t  nal_ref_idc;
@@ -137,17 +148,6 @@ typedef struct bit_stream_dec {
     uint32_t te(const char *name="");
 } Bitstream;
 
-//! struct to characterize the state of the arithmetic coding engine
-typedef struct {
-    unsigned int  Drange;
-    unsigned int  Dvalue;
-    int           DbitsLeft;
-    byte         *Dcodestrm;
-    int          *Dcodestrm_len;
-} DecodingEnvironment;
-
-typedef DecodingEnvironment *DecodingEnvironmentPtr;
-
 //! Syntaxelement
 typedef struct syntaxelement_dec {
     int           type;                  //!< type of syntax element for data part.
@@ -162,13 +162,12 @@ typedef struct syntaxelement_dec {
     //! for mapping of CAVLC to syntaxElement
     void (*mapping)(int len, int info, int *value1, int *value2);
     //! used for CABAC: refers to actual coding method of each individual syntax element type
-    void (*reading)(struct macroblock_dec *currMB, struct syntaxelement_dec *, DecodingEnvironmentPtr);
+    void (*reading)(struct macroblock_dec *currMB, struct syntaxelement_dec *, DecodingEnvironment *);
 } SyntaxElement;
 
 //! DataPartition
 typedef struct datapartition_dec {
-    Bitstream           *bitstream;
-    DecodingEnvironment  de_cabac;
+    Bitstream *bitstream;
 
     int (*readSyntaxElement)(struct macroblock_dec *currMB, struct syntaxelement_dec *, struct datapartition_dec *);
           /*!< virtual function;
