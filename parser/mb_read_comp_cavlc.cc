@@ -1000,7 +1000,7 @@ static void read_comp_coeff_4x4_CAVLC(Macroblock *currMB, ColorPlane pl, int (*I
   int levarr[16] = {0}, runarr[16] = {0}, numcoeff;
   Slice *currSlice = currMB->p_Slice;
   VideoParameters *p_Vid = currMB->p_Vid;
-  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field)) ? SNGL_SCAN : FIELD_SCAN;
+  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
   const byte *pos_scan_4x4 = pos_scan4x4[0];
   int start_scan = IS_I16MB(currMB) ? 1 : 0;
   int64 *cur_cbp = &currMB->s_cbp[pl].blk;
@@ -1088,7 +1088,7 @@ static void read_comp_coeff_4x4_CAVLC_ls (Macroblock *currMB, ColorPlane pl, int
   int levarr[16] = {0}, runarr[16] = {0}, numcoeff;
   Slice *currSlice = currMB->p_Slice;
   VideoParameters *p_Vid = currMB->p_Vid;
-  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field)) ? SNGL_SCAN : FIELD_SCAN;
+  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
   int start_scan = IS_I16MB(currMB) ? 1 : 0;
   int64 *cur_cbp = &currMB->s_cbp[pl].blk;
   int coef_ctr, cur_context; 
@@ -1171,7 +1171,7 @@ static void read_comp_coeff_8x8_CAVLC (Macroblock *currMB, ColorPlane pl, int (*
   int levarr[16] = {0}, runarr[16] = {0}, numcoeff;
   Slice *currSlice = currMB->p_Slice;
   VideoParameters *p_Vid = currMB->p_Vid;
-  const byte (*pos_scan8x8)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field)) ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
+  const byte (*pos_scan8x8)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
   int start_scan = IS_I16MB(currMB) ? 1 : 0;
   int64 *cur_cbp = &currMB->s_cbp[pl].blk;
   int coef_ctr, cur_context; 
@@ -1260,7 +1260,7 @@ static void read_comp_coeff_8x8_CAVLC_ls (Macroblock *currMB, ColorPlane pl, int
   int levarr[16] = {0}, runarr[16] = {0}, numcoeff;
   Slice *currSlice = currMB->p_Slice;
   VideoParameters *p_Vid = currMB->p_Vid;
-  const byte (*pos_scan8x8)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field)) ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
+  const byte (*pos_scan8x8)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
   int start_scan = IS_I16MB(currMB) ? 1 : 0;
   int64 *cur_cbp = &currMB->s_cbp[pl].blk;
   int coef_ctr, cur_context; 
@@ -1365,7 +1365,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_400(Macroblock *currMB)
   int (*InvLevelScale4x4)[4] = NULL;
   int (*InvLevelScale8x8)[8] = NULL;
   // select scan type
-  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field)) ? SNGL_SCAN : FIELD_SCAN;
+  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
   const byte *pos_scan_4x4 = pos_scan4x4[0];
 
 
@@ -1542,7 +1542,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
   int (*InvLevelScale4x4)[4] = NULL;
   int (*InvLevelScale8x8)[8] = NULL;
   // select scan type
-  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field)) ? SNGL_SCAN : FIELD_SCAN;
+  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
   const byte *pos_scan_4x4 = pos_scan4x4[0];
 
 
@@ -1878,7 +1878,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
   int (*InvLevelScale4x4)[4] = NULL;
   int (*InvLevelScale8x8)[8] = NULL;
   // select scan type
-  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field)) ? SNGL_SCAN : FIELD_SCAN;
+  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
   const byte *pos_scan_4x4 = pos_scan4x4[0];
 
   // read CBP if not new intra mode
@@ -2094,7 +2094,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
     int qp_rem_uv[2];
 
     // select scan type
-    const byte (*pos_scan4x4)[2] = p_Vid->structure == FRAME && !currMB->mb_field ? SNGL_SCAN : FIELD_SCAN;
+    const byte (*pos_scan4x4)[2] = p_Vid->structure == FRAME && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
     const byte *pos_scan_4x4 = pos_scan4x4[0];
 
     // read CBP if not new intra mode

@@ -108,7 +108,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         imgpel     **imgY = p->imgY;
         imgpel   ***imgUV = p->imgUV;
         Slice  *currSlice = MbQ->p_Slice;
-        int       mvlimit = ((p->structure!=FRAME) || (p->mb_aff_frame_flag && MbQ->mb_field)) ? 2 : 4;
+        int       mvlimit = ((p->structure!=FRAME) || (p->mb_aff_frame_flag && MbQ->mb_field_decoding_flag)) ? 2 : 4;
 
         sps_t *active_sps = p_Vid->active_sps;
 
@@ -139,14 +139,14 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         filterLeftMbEdgeFlag = (mb_x != 0);
         filterTopMbEdgeFlag  = (mb_y != 0);
 
-        if (p->mb_aff_frame_flag && mb_y == MB_BLOCK_SIZE && MbQ->mb_field)
+        if (p->mb_aff_frame_flag && mb_y == MB_BLOCK_SIZE && MbQ->mb_field_decoding_flag)
             filterTopMbEdgeFlag = 0;
 
         if (MbQ->DFDisableIdc == 2) {
             // don't filter at slice boundaries
             filterLeftMbEdgeFlag = MbQ->mbAvailA;
             // if this the bottom of a frame macroblock pair then always filter the top edge
-            filterTopMbEdgeFlag  = (p->mb_aff_frame_flag && !MbQ->mb_field && (MbQAddr & 0x01)) ? 1 : MbQ->mbAvailB;
+            filterTopMbEdgeFlag  = (p->mb_aff_frame_flag && !MbQ->mb_field_decoding_flag && (MbQAddr & 0x01)) ? 1 : MbQ->mbAvailB;
         }
 
         if (p->mb_aff_frame_flag == 1) 
@@ -240,7 +240,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
                     }
                 }
 
-                if (!edge && !MbQ->mb_field && MbQ->mixedModeEdgeFlag) {
+                if (!edge && !MbQ->mb_field_decoding_flag && MbQ->mixedModeEdgeFlag) {
                     // this is the extra horizontal edge between a frame macroblock pair and a field above it
                     MbQ->DeblockCall = (Boolean)2;
                     if (p->mb_aff_frame_flag)

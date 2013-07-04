@@ -459,9 +459,9 @@ FrameStore* alloc_frame_store(void)
 
 void alloc_pic_motion(PicMotionParamsOld *motion, int size_y, int size_x)
 {
-  motion->mb_field = (byte *)calloc (size_y * size_x, sizeof(byte));
-  if (motion->mb_field == NULL)
-    no_mem_exit("alloc_storable_picture: motion->mb_field");
+  motion->mb_field_decoding_flag = (byte *)calloc (size_y * size_x, sizeof(byte));
+  if (motion->mb_field_decoding_flag == NULL)
+    no_mem_exit("alloc_storable_picture: motion->mb_field_decoding_flag");
 }
 
 /*!
@@ -628,10 +628,10 @@ void free_frame_store(FrameStore* f)
 
 void free_pic_motion(PicMotionParamsOld *motion)
 {
-  if (motion->mb_field)
+  if (motion->mb_field_decoding_flag)
   {
-    free(motion->mb_field);
-    motion->mb_field = NULL;
+    free(motion->mb_field_decoding_flag);
+    motion->mb_field_decoding_flag = NULL;
   }
 }
 
@@ -1228,50 +1228,6 @@ void init_lists_b_slice(Slice *currSlice)
   }
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Initialize listX[2..5] from lists 0 and 1
- *    listX[2]: list0 for current_field==top
- *    listX[3]: list1 for current_field==top
- *    listX[4]: list0 for current_field==bottom
- *    listX[5]: list1 for current_field==bottom
- *
- ************************************************************************
- */
-void init_mbaff_lists(VideoParameters *p_Vid, Slice *currSlice)
-{
-  unsigned j;
-  int i;
-
-  for (i=2;i<6;i++)
-  {
-    for (j=0; j<MAX_LIST_SIZE; j++)
-    {
-      currSlice->listX[i][j] = p_Vid->no_reference_picture;
-    }
-    currSlice->listXsize[i]=0;
-  }
-
-  for (i = 0; i < currSlice->listXsize[0]; i++)
-  {
-    currSlice->listX[2][2*i  ] = currSlice->listX[0][i]->top_field;
-    currSlice->listX[2][2*i+1] = currSlice->listX[0][i]->bottom_field;
-    currSlice->listX[4][2*i  ] = currSlice->listX[0][i]->bottom_field;
-    currSlice->listX[4][2*i+1] = currSlice->listX[0][i]->top_field;
-  }
-  currSlice->listXsize[2] = currSlice->listXsize[4] = currSlice->listXsize[0] * 2;
-
-  for (i = 0; i < currSlice->listXsize[1]; i++)
-  {
-    currSlice->listX[3][2*i  ] = currSlice->listX[1][i]->top_field;
-    currSlice->listX[3][2*i+1] = currSlice->listX[1][i]->bottom_field;
-    currSlice->listX[5][2*i  ] = currSlice->listX[1][i]->bottom_field;
-    currSlice->listX[5][2*i+1] = currSlice->listX[1][i]->top_field;
-  }
-  currSlice->listXsize[3] = currSlice->listXsize[5] = currSlice->listXsize[1] * 2;
-}
-
  /*!
  ************************************************************************
  * \brief
@@ -1742,14 +1698,17 @@ void store_picture_in_dpb(DecodedPictureBuffer *p_Dpb, StorablePicture* p)
   // first try to remove unused frames
   if (p_Dpb->used_size==p_Dpb->size)
   {
+#if (DISABLE_ERC == 0)
     // picture error concealment
     if (p_Vid->conceal_mode != 0)
       conceal_non_ref_pics(p_Dpb, 2);
-
+#endif
     remove_unused_frame_from_dpb(p_Dpb);
 
+#if (DISABLE_ERC == 0)
     if(p_Vid->conceal_mode != 0)
       sliding_window_poc_management(p_Dpb, p);
+#endif
   }
   
   // then output frames until one can be removed
@@ -2020,6 +1979,7 @@ static int output_one_frame_from_dpb(DecodedPictureBuffer *p_Dpb)
   // call the output function
 //  printf ("output frame with frame_num #%d, poc %d (dpb. p_Dpb->size=%d, p_Dpb->used_size=%d)\n", p_Dpb->fs[pos]->frame_num, p_Dpb->fs[pos]->frame->poc, p_Dpb->size, p_Dpb->used_size);
 
+#if (DISABLE_ERC == 0)
   // picture error concealment
   if(p_Vid->conceal_mode != 0)
   {
@@ -2033,7 +1993,7 @@ static int output_one_frame_from_dpb(DecodedPictureBuffer *p_Dpb)
     write_lost_non_ref_pic(p_Dpb, poc, p_Vid->p_out);
 #endif
   }
-
+#endif
 // JVT-P072 ends
 
 #if (MVC_EXTENSION_ENABLE)
@@ -2076,9 +2036,10 @@ void flush_dpb(DecodedPictureBuffer *p_Dpb)
 
   if(!p_Dpb->init_done)
     return;
+#if (DISABLE_ERC == 0)
   if (p_Vid->conceal_mode != 0)
     conceal_non_ref_pics(p_Dpb, 0);
-
+#endif
   // mark all frames unused
   for (i=0; i<p_Dpb->used_size; i++)
   {
@@ -2103,11 +2064,12 @@ void flush_dpbs(DecodedPictureBuffer **p_Dpb_layers, int nLayers)
   DecodedPictureBuffer *p_Dpb;
   int i, j, used_size;
 
+#if (DISABLE_ERC == 0)
   if (p_Vid->conceal_mode != 0)
   {
     conceal_non_ref_pics(p_Dpb_layers[0], 0);
   }
-
+#endif
   // mark all frames unused
   for(j=0; j<nLayers; j++)
   {
@@ -2298,7 +2260,7 @@ void dpb_split_field(VideoParameters *p_Vid, FrameStore *fs)
 
           currentmb = twosz16*(jdiv >> 1)+ (idiv)*2 + (jdiv & 0x01);
           // Assign field mvs attached to MB-Frame buffer to the proper buffer
-          if (frm_motion->mb_field[currentmb])
+          if (frm_motion->mb_field_decoding_flag[currentmb])
           {
             fs_btm->mv_info[j][i].mv[LIST_0] = frame->mv_info[jj4][i].mv[LIST_0];
             fs_btm->mv_info[j][i].mv[LIST_1] = frame->mv_info[jj4][i].mv[LIST_1];
@@ -2342,7 +2304,7 @@ void dpb_split_field(VideoParameters *p_Vid, FrameStore *fs)
 
         currentmb = twosz16 * (jdiv >> 1)+ (idiv)*2 + (jdiv & 0x01);
 
-        if (!frame->mb_aff_frame_flag  || !frame->motion.mb_field[currentmb])
+        if (!frame->mb_aff_frame_flag  || !frame->motion.mb_field_decoding_flag[currentmb])
         {
           fs_top->mv_info[j][i].mv[LIST_0] = fs_btm->mv_info[j][i].mv[LIST_0] = frame->mv_info[jj][ii].mv[LIST_0];
           fs_top->mv_info[j][i].mv[LIST_1] = fs_btm->mv_info[j][i].mv[LIST_1] = frame->mv_info[jj][ii].mv[LIST_1];
@@ -2608,56 +2570,6 @@ void fill_frame_num_gap(VideoParameters *p_Vid, Slice *currSlice)
   currSlice->frame_num = CurrFrameNum;
 }
 
-
-/*!
- ************************************************************************
- * \brief
- *    Compute co-located motion info
- *
- ************************************************************************
- */
-void compute_colocated (Slice *currSlice, StorablePicture **listX[6])
-{
-  int i, j;
-
-  VideoParameters *p_Vid = currSlice->p_Vid;
-
-  if (currSlice->direct_spatial_mv_pred_flag == 0)
-  {
-    for (j = 0; j < 2 + (currSlice->mb_aff_frame_flag * 4); j += 2)
-    {
-      for (i = 0; i < currSlice->listXsize[j];i++)
-      {
-        int prescale, iTRb, iTRp;
-
-        if (j==0)
-        {
-          iTRb = iClip3( -128, 127, p_Vid->dec_picture->poc - listX[LIST_0 + j][i]->poc );
-        }
-        else if (j == 2)
-        {
-          iTRb = iClip3( -128, 127, p_Vid->dec_picture->top_poc - listX[LIST_0 + j][i]->poc );
-        }
-        else
-        {
-          iTRb = iClip3( -128, 127, p_Vid->dec_picture->bottom_poc - listX[LIST_0 + j][i]->poc );
-        }
-
-        iTRp = iClip3( -128, 127,  listX[LIST_1 + j][0]->poc - listX[LIST_0 + j][i]->poc);
-
-        if (iTRp!=0)
-        {
-          prescale = ( 16384 + iabs( iTRp / 2 ) ) / iTRp;
-          currSlice->mvscale[j][i] = iClip3( -1024, 1023, ( iTRb * prescale + 32 ) >> 6 ) ;
-        }
-        else
-        {
-          currSlice->mvscale[j][i] = 9999;
-        }
-      }
-    }
-  }
-}
 
 
 #if (MVC_EXTENSION_ENABLE)

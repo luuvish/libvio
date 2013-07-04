@@ -27,6 +27,7 @@
 #include "dpb_common.h"
 #include "dpb_mvc.h"
 
+
 /*!
  ************************************************************************
  * \brief
@@ -104,12 +105,9 @@ static int parse_idr(Slice *currSlice)
     currSlice->dp_mode = PAR_DP_1;
     currSlice->max_part_nr = 1;
 #if (MVC_EXTENSION_ENABLE)
-    if (currSlice->svc_extension_flag != 0) {
+    if (currSlice->svc_extension_flag != 0)
 #endif
         currStream = InitPartition(&currSlice->partArr[0], nalu);
-#if (MVC_EXTENSION_ENABLE)
-    }
-#endif
 
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->svc_extension_flag == 0) {
@@ -326,7 +324,6 @@ int read_new_slice(Slice *currSlice)
     int current_header = 0;
     Bitstream *currStream = NULL;
 
-    currSlice->next_header       = -8888;
     currSlice->num_dec_mb        = 0;
     currSlice->coeff_ctr         = -1;
     currSlice->pos               = 0;
@@ -358,7 +355,7 @@ int read_new_slice(Slice *currSlice)
                 if (currSlice->svc_extension_flag) {
                     //to be implemented for Annex G;
                 } else
-                    nalu->nal_unit_type = NALU_TYPE_SLICE; //currSlice->NaluHeaderMVCExt.non_idr_flag==0? NALU_TYPE_IDR: NALU_TYPE_SLICE; 
+                    nalu->nal_unit_type = NALU_TYPE_SLICE;
             }
         }
 #endif

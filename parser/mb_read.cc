@@ -1213,52 +1213,62 @@ static void concealIPCMcoeffs(Macroblock *currMB)
     }
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Initialize decoding engine after decoding an IPCM macroblock
- *    (for IPCM CABAC  28/11/2003)
- *
- * \author
- *    Dong Wang <Dong.Wang@bristol.ac.uk>
- ************************************************************************
- */
-static void init_decoding_engine_IPCM(Slice *currSlice)
-{   
-  Bitstream *currStream;
-  int ByteStartPosition;
-  int PartitionNumber;
-  int i;
 
-  if(currSlice->dp_mode==PAR_DP_1)
-    PartitionNumber=1;
-  else if(currSlice->dp_mode==PAR_DP_3)
-    PartitionNumber=3;
-  else
-  {
-    printf("Partition Mode is not supported\n");
-    exit(1);
-  }
+void readIPCM_CABAC(Slice *currSlice, struct datapartition_dec *dP)
+{
+    VideoParameters *p_Vid = currSlice->p_Vid;
+    StorablePicture *dec_picture = currSlice->dec_picture;
+    Bitstream* currStream = dP->bitstream;
+    DecodingEnvironment *dep = &dP->bitstream->de_cabac;
+    byte *buf = currStream->streamBuffer;
+    int BitstreamLengthInBits = (dP->bitstream->bitstream_length << 3) + 7;
 
-  for(i=0;i<PartitionNumber;++i)
-  {
-    currStream = currSlice->partArr[i].bitstream;
-    ByteStartPosition = currStream->read_len;
+    int val = 0;
+    int bits_read = 0;
+    int bitoffset, bitdepth;
+    int uv, i, j;
 
-    arideco_start_decoding (&currSlice->partArr[i].bitstream->de_cabac, currStream->streamBuffer, ByteStartPosition, &currStream->read_len);
-  }
+    while (dep->DbitsLeft >= 8) {
+        dep->Dvalue   >>= 8;
+        dep->DbitsLeft -= 8;
+        (*dep->Dcodestrm_len)--;
+    }
+
+    bitoffset = (*dep->Dcodestrm_len) << 3;
+
+    // read luma values
+    bitdepth = p_Vid->bitdepth_luma;
+    for (i = 0; i < MB_BLOCK_SIZE; i++) {
+        for (j = 0; j < MB_BLOCK_SIZE; j++) {
+            bits_read += GetBits(buf, bitoffset, &val, BitstreamLengthInBits, bitdepth);
+            currSlice->cof[0][i][j] = val;
+
+            bitoffset += bitdepth;
+        }
+    }
+
+    // read chroma values
+    bitdepth = p_Vid->bitdepth_chroma;
+    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->separate_colour_plane_flag == 0) {
+        for (uv = 1; uv < 3; ++uv) {
+            for (i = 0; i < p_Vid->mb_cr_size_y; ++i) {
+                for (j = 0; j < p_Vid->mb_cr_size_x; ++j) {
+                    bits_read += GetBits(buf, bitoffset, &val, BitstreamLengthInBits, bitdepth);
+                    currSlice->cof[uv][i][j] = val;
+
+                    bitoffset += bitdepth;
+                }
+            }
+        }
+    }
+
+    (*dep->Dcodestrm_len) += ( bits_read >> 3);
+    if (bits_read & 7)
+        ++(*dep->Dcodestrm_len);
+
+    arideco_start_decoding(&currStream->de_cabac, currStream->streamBuffer, currStream->read_len, &currStream->read_len);
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Read IPCM pcm_alignment_zero_bit and pcm_byte[i] from stream to currSlice->cof
- *    (for IPCM CABAC and IPCM CAVLC)
- *
- * \author
- *    Dong Wang <Dong.Wang@bristol.ac.uk>
- ************************************************************************
- */
 static void read_IPCM_coeffs_from_NAL(Slice *currSlice, struct datapartition_dec *dP)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
@@ -1271,7 +1281,6 @@ static void read_IPCM_coeffs_from_NAL(Slice *currSlice, struct datapartition_dec
     //  because we have variable for integer bytes position
     if (p_Vid->active_pps->entropy_coding_mode_flag) {
         readIPCM_CABAC(currSlice, dP);
-        init_decoding_engine_IPCM(currSlice);
         return;
     }
 
@@ -1337,12 +1346,12 @@ static inline void field_flag_inference(Macroblock *currMB)
   VideoParameters *p_Vid = currMB->p_Vid;
   if (currMB->mbAvailA)
   {
-    currMB->mb_field = p_Vid->mb_data[currMB->mbAddrA].mb_field;
+    currMB->mb_field_decoding_flag = p_Vid->mb_data[currMB->mbAddrA].mb_field_decoding_flag;
   }
   else
   {
     // check top macroblock pair
-    currMB->mb_field = currMB->mbAvailB ? p_Vid->mb_data[currMB->mbAddrB].mb_field : FALSE;
+    currMB->mb_field_decoding_flag = currMB->mbAvailB ? p_Vid->mb_data[currMB->mbAddrB].mb_field_decoding_flag : FALSE;
   }
 }
 
@@ -1391,12 +1400,12 @@ static void skip_macroblock(Macroblock *currMB)
       a_mv_y    = a_mv->mv_y;    
       a_ref_idx = dec_picture->mv_info[mb[0].pos_y][mb[0].pos_x].ref_idx[LIST_0];
 
-      if (currMB->mb_field && !p_Vid->mb_data[mb[0].mb_addr].mb_field)
+      if (currMB->mb_field_decoding_flag && !p_Vid->mb_data[mb[0].mb_addr].mb_field_decoding_flag)
       {
         a_mv_y    /=2;
         a_ref_idx *=2;
       }
-      if (!currMB->mb_field && p_Vid->mb_data[mb[0].mb_addr].mb_field)
+      if (!currMB->mb_field_decoding_flag && p_Vid->mb_data[mb[0].mb_addr].mb_field_decoding_flag)
       {
         a_mv_y    *=2;
         a_ref_idx >>=1;
@@ -1409,12 +1418,12 @@ static void skip_macroblock(Macroblock *currMB)
       b_mv_y    = b_mv->mv_y;
       b_ref_idx = dec_picture->mv_info[mb[1].pos_y][mb[1].pos_x].ref_idx[LIST_0];
 
-      if (currMB->mb_field && !p_Vid->mb_data[mb[1].mb_addr].mb_field)
+      if (currMB->mb_field_decoding_flag && !p_Vid->mb_data[mb[1].mb_addr].mb_field_decoding_flag)
       {
         b_mv_y    /=2;
         b_ref_idx *=2;
       }
-      if (!currMB->mb_field && p_Vid->mb_data[mb[1].mb_addr].mb_field)
+      if (!currMB->mb_field_decoding_flag && p_Vid->mb_data[mb[1].mb_addr].mb_field_decoding_flag)
       {
         b_mv_y    *=2;
         b_ref_idx >>=1;
@@ -1621,9 +1630,9 @@ static bool check_mb_skip_cavlc(Macroblock *currMB)
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
 
     if (currSlice->mb_aff_frame_flag)
-        currMB->mb_field = ((mb_nr&0x01) == 0)? FALSE : p_Vid->mb_data[mb_nr-1].mb_field;
+        currMB->mb_field_decoding_flag = ((mb_nr&0x01) == 0)? FALSE : p_Vid->mb_data[mb_nr-1].mb_field_decoding_flag;
     else
-        currMB->mb_field = FALSE;
+        currMB->mb_field_decoding_flag = FALSE;
 
     update_qp(currMB, currSlice->qp);
 
@@ -1633,11 +1642,8 @@ static bool check_mb_skip_cavlc(Macroblock *currMB)
     currSE.mapping = linfo_ue;
 
     // VLC Non-Intra  
-    if (currSlice->cod_counter == -1) {
-        //dP->readSyntaxElement(currMB, &currSE, dP);
-        //currSlice->cod_counter = currSE.value1;
+    if (currSlice->cod_counter == -1)
         currSlice->cod_counter = dP->bitstream->ue();
-    }
 
     if (currSlice->cod_counter == 0) {
         currSlice->cod_counter--;
@@ -1645,37 +1651,37 @@ static bool check_mb_skip_cavlc(Macroblock *currMB)
             int prevMbSkipped = 0;
             if (mb_nr & 0x01) {
                 Macroblock *topMB = &p_Vid->mb_data[mb_nr-1];
-                prevMbSkipped = topMB->skip_flag;
+                prevMbSkipped = topMB->mb_skip_flag;
             } else
                 prevMbSkipped = 0;
 
             // read MB aff
             if ((((mb_nr&0x01)==0) || ((mb_nr&0x01) && prevMbSkipped))) {
-                currMB->mb_field = dP->bitstream->f(1);
+                currMB->mb_field_decoding_flag = dP->bitstream->f(1);
             }
         }
         return 1;
     }
 
     currSlice->cod_counter--;
-    currMB->mb_type = 0;
     currMB->ei_flag = 0;
-    currMB->skip_flag = 1;      
+    currMB->mb_skip_flag = 1;      
+    currMB->mb_type      = 0;
 
     if (currSlice->mb_aff_frame_flag && (mb_nr & 0x01) == 0) {
         // read field flag of bottom block
         if (currSlice->cod_counter == 0) {
-            currMB->mb_field = dP->bitstream->f(1);
+            currMB->mb_field_decoding_flag = dP->bitstream->f(1);
             dP->bitstream->frame_bitoffset--;
         } else if (currSlice->cod_counter > 0) {
             // check left macroblock pair first
             if (mb_is_available(mb_nr - 2, currMB) && (mb_nr % (p_Vid->PicWidthInMbs * 2)) != 0)
-                currMB->mb_field = p_Vid->mb_data[mb_nr - 2].mb_field;
+                currMB->mb_field_decoding_flag = p_Vid->mb_data[mb_nr - 2].mb_field_decoding_flag;
             // check top macroblock pair
             else if (mb_is_available(mb_nr - 2 * p_Vid->PicWidthInMbs, currMB))
-                currMB->mb_field = p_Vid->mb_data[mb_nr - 2 * p_Vid->PicWidthInMbs].mb_field;
+                currMB->mb_field_decoding_flag = p_Vid->mb_data[mb_nr - 2 * p_Vid->PicWidthInMbs].mb_field_decoding_flag;
             else
-                currMB->mb_field = FALSE;
+                currMB->mb_field_decoding_flag = FALSE;
         }
     }
 
@@ -1692,9 +1698,9 @@ static bool check_mb_skip_cabac(Macroblock *currMB)
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
 
     if (currSlice->mb_aff_frame_flag)
-        currMB->mb_field = (mb_nr & 0x01) == 0 ? FALSE : p_Vid->mb_data[mb_nr-1].mb_field;
+        currMB->mb_field_decoding_flag = (mb_nr & 0x01) == 0 ? FALSE : p_Vid->mb_data[mb_nr-1].mb_field_decoding_flag;
     else
-        currMB->mb_field = FALSE;
+        currMB->mb_field_decoding_flag = FALSE;
 
     update_qp(currMB, currSlice->qp);
 
@@ -1709,7 +1715,7 @@ static bool check_mb_skip_cabac(Macroblock *currMB)
         int prevMbSkipped = 0;
         if (mb_nr & 0x01) {
             Macroblock *topMB = &p_Vid->mb_data[mb_nr - 1];
-            prevMbSkipped = topMB->skip_flag; //(topMB->mb_type == 0);
+            prevMbSkipped = topMB->mb_skip_flag;
         } else
             prevMbSkipped = 0;
         if ((mb_nr & 0x01) == 0 || prevMbSkipped)
@@ -1717,17 +1723,16 @@ static bool check_mb_skip_cabac(Macroblock *currMB)
     }
 
     CheckAvailabilityOfNeighborsCABAC(currMB);
-    currSE.reading = currSlice->slice_type == B_SLICE ? read_skip_flag_CABAC_b_slice :
-                                                        read_skip_flag_CABAC_p_slice;
+    currSE.reading = read_skip_flag_CABAC;
     dP->readSyntaxElement(currMB, &currSE, dP);
 
-    currMB->mb_type   = (short) currSE.value1;
-    currMB->skip_flag = (char) (!(currSE.value1));
-    currMB->cbp       = currSE.value2;
+    currMB->mb_type      = (short) currSE.value1;
+    currMB->mb_skip_flag = (char) !currSE.value1;
+    currMB->cbp          = currSE.value1;
     if (!dP->bitstream->ei_flag)
         currMB->ei_flag = 0;
 
-    if (currSE.value1 == 0 && currSE.value2 == 0)
+    if (currSE.value1 == 0)
         currSlice->cod_counter = 0;
 
     if (currSlice->mb_aff_frame_flag) {
@@ -1735,27 +1740,23 @@ static bool check_mb_skip_cabac(Macroblock *currMB)
         int check_bottom, read_bottom, read_top;  
         check_bottom = read_bottom = read_top = 0;
         if ((mb_nr & 0x01) == 0) {
-            check_bottom = currMB->skip_flag;
+            check_bottom = currMB->mb_skip_flag;
             read_top = !check_bottom;
         } else {
             Macroblock *topMB = &p_Vid->mb_data[mb_nr - 1];
-            read_bottom = topMB->skip_flag && !currMB->skip_flag;
+            read_bottom = topMB->mb_skip_flag && !currMB->mb_skip_flag;
         }
 
         if (read_bottom || read_top) {
             currSE.reading = readFieldModeInfo_CABAC;
             dP->readSyntaxElement(currMB, &currSE, dP);
-            currMB->mb_field = (Boolean) currSE.value1;
+            currMB->mb_field_decoding_flag = (Boolean) currSE.value1;
         }
 
-        if (check_bottom) {
-            if (currSlice->slice_type == B_SLICE)
-                check_next_mb_and_get_field_mode_CABAC_b_slice(currSlice, &currSE, dP);
-            else
-                check_next_mb_and_get_field_mode_CABAC_p_slice(currSlice, &currSE, dP);
-        }
+        if (check_bottom)
+            check_next_mb_and_get_field_mode_CABAC(currSlice, &currSE, dP);
         //update the list offset;
-        currMB->list_offset = currMB->mb_field ? (mb_nr & 0x01 ? 4 : 2) : 0;
+        currMB->list_offset = currMB->mb_field_decoding_flag ? (mb_nr & 0x01 ? 4 : 2) : 0;
         CheckAvailabilityOfNeighborsCABAC(currMB);    
     }
 
@@ -1775,7 +1776,7 @@ static void read_one_macroblock_i_slice(Macroblock *currMB)
     StorablePicture *dec_picture = currSlice->dec_picture; 
     PicMotionParamsOld *motion = &dec_picture->motion;
 
-    currMB->mb_field = ((mb_nr&0x01) == 0)? FALSE : currSlice->mb_data[mb_nr-1].mb_field; 
+    currMB->mb_field_decoding_flag = ((mb_nr&0x01) == 0)? FALSE : currSlice->mb_data[mb_nr-1].mb_field_decoding_flag; 
 
     update_qp(currMB, currSlice->qp);
 
@@ -1793,7 +1794,7 @@ static void read_one_macroblock_i_slice(Macroblock *currMB)
             currSE.reading = readFieldModeInfo_CABAC;
             dP->readSyntaxElement(currMB, &currSE, dP);
         }
-        currMB->mb_field = (Boolean) currSE.value1;
+        currMB->mb_field_decoding_flag = (Boolean) currSE.value1;
     }
 
     if (isCabac)
@@ -1808,9 +1809,9 @@ static void read_one_macroblock_i_slice(Macroblock *currMB)
     //if (!dP->bitstream->ei_flag)
     //    currMB->ei_flag = 0;
 
-    motion->mb_field[mb_nr] = (byte) currMB->mb_field;
+    motion->mb_field_decoding_flag[mb_nr] = (byte) currMB->mb_field_decoding_flag;
 
-    currMB->block_y_aff = (currSlice->mb_aff_frame_flag && currMB->mb_field) ?
+    currMB->block_y_aff = (currSlice->mb_aff_frame_flag && currMB->mb_field_decoding_flag) ?
                           (mb_nr & 0x01) ? (currMB->block_y - 4) >> 1 :
                                             currMB->block_y >> 1 : currMB->block_y;
 
@@ -1865,7 +1866,7 @@ static void read_one_macroblock_pb_slice(Macroblock *currMB)
         //if (!dP->bitstream->ei_flag)
         //    currMB->ei_flag = 0;
         if (!isCabac)
-            currMB->skip_flag = 0;
+            currMB->mb_skip_flag = 0;
     }
 
     StorablePicture *dec_picture = currSlice->dec_picture;
@@ -1875,23 +1876,23 @@ static void read_one_macroblock_pb_slice(Macroblock *currMB)
             //update the list offset;
             currMB->list_offset = 0;  
 
-        motion->mb_field[mb_nr] = FALSE;
+        motion->mb_field_decoding_flag[mb_nr] = FALSE;
         currMB->block_y_aff = currMB->block_y;
         currSlice->siblock[currMB->mb.y][currMB->mb.x] = 0;
         interpret_mb_mode(currMB);    
     } else {
         if (!isCabac)
             //update the list offset;
-            currMB->list_offset = (currMB->mb_field)? (mb_nr & 0x01 ? 4 : 2) : 0;
+            currMB->list_offset = (currMB->mb_field_decoding_flag)? (mb_nr & 0x01 ? 4 : 2) : 0;
 
-        motion->mb_field[mb_nr] = (byte) currMB->mb_field;
-        currMB->block_y_aff = (currMB->mb_field) ?
+        motion->mb_field_decoding_flag[mb_nr] = (byte) currMB->mb_field_decoding_flag;
+        currMB->block_y_aff = (currMB->mb_field_decoding_flag) ?
                               (mb_nr & 0x01) ? (currMB->block_y - 4) >> 1 :
                                                 currMB->block_y >> 1 : currMB->block_y;
         currSlice->siblock[currMB->mb.y][currMB->mb.x] = 0;
         interpret_mb_mode(currMB);
 
-        if (currMB->mb_field) {
+        if (currMB->mb_field_decoding_flag) {
             currSlice->num_ref_idx_l0_active_minus1 = ((currSlice->num_ref_idx_l0_active_minus1 + 1) << 1) - 1;
             currSlice->num_ref_idx_l1_active_minus1 = ((currSlice->num_ref_idx_l1_active_minus1 + 1) << 1) - 1;
         }

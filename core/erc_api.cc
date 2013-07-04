@@ -18,6 +18,8 @@
 #include "global.h"
 #include "memalloc.h"
 #include "erc_api.h"
+#include "slice.h"
+#include "macroblock.h"
 
 /*!
  ************************************************************************
@@ -374,6 +376,144 @@ void ercMarkCurrMBConcealed( int currMBNum, int comp, int picSizeX, ercVariables
         break;
     case 2:
       errorVar->vCondition[currMBNum] = ERC_BLOCK_CONCEALED;
+    }
+  }
+}
+
+void erc_picture(VideoParameters *p_Vid, StorablePicture **dec_picture)
+{
+    frame recfr;
+    recfr.p_Vid = p_Vid;
+    recfr.yptr = &(*dec_picture)->imgY[0][0];
+    if ((*dec_picture)->chroma_format_idc != YUV400) {
+        recfr.uptr = &(*dec_picture)->imgUV[0][0][0];
+        recfr.vptr = &(*dec_picture)->imgUV[1][0][0];
+    }
+
+    //! this is always true at the beginning of a picture
+    int ercStartMB = 0;
+    int ercSegment = 0;
+
+    //! mark the start of the first segment
+    if (!(*dec_picture)->mb_aff_frame_flag) {
+        int i;
+        ercStartSegment(0, ercSegment, 0 , p_Vid->erc_errorVar);
+        //! generate the segments according to the macroblock map
+        for (i = 1; i < (int) (*dec_picture)->PicSizeInMbs; ++i) {
+            if (p_Vid->mb_data[i].ei_flag != p_Vid->mb_data[i-1].ei_flag) {
+                ercStopSegment(i-1, ercSegment, 0, p_Vid->erc_errorVar); //! stop current segment
+
+                //! mark current segment as lost or OK
+                if (p_Vid->mb_data[i-1].ei_flag)
+                    ercMarkCurrSegmentLost((*dec_picture)->size_x, p_Vid->erc_errorVar);
+                else
+                    ercMarkCurrSegmentOK((*dec_picture)->size_x, p_Vid->erc_errorVar);
+
+                ++ercSegment;  //! next segment
+                ercStartSegment(i, ercSegment, 0 , p_Vid->erc_errorVar); //! start new segment
+                ercStartMB = i;//! save start MB for this segment
+            }
+        }
+        //! mark end of the last segment
+        ercStopSegment((*dec_picture)->PicSizeInMbs-1, ercSegment, 0, p_Vid->erc_errorVar);
+        if (p_Vid->mb_data[i-1].ei_flag)
+            ercMarkCurrSegmentLost((*dec_picture)->size_x, p_Vid->erc_errorVar);
+        else
+            ercMarkCurrSegmentOK((*dec_picture)->size_x, p_Vid->erc_errorVar);
+
+        //! call the right error concealment function depending on the frame type.
+        p_Vid->erc_mvperMB /= (*dec_picture)->PicSizeInMbs;
+
+        p_Vid->erc_img = p_Vid;
+
+        if ((*dec_picture)->slice_type == I_SLICE || (*dec_picture)->slice_type == SI_SLICE) // I-frame
+            ercConcealIntraFrame(p_Vid, &recfr, (*dec_picture)->size_x, (*dec_picture)->size_y, p_Vid->erc_errorVar);
+        else
+            ercConcealInterFrame(&recfr, p_Vid->erc_object_list, (*dec_picture)->size_x, (*dec_picture)->size_y, p_Vid->erc_errorVar, (*dec_picture)->chroma_format_idc);
+    }
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    write the encoding mode and motion vectors of current
+ *    MB to the buffer of the error concealment module.
+ ************************************************************************
+ */
+void ercWriteMBMODEandMV(Macroblock *currMB)
+{
+  VideoParameters *p_Vid = currMB->p_Vid;
+  int i, ii, jj, currMBNum = currMB->mbAddrX; //p_Vid->currentSlice->current_mb_nr;
+  StorablePicture *dec_picture = p_Vid->dec_picture;
+  int mbx = xPosMB(currMBNum, dec_picture->size_x), mby = yPosMB(currMBNum, dec_picture->size_x);
+  objectBuffer_t *currRegion, *pRegion;
+
+  currRegion = p_Vid->erc_object_list + (currMBNum<<2);
+
+  if(p_Vid->type != B_SLICE) //non-B frame
+  {
+    for (i=0; i<4; ++i)
+    {
+      pRegion             = currRegion + i;
+      pRegion->regionMode = (currMB->mb_type  ==I16MB  ? REGMODE_INTRA      :
+        currMB->b8mode[i]==IBLOCK ? REGMODE_INTRA_8x8  :
+        currMB->b8mode[i]==0      ? REGMODE_INTER_COPY :
+        currMB->b8mode[i]==1      ? REGMODE_INTER_PRED : REGMODE_INTER_PRED_8x8);
+      if (currMB->b8mode[i]==0 || currMB->b8mode[i]==IBLOCK)  // INTRA OR COPY
+      {
+        pRegion->mv[0]    = 0;
+        pRegion->mv[1]    = 0;
+        pRegion->mv[2]    = 0;
+      }
+      else
+      {
+        ii              = 4*mbx + (i & 0x01)*2;// + BLOCK_SIZE;
+        jj              = 4*mby + (i >> 1  )*2;
+        if (currMB->b8mode[i]>=5 && currMB->b8mode[i]<=7)  // SMALL BLOCKS
+        {
+          pRegion->mv[0]  = (dec_picture->mv_info[jj][ii].mv[LIST_0].mv_x + dec_picture->mv_info[jj][ii + 1].mv[LIST_0].mv_x + dec_picture->mv_info[jj + 1][ii].mv[LIST_0].mv_x + dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_x + 2)/4;
+          pRegion->mv[1]  = (dec_picture->mv_info[jj][ii].mv[LIST_0].mv_y + dec_picture->mv_info[jj][ii + 1].mv[LIST_0].mv_y + dec_picture->mv_info[jj + 1][ii].mv[LIST_0].mv_y + dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_y + 2)/4;
+        }
+        else // 16x16, 16x8, 8x16, 8x8
+        {
+          pRegion->mv[0]  = dec_picture->mv_info[jj][ii].mv[LIST_0].mv_x;
+          pRegion->mv[1]  = dec_picture->mv_info[jj][ii].mv[LIST_0].mv_y;
+        }
+        currMB->p_Slice->erc_mvperMB      += iabs(pRegion->mv[0]) + iabs(pRegion->mv[1]);
+        pRegion->mv[2]    = dec_picture->mv_info[jj][ii].ref_idx[LIST_0];
+      }
+    }
+  }
+  else  //B-frame
+  {
+    for (i=0; i<4; ++i)
+    {
+      ii                  = 4*mbx + (i%2)*2;// + BLOCK_SIZE;
+      jj                  = 4*mby + (i/2)*2;
+      pRegion             = currRegion + i;
+      pRegion->regionMode = (currMB->mb_type  ==I16MB  ? REGMODE_INTRA      :
+        currMB->b8mode[i]==IBLOCK ? REGMODE_INTRA_8x8  : REGMODE_INTER_PRED_8x8);
+      if (currMB->mb_type==I16MB || currMB->b8mode[i]==IBLOCK)  // INTRA
+      {
+        pRegion->mv[0]    = 0;
+        pRegion->mv[1]    = 0;
+        pRegion->mv[2]    = 0;
+      }
+      else
+      {
+        int idx = (dec_picture->mv_info[jj][ii].ref_idx[0] < 0) ? 1 : 0;
+        pRegion->mv[0]    = (dec_picture->mv_info[jj][ii].mv[idx].mv_x + 
+          dec_picture->mv_info[jj][ii+1].mv[idx].mv_x + 
+          dec_picture->mv_info[jj+1][ii].mv[idx].mv_x + 
+          dec_picture->mv_info[jj+1][ii+1].mv[idx].mv_x + 2)/4;
+        pRegion->mv[1]    = (dec_picture->mv_info[jj][ii].mv[idx].mv_y + 
+          dec_picture->mv_info[jj][ii+1].mv[idx].mv_y + 
+          dec_picture->mv_info[jj+1][ii].mv[idx].mv_y + 
+          dec_picture->mv_info[jj+1][ii+1].mv[idx].mv_y + 2)/4;
+        currMB->p_Slice->erc_mvperMB      += iabs(pRegion->mv[0]) + iabs(pRegion->mv[1]);
+
+        pRegion->mv[2]  = (dec_picture->mv_info[jj][ii].ref_idx[idx]);
+      }
     }
   }
 }

@@ -53,7 +53,7 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
   int j4, i4;
   StorablePicture *dec_picture = currSlice->dec_picture;
 
-  int list_offset = currMB->list_offset; // ((currSlice->mb_aff_frame_flag)&&(currMB->mb_field))? (mb_nr&0x01) ? 4 : 2 : 0;
+  int list_offset = currMB->list_offset; // ((currSlice->mb_aff_frame_flag)&&(currMB->mb_field_decoding_flag))? (mb_nr&0x01) ? 4 : 2 : 0;
   StorablePicture **list0 = currSlice->listX[LIST_0 + list_offset];
   StorablePicture **list1 = currSlice->listX[LIST_1 + list_offset];
 
@@ -82,7 +82,7 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
             if(currSlice->mb_aff_frame_flag)
             {
               assert(p_Vid->active_sps->direct_8x8_inference_flag);
-              if(!currMB->mb_field && ((currSlice->listX[LIST_1][0]->iCodingType==FRAME_MB_PAIR_CODING && currSlice->listX[LIST_1][0]->motion.mb_field[currMB->mbAddrX]) ||
+              if(!currMB->mb_field_decoding_flag && ((currSlice->listX[LIST_1][0]->iCodingType==FRAME_MB_PAIR_CODING && currSlice->listX[LIST_1][0]->motion.mb_field_decoding_flag[currMB->mbAddrX]) ||
                 (currSlice->listX[LIST_1][0]->iCodingType==FIELD_CODING)))
               {
                 if (iabs(dec_picture->poc - currSlice->listX[LIST_1+4][0]->poc)> iabs(dec_picture->poc -currSlice->listX[LIST_1+2][0]->poc) )
@@ -145,8 +145,8 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
             }
             else
             {
-              if( (currSlice->mb_aff_frame_flag && ( (currMB->mb_field && colocated->ref_pic[refList]->structure==FRAME) || 
-                (!currMB->mb_field && colocated->ref_pic[refList]->structure!=FRAME))) ||
+              if( (currSlice->mb_aff_frame_flag && ( (currMB->mb_field_decoding_flag && colocated->ref_pic[refList]->structure==FRAME) || 
+                (!currMB->mb_field_decoding_flag && colocated->ref_pic[refList]->structure!=FRAME))) ||
                 (!currSlice->mb_aff_frame_flag && ((currSlice->field_pic_flag==0 && colocated->ref_pic[refList]->structure!=FRAME)||
                 (currSlice->field_pic_flag==1 && colocated->ref_pic[refList]->structure==FRAME))) )
               {
@@ -200,7 +200,7 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
                     int mv_y;
                     if(currSlice->mb_aff_frame_flag /*&& (!p_Vid->active_sps->frame_mbs_only_flag || p_Vid->active_sps->direct_8x8_inference_flag)*/)
                     {
-                      if(!currMB->mb_field && ((currSlice->listX[LIST_1][0]->iCodingType==FRAME_MB_PAIR_CODING && currSlice->listX[LIST_1][0]->motion.mb_field[currMB->mbAddrX]) ||
+                      if(!currMB->mb_field_decoding_flag && ((currSlice->listX[LIST_1][0]->iCodingType==FRAME_MB_PAIR_CODING && currSlice->listX[LIST_1][0]->motion.mb_field_decoding_flag[currMB->mbAddrX]) ||
                         (currSlice->listX[LIST_1][0]->iCodingType==FIELD_CODING)))
                       {
                         if (iabs(dec_picture->poc - currSlice->listX[LIST_1+4][0]->poc)> iabs(dec_picture->poc -currSlice->listX[LIST_1+2][0]->poc) )
@@ -243,10 +243,10 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
                     }
 
                     mv_y = colocated->mv[refList].mv_y; 
-                    if((currSlice->mb_aff_frame_flag && !currMB->mb_field && colocated->ref_pic[refList]->structure!=FRAME) ||
+                    if((currSlice->mb_aff_frame_flag && !currMB->mb_field_decoding_flag && colocated->ref_pic[refList]->structure!=FRAME) ||
                       (!currSlice->mb_aff_frame_flag && currSlice->field_pic_flag==0 && colocated->ref_pic[refList]->structure!=FRAME))
                       mv_y *= 2;
-                    else if((currSlice->mb_aff_frame_flag && currMB->mb_field && colocated->ref_pic[refList]->structure==FRAME) ||
+                    else if((currSlice->mb_aff_frame_flag && currMB->mb_field_decoding_flag && colocated->ref_pic[refList]->structure==FRAME) ||
                       (!currSlice->mb_aff_frame_flag && currSlice->field_pic_flag==1 && colocated->ref_pic[refList]->structure==FRAME))
                       mv_y /= 2;
 
@@ -354,8 +354,8 @@ static int get_colocated_info_8x8(Macroblock *currMB, StorablePicture *list1, in
       }
       else
       {
-        if( (currSlice->mb_aff_frame_flag && ((!currMB->mb_field && list1->motion.mb_field[currMB->mbAddrX]) ||
-          (!currMB->mb_field && list1->iCodingType == FIELD_CODING))) 
+        if( (currSlice->mb_aff_frame_flag && ((!currMB->mb_field_decoding_flag && list1->motion.mb_field_decoding_flag[currMB->mbAddrX]) ||
+          (!currMB->mb_field_decoding_flag && list1->iCodingType == FIELD_CODING))) 
           || (!currSlice->mb_aff_frame_flag))
         {
           if (iabs(currSlice->dec_picture->poc - list1->bottom_field->poc)> iabs(currSlice->dec_picture->poc -list1->top_field->poc) )
@@ -409,7 +409,7 @@ static void update_direct_mv_info_spatial_8x8(Macroblock *currMB)
     int j4, i4;
     StorablePicture *dec_picture = currSlice->dec_picture;
 
-    int list_offset = currMB->list_offset; // ((currSlice->mb_aff_frame_flag)&&(currMB->mb_field))? (mb_nr&0x01) ? 4 : 2 : 0;
+    int list_offset = currMB->list_offset; // ((currSlice->mb_aff_frame_flag)&&(currMB->mb_field_decoding_flag))? (mb_nr&0x01) ? 4 : 2 : 0;
     StorablePicture **list0 = currSlice->listX[LIST_0 + list_offset];
     StorablePicture **list1 = currSlice->listX[LIST_1 + list_offset];
 
@@ -567,7 +567,7 @@ static void update_direct_mv_info_spatial_4x4(Macroblock *currMB)
     int j4, i4;
     StorablePicture *dec_picture = p_Vid->dec_picture;
 
-    int list_offset = currMB->list_offset; // ((currSlice->mb_aff_frame_flag)&&(currMB->mb_field))? (mb_nr&0x01) ? 4 : 2 : 0;
+    int list_offset = currMB->list_offset; // ((currSlice->mb_aff_frame_flag)&&(currMB->mb_field_decoding_flag))? (mb_nr&0x01) ? 4 : 2 : 0;
     StorablePicture **list0 = currSlice->listX[LIST_0 + list_offset];
     StorablePicture **list1 = currSlice->listX[LIST_1 + list_offset];
 
@@ -761,7 +761,7 @@ int get_direct8x8temporal(Macroblock *currMB, StorablePicture *dec_picture, int 
             colocated = &list1[0]->JVmv_info[currMB->p_Slice->colour_plane_id][RSD(j6)][RSD(i4)];
         if (currSlice->mb_aff_frame_flag) {
             assert(p_Vid->active_sps->direct_8x8_inference_flag);
-            if (!currMB->mb_field && ((currSlice->listX[LIST_1][0]->iCodingType==FRAME_MB_PAIR_CODING && currSlice->listX[LIST_1][0]->motion.mb_field[currMB->mbAddrX]) ||
+            if (!currMB->mb_field_decoding_flag && ((currSlice->listX[LIST_1][0]->iCodingType==FRAME_MB_PAIR_CODING && currSlice->listX[LIST_1][0]->motion.mb_field_decoding_flag[currMB->mbAddrX]) ||
                 (currSlice->listX[LIST_1][0]->iCodingType==FIELD_CODING))) {
                 if (iabs(dec_picture->poc - currSlice->listX[LIST_1+4][0]->poc)> iabs(dec_picture->poc -currSlice->listX[LIST_1+2][0]->poc) )
                     colocated = p_Vid->active_sps->direct_8x8_inference_flag ? 
@@ -801,8 +801,8 @@ int get_direct8x8temporal(Macroblock *currMB, StorablePicture *dec_picture, int 
         } else { // co-located skip or inter mode
             int mapped_idx=0;
             int iref;
-            if ((currSlice->mb_aff_frame_flag && ( (currMB->mb_field && colocated->ref_pic[refList]->structure==FRAME) || 
-                (!currMB->mb_field && colocated->ref_pic[refList]->structure!=FRAME))) ||
+            if ((currSlice->mb_aff_frame_flag && ( (currMB->mb_field_decoding_flag && colocated->ref_pic[refList]->structure==FRAME) || 
+                (!currMB->mb_field_decoding_flag && colocated->ref_pic[refList]->structure!=FRAME))) ||
                 (!currSlice->mb_aff_frame_flag && ((currSlice->field_pic_flag==0 && colocated->ref_pic[refList]->structure!=FRAME)
                 ||(currSlice->field_pic_flag==1 && colocated->ref_pic[refList]->structure==FRAME))) ) {
                 for (iref = 0; iref < imin(currSlice->num_ref_idx_l0_active_minus1+1, currSlice->listXsize[LIST_0 + list_offset]);iref++) {
@@ -831,10 +831,10 @@ int get_direct8x8temporal(Macroblock *currMB, StorablePicture *dec_picture, int 
             if (INVALIDINDEX != mapped_idx) {
                 int mv_scale = currSlice->mvscale[LIST_0 + list_offset][mapped_idx];
                 int mv_y = colocated->mv[refList].mv_y; 
-                if ((currSlice->mb_aff_frame_flag && !currMB->mb_field && colocated->ref_pic[refList]->structure!=FRAME) ||
+                if ((currSlice->mb_aff_frame_flag && !currMB->mb_field_decoding_flag && colocated->ref_pic[refList]->structure!=FRAME) ||
                    (!currSlice->mb_aff_frame_flag && currSlice->field_pic_flag==0 && colocated->ref_pic[refList]->structure!=FRAME) )
                     mv_y *= 2;
-                else if ((currSlice->mb_aff_frame_flag && currMB->mb_field && colocated->ref_pic[refList]->structure==FRAME) ||
+                else if ((currSlice->mb_aff_frame_flag && currMB->mb_field_decoding_flag && colocated->ref_pic[refList]->structure==FRAME) ||
                         (!currSlice->mb_aff_frame_flag && currSlice->field_pic_flag==1 && colocated->ref_pic[refList]->structure==FRAME) )
                     mv_y /= 2;
 
@@ -1338,7 +1338,7 @@ static void set_direct_references_mb_field(const PixelPos *mb, char *l0_rFrame, 
   if (mb->available)
   {
     char *ref_idx = mv_info[mb->pos_y][mb->pos_x].ref_idx;
-    if (mb_data[mb->mb_addr].mb_field)
+    if (mb_data[mb->mb_addr].mb_field_decoding_flag)
     {
       *l0_rFrame  = ref_idx[LIST_0];
       *l1_rFrame  = ref_idx[LIST_1];
@@ -1361,7 +1361,7 @@ static void set_direct_references_mb_frame(const PixelPos *mb, char *l0_rFrame, 
   if (mb->available)
   {
     char *ref_idx = mv_info[mb->pos_y][mb->pos_x].ref_idx;
-    if (mb_data[mb->mb_addr].mb_field)
+    if (mb_data[mb->mb_addr].mb_field_decoding_flag)
     {
       *l0_rFrame  = (ref_idx[LIST_0] >> 1);
       *l1_rFrame  = (ref_idx[LIST_1] >> 1);
@@ -1399,7 +1399,7 @@ void prepare_direct_params(Macroblock *currMB, StorablePicture *dec_picture, Mot
   else
   {
     VideoParameters *p_Vid = currMB->p_Vid;
-    if (currMB->mb_field)
+    if (currMB->mb_field_decoding_flag)
     {
       set_direct_references_mb_field(&mb[0], &l0_refA, &l1_refA, mv_info, p_Vid->mb_data);
       set_direct_references_mb_field(&mb[1], &l0_refB, &l1_refB, mv_info, p_Vid->mb_data);

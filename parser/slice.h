@@ -130,9 +130,6 @@ typedef struct slice_t {
     int                       qs;
 
 
-
-
-
     int                       Transform8x8Mode;
     Boolean                   chroma444_not_separate; //!< indicates chroma 4:4:4 coding with separate_colour_plane_flag equal to zero
 
@@ -162,7 +159,6 @@ typedef struct slice_t {
     int                       max_part_nr;
     int                       dp_mode;       //!< data partitioning mode
     int                       current_header;
-    int                       next_header;
     int                       last_dquant;
 
 #if (MVC_EXTENSION_ENABLE)
@@ -245,8 +241,6 @@ typedef struct slice_t {
 
 
 int slice_header(Slice *currSlice);
-
-void fill_wp_params(Slice *currSlice);
 
 void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *currStream, Slice *pSlice);
 

@@ -75,30 +75,30 @@ static void GetMotionVectorPredictorMBAFF (Macroblock *currMB,
 
     mvPredType = MVPRED_MEDIAN;
 
-    if (currMB->mb_field) {
+    if (currMB->mb_field_decoding_flag) {
         rFrameL  = block[0].available
-            ? (p_Vid->mb_data[block[0].mb_addr].mb_field
+            ? (p_Vid->mb_data[block[0].mb_addr].mb_field_decoding_flag
             ? mv_info[block[0].pos_y][block[0].pos_x].ref_idx[list]
             : mv_info[block[0].pos_y][block[0].pos_x].ref_idx[list] * 2) : -1;
         rFrameU  = block[1].available
-            ? (p_Vid->mb_data[block[1].mb_addr].mb_field
+            ? (p_Vid->mb_data[block[1].mb_addr].mb_field_decoding_flag
             ? mv_info[block[1].pos_y][block[1].pos_x].ref_idx[list]
             : mv_info[block[1].pos_y][block[1].pos_x].ref_idx[list] * 2) : -1;
         rFrameUR = block[2].available
-            ? (p_Vid->mb_data[block[2].mb_addr].mb_field
+            ? (p_Vid->mb_data[block[2].mb_addr].mb_field_decoding_flag
             ? mv_info[block[2].pos_y][block[2].pos_x].ref_idx[list]
             : mv_info[block[2].pos_y][block[2].pos_x].ref_idx[list] * 2) : -1;
     } else {
         rFrameL = block[0].available
-            ? (p_Vid->mb_data[block[0].mb_addr].mb_field
+            ? (p_Vid->mb_data[block[0].mb_addr].mb_field_decoding_flag
             ? mv_info[block[0].pos_y][block[0].pos_x].ref_idx[list] >>1
             : mv_info[block[0].pos_y][block[0].pos_x].ref_idx[list]) : -1;
         rFrameU  = block[1].available
-            ? (p_Vid->mb_data[block[1].mb_addr].mb_field
+            ? (p_Vid->mb_data[block[1].mb_addr].mb_field_decoding_flag
             ? mv_info[block[1].pos_y][block[1].pos_x].ref_idx[list] >>1
             : mv_info[block[1].pos_y][block[1].pos_x].ref_idx[list]) : -1;
         rFrameUR = block[2].available
-            ? (p_Vid->mb_data[block[2].mb_addr].mb_field
+            ? (p_Vid->mb_data[block[2].mb_addr].mb_field_decoding_flag
             ? mv_info[block[2].pos_y][block[2].pos_x].ref_idx[list] >>1
             : mv_info[block[2].pos_y][block[2].pos_x].ref_idx[list]) : -1;
     }
@@ -137,35 +137,35 @@ static void GetMotionVectorPredictorMBAFF (Macroblock *currMB,
             mv_b = block[1].available ? mv_info[block[1].pos_y][block[1].pos_x].mv[list].mv_x : 0;
             mv_c = block[2].available ? mv_info[block[2].pos_y][block[2].pos_x].mv[list].mv_x : 0;
         } else {
-            if (currMB->mb_field) {
+            if (currMB->mb_field_decoding_flag) {
                 mv_a = block[0].available
-                    ? p_Vid->mb_data[block[0].mb_addr].mb_field
+                    ? p_Vid->mb_data[block[0].mb_addr].mb_field_decoding_flag
                     ? mv_info[block[0].pos_y][block[0].pos_x].mv[list].mv_y
                     : mv_info[block[0].pos_y][block[0].pos_x].mv[list].mv_y / 2
                     : 0;
                 mv_b = block[1].available
-                    ? p_Vid->mb_data[block[1].mb_addr].mb_field
+                    ? p_Vid->mb_data[block[1].mb_addr].mb_field_decoding_flag
                     ? mv_info[block[1].pos_y][block[1].pos_x].mv[list].mv_y
                     : mv_info[block[1].pos_y][block[1].pos_x].mv[list].mv_y / 2
                     : 0;
                 mv_c = block[2].available
-                    ? p_Vid->mb_data[block[2].mb_addr].mb_field
+                    ? p_Vid->mb_data[block[2].mb_addr].mb_field_decoding_flag
                     ? mv_info[block[2].pos_y][block[2].pos_x].mv[list].mv_y
                     : mv_info[block[2].pos_y][block[2].pos_x].mv[list].mv_y / 2
                     : 0;
             } else {
                 mv_a = block[0].available
-                    ? p_Vid->mb_data[block[0].mb_addr].mb_field
+                    ? p_Vid->mb_data[block[0].mb_addr].mb_field_decoding_flag
                     ? mv_info[block[0].pos_y][block[0].pos_x].mv[list].mv_y * 2
                     : mv_info[block[0].pos_y][block[0].pos_x].mv[list].mv_y
                     : 0;
                 mv_b = block[1].available
-                    ? p_Vid->mb_data[block[1].mb_addr].mb_field
+                    ? p_Vid->mb_data[block[1].mb_addr].mb_field_decoding_flag
                     ? mv_info[block[1].pos_y][block[1].pos_x].mv[list].mv_y * 2
                     : mv_info[block[1].pos_y][block[1].pos_x].mv[list].mv_y
                     : 0;
                 mv_c = block[2].available
-                    ? p_Vid->mb_data[block[2].mb_addr].mb_field
+                    ? p_Vid->mb_data[block[2].mb_addr].mb_field_decoding_flag
                     ? mv_info[block[2].pos_y][block[2].pos_x].mv[list].mv_y * 2
                     : mv_info[block[2].pos_y][block[2].pos_x].mv[list].mv_y
                     : 0;

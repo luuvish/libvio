@@ -155,9 +155,7 @@ typedef struct syntaxelement_dec {
     int           value2;                //!< for blocked symbols, e.g. run/level
     int           len;                   //!< length of code
     int           inf;                   //!< info part of CAVLC code
-    unsigned int  bitpattern;            //!< CAVLC bitpattern
     int           context;               //!< CABAC context
-    int           k;                     //!< CABAC context for coeff_count,uv
 
     //! for mapping of CAVLC to syntaxElement
     void (*mapping)(int len, int info, int *value1, int *value2);

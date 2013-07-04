@@ -52,7 +52,7 @@ static void set_chroma_vector(Macroblock *currMB)
 
         //////////////////////////
         // find out the correct list offsets
-        if (currMB->mb_field) {
+        if (currMB->mb_field_decoding_flag) {
             int list_offset = currMB->list_offset;
 
             for (l = LIST_0 + list_offset; l <= (LIST_1 + list_offset); l++) {
@@ -73,7 +73,7 @@ static void set_chroma_vector(Macroblock *currMB)
         }
     }
 
-    currSlice->max_mb_vmv_r = (currSlice->structure != FRAME || ( currMB->mb_field )) ? p_Vid->max_vmv_r >> 1 : p_Vid->max_vmv_r;
+    currSlice->max_mb_vmv_r = (currSlice->structure != FRAME || ( currMB->mb_field_decoding_flag )) ? p_Vid->max_vmv_r >> 1 : p_Vid->max_vmv_r;
 }
 
 
@@ -396,7 +396,7 @@ static int mb_pred_ipcm(Macroblock *currMB)
     memset(p_Vid->nz_coeff[currMB->mbAddrX][0][0], 16, 3 * BLOCK_PIXELS * sizeof(byte));
 
     // for CABAC decoding of MB skip flag
-    currMB->skip_flag = 0;
+    currMB->mb_skip_flag = 0;
 
     //for deblocking filter CABAC
     currMB->s_cbp[0].blk = 0xFFFF;

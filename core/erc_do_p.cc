@@ -600,7 +600,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
       get_block_luma(currSlice->listX[0][ref_frame], vec1_x, vec1_y, BLOCK_SIZE, BLOCK_SIZE,
         tmp_block,
         dec_picture->iLumaStride,dec_picture->size_x_m1,
-        (currMB->mb_field) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1, PLANE_Y, currMB);
+        (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1, PLANE_Y, currMB);
 
       for(ii=0;ii<BLOCK_SIZE;ii++)
         for(jj=0;jj<MB_BLOCK_SIZE/BLOCK_SIZE;jj++)
@@ -895,7 +895,7 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
   vec1_x = x*mv_mul + mv[0];
   vec1_y = y*mv_mul + mv[1];
   get_block_luma(currSlice->listX[list][ref_frame],  vec1_x, vec1_y, BLOCK_SIZE, BLOCK_SIZE, tmp_block,
-    dec_picture->iLumaStride,dec_picture->size_x_m1, (currMB->mb_field) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1, PLANE_Y, currMB);
+    dec_picture->iLumaStride,dec_picture->size_x_m1, (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1, PLANE_Y, currMB);
 
   for(jj=0;jj<MB_BLOCK_SIZE/BLOCK_SIZE;jj++)
     for(ii=0;ii<BLOCK_SIZE;ii++)

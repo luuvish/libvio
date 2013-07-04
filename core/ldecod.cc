@@ -765,7 +765,9 @@ int CloseDecoder()
     if (pDecoder->p_Vid->p_ref != -1)
         close(pDecoder->p_Vid->p_ref);
 
+#if (DISABLE_ERC == 0)
     ercClose(pDecoder->p_Vid, pDecoder->p_Vid->erc_errorVar);
+#endif
 
     CleanUpPPS(pDecoder->p_Vid);
 #if (MVC_EXTENSION_ENABLE)

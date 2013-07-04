@@ -188,6 +188,9 @@ extern void write_lost_ref_after_idr     (DecodedPictureBuffer *p_Dpb, int pos);
 
 extern int comp(const void *, const void *);
 
+struct macroblock_dec;
+void erc_picture(VideoParameters *p_Vid, StorablePicture **dec_picture);
+void ercWriteMBMODEandMV(struct macroblock_dec *currMB);
 
 #ifdef __cplusplus
 }

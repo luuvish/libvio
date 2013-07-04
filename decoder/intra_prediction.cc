@@ -85,9 +85,9 @@ static void neighbouring_samples_4x4(imgpel *pred, bool *available, Macroblock *
     }
     if (available[0]) {
         //int width = (pl) ? currSlice->dec_picture->iChromaStride : currSlice->dec_picture->iLumaStride;
-        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field ? 2 : 1;
+        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
 //        imgpel *pix = &img[pix_a.pos_y][pix_a.pos_x];
-//        if (MbaffFrameFlag == 1 && !currMB->mb_field && (currMB->mbAddrX & 1))
+//        if (MbaffFrameFlag == 1 && !currMB->mb_field_decoding_flag && (currMB->mbAddrX & 1))
 //            pix -= 16 * width;
 //        for (int y = 0; y < 4; y++)
 //            p(-1, y) = pix[y * dy * width];
@@ -158,9 +158,9 @@ static void neighbouring_samples_8x8(imgpel *pred, bool *available, Macroblock *
     }
     if (available[0]) {
         //int width = (pl) ? currSlice->dec_picture->iChromaStride : currSlice->dec_picture->iLumaStride;
-        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field ? 2 : 1;
+        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
 //        imgpel *pix = &img[pix_a.pos_y][pix_a.pos_x];
-//        if (MbaffFrameFlag == 1 && !currMB->mb_field && (currMB->mbAddrX & 1))
+//        if (MbaffFrameFlag == 1 && !currMB->mb_field_decoding_flag && (currMB->mbAddrX & 1))
 //            pix -= 16 * width;
 //        for (int y = 0; y < 4; y++)
 //            p(-1, y) = pix[y * dy * width];
@@ -255,9 +255,9 @@ static void neighbouring_samples_16x16(imgpel *pred, bool *available, Macroblock
     }
     if (available[0]) {
         //int width = (pl) ? currSlice->dec_picture->iChromaStride : currSlice->dec_picture->iLumaStride;
-        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field ? 2 : 1;
+        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
 //        imgpel *pix = &img[pix_a.pos_y][pix_a.pos_x];
-//        if (MbaffFrameFlag == 1 && !currMB->mb_field && (currMB->mbAddrX & 1))
+//        if (MbaffFrameFlag == 1 && !currMB->mb_field_decoding_flag && (currMB->mbAddrX & 1))
 //            pix -= 16 * width;
 //        for (int y = 0; y < 4; y++)
 //            p(-1, y) = pix[y * dy * width];
@@ -322,9 +322,9 @@ static void neighbouring_samples_chroma(imgpel *pred, bool *available, Macrobloc
     }
     if (available[0]) {
         //int width = (pl) ? currSlice->dec_picture->iChromaStride : currSlice->dec_picture->iLumaStride;
-        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field ? 2 : 1;
+        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
 //        imgpel *pix = &img[pix_a.pos_y][pix_a.pos_x];
-//        if (MbaffFrameFlag == 1 && !currMB->mb_field && (currMB->mbAddrX & 1))
+//        if (MbaffFrameFlag == 1 && !currMB->mb_field_decoding_flag && (currMB->mbAddrX & 1))
 //            pix -= 16 * width;
 //        for (int y = 0; y < 4; y++)
 //            p(-1, y) = pix[y * dy * width];

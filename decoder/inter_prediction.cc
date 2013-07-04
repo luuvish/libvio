@@ -51,7 +51,7 @@ static void mc_prediction(imgpel *mb_pred,
         VideoParameters *p_Vid = currMB->p_Vid;
         short ref_idx_wp = l0_refframe;
         int type = currSlice->slice_type;
-        if (currMB->mb_field &&
+        if (currMB->mb_field_decoding_flag &&
             ((p_Vid->active_pps->weighted_pred_flag && (type == P_SLICE || type == SP_SLICE))||
              (p_Vid->active_pps->weighted_bipred_idc == 1 && (type == B_SLICE))))
             ref_idx_wp >>= 1;
@@ -85,8 +85,8 @@ static void bi_prediction(imgpel *mb_pred,
         Slice *currSlice = currMB->p_Slice;
 
         int list_offset = currMB->list_offset;
-        int l0_ref_idx  = (currMB->mb_field && weighted_bipred_idc == 1) ? l0_refframe >> 1: l0_refframe;
-        int l1_ref_idx  = (currMB->mb_field && weighted_bipred_idc == 1) ? l1_refframe >> 1: l1_refframe;
+        int l0_ref_idx  = (currMB->mb_field_decoding_flag && weighted_bipred_idc == 1) ? l0_refframe >> 1: l0_refframe;
+        int l1_ref_idx  = (currMB->mb_field_decoding_flag && weighted_bipred_idc == 1) ? l1_refframe >> 1: l1_refframe;
         int wt_list_offset = (weighted_bipred_idc == 2) ? list_offset : 0;
         int *wp_weight0 = currSlice->wbp_weight[LIST_0 + wt_list_offset][l0_ref_idx][l1_ref_idx];
         int *wp_weight1 = currSlice->wbp_weight[LIST_1 + wt_list_offset][l0_ref_idx][l1_ref_idx];
@@ -433,7 +433,7 @@ static int CheckVertMV(Macroblock *currMB, int vec_y, int block_size_y)
     VideoParameters *p_Vid = currMB->p_Vid;
     StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
     int y_pos = vec_y >> 2;
-    int maxold_y = (currMB->mb_field) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;
+    int maxold_y = (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;
 
     if (block_size_y <= (p_Vid->iLumaPadY-4))
         return 0;
@@ -465,7 +465,7 @@ void perform_mc(Macroblock *currMB, ColorPlane pl, StorablePicture *dec_picture,
     // vars for get_block_luma
     int shift_x  = dec_picture->iLumaStride;
     int maxold_x = dec_picture->size_x_m1;
-    int maxold_y = (currMB->mb_field) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;   
+    int maxold_y = (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;   
     imgpel **tmp_block_l0 = currSlice->tmp_block_l0;
     imgpel **tmp_block_l1 = currSlice->tmp_block_l1;
     imgpel **tmp_block_l2 = currSlice->tmp_block_l2;
@@ -534,7 +534,7 @@ void perform_mc(Macroblock *currMB, ColorPlane pl, StorablePicture *dec_picture,
     if (chroma_format_idc != YUV400 && chroma_format_idc != YUV444) {
         int ioff_cr, joff_cr, block_size_y_cr, block_size_x_cr, vec2_y_cr, vec1_y_cr;
         int maxold_x = dec_picture->size_x_cr_m1;
-        int maxold_y = currMB->mb_field ? (dec_picture->size_y_cr >> 1) - 1 : dec_picture->size_y_cr_m1;
+        int maxold_y = currMB->mb_field_decoding_flag ? (dec_picture->size_y_cr >> 1) - 1 : dec_picture->size_y_cr_m1;
 
         if (p_Vid->mb_cr_size_x == MB_BLOCK_SIZE) {
             ioff_cr = ioff;

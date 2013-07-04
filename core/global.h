@@ -442,6 +442,15 @@ typedef struct video_par {
 
     struct frame_store *out_buffer;
 
+    // Timing related variables
+    TIME_T start_time;
+    TIME_T end_time;
+    // Time 
+    int64 tot_time;
+    // B pictures
+    int  Bframe_ctr;
+    int  frame_no;
+    int  g_nFrame;
 
 
 
@@ -517,9 +526,6 @@ typedef struct video_par {
   int idr_psnr_number;
   int psnr_number;
 
-  // Timing related variables
-  TIME_T start_time;
-  TIME_T end_time;
 
   // picture error concealment
   int last_ref_pic_poc;
@@ -547,14 +553,6 @@ typedef struct video_par {
   int Is_primary_correct;          //!< if primary frame is correct, 0: incorrect
   int Is_redundant_correct;        //!< if redundant frame is correct, 0:incorrect
 
-  // Time 
-  int64 tot_time;
-
-  // B pictures
-  int  Bframe_ctr;
-  int  frame_no;
-
-  int  g_nFrame;
 
   // global picture format dependent buffers, memory allocation in decod.c
   imgpel **imgY_ref;                              //!< reference frame find snr
@@ -583,8 +581,6 @@ typedef struct video_par {
 
 
 
-  // report
-  char cslice_type[9];  
   // FMO
   int *MbToSliceGroupMap;
   int *MapUnitToSliceGroupMap;

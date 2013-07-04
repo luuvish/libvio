@@ -74,15 +74,19 @@ typedef struct macroblock_dec {
     struct macroblock_dec *mbleft; // neighbors for loopfilter
 
     // some storage of macroblock syntax elements for global access
-    short       mb_type;
+    bool        mb_skip_flag;
+    bool        mb_field_decoding_flag;
+    uint8_t     mb_type;
     bool        transform_size_8x8_flag;
     uint8_t     coded_block_pattern;
     int8_t      mb_qp_delta;
+
     bool        prev_intra4x4_pred_mode_flag[16];
     uint8_t     rem_intra4x4_pred_mode      [16];
     bool        prev_intra8x8_pred_mode_flag[16];
     uint8_t     rem_intra8x8_pred_mode      [16];
     uint8_t     intra_chroma_pred_mode;
+
     uint8_t     ref_idx_l0 [4];
     uint8_t     ref_idx_l1 [4];
     uint32_t    mvd_l0     [4][4][2];
@@ -108,14 +112,11 @@ typedef struct macroblock_dec {
     char                   b8pdir[4];
     char                   ipmode_DPCM;
     char                   c_ipred_mode;       //!< chroma intra prediction mode
-    char                   skip_flag;
 
 
     short                  DFDisableIdc;
     short                  DFAlphaC0Offset;
     short                  DFBetaOffset;
-
-    Boolean                mb_field;
 
     short                  filterOffsetA;
     short                  filterOffsetB;

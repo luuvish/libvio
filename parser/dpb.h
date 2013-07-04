@@ -32,7 +32,7 @@ extern "C" {
 //! definition of pic motion parameters
 typedef struct pic_motion_params_old
 {
-  byte *      mb_field;      //!< field macroblock indicator
+  byte *      mb_field_decoding_flag;      //!< field macroblock indicator
 } PicMotionParamsOld;
 
 //! definition of pic motion parameters
@@ -41,7 +41,7 @@ typedef struct pic_motion_params
   struct storable_picture *ref_pic[2];  //!< referrence picture pointer
   MotionVector             mv[2];       //!< motion vector  
   char                     ref_idx[2];  //!< reference picture   [list][subblock_y][subblock_x]
-  //byte                   mb_field;    //!< field macroblock indicator
+  //byte                   mb_field_decoding_flag;    //!< field macroblock indicator
   byte                     slice_no;
 } PicMotionParams;
 
@@ -246,12 +246,9 @@ extern void dpb_combine_field_yuv(VideoParameters *p_Vid, FrameStore *fs);
 
 extern void reorder_ref_pic_list(struct slice_t *currSlice, int cur_list);
 
-extern void init_mbaff_lists     (VideoParameters *p_Vid, struct slice_t *currSlice);
 extern void free_ref_pic_list_reordering_buffer(struct slice_t *currSlice);
 
 extern void fill_frame_num_gap(VideoParameters *p_Vid, struct slice_t *pSlice);
-
-extern void compute_colocated (struct slice_t *currSlice, StorablePicture **listX[6]);
 
 
 extern int  init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps);

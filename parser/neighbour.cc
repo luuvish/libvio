@@ -298,7 +298,7 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
 
     if (xN < 0) {
         if (yN < 0) {
-            if (!currMB->mb_field) { // frame
+            if (!currMB->mb_field_decoding_flag) { // frame
                 if ((currMB->mbAddrX & 0x01) == 0) { // top
                     pix->mb_addr   = currMB->mbAddrD  + 1;
                     pix->available = currMB->mbAvailD;
@@ -307,7 +307,7 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
                     pix->mb_addr   = currMB->mbAddrA;
                     pix->available = currMB->mbAvailA;
                     if (currMB->mbAvailA) {
-                        if (!p_Vid->mb_data[currMB->mbAddrA].mb_field)
+                        if (!p_Vid->mb_data[currMB->mbAddrA].mb_field_decoding_flag)
                             yM = yN;
                         else {
                             (pix->mb_addr)++;
@@ -320,7 +320,7 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
                     pix->mb_addr   = currMB->mbAddrD;
                     pix->available = currMB->mbAvailD;
                     if (currMB->mbAvailD) {
-                        if (!p_Vid->mb_data[currMB->mbAddrD].mb_field) {
+                        if (!p_Vid->mb_data[currMB->mbAddrD].mb_field_decoding_flag) {
                             (pix->mb_addr)++;
                             yM = 2 * yN;
                         } else
@@ -334,12 +334,12 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
             }
         } else { // xN < 0 && yN >= 0
             if (yN >= 0 && yN <maxH) {
-                if (!currMB->mb_field) { // frame
+                if (!currMB->mb_field_decoding_flag) { // frame
                     if ((currMB->mbAddrX & 0x01) == 0) { // top
                         pix->mb_addr   = currMB->mbAddrA;
                         pix->available = currMB->mbAvailA;
                         if (currMB->mbAvailA) {
-                            if (!p_Vid->mb_data[currMB->mbAddrA].mb_field)
+                            if (!p_Vid->mb_data[currMB->mbAddrA].mb_field_decoding_flag)
                                 yM = yN;
                             else {
                                 (pix->mb_addr)+= ((yN & 0x01) != 0);
@@ -350,7 +350,7 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
                         pix->mb_addr   = currMB->mbAddrA;
                         pix->available = currMB->mbAvailA;
                         if (currMB->mbAvailA) {
-                            if (!p_Vid->mb_data[currMB->mbAddrA].mb_field) {
+                            if (!p_Vid->mb_data[currMB->mbAddrA].mb_field_decoding_flag) {
                                 (pix->mb_addr)++;
                                 yM = yN;
                             } else {
@@ -364,7 +364,7 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
                         pix->mb_addr  = currMB->mbAddrA;
                         pix->available = currMB->mbAvailA;
                         if (currMB->mbAvailA) {
-                            if (!p_Vid->mb_data[currMB->mbAddrA].mb_field) {
+                            if (!p_Vid->mb_data[currMB->mbAddrA].mb_field_decoding_flag) {
                                 if (yN < (maxH >> 1))
                                     yM = yN << 1;
                                 else {
@@ -378,7 +378,7 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
                         pix->mb_addr  = currMB->mbAddrA;
                         pix->available = currMB->mbAvailA;
                         if (currMB->mbAvailA) {
-                            if (!p_Vid->mb_data[currMB->mbAddrA].mb_field) {
+                            if (!p_Vid->mb_data[currMB->mbAddrA].mb_field_decoding_flag) {
                                 if (yN < (maxH >> 1))
                                     yM = (yN << 1) + 1;
                                 else {
@@ -397,13 +397,13 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
     } else { // xN >= 0
         if (xN >= 0 && xN < maxW) {
             if (yN < 0) {
-                if (!currMB->mb_field) { //frame
+                if (!currMB->mb_field_decoding_flag) { //frame
                     if ((currMB->mbAddrX & 0x01) == 0) { //top
                         pix->mb_addr  = currMB->mbAddrB;
                         // for the deblocker if the current MB is a frame and the one above is a field
                         // then the neighbor is the top MB of the pair
                         if (currMB->mbAvailB) {
-                            if (!(currMB->DeblockCall == 1 && (p_Vid->mb_data[currMB->mbAddrB]).mb_field))
+                            if (!(currMB->DeblockCall == 1 && (p_Vid->mb_data[currMB->mbAddrB]).mb_field_decoding_flag))
                                 pix->mb_addr  += 1;
                         }
 
@@ -419,7 +419,7 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
                         pix->mb_addr   = currMB->mbAddrB;
                         pix->available = currMB->mbAvailB;
                         if (currMB->mbAvailB) {
-                            if (!p_Vid->mb_data[currMB->mbAddrB].mb_field) {
+                            if (!p_Vid->mb_data[currMB->mbAddrB].mb_field_decoding_flag) {
                                 (pix->mb_addr)++;
                                 yM = 2* yN;
                             } else
@@ -445,7 +445,7 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
             }
         } else { // xN >= maxW
             if (yN < 0) {
-                if (!currMB->mb_field) { // frame
+                if (!currMB->mb_field_decoding_flag) { // frame
                     if ((currMB->mbAddrX & 0x01) == 0) { // top
                         pix->mb_addr  = currMB->mbAddrC + 1;
                         pix->available = currMB->mbAvailC;
@@ -457,7 +457,7 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
                         pix->mb_addr   = currMB->mbAddrC;
                         pix->available = currMB->mbAvailC;
                         if (currMB->mbAvailC) {
-                            if (!p_Vid->mb_data[currMB->mbAddrC].mb_field) {
+                            if (!p_Vid->mb_data[currMB->mbAddrC].mb_field_decoding_flag) {
                                 (pix->mb_addr)++;
                                 yM = 2 * yN;
                             } else

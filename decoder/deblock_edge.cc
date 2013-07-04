@@ -348,7 +348,7 @@ static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool ch
             }
 
             Macroblock *MbP = &(p_Vid->mb_data[pixP.mb_addr]);
-            int StrengthIdx = (PelNum == 8) ? ((MbQ->mb_field && !MbP->mb_field) ? pel << 1 : ((pel >> 1) << 2) + (pel & 0x01)) : pel;
+            int StrengthIdx = (PelNum == 8) ? ((MbQ->mb_field_decoding_flag && !MbP->mb_field_decoding_flag) ? pel << 1 : ((pel >> 1) << 2) + (pel & 0x01)) : pel;
             int bS = Strength[StrengthIdx];
 
             if (pixP.available && bS != 0) {
@@ -360,8 +360,8 @@ static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool ch
                     incQ = 1;
                     incP = 1;
                 } else {
-                    incQ = ((MbP->mb_field && !MbQ->mb_field) ? 2 * width : width);
-                    incP = ((MbQ->mb_field && !MbP->mb_field) ? 2 * width : width);
+                    incQ = ((MbP->mb_field_decoding_flag && !MbQ->mb_field_decoding_flag) ? 2 * width : width);
+                    incP = ((MbQ->mb_field_decoding_flag && !MbP->mb_field_decoding_flag) ? 2 * width : width);
                 }
 
                 // Average QP of the two blocks
