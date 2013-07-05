@@ -1182,7 +1182,7 @@ static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoPar
     {
       init_lists_for_non_reference_loss(
         p_Vid->p_Dpb_layer[0],
-        dst->slice_type, p_Vid->ppSliceList[0]->structure);
+        dst->slice_type, p_Vid->ppSliceList[0]->field_pic_flag);
     }
     else
       init_lists(p_Vid->ppSliceList[0]);
@@ -1398,7 +1398,7 @@ void update_ref_list_for_concealment(DecodedPictureBuffer *p_Dpb)
 *
 ************************************************************************
 */
-void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSliceType, PictureStructure currPicStructure)
+void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSliceType, bool field_pic_flag)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   sps_t *active_sps = p_Vid->active_sps;
@@ -1413,7 +1413,7 @@ void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSlic
 
   StorablePicture *tmp_s;
 
-  if (currPicStructure == FRAME)
+  if (!field_pic_flag)
   {
     for(i=0;i<p_Dpb->ref_frames_in_buffer; i++)
     {
@@ -1431,7 +1431,7 @@ void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSlic
   if (currSliceType == P_SLICE)
   {
     // Calculate FrameNumWrap and PicNum
-    if (currPicStructure == FRAME)
+    if (!field_pic_flag)
     {
       for(i=0;i<p_Dpb->used_size; i++)
       {
@@ -1448,7 +1448,7 @@ void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSlic
 
   if (currSliceType == B_SLICE)
   {
-    if (currPicStructure == FRAME)
+    if (!field_pic_flag)
     {
       //      for(i=0;i<p_Dpb->ref_frames_in_buffer; i++)
       for(i=0;i<p_Dpb->used_size; i++)

@@ -116,7 +116,7 @@ static int is_long_term_reference(FrameStore* fs)
  *
  ************************************************************************
  */
-void gen_pic_list_from_frame_list(PictureStructure currStructure, FrameStore **fs_list, int list_idx, StorablePicture **list, char *list_size, int long_term)
+void gen_pic_list_from_frame_list(bool bottom_field_flag, FrameStore **fs_list, int list_idx, StorablePicture **list, char *list_size, int long_term)
 {
   int top_idx = 0;
   int bot_idx = 0;
@@ -124,7 +124,7 @@ void gen_pic_list_from_frame_list(PictureStructure currStructure, FrameStore **f
   int (*is_ref)(StorablePicture *s) = (long_term) ? is_long_ref : is_short_ref;
 
 
-  if (currStructure == TOP_FIELD)
+  if (!bottom_field_flag)
   {
     while ((top_idx<list_idx)||(bot_idx<list_idx))
     {
@@ -158,7 +158,7 @@ void gen_pic_list_from_frame_list(PictureStructure currStructure, FrameStore **f
       }
     }
   }
-  if (currStructure == BOTTOM_FIELD)
+  else
   {
     while ((top_idx<list_idx)||(bot_idx<list_idx))
     {
@@ -207,7 +207,7 @@ StorablePicture*  get_long_term_pic(Slice *currSlice, DecodedPictureBuffer *p_Dp
 
   for (i=0; i<p_Dpb->ltref_frames_in_buffer; i++)
   {
-    if (currSlice->structure==FRAME)
+    if (!currSlice->field_pic_flag)
     {
       if (p_Dpb->fs_ltref[i]->is_reference == 3)
         if ((p_Dpb->fs_ltref[i]->frame->is_long_term)&&(p_Dpb->fs_ltref[i]->frame->long_term_pic_num == LongtermPicNum))

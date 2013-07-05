@@ -177,7 +177,7 @@ struct concealment_node {
 struct slice_t;
 
 extern struct concealment_node * init_node(StorablePicture* , int );
-extern void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int , PictureStructure );
+extern void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int , bool );
 
 extern void conceal_non_ref_pics(DecodedPictureBuffer *p_Dpb, int diff);
 extern void conceal_lost_frames (DecodedPictureBuffer *p_Dpb, struct slice_t *pSlice);

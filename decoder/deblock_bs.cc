@@ -213,7 +213,7 @@ void get_strength_hor(Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p
     if (currSlice->slice_type == SP_SLICE || currSlice->slice_type == SI_SLICE ||
         MbQ->is_intra_block || (MbP->is_intra_block && edge == 0)) {
         // Set strength to either 3 or 4 regardless of pixel position
-        StrValue = (edge == 0 && p->structure == FRAME) ? 4 : 3;
+        StrValue = (edge == 0 && !currSlice->field_pic_flag) ? 4 : 3;
         memset(Strength, (byte) StrValue, BLOCK_SIZE * sizeof(byte));
         return;
     }
@@ -307,6 +307,7 @@ void get_strength_ver_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
 
     PixelPos pixP;
     VideoParameters *p_Vid = MbQ->p_Vid;
+    Slice *currSlice = MbQ->p_Slice;
     BlockPos *PicPos = p_Vid->PicPos;
 
     if (p->slice_type == SP_SLICE || p->slice_type == SI_SLICE) {
@@ -393,9 +394,9 @@ void get_strength_ver_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
                 MbQ->mixedModeEdgeFlag = (byte) (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag); 
 
                 // Start with Strength=3. or Strength=4 for Mb-edge
-                Strength[idx] = (edge == 0 && (((!p->mb_aff_frame_flag && (p->structure==FRAME)) ||
+                Strength[idx] = (edge == 0 && (((!p->mb_aff_frame_flag && !currSlice->field_pic_flag) ||
                     (p->mb_aff_frame_flag && !MbP->mb_field_decoding_flag && !MbQ->mb_field_decoding_flag)) ||
-                    ((p->mb_aff_frame_flag || (p->structure!=FRAME))))) ? 4 : 3;
+                    ((p->mb_aff_frame_flag || currSlice->field_pic_flag)))) ? 4 : 3;
 
                 if (MbQ->is_intra_block == FALSE && MbP->is_intra_block == FALSE) {
                     if (((MbQ->s_cbp[0].blk & i64_power2(blkQ)) != 0) || ((MbP->s_cbp[0].blk & i64_power2(blkP)) != 0))

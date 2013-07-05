@@ -292,8 +292,8 @@ void read_delta_quant(SyntaxElement *currSE, DataPartition *dP, Macroblock *curr
     //error ("mb_qp_delta is out of range", 500);
   }
 
-  currSlice->qp = ((currSlice->qp + currMB->delta_quant + 52 + 2*p_Vid->bitdepth_luma_qp_scale)%(52+p_Vid->bitdepth_luma_qp_scale)) - p_Vid->bitdepth_luma_qp_scale;
-  update_qp(currMB, currSlice->qp);
+  currSlice->SliceQpY = ((currSlice->SliceQpY + currMB->delta_quant + 52 + 2*p_Vid->bitdepth_luma_qp_scale)%(52+p_Vid->bitdepth_luma_qp_scale)) - p_Vid->bitdepth_luma_qp_scale;
+  update_qp(currMB, currSlice->SliceQpY);
 }
 
 /*!
@@ -636,7 +636,7 @@ static void read_motion_info_from_NAL_p_slice (Macroblock *currMB)
   if (p_Vid->active_pps->entropy_coding_mode_flag == (Boolean) CAVLC || dP->bitstream->ei_flag) 
     currSE.mapping = linfo_se;
   else                                                  
-    currSE.reading = currSlice->mb_aff_frame_flag ? read_mvd_CABAC_mbaff : read_MVD_CABAC;
+    currSE.reading = currSlice->MbaffFrameFlag ? read_mvd_CABAC_mbaff : read_MVD_CABAC;
 
   // LIST_0 Motion vectors
   readMBMotionVectors (&currSE, dP, currMB, LIST_0, step_h0, step_v0);
@@ -703,7 +703,7 @@ static void read_motion_info_from_NAL_b_slice (Macroblock *currMB)
   if (p_Vid->active_pps->entropy_coding_mode_flag == (Boolean) CAVLC || dP->bitstream->ei_flag) 
     currSE.mapping = linfo_se;
   else                                                  
-    currSE.reading = currSlice->mb_aff_frame_flag ? read_mvd_CABAC_mbaff : read_MVD_CABAC;
+    currSE.reading = currSlice->MbaffFrameFlag ? read_mvd_CABAC_mbaff : read_MVD_CABAC;
 
   // LIST_0 Motion vectors
   readMBMotionVectors (&currSE, dP, currMB, LIST_0, step_h0, step_v0);
@@ -1068,7 +1068,7 @@ static void read_ipred_modes(Macroblock *currMB)
     Slice *currSlice = currMB->p_Slice;
     StorablePicture *dec_picture = currSlice->dec_picture;
 
-    if (currSlice->mb_aff_frame_flag) {
+    if (currSlice->MbaffFrameFlag) {
         if (currMB->mb_type == I8MB)
             read_ipred_8x8_modes_mbaff(currMB);
         else if (currMB->mb_type == I4MB)
@@ -1205,7 +1205,7 @@ static void concealIPCMcoeffs(Macroblock *currMB)
         currSlice->cof[0][i][j] = p_Vid->dc_pred_value_comp[0];
     }
 
-    if ((dec_picture->chroma_format_idc != YUV400) && (p_Vid->separate_colour_plane_flag == 0)) {
+    if ((dec_picture->chroma_format_idc != YUV400) && (p_Vid->active_sps->separate_colour_plane_flag == 0)) {
         for (k = 0; k < 2; ++k)
             for(i=0;i<p_Vid->mb_cr_size_y;++i)
                 for(j=0;j<p_Vid->mb_cr_size_x;++j)
@@ -1249,7 +1249,7 @@ void readIPCM_CABAC(Slice *currSlice, struct datapartition_dec *dP)
 
     // read chroma values
     bitdepth = p_Vid->bitdepth_chroma;
-    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->separate_colour_plane_flag == 0) {
+    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->active_sps->separate_colour_plane_flag == 0) {
         for (uv = 1; uv < 3; ++uv) {
             for (i = 0; i < p_Vid->mb_cr_size_y; ++i) {
                 for (j = 0; j < p_Vid->mb_cr_size_x; ++j) {
@@ -1294,7 +1294,7 @@ static void read_IPCM_coeffs_from_NAL(Slice *currSlice, struct datapartition_dec
             currSlice->cof[0][i][j] = currStream->f(p_Vid->bitdepth_luma);
     }
 
-    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->separate_colour_plane_flag == 0) {
+    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->active_sps->separate_colour_plane_flag == 0) {
         for (i = 0; i < p_Vid->mb_cr_size_y; i++) {
             for (j = 0; j < p_Vid->mb_cr_size_x; j++)
                 currSlice->cof[1][i][j] = currStream->f(p_Vid->bitdepth_chroma);
@@ -1376,7 +1376,7 @@ static void skip_macroblock(Macroblock *currMB)
   MotionVector *b_mv = NULL;
 
   get_neighbors(currMB, mb, 0, 0, MB_BLOCK_SIZE);
-  if (currSlice->mb_aff_frame_flag == 0)
+  if (currSlice->MbaffFrameFlag == 0)
   {
     if (mb[0].available)
     {
@@ -1526,7 +1526,7 @@ static void read_intra_macroblock(Macroblock *currMB)
     //============= Transform Size Flag for INTRA MBs =============
     //-------------------------------------------------------------
     //transform size flag for INTRA_4x4 and INTRA_8x8 modes
-    if (currMB->mb_type == I4MB && currSlice->Transform8x8Mode) {
+    if (currMB->mb_type == I4MB && currSlice->active_pps->transform_8x8_mode_flag) {
         bool isCabac = currSlice->p_Vid->active_pps->entropy_coding_mode_flag;
         const byte *partMap = assignSE2partition[currSlice->dp_mode];
         DataPartition *dP = &(currSlice->partArr[partMap[SE_HEADER]]);
@@ -1629,12 +1629,12 @@ static bool check_mb_skip_cavlc(Macroblock *currMB)
     SyntaxElement currSE;
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
 
-    if (currSlice->mb_aff_frame_flag)
+    if (currSlice->MbaffFrameFlag)
         currMB->mb_field_decoding_flag = ((mb_nr&0x01) == 0)? FALSE : p_Vid->mb_data[mb_nr-1].mb_field_decoding_flag;
     else
         currMB->mb_field_decoding_flag = FALSE;
 
-    update_qp(currMB, currSlice->qp);
+    update_qp(currMB, currSlice->SliceQpY);
 
     //  read MB mode *****************************************************************
     dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);
@@ -1647,7 +1647,7 @@ static bool check_mb_skip_cavlc(Macroblock *currMB)
 
     if (currSlice->cod_counter == 0) {
         currSlice->cod_counter--;
-        if (currSlice->mb_aff_frame_flag) {
+        if (currSlice->MbaffFrameFlag) {
             int prevMbSkipped = 0;
             if (mb_nr & 0x01) {
                 Macroblock *topMB = &p_Vid->mb_data[mb_nr-1];
@@ -1668,7 +1668,7 @@ static bool check_mb_skip_cavlc(Macroblock *currMB)
     currMB->mb_skip_flag = 1;      
     currMB->mb_type      = 0;
 
-    if (currSlice->mb_aff_frame_flag && (mb_nr & 0x01) == 0) {
+    if (currSlice->MbaffFrameFlag && (mb_nr & 0x01) == 0) {
         // read field flag of bottom block
         if (currSlice->cod_counter == 0) {
             currMB->mb_field_decoding_flag = dP->bitstream->f(1);
@@ -1697,12 +1697,12 @@ static bool check_mb_skip_cabac(Macroblock *currMB)
     DataPartition *dP;
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
 
-    if (currSlice->mb_aff_frame_flag)
+    if (currSlice->MbaffFrameFlag)
         currMB->mb_field_decoding_flag = (mb_nr & 0x01) == 0 ? FALSE : p_Vid->mb_data[mb_nr-1].mb_field_decoding_flag;
     else
         currMB->mb_field_decoding_flag = FALSE;
 
-    update_qp(currMB, currSlice->qp);
+    update_qp(currMB, currSlice->SliceQpY);
 
     //  read MB mode *****************************************************************
     dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);
@@ -1710,7 +1710,7 @@ static bool check_mb_skip_cabac(Macroblock *currMB)
     if (dP->bitstream->ei_flag)   
         currSE.mapping = linfo_ue;
 
-    if (currSlice->mb_aff_frame_flag) {
+    if (currSlice->MbaffFrameFlag) {
         // read MB skip_flag
         int prevMbSkipped = 0;
         if (mb_nr & 0x01) {
@@ -1735,7 +1735,7 @@ static bool check_mb_skip_cabac(Macroblock *currMB)
     if (currSE.value1 == 0)
         currSlice->cod_counter = 0;
 
-    if (currSlice->mb_aff_frame_flag) {
+    if (currSlice->MbaffFrameFlag) {
         // read MB AFF
         int check_bottom, read_bottom, read_top;  
         check_bottom = read_bottom = read_top = 0;
@@ -1778,7 +1778,7 @@ static void read_one_macroblock_i_slice(Macroblock *currMB)
 
     currMB->mb_field_decoding_flag = ((mb_nr&0x01) == 0)? FALSE : currSlice->mb_data[mb_nr-1].mb_field_decoding_flag; 
 
-    update_qp(currMB, currSlice->qp);
+    update_qp(currMB, currSlice->SliceQpY);
 
     //  read MB mode *****************************************************************
     dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);
@@ -1787,7 +1787,7 @@ static void read_one_macroblock_i_slice(Macroblock *currMB)
         currSE.mapping = linfo_ue;
 
     // read MB aff
-    if (currSlice->mb_aff_frame_flag && (mb_nr & 0x01) == 0) {
+    if (currSlice->MbaffFrameFlag && (mb_nr & 0x01) == 0) {
         if (!isCabac || dP->bitstream->ei_flag) {
             currSE.value1 = dP->bitstream->f(1);
         } else {
@@ -1811,7 +1811,7 @@ static void read_one_macroblock_i_slice(Macroblock *currMB)
 
     motion->mb_field_decoding_flag[mb_nr] = (byte) currMB->mb_field_decoding_flag;
 
-    currMB->block_y_aff = (currSlice->mb_aff_frame_flag && currMB->mb_field_decoding_flag) ?
+    currMB->block_y_aff = (currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag) ?
                           (mb_nr & 0x01) ? (currMB->block_y - 4) >> 1 :
                                             currMB->block_y >> 1 : currMB->block_y;
 
@@ -1871,7 +1871,7 @@ static void read_one_macroblock_pb_slice(Macroblock *currMB)
 
     StorablePicture *dec_picture = currSlice->dec_picture;
     PicMotionParamsOld *motion = &dec_picture->motion;
-    if (currSlice->mb_aff_frame_flag == 0) {
+    if (!currSlice->MbaffFrameFlag) {
         if (!isCabac)
             //update the list offset;
             currMB->list_offset = 0;  

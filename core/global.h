@@ -491,7 +491,6 @@ typedef struct video_par {
 
   struct macroblock_dec *mb_data;               //!< array containing all MBs of a whole frame
   struct macroblock_dec *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
-  int ChromaArrayType;
 
   // picture error concealment
   // concealment_head points to first node in list, concealment_end points to
@@ -627,7 +626,6 @@ typedef struct video_par {
   unsigned int dc_pred_value_comp[MAX_PLANE]; //!< component value for DC prediction (depends on component pel bit depth)
   int max_pel_value_comp[MAX_PLANE];       //!< max value that one picture element (pixel) can take (depends on pic_unit_bitdepth)
 
-  int separate_colour_plane_flag;
   int pic_unit_size_on_disk;
 
   int profile_idc;
@@ -683,7 +681,6 @@ static inline int is_FREXT_profile(unsigned int profile_idc)
 {
   return ( profile_idc >= FREXT_HP || profile_idc == FREXT_CAVLC444 );
 }
-
 
 #ifdef __cplusplus
 }

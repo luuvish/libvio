@@ -251,7 +251,7 @@ int check_next_mb_and_get_field_mode_CABAC(Slice *currSlice,
   currMB->slice_nr = currSlice->current_slice_nr;
   currMB->mb_field_decoding_flag = currSlice->mb_data[currSlice->current_mb_nr-1].mb_field_decoding_flag;
   currMB->mbAddrX  = currSlice->current_mb_nr;
-  currMB->list_offset = ((currSlice->mb_aff_frame_flag)&&(currMB->mb_field_decoding_flag))? (currMB->mbAddrX&0x01) ? 4 : 2 : 0;
+  currMB->list_offset = ((currSlice->MbaffFrameFlag)&&(currMB->mb_field_decoding_flag))? (currMB->mbAddrX&0x01) ? 4 : 2 : 0;
 
   CheckAvailabilityOfNeighborsMBAFF(currMB);
   CheckAvailabilityOfNeighborsCABAC(currMB);
@@ -359,7 +359,7 @@ void readRefFrame_CABAC(Macroblock *currMB,
     neighborMB = &currSlice->mb_data[block_b.mb_addr];
     if (!( (neighborMB->mb_type==IPCM) || IS_DIRECT(neighborMB) || (neighborMB->b8mode[b8b]==0 && neighborMB->b8pdir[b8b]==2)))
     {
-      if (currSlice->mb_aff_frame_flag && (currMB->mb_field_decoding_flag == FALSE) && (neighborMB->mb_field_decoding_flag == TRUE))
+      if (currSlice->MbaffFrameFlag && (currMB->mb_field_decoding_flag == FALSE) && (neighborMB->mb_field_decoding_flag == TRUE))
         b = (dec_picture->mv_info[block_b.pos_y][block_b.pos_x].ref_idx[list] > 1 ? 2 : 0);
       else
         b = (dec_picture->mv_info[block_b.pos_y][block_b.pos_x].ref_idx[list] > 0 ? 2 : 0);
@@ -372,7 +372,7 @@ void readRefFrame_CABAC(Macroblock *currMB,
     neighborMB = &currSlice->mb_data[block_a.mb_addr];
     if (!((neighborMB->mb_type==IPCM) || IS_DIRECT(neighborMB) || (neighborMB->b8mode[b8a]==0 && neighborMB->b8pdir[b8a]==2)))
     {
-      if (currSlice->mb_aff_frame_flag && (currMB->mb_field_decoding_flag == FALSE) && (neighborMB->mb_field_decoding_flag == 1))
+      if (currSlice->MbaffFrameFlag && (currMB->mb_field_decoding_flag == FALSE) && (neighborMB->mb_field_decoding_flag == 1))
         a = (dec_picture->mv_info[block_a.pos_y][block_a.pos_x].ref_idx[list] > 1 ? 1 : 0);
       else
         a = (dec_picture->mv_info[block_a.pos_y][block_a.pos_x].ref_idx[list] > 0 ? 1 : 0);
@@ -480,7 +480,7 @@ void read_mvd_CABAC_mbaff( Macroblock *currMB,
   if (block_a.available)
   {
     a = iabs(currSlice->mb_data[block_a.mb_addr].mvd[list_idx][block_a.y][block_a.x][k]);
-    if (currSlice->mb_aff_frame_flag && (k==1))
+    if (currSlice->MbaffFrameFlag && (k==1))
     {
       if ((currMB->mb_field_decoding_flag==0) && (currSlice->mb_data[block_a.mb_addr].mb_field_decoding_flag==1))
         a *= 2;
@@ -493,7 +493,7 @@ void read_mvd_CABAC_mbaff( Macroblock *currMB,
   if (block_b.available)
   {
     b = iabs(currSlice->mb_data[block_b.mb_addr].mvd[list_idx][block_b.y][block_b.x][k]);
-    if (currSlice->mb_aff_frame_flag && (k==1))
+    if (currSlice->MbaffFrameFlag && (k==1))
     {
       if ((currMB->mb_field_decoding_flag==0) && (currSlice->mb_data[block_b.mb_addr].mb_field_decoding_flag==1))
         b *= 2;
@@ -808,7 +808,7 @@ static int read_and_store_CBP_block_bit_444 (Macroblock          *currMB,
       cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
     }
   }
-  else if( (p_Vid->separate_colour_plane_flag != 0) )
+  else if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
   {
     if (type!=LUMA_8x8)
     {
@@ -1363,7 +1363,7 @@ static int read_significance_map (Macroblock          *currMB,
                                   int                  coeff[])
 {
   Slice *currSlice = currMB->p_Slice;
-  int               fld    = ( currSlice->structure!=FRAME || currMB->mb_field_decoding_flag );
+  int               fld    = (currSlice->field_pic_flag || currMB->mb_field_decoding_flag);
   const byte *pos2ctx_Map = (fld) ? pos2ctx_map_int[type] : pos2ctx_map[type];
   const byte *pos2ctx_Last = pos2ctx_last[type];
 

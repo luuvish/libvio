@@ -122,7 +122,7 @@ static void init_mvc_picture(Slice *currSlice)
   StorablePicture *p_pic = NULL;
 
   // find BL reconstructed picture
-  if (currSlice->structure  == FRAME)
+  if (!currSlice->field_pic_flag)
   {
     for (i = 0; i < (int)p_Dpb->used_size/*size*/; i++)
     {
@@ -134,7 +134,7 @@ static void init_mvc_picture(Slice *currSlice)
       }
     }
   }
-  else if (currSlice->structure  == TOP_FIELD)
+  else if (!currSlice->bottom_field_flag)
   {
     for (i = 0; i < (int)p_Dpb->used_size/*size*/; i++)
     {
@@ -304,7 +304,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
       fill_frame_num_gap(p_Vid, currSlice);
   }
 
-  if(currSlice->nal_reference_idc)
+  if(currSlice->nal_ref_idc)
   {
     p_Vid->pre_frame_num = currSlice->frame_num;
   }
@@ -315,10 +315,10 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   if (p_Vid->recovery_frame_num == (int) currSlice->frame_num && p_Vid->recovery_poc == 0x7fffffff)
     p_Vid->recovery_poc = currSlice->framepoc;
 
-  if(currSlice->nal_reference_idc)
+  if(currSlice->nal_ref_idc)
     p_Vid->last_ref_pic_poc = currSlice->framepoc;
 
-  if (currSlice->structure==FRAME ||currSlice->structure==TOP_FIELD)
+  if (!currSlice->field_pic_flag || !currSlice->bottom_field_flag)
   {
     gettime (&(p_Vid->start_time));             // start time
   }
@@ -327,11 +327,11 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   dec_picture->top_poc=currSlice->toppoc;
   dec_picture->bottom_poc=currSlice->bottompoc;
   dec_picture->frame_poc=currSlice->framepoc;
-  dec_picture->qp = currSlice->qp;
+  dec_picture->qp = currSlice->SliceQpY;
   dec_picture->slice_qp_delta = currSlice->slice_qp_delta;
   dec_picture->chroma_qp_offset[0] = p_Vid->active_pps->chroma_qp_index_offset;
   dec_picture->chroma_qp_offset[1] = p_Vid->active_pps->second_chroma_qp_index_offset;
-  dec_picture->iCodingType = currSlice->structure==FRAME? (currSlice->mb_aff_frame_flag? FRAME_MB_PAIR_CODING:FRAME_CODING): FIELD_CODING; //currSlice->slice_type;
+  dec_picture->iCodingType = !currSlice->field_pic_flag ? (currSlice->MbaffFrameFlag? FRAME_MB_PAIR_CODING:FRAME_CODING): FIELD_CODING;
   dec_picture->layer_id = currSlice->layer_id;
 #if (MVC_EXTENSION_ENABLE)
   dec_picture->view_id         = currSlice->view_id;
@@ -352,28 +352,15 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
 #endif
   p_Vid->erc_mvperMB = 0;
 
-  switch (currSlice->structure )
-  {
-  case TOP_FIELD:
-    {
-      dec_picture->poc = currSlice->toppoc;
-      p_Vid->number *= 2;
-      break;
+    if (!currSlice->field_pic_flag)
+        dec_picture->poc = currSlice->framepoc;
+    else if (!currSlice->bottom_field_flag) {
+        dec_picture->poc = currSlice->toppoc;
+        p_Vid->number *= 2;
+    } else {
+        dec_picture->poc = currSlice->bottompoc;
+        p_Vid->number = p_Vid->number * 2 + 1;
     }
-  case BOTTOM_FIELD:
-    {
-      dec_picture->poc = currSlice->bottompoc;
-      p_Vid->number = p_Vid->number * 2 + 1;
-      break;
-    }
-  case FRAME:
-    {
-      dec_picture->poc = currSlice->framepoc;
-      break;
-    }
-  default:
-    error("p_Vid->structure not initialized", 235);
-  }
 
   if (p_Vid->type > SI_SLICE)
   {
@@ -388,7 +375,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
 
   // Set the slice_nr member of each MB to -1, to ensure correct when packet loss occurs
   // TO set Macroblock Map (mark all MBs as 'have to be concealed')
-  if( (p_Vid->separate_colour_plane_flag != 0) )
+  if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
   {
     for( nplane=0; nplane<MAX_PLANE; ++nplane )
     {      
@@ -424,7 +411,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   }  
 
   dec_picture->slice_type = p_Vid->type;
-  dec_picture->used_for_reference = (currSlice->nal_reference_idc != 0);
+  dec_picture->used_for_reference = (currSlice->nal_ref_idc != 0);
   dec_picture->idr_flag = currSlice->idr_flag;
   dec_picture->no_output_of_prior_pics_flag = currSlice->no_output_of_prior_pics_flag;
   dec_picture->long_term_reference_flag     = currSlice->long_term_reference_flag;
@@ -433,7 +420,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   dec_picture->dec_ref_pic_marking_buffer = currSlice->dec_ref_pic_marking_buffer;
   currSlice->dec_ref_pic_marking_buffer   = NULL;
 
-  dec_picture->mb_aff_frame_flag = currSlice->mb_aff_frame_flag;
+  dec_picture->mb_aff_frame_flag = currSlice->MbaffFrameFlag;
   dec_picture->PicWidthInMbs     = p_Vid->PicWidthInMbs;
 
   p_Vid->get_mb_block_pos = dec_picture->mb_aff_frame_flag ? get_mb_block_pos_mbaff : get_mb_block_pos_normal;
@@ -444,7 +431,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
 
   dec_picture->recovery_frame = (unsigned int) ((int) currSlice->frame_num == p_Vid->recovery_frame_num);
 
-  dec_picture->coded_frame = (currSlice->structure==FRAME);
+  dec_picture->coded_frame = !currSlice->field_pic_flag;
 
   dec_picture->chroma_format_idc = active_sps->chroma_format_idc;
 
@@ -479,7 +466,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
     dec_picture->seiHasTone_mapping = 0;
 #endif
 
-  if( (p_Vid->separate_colour_plane_flag != 0) )
+  if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
   {
     p_Vid->dec_picture_JV[0] = p_Vid->dec_picture;
     p_Vid->dec_picture_JV[1] = alloc_storable_picture (p_Vid, (PictureStructure) currSlice->structure, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr, 1);
@@ -501,7 +488,8 @@ static void Error_tracking(VideoParameters *p_Vid, Slice *currSlice)
                 p_Vid->Is_primary_correct = 0; // primary slice is incorrect
         }
     } else if (currSlice->redundant_pic_cnt != 0 && p_Vid->type != I_SLICE) {
-        if (currSlice->ref_flag[currSlice->redundant_slice_ref_idx] == 0)  // reference of redundant slice is incorrect
+        int redundant_slice_ref_idx = currSlice->abs_diff_pic_num_minus1[0][0] + 1;
+        if (currSlice->ref_flag[redundant_slice_ref_idx] == 0)  // reference of redundant slice is incorrect
             p_Vid->Is_redundant_correct = 0;  // redundant slice is incorrect
     }
 }
@@ -572,7 +560,7 @@ static void copy_slice_info(Slice *currSlice, OldSliceParams *p_old_slice)
     if (currSlice->field_pic_flag)
         p_old_slice->bottom_field_flag = currSlice->bottom_field_flag;
 
-    p_old_slice->nal_ref_idc = currSlice->nal_reference_idc;
+    p_old_slice->nal_ref_idc = currSlice->nal_ref_idc;
     p_old_slice->idr_flag    = (byte) currSlice->idr_flag;
 
     if (currSlice->idr_flag)

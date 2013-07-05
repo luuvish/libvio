@@ -21,6 +21,16 @@ struct motion_info_context_t;
 struct texture_info_context_t;
 struct macroblock_dec;
 
+
+enum {
+    P_slice  = 0, // or 5
+    B_slice  = 1, // or 6
+    I_slice  = 2, // or 7
+    SP_slice = 3, // or 8
+    SI_slice = 4  // or 9
+};
+
+
 /*! Buffer structure for decoded referenc picture marking commands */
 typedef struct DecRefPicMarking_s
 {
@@ -45,8 +55,9 @@ typedef struct slice_t {
 
 
     //slice property;
-    int                       idr_flag;
-    int                       nal_reference_idc; //!< nal_reference_idc from NAL unit
+    int         idr_flag;
+    int         nal_ref_idc;
+    uint8_t     nal_unit_type;
 
 
     uint32_t    first_mb_in_slice;                                    // ue(v)
@@ -68,9 +79,12 @@ typedef struct slice_t {
 
     bool        ref_pic_list_modification_flag_l0;                    // u(1)
     bool        ref_pic_list_modification_flag_l1;                    // u(1)
-  //uint32_t    modification_of_pic_nums_idc;                         // ue(v)
-  //uint32_t    abs_diff_pic_num_minus1;                              // ue(v)
-  //uint32_t    long_term_pic_num;                                    // ue(v)
+    uint8_t     modification_of_pic_nums_idc[2][32+1];                // ue(v)
+    uint32_t    abs_diff_pic_num_minus1     [2][32+1];                // ue(v)
+    uint32_t    long_term_pic_num           [2][32+1];                // ue(v)
+#if (MVC_EXTENSION_ENABLE)
+    uint32_t    abs_diff_view_idx_minus1    [2][32+1];                // ue(v)
+#endif
 
     uint8_t     luma_log2_weight_denom;                               // ue(v)
     uint8_t     chroma_log2_weight_denom;                             // ue(v)
@@ -105,17 +119,13 @@ typedef struct slice_t {
     int8_t      slice_beta_offset_div2;                               // se(v)
     uint32_t    slice_group_change_cycle;                             // u(v)
 
-
     PictureStructure    structure;     //!< Identify picture structure type
+    bool        MbaffFrameFlag;
+    int8_t      SliceQpY;
+    int8_t      QsY;
+    int8_t      FilterOffsetA;
+    int8_t      FilterOffsetB;
 
-    int                       ref_pic_list_reordering_flag[2];
-    int                      *modification_of_pic_nums_idc[2];
-    int                      *abs_diff_pic_num_minus1[2];
-    int                      *long_term_pic_idx[2];
-#if (MVC_EXTENSION_ENABLE)
-    int                      *abs_diff_view_idx_minus1[2];
-#endif
-    int                       redundant_slice_ref_idx;  //!< reference index of redundant slice
 
     //weighted prediction
     unsigned short            weighted_pred_flag;
@@ -126,12 +136,6 @@ typedef struct slice_t {
 
     DecRefPicMarking_t       *dec_ref_pic_marking_buffer; //!< stores the memory management control operations
 
-    int                       qp;
-    int                       qs;
-
-
-    int                       Transform8x8Mode;
-    Boolean                   chroma444_not_separate; //!< indicates chroma 4:4:4 coding with separate_colour_plane_flag equal to zero
 
     int                       toppoc;    //poc for this top field
     int                       bottompoc; //poc of bottom field of frame
@@ -153,7 +157,6 @@ typedef struct slice_t {
     int                       allrefzero;
     //end;
 
-    int                       mb_aff_frame_flag;
 
     int                       ei_flag;       //!< 0 if the partArr[0] contains valid information
     int                       max_part_nr;
@@ -240,7 +243,8 @@ typedef struct slice_t {
 } Slice;
 
 
-int slice_header(Slice *currSlice);
+void slice_header(Slice *currSlice);
+void ref_pic_list_modification(Slice *currSlice);
 
 void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *currStream, Slice *pSlice);
 

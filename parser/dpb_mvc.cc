@@ -156,15 +156,15 @@ static StorablePicture*  get_inter_view_pic(VideoParameters *p_Vid, Slice *currS
   {
     if (fs_listinterview[i]->layer_id == GetVOIdx( p_Vid, targetViewID ))
     {
-      if(p_Vid->structure==FRAME && fs_listinterview[i]->frame->poc == currPOC)
+      if(!currSlice->field_pic_flag && fs_listinterview[i]->frame->poc == currPOC)
       {
         return fs_listinterview[i]->frame;
       }
-      else if(p_Vid->structure==TOP_FIELD && fs_listinterview[i]->top_field->poc == currPOC)
+      else if(currSlice->field_pic_flag && !currSlice->bottom_field_flag && fs_listinterview[i]->top_field->poc == currPOC)
       {
         return fs_listinterview[i]->top_field;
       }
-      else if(p_Vid->structure==BOTTOM_FIELD && fs_listinterview[i]->bottom_field->poc == currPOC)
+      else if(currSlice->field_pic_flag && currSlice->bottom_field_flag && fs_listinterview[i]->bottom_field->poc == currPOC)
       {
         return fs_listinterview[i]->bottom_field;
       }
@@ -181,11 +181,11 @@ static StorablePicture*  get_inter_view_pic(VideoParameters *p_Vid, Slice *currS
  *
  ************************************************************************
  */
-static void gen_pic_list_from_frame_interview_list(PictureStructure currStructure, FrameStore **fs_list, int list_idx, StorablePicture **list, char *list_size)
+static void gen_pic_list_from_frame_interview_list(bool bottom_field_flag, FrameStore **fs_list, int list_idx, StorablePicture **list, char *list_size)
 {
   int i;
 
-  if (currStructure == TOP_FIELD)
+  if (!bottom_field_flag)
   {
     for (i=0; i<list_idx; i++)
     {
@@ -193,7 +193,7 @@ static void gen_pic_list_from_frame_interview_list(PictureStructure currStructur
       (*list_size)++;
     }
   }
-  if (currStructure == BOTTOM_FIELD)
+  else
   {
     for (i=0; i<list_idx; i++)
     {
@@ -248,7 +248,7 @@ void init_lists_p_slice_mvc(Slice *currSlice)
   currSlice->listinterviewidx0 = 0;
   currSlice->listinterviewidx1 = 0;
 
-  if (currSlice->structure == FRAME)
+  if (!currSlice->field_pic_flag)
   {
     for (i=0; i<p_Dpb->ref_frames_in_buffer; i++)
     {
@@ -301,7 +301,7 @@ void init_lists_p_slice_mvc(Slice *currSlice)
     //printf("fs_list0 (FrameNum): "); for (i=0; i<list0idx; i++){printf ("%d  ", fs_list0[i]->frame_num_wrap);} printf("\n");
 
     currSlice->listXsize[0] = 0;
-    gen_pic_list_from_frame_list(currSlice->structure, fs_list0, list0idx, currSlice->listX[0], &currSlice->listXsize[0], 0);
+    gen_pic_list_from_frame_list(currSlice->bottom_field_flag, fs_list0, list0idx, currSlice->listX[0], &currSlice->listXsize[0], 0);
 
     //printf("listX[0] (PicNum): "); for (i=0; i < currSlice->listXsize[0]; i++){printf ("%d  ", currSlice->listX[0][i]->pic_num);} printf("\n");
 
@@ -313,7 +313,7 @@ void init_lists_p_slice_mvc(Slice *currSlice)
 
     qsort((void *)fs_listlt, listltidx, sizeof(FrameStore*), compare_fs_by_lt_pic_idx_asc);
 
-    gen_pic_list_from_frame_list(currSlice->structure, fs_listlt, listltidx, currSlice->listX[0], &currSlice->listXsize[0], 1);
+    gen_pic_list_from_frame_list(currSlice->bottom_field_flag, fs_listlt, listltidx, currSlice->listX[0], &currSlice->listXsize[0], 1);
 
     free(fs_list0);
     free(fs_listlt);
@@ -329,9 +329,9 @@ void init_lists_p_slice_mvc(Slice *currSlice)
     if (NULL==currSlice->fs_listinterview0)
       no_mem_exit("init_lists: fs_listinterview0");
     list0idx = currSlice->listXsize[0];
-    if (currSlice->structure == FRAME)
+    if (!currSlice->field_pic_flag)
     {
-      append_interview_list(p_Vid->p_Dpb_layer[1], (PictureStructure)0, 0, currSlice->fs_listinterview0, &currSlice->listinterviewidx0, currPOC, curr_view_id, anchor_pic_flag);
+      append_interview_list(p_Vid->p_Dpb_layer[1], false, false, 0, currSlice->fs_listinterview0, &currSlice->listinterviewidx0, currPOC, curr_view_id, anchor_pic_flag);
       for (i=0; i<(unsigned int)currSlice->listinterviewidx0; i++)
       {
         currSlice->listX[0][list0idx++]=currSlice->fs_listinterview0[i]->frame;
@@ -340,8 +340,8 @@ void init_lists_p_slice_mvc(Slice *currSlice)
     }
     else
     {
-      append_interview_list(p_Vid->p_Dpb_layer[1], currSlice->structure, 0, currSlice->fs_listinterview0, &currSlice->listinterviewidx0, currPOC, curr_view_id, anchor_pic_flag);
-      gen_pic_list_from_frame_interview_list(currSlice->structure, currSlice->fs_listinterview0, currSlice->listinterviewidx0, currSlice->listX[0], &currSlice->listXsize[0]);
+      append_interview_list(p_Vid->p_Dpb_layer[1], currSlice->field_pic_flag, currSlice->bottom_field_flag, 0, currSlice->fs_listinterview0, &currSlice->listinterviewidx0, currPOC, curr_view_id, anchor_pic_flag);
+      gen_pic_list_from_frame_interview_list(currSlice->bottom_field_flag, currSlice->fs_listinterview0, currSlice->listinterviewidx0, currSlice->listX[0], &currSlice->listXsize[0]);
     }
   }
 #endif
@@ -391,7 +391,7 @@ void init_lists_b_slice_mvc(Slice *currSlice)
 
   {
     // B-Slice
-    if (currSlice->structure == FRAME)
+    if (!currSlice->field_pic_flag)
     {
       for (i=0; i<p_Dpb->ref_frames_in_buffer; i++)
       {
@@ -502,16 +502,10 @@ void init_lists_b_slice_mvc(Slice *currSlice)
         fs_list1[j-list0idx_1]=fs_list0[j];
       }
 
-      //      printf("fs_list0 currPoc=%d (Poc): ", currSlice->ThisPOC); for (i=0; i<list0idx; i++){printf ("%d  ", fs_list0[i]->poc);} printf("\n");
-      //      printf("fs_list1 currPoc=%d (Poc): ", currSlice->ThisPOC); for (i=0; i<list0idx; i++){printf ("%d  ", fs_list1[i]->poc);} printf("\n");
-
       currSlice->listXsize[0] = 0;
       currSlice->listXsize[1] = 0;
-      gen_pic_list_from_frame_list(currSlice->structure, fs_list0, list0idx, currSlice->listX[0], &currSlice->listXsize[0], 0);
-      gen_pic_list_from_frame_list(currSlice->structure, fs_list1, list0idx, currSlice->listX[1], &currSlice->listXsize[1], 0);
-
-      //      printf("currSlice->listX[0] currPoc=%d (Poc): ", currSlice->framepoc); for (i=0; i<currSlice->listXsize[0]; i++){printf ("%d  ", currSlice->listX[0][i]->poc);} printf("\n");
-      //      printf("currSlice->listX[1] currPoc=%d (Poc): ", currSlice->framepoc); for (i=0; i<currSlice->listXsize[1]; i++){printf ("%d  ", currSlice->listX[1][i]->poc);} printf("\n");
+      gen_pic_list_from_frame_list(currSlice->bottom_field_flag, fs_list0, list0idx, currSlice->listX[0], &currSlice->listXsize[0], 0);
+      gen_pic_list_from_frame_list(currSlice->bottom_field_flag, fs_list1, list0idx, currSlice->listX[1], &currSlice->listXsize[1], 0);
 
       // long term handling
       for (i=0; i<p_Dpb->ltref_frames_in_buffer; i++)
@@ -521,8 +515,8 @@ void init_lists_b_slice_mvc(Slice *currSlice)
 
       qsort((void *)fs_listlt, listltidx, sizeof(FrameStore*), compare_fs_by_lt_pic_idx_asc);
 
-      gen_pic_list_from_frame_list(currSlice->structure, fs_listlt, listltidx, currSlice->listX[0], &currSlice->listXsize[0], 1);
-      gen_pic_list_from_frame_list(currSlice->structure, fs_listlt, listltidx, currSlice->listX[1], &currSlice->listXsize[1], 1);
+      gen_pic_list_from_frame_list(currSlice->bottom_field_flag, fs_listlt, listltidx, currSlice->listX[0], &currSlice->listXsize[0], 1);
+      gen_pic_list_from_frame_list(currSlice->bottom_field_flag, fs_listlt, listltidx, currSlice->listX[1], &currSlice->listXsize[1], 1);
 
       free(fs_list0);
       free(fs_list1);
@@ -563,14 +557,14 @@ void init_lists_b_slice_mvc(Slice *currSlice)
       no_mem_exit("init_lists: fs_listinterview1");
     list0idx = currSlice->listXsize[0];
 
-    if (currSlice->structure == FRAME)
+    if (!currSlice->field_pic_flag)
     {
       append_interview_list(
         p_Vid->p_Dpb_layer[1],
-        (PictureStructure)0, 0, currSlice->fs_listinterview0, &currSlice->listinterviewidx0, currPOC, curr_view_id, anchor_pic_flag);
+        false, false, 0, currSlice->fs_listinterview0, &currSlice->listinterviewidx0, currPOC, curr_view_id, anchor_pic_flag);
       append_interview_list(
         p_Vid->p_Dpb_layer[1],
-        (PictureStructure)0, 1, currSlice->fs_listinterview1, &currSlice->listinterviewidx1, currPOC, curr_view_id, anchor_pic_flag);
+        false, false, 1, currSlice->fs_listinterview1, &currSlice->listinterviewidx1, currPOC, curr_view_id, anchor_pic_flag);
       for (i=0; i<(unsigned int)currSlice->listinterviewidx0; i++)
       {
         currSlice->listX[0][list0idx++]=currSlice->fs_listinterview0[i]->frame;
@@ -587,12 +581,12 @@ void init_lists_b_slice_mvc(Slice *currSlice)
     {
       append_interview_list(
         p_Vid->p_Dpb_layer[1],
-        currSlice->structure, 0, currSlice->fs_listinterview0, &currSlice->listinterviewidx0, currPOC, curr_view_id, anchor_pic_flag);
-      gen_pic_list_from_frame_interview_list(currSlice->structure, currSlice->fs_listinterview0, currSlice->listinterviewidx0, currSlice->listX[0], &currSlice->listXsize[0]);
+        currSlice->field_pic_flag, currSlice->bottom_field_flag, 0, currSlice->fs_listinterview0, &currSlice->listinterviewidx0, currPOC, curr_view_id, anchor_pic_flag);
+      gen_pic_list_from_frame_interview_list(currSlice->bottom_field_flag, currSlice->fs_listinterview0, currSlice->listinterviewidx0, currSlice->listX[0], &currSlice->listXsize[0]);
       append_interview_list(
         p_Vid->p_Dpb_layer[1],
-        currSlice->structure, 1, currSlice->fs_listinterview1, &currSlice->listinterviewidx1, currPOC, curr_view_id, anchor_pic_flag);
-      gen_pic_list_from_frame_interview_list(currSlice->structure, currSlice->fs_listinterview1, currSlice->listinterviewidx1, currSlice->listX[1], &currSlice->listXsize[1]);
+        currSlice->field_pic_flag, currSlice->bottom_field_flag, 1, currSlice->fs_listinterview1, &currSlice->listinterviewidx1, currPOC, curr_view_id, anchor_pic_flag);
+      gen_pic_list_from_frame_interview_list(currSlice->bottom_field_flag, currSlice->fs_listinterview1, currSlice->listinterviewidx1, currSlice->listX[1], &currSlice->listXsize[1]);
     }    
   }
 #endif
@@ -653,13 +647,13 @@ static void reorder_interview(VideoParameters *p_Vid, Slice *currSlice, Storable
 void reorder_ref_pic_list_mvc(Slice *currSlice, int cur_list, int **anchor_ref, int **non_anchor_ref, int view_id, int anchor_pic_flag, int currPOC, int listidx)
 {
   VideoParameters *p_Vid = currSlice->p_Vid;
-  int *modification_of_pic_nums_idc = currSlice->modification_of_pic_nums_idc[cur_list];
-  int *abs_diff_pic_num_minus1 = currSlice->abs_diff_pic_num_minus1[cur_list];
-  int *long_term_pic_idx = currSlice->long_term_pic_idx[cur_list];
+  uint8_t  *modification_of_pic_nums_idc = currSlice->modification_of_pic_nums_idc[cur_list];
+  uint32_t *abs_diff_pic_num_minus1      = currSlice->abs_diff_pic_num_minus1[cur_list];
+  uint32_t *long_term_pic_num            = currSlice->long_term_pic_num[cur_list];
   int num_ref_idx_lX_active_minus1 =
     cur_list == 0 ? currSlice->num_ref_idx_l0_active_minus1
                   : currSlice->num_ref_idx_l1_active_minus1;
-  int *abs_diff_view_idx_minus1 = currSlice->abs_diff_view_idx_minus1[cur_list];
+  uint32_t *abs_diff_view_idx_minus1 = currSlice->abs_diff_view_idx_minus1[cur_list];
 
   int i;
 
@@ -670,7 +664,7 @@ void reorder_ref_pic_list_mvc(Slice *currSlice, int cur_list, int **anchor_ref, 
   int curr_VOIdx = -1;
   int picViewIdxLXPred=-1;
 
-  if (p_Vid->structure==FRAME)
+  if (!currSlice->field_pic_flag)
   {
     maxPicNum  = p_Vid->max_frame_num;
     currPicNum = currSlice->frame_num;
@@ -699,7 +693,7 @@ void reorder_ref_pic_list_mvc(Slice *currSlice, int cur_list, int **anchor_ref, 
     {
       if (modification_of_pic_nums_idc[i] == 0)
       {
-        if( picNumLXPred - ( abs_diff_pic_num_minus1[i] + 1 ) < 0 )
+        if( picNumLXPred < abs_diff_pic_num_minus1[i] + 1 )
           picNumLXNoWrap = picNumLXPred - ( abs_diff_pic_num_minus1[i] + 1 ) + maxPicNum;
         else
           picNumLXNoWrap = picNumLXPred - ( abs_diff_pic_num_minus1[i] + 1 );
@@ -722,7 +716,7 @@ void reorder_ref_pic_list_mvc(Slice *currSlice, int cur_list, int **anchor_ref, 
     }
     else if (modification_of_pic_nums_idc[i] == 2) //(modification_of_pic_nums_idc[i] == 2)
     {
-      reorder_long_term(currSlice, currSlice->listX[cur_list], num_ref_idx_lX_active_minus1, long_term_pic_idx[i], &refIdxLX, view_id);
+      reorder_long_term(currSlice, currSlice->listX[cur_list], num_ref_idx_lX_active_minus1, long_term_pic_num[i], &refIdxLX, view_id);
     }
     else 
     {
@@ -758,7 +752,7 @@ void reorder_lists_mvc(Slice * currSlice, int currPOC)
 
   if ((currSlice->slice_type != I_SLICE)&&(currSlice->slice_type != SI_SLICE))
   {
-    if (currSlice->ref_pic_list_reordering_flag[LIST_0])
+    if (currSlice->ref_pic_list_modification_flag_l0)
     {
       reorder_ref_pic_list_mvc(currSlice, LIST_0,
         p_Vid->active_subset_sps->anchor_ref_l0,
@@ -777,7 +771,7 @@ void reorder_lists_mvc(Slice * currSlice, int currPOC)
   }
   if (currSlice->slice_type == B_SLICE)
   {
-    if (currSlice->ref_pic_list_reordering_flag[LIST_1])
+    if (currSlice->ref_pic_list_modification_flag_l1)
     {
       reorder_ref_pic_list_mvc(currSlice, LIST_1,
         p_Vid->active_subset_sps->anchor_ref_l1,
@@ -794,8 +788,6 @@ void reorder_lists_mvc(Slice * currSlice, int currPOC)
     // that's a definition
     currSlice->listXsize[1] = (char)currSlice->num_ref_idx_l1_active_minus1 + 1;
   }
-
-  free_ref_pic_list_reordering_buffer(currSlice);
 }
 
 #endif

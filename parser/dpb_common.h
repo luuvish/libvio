@@ -210,7 +210,7 @@ static inline int is_long_ref(StorablePicture *s)
 }
 
 
-extern void gen_pic_list_from_frame_list(PictureStructure currStructure, FrameStore **fs_list, int list_idx, StorablePicture **list, char *list_size, int long_term);
+extern void gen_pic_list_from_frame_list(bool bottom_field_flag, FrameStore **fs_list, int list_idx, StorablePicture **list, char *list_size, int long_term);
 extern StorablePicture*  get_long_term_pic(Slice *currSlice, DecodedPictureBuffer *p_Dpb, int LongtermPicNum);
 extern void update_ref_list(DecodedPictureBuffer *p_Dpb);
 extern void update_ltref_list(DecodedPictureBuffer *p_Dpb);

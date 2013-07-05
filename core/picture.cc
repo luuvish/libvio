@@ -68,7 +68,7 @@ static void init_picture_decoding(VideoParameters *p_Vid)
     update_pic_num(pSlice);
     i = pSlice->view_id;
 #endif
-    init_Deblock(p_Vid, pSlice->mb_aff_frame_flag);
+    init_Deblock(p_Vid, pSlice->MbaffFrameFlag);
     //init mb_data;
     for (j = 0; j < p_Vid->iSliceNumOfCurrPic; j++) {
         if (p_Vid->ppSliceList[j]->disable_deblocking_filter_idc != 1)
@@ -308,7 +308,7 @@ void exit_picture(VideoParameters *p_Vid, StorablePicture **dec_picture)
     // return if the last picture has already been finished
     if (*dec_picture == NULL ||
         (p_Vid->num_dec_mb != p_Vid->PicSizeInMbs &&
-         (p_Vid->yuv_format != YUV444 || !p_Vid->separate_colour_plane_flag)))
+         (p_Vid->yuv_format != YUV444 || !p_Vid->active_sps->separate_colour_plane_flag)))
         return;
 
 #if (DISABLE_ERC == 0)

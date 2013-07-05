@@ -84,7 +84,7 @@ void start_macroblock(Macroblock *currMB)
     int mb_nr = currMB->mbAddrX;
 
     /* Update coordinates of the current macroblock */
-    if (currSlice->mb_aff_frame_flag) {
+    if (currSlice->MbaffFrameFlag) {
         currMB->mb.x = (short) (   (mb_nr) % ((2*p_Vid->width) / MB_BLOCK_SIZE));
         currMB->mb.y = (short) (2*((mb_nr) / ((2*p_Vid->width) / MB_BLOCK_SIZE)));
 
@@ -146,8 +146,8 @@ void start_macroblock(Macroblock *currMB)
 
     // store filtering parameters for this MB
     currMB->DFDisableIdc      = currSlice->disable_deblocking_filter_idc;
-    currMB->DFAlphaC0Offset   = currSlice->slice_alpha_c0_offset_div2;
-    currMB->DFBetaOffset      = currSlice->slice_beta_offset_div2;
+    currMB->DFAlphaC0Offset   = currSlice->FilterOffsetA;
+    currMB->DFBetaOffset      = currSlice->FilterOffsetB;
     currMB->list_offset       = 0;
     currMB->mixedModeEdgeFlag = 0;
 }
@@ -162,7 +162,7 @@ void start_macroblock(Macroblock *currMB)
 bool exit_macroblock(Slice *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
-    int eos_bit = (!currSlice->mb_aff_frame_flag || currSlice->current_mb_nr % 2);
+    int eos_bit = (!currSlice->MbaffFrameFlag || currSlice->current_mb_nr % 2);
     int startcode_follows;
 
     //! The if() statement below resembles the original code, which tested

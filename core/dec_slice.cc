@@ -86,7 +86,7 @@ static void reorder_lists(Slice *currSlice)
     VideoParameters *p_Vid = currSlice->p_Vid;
 
     if (currSlice->slice_type != I_SLICE && currSlice->slice_type != SI_SLICE) {
-        if (currSlice->ref_pic_list_reordering_flag[LIST_0])
+        if (currSlice->ref_pic_list_modification_flag_l0)
             reorder_ref_pic_list(currSlice, LIST_0);
         if (p_Vid->no_reference_picture == currSlice->listX[0][currSlice->num_ref_idx_l0_active_minus1]) {
             if (p_Vid->non_conforming_stream)
@@ -99,7 +99,7 @@ static void reorder_lists(Slice *currSlice)
     }
 
     if (currSlice->slice_type == B_SLICE) {
-        if (currSlice->ref_pic_list_reordering_flag[LIST_1])
+        if (currSlice->ref_pic_list_modification_flag_l1)
             reorder_ref_pic_list(currSlice, LIST_1);
         if (p_Vid->no_reference_picture == currSlice->listX[1][currSlice->num_ref_idx_l1_active_minus1]) {
             if (p_Vid->non_conforming_stream)
@@ -110,8 +110,6 @@ static void reorder_lists(Slice *currSlice)
         // that's a definition
         currSlice->listXsize[1] = (char) currSlice->num_ref_idx_l1_active_minus1 + 1;
     }
-
-    free_ref_pic_list_reordering_buffer(currSlice);
 }
 
 /*!
@@ -213,7 +211,7 @@ static void fill_wp_params(Slice *currSlice)
             }
         }
 
-        if (currSlice->mb_aff_frame_flag) {
+        if (currSlice->MbaffFrameFlag) {
             for (i = 0; i < 2 * max_l0_ref; ++i) {
                 for (j = 0; j < 2 * max_l1_ref; ++j) {
                     for (comp = 0; comp < 3; ++comp) {
@@ -261,7 +259,7 @@ static void compute_colocated(Slice *currSlice, StorablePicture **listX[6])
     VideoParameters *p_Vid = currSlice->p_Vid;
 
     if (currSlice->direct_spatial_mv_pred_flag == 0) {
-        for (j = 0; j < 2 + (currSlice->mb_aff_frame_flag * 4); j += 2) {
+        for (j = 0; j < 2 + (currSlice->MbaffFrameFlag * 4); j += 2) {
             for (i = 0; i < currSlice->listXsize[j]; i++) {
                 int prescale, iTRb, iTRp;
 
@@ -289,7 +287,7 @@ static void compute_colocated(Slice *currSlice, StorablePicture **listX[6])
 static void init_cur_imgy(Slice *currSlice, VideoParameters *p_Vid)
 {
     int i, j;
-    if (p_Vid->separate_colour_plane_flag != 0) {
+    if (currSlice->active_sps->separate_colour_plane_flag != 0) {
         StorablePicture *vidref = p_Vid->no_reference_picture;
         int noref = (currSlice->framepoc < p_Vid->recovery_poc);
         if (currSlice->colour_plane_id == 0) {
@@ -306,7 +304,7 @@ static void init_cur_imgy(Slice *currSlice, VideoParameters *p_Vid)
     } else {
         StorablePicture *vidref = p_Vid->no_reference_picture;
         int noref = (currSlice->framepoc < p_Vid->recovery_poc);
-        int total_lists = currSlice->mb_aff_frame_flag ? 6 :
+        int total_lists = currSlice->MbaffFrameFlag ? 6 :
                           currSlice->slice_type == B_SLICE ? 2 : 1;
         for (j = 0; j < total_lists; j++) {
             // note that if we always set this to MAX_LIST_SIZE, we avoid crashes with invalid ref_idx being set
@@ -353,7 +351,7 @@ bool init_slice(Slice *currSlice)
     }
 #endif
 
-    if (currSlice->structure == FRAME)
+    if (!currSlice->field_pic_flag)
         init_mbaff_lists(p_Vid, currSlice);
 
     // update reference flags and set current p_Vid->ref_flag
@@ -385,7 +383,7 @@ bool init_slice(Slice *currSlice)
     if ((current_header != SOP && current_header != SOS) || currSlice->ei_flag != 0)
         return false;
 
-    if (p_Vid->separate_colour_plane_flag != 0)
+    if (currSlice->active_sps->separate_colour_plane_flag != 0)
         change_plane_JV(p_Vid, currSlice->colour_plane_id, currSlice);
     else {
         currSlice->mb_data     = p_Vid->mb_data;
@@ -421,7 +419,7 @@ void decode_one_slice(Slice *currSlice)
         read_one_macroblock(currMB);
         decode_one_macroblock(currMB);
 
-        if (currSlice->mb_aff_frame_flag && currMB->mb_field_decoding_flag) {
+        if (currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag) {
             currSlice->num_ref_idx_l0_active_minus1 = ((currSlice->num_ref_idx_l0_active_minus1 + 1) >> 1) - 1;
             currSlice->num_ref_idx_l1_active_minus1 = ((currSlice->num_ref_idx_l1_active_minus1 + 1) >> 1) - 1;
         }

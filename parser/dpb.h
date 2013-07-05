@@ -223,8 +223,8 @@ extern void             idr_memory_management(DecodedPictureBuffer *p_Dpb, Stora
 extern void             flush_dpbs(DecodedPictureBuffer **p_Dpb, int nLayers);
 extern int              GetMaxDecFrameBuffering(VideoParameters *p_Vid);
 extern void             append_interview_list(DecodedPictureBuffer *p_Dpb, 
-                                              PictureStructure currPicStructure, int list_idx, 
-                                              FrameStore **list, int *listXsize, int currPOC, 
+                                              bool field_pic_flag, bool bottom_field_flag,
+                                              int list_idx, FrameStore **list, int *listXsize, int currPOC, 
                                               int curr_view_id, int anchor_pic_flag);
 #endif
 
@@ -245,8 +245,6 @@ extern void dpb_combine_field    (VideoParameters *p_Vid, FrameStore *fs);
 extern void dpb_combine_field_yuv(VideoParameters *p_Vid, FrameStore *fs);
 
 extern void reorder_ref_pic_list(struct slice_t *currSlice, int cur_list);
-
-extern void free_ref_pic_list_reordering_buffer(struct slice_t *currSlice);
 
 extern void fill_frame_num_gap(VideoParameters *p_Vid, struct slice_t *pSlice);
 

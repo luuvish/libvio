@@ -1031,7 +1031,7 @@ void init_contexts(Slice *currSlice)
     MotionInfoContexts*  mc = currSlice->mot_ctx;
     TextureInfoContexts* tc = currSlice->tex_ctx;
     int i, j;
-    int qp = imax(0, currSlice->qp);
+    int qp = imax(0, currSlice->SliceQpY);
     int cabac_init_idc = currSlice->cabac_init_idc;
 
     //--- motion coding contexts ---

@@ -124,11 +124,10 @@ static void read_comp_coeff_4x4_smb_CABAC (Macroblock *currMB, SyntaxElement *cu
   int i0, j0;
   int level = 1;
   DataPartition *dP;
-  VideoParameters *p_Vid = currMB->p_Vid;
   Slice *currSlice = currMB->p_Slice;
   const byte *partMap = assignSE2partition[currSlice->dp_mode];
 
-  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
+  const byte (*pos_scan4x4)[2] = (!currSlice->field_pic_flag && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
   const byte *pos_scan_4x4 = pos_scan4x4[0];
   int **cof = currSlice->cof[pl];
 
@@ -217,7 +216,7 @@ static void read_comp_coeff_4x4_CABAC (Macroblock *currMB, SyntaxElement *currSE
   int i, j;
   int64 *cbp_blk = &currMB->s_cbp[pl].blk;
 
-  if( pl == PLANE_Y || (p_Vid->separate_colour_plane_flag != 0) )
+  if( pl == PLANE_Y || (p_Vid->active_sps->separate_colour_plane_flag != 0) )
     currSE->context = (IS_I16MB(currMB) ? LUMA_16AC: LUMA_4x4);
   else if (pl == PLANE_U)
     currSE->context = (IS_I16MB(currMB) ? CB_16AC: CB_4x4);
@@ -299,7 +298,7 @@ static void read_comp_coeff_4x4_CABAC_ls (Macroblock *currMB, SyntaxElement *cur
   int block_y, block_x;
   int64 *cbp_blk = &currMB->s_cbp[pl].blk;
 
-  if( pl == PLANE_Y || (p_Vid->separate_colour_plane_flag != 0) )
+  if( pl == PLANE_Y || (p_Vid->active_sps->separate_colour_plane_flag != 0) )
     currSE->context = (IS_I16MB(currMB) ? LUMA_16AC: LUMA_4x4);
   else if (pl == PLANE_U)
     currSE->context = (IS_I16MB(currMB) ? CB_16AC: CB_4x4);
@@ -331,7 +330,7 @@ static void readCompCoeff8x8_CABAC (Macroblock *currMB, SyntaxElement *currSE, C
   if (currMB->cbp & (1<<b8))  // are there any coefficients in the current block
   {
     VideoParameters *p_Vid = currMB->p_Vid;
-    int transform_pl = (p_Vid->separate_colour_plane_flag != 0) ? currMB->p_Slice->colour_plane_id : pl;
+    int transform_pl = (p_Vid->active_sps->separate_colour_plane_flag != 0) ? currMB->p_Slice->colour_plane_id : pl;
 
     int **tcoeffs;
     int i,j,k;
@@ -346,7 +345,7 @@ static void readCompCoeff8x8_CABAC (Macroblock *currMB, SyntaxElement *currSE, C
     int64 *cur_cbp = &currMB->s_cbp[pl].blk;
 
     // select scan type
-    const byte (*pos_scan8x8) = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN8x8[0] : FIELD_SCAN8x8[0];
+    const byte (*pos_scan8x8) = (!currSlice->field_pic_flag && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN8x8[0] : FIELD_SCAN8x8[0];
 
     int qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[pl] ];
     int qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[pl] ];
@@ -361,7 +360,7 @@ static void readCompCoeff8x8_CABAC (Macroblock *currMB, SyntaxElement *currSE, C
     currMB->subblock_x = boff_x; // position for coeff_count ctx
     currMB->subblock_y = boff_y; // position for coeff_count ctx
 
-    if (pl==PLANE_Y || (p_Vid->separate_colour_plane_flag != 0))  
+    if (pl==PLANE_Y || (p_Vid->active_sps->separate_colour_plane_flag != 0))  
       currSE->context = LUMA_8x8;
     else if (pl==PLANE_U)
       currSE->context = CB_8x8;
@@ -440,7 +439,7 @@ static void readCompCoeff8x8_CABAC_lossless (Macroblock *currMB, SyntaxElement *
     int64 *cur_cbp = &currMB->s_cbp[pl].blk;
 
     // select scan type
-    const byte (*pos_scan8x8) = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN8x8[0] : FIELD_SCAN8x8[0];
+    const byte (*pos_scan8x8) = (!currSlice->field_pic_flag && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN8x8[0] : FIELD_SCAN8x8[0];
 
     // === set offset in current macroblock ===
     boff_x = (b8&0x01) << 3;
@@ -450,7 +449,7 @@ static void readCompCoeff8x8_CABAC_lossless (Macroblock *currMB, SyntaxElement *
     currMB->subblock_x = boff_x; // position for coeff_count ctx
     currMB->subblock_y = boff_y; // position for coeff_count ctx
 
-    if (pl==PLANE_Y || (p_Vid->separate_colour_plane_flag != 0))  
+    if (pl==PLANE_Y || (p_Vid->active_sps->separate_colour_plane_flag != 0))  
       currSE->context = LUMA_8x8;
     else if (pl==PLANE_U)
       currSE->context = CB_8x8;
@@ -562,7 +561,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
     int (*InvLevelScale4x4)[4] = NULL;
 
     // select scan type
-    const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
+    const byte (*pos_scan4x4)[2] = (!currSlice->field_pic_flag && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
     const byte *pos_scan_4x4 = pos_scan4x4[0];
 
     if (!IS_I16MB(currMB)) {
@@ -589,7 +588,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
              (IS_DIRECT(currMB) && p_Vid->active_sps->direct_8x8_inference_flag) ||
              currMB->NoMbPartLessThan8x8Flag) &&
             (currMB->mb_type != I8MB) && (currMB->mb_type != I4MB) &&
-            (currMB->cbp & 15) && currSlice->Transform8x8Mode;
+            (currMB->cbp & 15) && currSlice->active_pps->transform_8x8_mode_flag;
 
         if (need_transform_size_flag) {
             currSE.type    = SE_HEADER;
@@ -673,7 +672,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
         }
     }
 
-    update_qp(currMB, currSlice->qp);
+    update_qp(currMB, currSlice->SliceQpY);
 
     qp_per = p_Vid->qp_per_matrix[currMB->qp_scaled[currSlice->colour_plane_id]];
     qp_rem = p_Vid->qp_rem_matrix[currMB->qp_scaled[currSlice->colour_plane_id]];
@@ -852,7 +851,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_400(Macroblock *currMB)
 
   int (*InvLevelScale4x4)[4] = NULL;
   // select scan type
-  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
+  const byte (*pos_scan4x4)[2] = (!currSlice->field_pic_flag && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
   const byte *pos_scan_4x4 = pos_scan4x4[0];
 
 
@@ -889,7 +888,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_400(Macroblock *currMB)
       (currMB->NoMbPartLessThan8x8Flag))
       && currMB->mb_type != I8MB && currMB->mb_type != I4MB
       && (currMB->cbp&15)
-      && currSlice->Transform8x8Mode);
+      && currSlice->active_pps->transform_8x8_mode_flag);
 
     if (need_transform_size_flag)
     {
@@ -1000,7 +999,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_400(Macroblock *currMB)
     }
   }
 
-  update_qp(currMB, currSlice->qp);
+  update_qp(currMB, currSlice->SliceQpY);
 
   qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[PLANE_Y] ];
   qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[PLANE_Y] ];
@@ -1054,7 +1053,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
 
   int (*InvLevelScale4x4)[4] = NULL;
   // select scan type
-  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
+  const byte (*pos_scan4x4)[2] = (!currSlice->field_pic_flag && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
   const byte *pos_scan_4x4 = pos_scan4x4[0];
 
   // QPI
@@ -1099,7 +1098,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
       (currMB->NoMbPartLessThan8x8Flag))
       && currMB->mb_type != I8MB && currMB->mb_type != I4MB
       && (currMB->cbp&15)
-      && currSlice->Transform8x8Mode);
+      && currSlice->active_pps->transform_8x8_mode_flag);
 
     if (need_transform_size_flag)
     {
@@ -1211,7 +1210,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
     }
   }
 
-  update_qp(currMB, currSlice->qp);
+  update_qp(currMB, currSlice->SliceQpY);
 
   qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
   qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
@@ -1253,7 +1252,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
         currSE.type = SE_LUM_DC_INTRA;
         dP = &(currSlice->partArr[partMap[currSE.type]]);
 
-        if( (p_Vid->separate_colour_plane_flag != 0) )
+        if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
           currSE.context = LUMA_16DC; 
         else
           currSE.context = (uv==0) ? CB_16DC : CR_16DC;
@@ -1292,10 +1291,10 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
       }
     } //IS_I16MB
 
-    update_qp(currMB, currSlice->qp);
+    update_qp(currMB, currSlice->SliceQpY);
 
-    qp_per = p_Vid->qp_per_matrix[ (currSlice->qp + p_Vid->bitdepth_luma_qp_scale) ];
-    qp_rem = p_Vid->qp_rem_matrix[ (currSlice->qp + p_Vid->bitdepth_luma_qp_scale) ];
+    qp_per = p_Vid->qp_per_matrix[ (currSlice->SliceQpY + p_Vid->bitdepth_luma_qp_scale) ];
+    qp_rem = p_Vid->qp_rem_matrix[ (currSlice->SliceQpY + p_Vid->bitdepth_luma_qp_scale) ];
 
     //init constants for every chroma qp offset
     qp_per_uv[uv] = p_Vid->qp_per_matrix[ (currMB->qpc[uv] + p_Vid->bitdepth_chroma_qp_scale) ];
@@ -1357,7 +1356,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
 
   int (*InvLevelScale4x4)[4] = NULL;
   // select scan type
-  const byte (*pos_scan4x4)[2] = ((p_Vid->structure == FRAME) && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
+  const byte (*pos_scan4x4)[2] = (!currSlice->field_pic_flag && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
   const byte *pos_scan_4x4 = pos_scan4x4[0];
 
   // QPI
@@ -1401,7 +1400,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
       (currMB->NoMbPartLessThan8x8Flag))
       && currMB->mb_type != I8MB && currMB->mb_type != I4MB
       && (currMB->cbp&15)
-      && currSlice->Transform8x8Mode);
+      && currSlice->active_pps->transform_8x8_mode_flag);
 
     if (need_transform_size_flag)
     {
@@ -1513,7 +1512,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
     }
   }
 
-  update_qp(currMB, currSlice->qp);
+  update_qp(currMB, currSlice->SliceQpY);
 
   qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
   qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
@@ -1760,7 +1759,7 @@ void set_read_CBP_and_coeffs_cabac(Slice *currSlice)
 {
     switch (currSlice->p_Vid->active_sps->chroma_format_idc) {
     case YUV444:
-        if (currSlice->p_Vid->separate_colour_plane_flag == 0)
+        if (currSlice->p_Vid->active_sps->separate_colour_plane_flag == 0)
             currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_444;
         else
             currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CABAC_400;

@@ -45,7 +45,7 @@ static void neighbouring_samples_4x4(imgpel *pred, bool *available, Macroblock *
     PixelPos pix_a, pix_b, pix_c, pix_d, pix_x[4];
 
     bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
-    bool MbaffFrameFlag = currSlice->mb_aff_frame_flag;
+    bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
 
     if (MbaffFrameFlag == 0) {
         getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
@@ -115,7 +115,7 @@ static void neighbouring_samples_8x8(imgpel *pred, bool *available, Macroblock *
     PixelPos pix_a, pix_b, pix_c, pix_d, pix_x[8];
 
     bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
-    bool MbaffFrameFlag = currSlice->mb_aff_frame_flag;
+    bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
 
     if (MbaffFrameFlag == 0) {
         getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
@@ -218,7 +218,7 @@ static void neighbouring_samples_16x16(imgpel *pred, bool *available, Macroblock
     PixelPos pix_a, pix_b, pix_d, pix_x[16];
 
     bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
-    bool MbaffFrameFlag = currSlice->mb_aff_frame_flag;
+    bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
 
     if (MbaffFrameFlag == 0) {
         getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
@@ -282,7 +282,7 @@ static void neighbouring_samples_chroma(imgpel *pred, bool *available, Macrobloc
     PixelPos pix_b, pix_d, pix_x[16];
 
     bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
-    bool MbaffFrameFlag = currSlice->mb_aff_frame_flag;
+    bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
 
     if (MbaffFrameFlag == 0) {
         //getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);

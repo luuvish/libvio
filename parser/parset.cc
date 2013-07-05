@@ -1142,11 +1142,6 @@ void ProcessSPS(VideoParameters *p_Vid, NALU_t *nalu)
         if (p_Vid->profile_idc < (int) sps->profile_idc)
 #endif
             p_Vid->profile_idc = sps->profile_idc;
-        p_Vid->separate_colour_plane_flag = sps->separate_colour_plane_flag;
-        if (p_Vid->separate_colour_plane_flag)
-            p_Vid->ChromaArrayType = 0;
-        else
-            p_Vid->ChromaArrayType = sps->chroma_format_idc;
     }
 
     FreePartition(dp, 1);
@@ -1177,11 +1172,6 @@ void ProcessSubsetSPS(VideoParameters *p_Vid, NALU_t *nalu)
     if (subset_sps->Valid) {
         // SubsetSPSConsistencyCheck (subset_sps);
         p_Vid->profile_idc = subset_sps->sps.profile_idc;
-        p_Vid->separate_colour_plane_flag = subset_sps->sps.separate_colour_plane_flag;
-        if (p_Vid->separate_colour_plane_flag)
-            p_Vid->ChromaArrayType = 0;
-        else
-            p_Vid->ChromaArrayType = subset_sps->sps.chroma_format_idc;
     }
 
     FreePartition(dp, 1);
@@ -1551,14 +1541,6 @@ static void set_coding_par(sps_t *sps, CodingParameters *cps)
 
   cps->yuv_format=sps->chroma_format_idc;
   cps->separate_colour_plane_flag = sps->separate_colour_plane_flag;
-  if( cps->separate_colour_plane_flag )
-  {
-    cps->ChromaArrayType = 0;
-  }
-  else
-  {
-    cps->ChromaArrayType = sps->chroma_format_idc;
-  }
 
   cps->width = cps->PicWidthInMbs * MB_BLOCK_SIZE;
   cps->height = cps->FrameHeightInMbs * MB_BLOCK_SIZE;  
@@ -1733,8 +1715,6 @@ static void set_global_coding_par(VideoParameters *p_Vid, CodingParameters *cps)
     p_Vid->FrameSizeInMbs = cps->FrameSizeInMbs;
 
     p_Vid->yuv_format = cps->yuv_format;
-    p_Vid->separate_colour_plane_flag = cps->separate_colour_plane_flag;
-    p_Vid->ChromaArrayType = cps->ChromaArrayType;
 
     p_Vid->width = cps->width;
     p_Vid->height = cps->height;

@@ -296,7 +296,7 @@ void GetMVPredictor(Macroblock *currMB, PixelPos *block, MotionVector *pmv,
 {
     Slice *currSlice = currMB->p_Slice;
 
-    if (currSlice->mb_aff_frame_flag)
+    if (currSlice->MbaffFrameFlag)
         GetMotionVectorPredictorMBAFF(currMB, block, pmv, ref_frame, mv_info,
                                       list, mb_x, mb_y, blockshape_x, blockshape_y);
     else

@@ -108,7 +108,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         imgpel     **imgY = p->imgY;
         imgpel   ***imgUV = p->imgUV;
         Slice  *currSlice = MbQ->p_Slice;
-        int       mvlimit = ((p->structure!=FRAME) || (p->mb_aff_frame_flag && MbQ->mb_field_decoding_flag)) ? 2 : 4;
+        int       mvlimit = (currSlice->field_pic_flag || (p->mb_aff_frame_flag && MbQ->mb_field_decoding_flag)) ? 2 : 4;
 
         sps_t *active_sps = p_Vid->active_sps;
 
@@ -182,7 +182,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
                 //if (p_Strength64[0] || p_Strength64[1]) { // only if one of the 16 Strength bytes is != 0
                     if (filterNon8x8LumaEdgesFlag[edge]) {
                         p_Vid->EdgeLoopLumaVer( PLANE_Y, imgY, Strength, MbQ, edge << 2, p);
-                        if (currSlice->chroma444_not_separate) {
+                        if (currSlice->active_sps->chroma_format_idc == YUV444 && currSlice->active_sps->separate_colour_plane_flag == 0) {
                             p_Vid->EdgeLoopLumaVer(PLANE_U, imgUV[0], Strength, MbQ, edge << 2, p);
                             p_Vid->EdgeLoopLumaVer(PLANE_V, imgUV[1], Strength, MbQ, edge << 2, p);
                         }
@@ -226,7 +226,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
                 //if (p_Strength64[0] || p_Strength64[1]) { // only if one of the 16 Strength bytes is != 0
                     if (filterNon8x8LumaEdgesFlag[edge]) {
                         p_Vid->EdgeLoopLumaHor( PLANE_Y, imgY, Strength, MbQ, edge << 2, p) ;
-                        if (currSlice->chroma444_not_separate) {
+                        if (currSlice->active_sps->chroma_format_idc == YUV444 && currSlice->active_sps->separate_colour_plane_flag == 0) {
                             p_Vid->EdgeLoopLumaHor(PLANE_U, imgUV[0], Strength, MbQ, edge << 2, p);
                             p_Vid->EdgeLoopLumaHor(PLANE_V, imgUV[1], Strength, MbQ, edge << 2, p);
                         }
@@ -250,7 +250,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
 
                     if (filterNon8x8LumaEdgesFlag[edge]) {
                         p_Vid->EdgeLoopLumaHor(PLANE_Y, imgY, Strength, MbQ, MB_BLOCK_SIZE, p) ;
-                        if (currSlice->chroma444_not_separate) {
+                        if (currSlice->active_sps->chroma_format_idc == YUV444 && currSlice->active_sps->separate_colour_plane_flag == 0) {
                             p_Vid->EdgeLoopLumaHor(PLANE_U, imgUV[0], Strength, MbQ, MB_BLOCK_SIZE, p) ;
                             p_Vid->EdgeLoopLumaHor(PLANE_V, imgUV[1], Strength, MbQ, MB_BLOCK_SIZE, p) ;
                         }
@@ -304,7 +304,7 @@ static void make_frame_picture_JV(VideoParameters *p_Vid)
 
 void init_Deblock(VideoParameters *p_Vid, int mb_aff_frame_flag)
 {
-    if (p_Vid->yuv_format == YUV444 && p_Vid->separate_colour_plane_flag) {
+    if (p_Vid->yuv_format == YUV444 && p_Vid->active_sps->separate_colour_plane_flag) {
         change_plane_JV(p_Vid, PLANE_Y, NULL);
         init_neighbors(p_Dec->p_Vid);
         change_plane_JV(p_Vid, PLANE_U, NULL);
@@ -341,7 +341,7 @@ void pic_deblock(VideoParameters *p_Vid, StorablePicture *p)
 {
     if (!p_Vid->iDeblockMode && (p_Vid->bDeblockEnable & (1<<p->used_for_reference))) {
         //deblocking for frame or field
-        if (p_Vid->separate_colour_plane_flag != 0) {
+        if (p_Vid->active_sps->separate_colour_plane_flag != 0) {
             int nplane;
             int colour_plane_id = p_Vid->ppSliceList[0]->colour_plane_id;
             for (nplane = 0; nplane<MAX_PLANE; ++nplane) {
@@ -354,7 +354,7 @@ void pic_deblock(VideoParameters *p_Vid, StorablePicture *p)
         } else
             DeblockPicture(p_Vid, p);
     } else {
-        if (p_Vid->separate_colour_plane_flag != 0)
+        if (p_Vid->active_sps->separate_colour_plane_flag != 0)
             make_frame_picture_JV(p_Vid);
     }
 }

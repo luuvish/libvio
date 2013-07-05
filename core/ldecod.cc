@@ -220,7 +220,7 @@ static void Report(VideoParameters *p_Vid)
     fprintf(p_log, "%3d %2d %2d %2.2f %2.2f %2.2f %5d "
       "%2.2f %2.2f %2.2f %5d "
       "%2.2f %2.2f %2.2f %5d %.3f\n",
-      p_Vid->number, 0, p_Vid->ppSliceList[0]->qp,
+      p_Vid->number, 0, p_Vid->ppSliceList[0]->SliceQpY,
       snr->snr1[0],
       snr->snr1[1],
       snr->snr1[2],
@@ -240,7 +240,7 @@ static void Report(VideoParameters *p_Vid)
     fprintf(p_log, "%3d %2d %2d %2.2f %2.2f %2.2f %5d "
       "%2.2f %2.2f %2.2f %5d "
       "%2.2f %2.2f %2.2f %5d %.3f\n",
-      p_Vid->number, 0, p_Vid->ppSliceList[0]? p_Vid->ppSliceList[0]->qp: 0,
+      p_Vid->number, 0, p_Vid->ppSliceList[0] ? p_Vid->ppSliceList[0]->SliceQpY : 0,
       snr->snr1[0],
       snr->snr1[1],
       snr->snr1[2],
@@ -637,9 +637,6 @@ static void FreeDecPicList(DecodedPicList *pDecPicList)
 
 static void free_slice(Slice *currSlice)
 {
-    if (currSlice->slice_type != I_SLICE && currSlice->slice_type != SI_SLICE)
-        free_ref_pic_list_reordering_buffer(currSlice);
-
     free_mem2Dint(currSlice->tmp_res);
     free_mem2Dpel(currSlice->tmp_block_l0);
     free_mem2Dpel(currSlice->tmp_block_l1);

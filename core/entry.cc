@@ -48,7 +48,7 @@ static int is_new_picture(StorablePicture *dec_picture, Slice *currSlice, OldSli
     if (currSlice->field_pic_flag && p_old_slice->field_pic_flag)
         result |= (p_old_slice->bottom_field_flag != currSlice->bottom_field_flag);
 
-    result |= (p_old_slice->nal_ref_idc != currSlice->nal_reference_idc) && ((p_old_slice->nal_ref_idc == 0) || (currSlice->nal_reference_idc == 0));
+    result |= (p_old_slice->nal_ref_idc != currSlice->nal_ref_idc) && ((p_old_slice->nal_ref_idc == 0) || (currSlice->nal_ref_idc == 0));
     result |= (p_old_slice->idr_flag    != currSlice->idr_flag);
 
     if (currSlice->idr_flag && p_old_slice->idr_flag)
@@ -101,7 +101,7 @@ static int parse_idr(Slice *currSlice)
         return current_header;
 
     currSlice->idr_flag = (nalu->nal_unit_type == NALU_TYPE_IDR);
-    currSlice->nal_reference_idc = nalu->nal_reference_idc;
+    currSlice->nal_ref_idc = nalu->nal_ref_idc;
     currSlice->dp_mode = PAR_DP_1;
     currSlice->max_part_nr = 1;
 #if (MVC_EXTENSION_ENABLE)
@@ -171,7 +171,7 @@ static int parse_idr(Slice *currSlice)
     setup_read_macroblock(currSlice);
 
     // From here on, p_Vid->active_sps, p_Vid->active_pps and the slice header are valid
-    if (currSlice->mb_aff_frame_flag)
+    if (currSlice->MbaffFrameFlag)
         currSlice->current_mb_nr = currSlice->first_mb_in_slice << 1;
     else
         currSlice->current_mb_nr = currSlice->first_mb_in_slice;
@@ -203,8 +203,8 @@ static int parse_dpa(Slice *currSlice)
     currSlice->dpB_NotPresent = 1;
     currSlice->dpC_NotPresent = 1;
 
-    currSlice->idr_flag          = FALSE;
-    currSlice->nal_reference_idc = nalu->nal_reference_idc;
+    currSlice->idr_flag    = FALSE;
+    currSlice->nal_ref_idc = nalu->nal_ref_idc;
     currSlice->dp_mode     = PAR_DP_3;
     currSlice->max_part_nr = 3;
     currSlice->ei_flag     = 0;
@@ -240,7 +240,7 @@ static int parse_dpa(Slice *currSlice)
     setup_read_macroblock(currSlice);
 
     // From here on, p_Vid->active_sps, p_Vid->active_pps and the slice header are valid
-    if (currSlice->mb_aff_frame_flag)
+    if (currSlice->MbaffFrameFlag)
         currSlice->current_mb_nr = currSlice->first_mb_in_slice << 1;
     else
         currSlice->current_mb_nr = currSlice->first_mb_in_slice;

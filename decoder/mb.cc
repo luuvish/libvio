@@ -18,8 +18,14 @@ static void set_chroma_vector(Macroblock *currMB)
     Slice *currSlice = currMB->p_Slice;
     VideoParameters *p_Vid = currMB->p_Vid;
 
-    if (!currSlice->mb_aff_frame_flag) {
-        if (currSlice->structure == TOP_FIELD) {
+    if (!currSlice->MbaffFrameFlag) {
+        if (!currSlice->field_pic_flag) {
+            int k,l;
+            for (l = LIST_0; l <= (LIST_1); l++) {
+                for (k = 0; k < currSlice->listXsize[l]; k++)
+                    currSlice->chroma_vector_adjustment[l][k] = 0; 
+            }
+        } else if (!currSlice->bottom_field_flag) {
             int k,l;
             for (l = LIST_0; l <= (LIST_1); l++) {
                 for (k = 0; k < currSlice->listXsize[l]; k++) {
@@ -29,7 +35,7 @@ static void set_chroma_vector(Macroblock *currMB)
                         currSlice->chroma_vector_adjustment[l][k] = 0; 
                 }
             }
-        } else if(currSlice->structure == BOTTOM_FIELD) {
+        } else {
             int k,l;
             for (l = LIST_0; l <= (LIST_1); l++) {
                 for (k = 0; k < currSlice->listXsize[l]; k++) {
@@ -38,12 +44,6 @@ static void set_chroma_vector(Macroblock *currMB)
                     else
                         currSlice->chroma_vector_adjustment[l][k] = 0; 
                 }
-            }
-        } else {
-            int k,l;
-            for (l = LIST_0; l <= (LIST_1); l++) {
-                for (k = 0; k < currSlice->listXsize[l]; k++)
-                    currSlice->chroma_vector_adjustment[l][k] = 0; 
             }
         }
     } else {
@@ -73,7 +73,7 @@ static void set_chroma_vector(Macroblock *currMB)
         }
     }
 
-    currSlice->max_mb_vmv_r = (currSlice->structure != FRAME || ( currMB->mb_field_decoding_flag )) ? p_Vid->max_vmv_r >> 1 : p_Vid->max_vmv_r;
+    currSlice->max_mb_vmv_r = (currSlice->field_pic_flag || ( currMB->mb_field_decoding_flag )) ? p_Vid->max_vmv_r >> 1 : p_Vid->max_vmv_r;
 }
 
 
@@ -379,7 +379,7 @@ static int mb_pred_ipcm(Macroblock *currMB)
             dec_picture->imgY[currMB->pix_y + i][currMB->pix_x + j] = (imgpel) currSlice->cof[0][i][j];
     }
 
-    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->separate_colour_plane_flag == 0) {
+    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->active_sps->separate_colour_plane_flag == 0) {
         for (k = 0; k < 2; ++k) {
             for (i = 0; i < p_Vid->mb_cr_size_y; ++i) {
                 for (j = 0;j < p_Vid->mb_cr_size_x; ++j)
@@ -560,7 +560,7 @@ static int decode_one_component(Macroblock *currMB, ColorPlane curr_plane, imgpe
 static void init_cur_imgy(VideoParameters *p_Vid, Slice *currSlice, int pl)
 {
     int i, j;
-    if (p_Vid->separate_colour_plane_flag == 0) {
+    if (p_Vid->active_sps->separate_colour_plane_flag == 0) {
         StorablePicture *vidref = p_Vid->no_reference_picture;
         int noref = currSlice->framepoc < p_Vid->recovery_poc;
         if (pl == PLANE_Y) {
@@ -594,7 +594,7 @@ void decode_one_macroblock(Macroblock *currMB)
     StorablePicture *dec_picture = currSlice->dec_picture;
 
     // macroblock decoding **************************************************
-    if (currSlice->chroma444_not_separate) {
+    if (currSlice->active_sps->chroma_format_idc == YUV444 && currSlice->active_sps->separate_colour_plane_flag == 0) {
         if (!currMB->is_intra_block) {
             init_cur_imgy(p_Vid, currSlice, PLANE_Y);
             decode_one_component(currMB, PLANE_Y, dec_picture->imgY, dec_picture);

@@ -52,7 +52,7 @@ typedef struct nalu_t {
     unsigned  max_size;              //!< NAL Unit Buffer size
     int       forbidden_bit;         //!< should be always FALSE
     NaluType  nal_unit_type;         //!< NALU_TYPE_xxxx
-    uint8_t   nal_reference_idc;     //!< NALU_PRIORITY_xxxx  
+    uint8_t   nal_ref_idc;           //!< NALU_PRIORITY_xxxx  
     byte     *buf;                   //!< contains the first byte followed by the EBSP
     uint16    lost_packets;          //!< true, if packet loss is detected
 #if (MVC_EXTENSION_ENABLE)

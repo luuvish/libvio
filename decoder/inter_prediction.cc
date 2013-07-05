@@ -320,8 +320,8 @@ void get_block_luma(StorablePicture *curr_ref, int x_pos, int y_pos, int block_s
         return;
     }
 
-    imgpel **cur_imgY = (currMB->p_Vid->separate_colour_plane_flag
-                      && currMB->p_Slice->colour_plane_id>PLANE_Y)
+    imgpel **cur_imgY = (currMB->p_Vid->active_sps->separate_colour_plane_flag
+                      && currMB->p_Slice->colour_plane_id > PLANE_Y)
                       ? curr_ref->imgUV[currMB->p_Slice->colour_plane_id-1]
                       : curr_ref->cur_imgY;
     int dx = (x_pos & 3);
