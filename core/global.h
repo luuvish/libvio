@@ -90,8 +90,6 @@ typedef struct frame_format
   int         bit_depth[3];                  //!< component bit depth  
   int         max_value[3];                  //!< component max value
   int         max_value_sq[3];               //!< component max value squared
-  int         pic_unit_size_on_disk;         //!< picture sample unit size on storage medium
-  int         pic_unit_size_shift3;          //!< pic_unit_size_on_disk >> 3
 } FrameFormat;
 
 typedef struct image_data
@@ -258,17 +256,11 @@ typedef struct coding_par {
     int width_cr;                               //!< width chroma  
     int height_cr;                              //!< height chroma
 
-    int pic_unit_bitsize_on_disk;
-
     int max_vmv_r;                             //!< maximum vertical motion vector range in luma quarter frame pixel units for the current level_idc
     int iLumaPadX;
     int iLumaPadY;
     int iChromaPadX;
     int iChromaPadY;
-
-    int shiftpel_x;
-    int shiftpel_y;
-    int total_scale;
 
     //padding info;
     void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
@@ -583,16 +575,8 @@ typedef struct video_par {
   int width_cr;                               //!< width chroma  
   int height_cr;                              //!< height chroma
   // Fidelity Range Extensions Stuff
-  int pic_unit_bitsize_on_disk;
-
-  int pic_unit_size_on_disk;
 
   int profile_idc;
-  int subpel_x;
-  int subpel_y;
-  int shiftpel_x;
-  int shiftpel_y;
-  int total_scale;
 
   int max_vmv_r;                             //!< maximum vertical motion vector range in luma quarter frame pixel units for the current level_idc
   //int max_mb_vmv_r;                        //!< maximum vertical motion vector range in luma quarter pixel units for the current level_idc

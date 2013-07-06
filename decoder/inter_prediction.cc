@@ -380,13 +380,19 @@ static void get_block_chroma(StorablePicture *curr_ref, int x_pos, int y_pos,
                              int maxold_x, int maxold_y, int block_size_x, int vert_block_size,
                              imgpel *block1, imgpel *block2, VideoParameters *p_Vid)
 {
-    int total_scale = p_Vid->total_scale;
     sps_t *sps = p_Vid->active_sps;
     imgpel no_ref_value = (imgpel)(1 << (sps->BitDepthC - 1));
-    int subpel_x = p_Vid->subpel_x;
-    int subpel_y = p_Vid->subpel_y;
-    int shiftpel_x = p_Vid->shiftpel_x;
-    int shiftpel_y = p_Vid->shiftpel_y;
+
+    int shiftpel_x = sps->chroma_format_idc == YUV400 ? 0 :
+                     sps->chroma_format_idc == YUV444 ? 2 : 3;
+    int shiftpel_y = sps->chroma_format_idc == YUV400 ? 0 :
+                     sps->chroma_format_idc == YUV420 ? 3 : 2;
+    int total_scale = shiftpel_x + shiftpel_y;
+
+    int subpel_x = sps->chroma_format_idc == YUV400 ? 0 :
+                   sps->chroma_format_idc == YUV444 ? 3 : 7;
+    int subpel_y = sps->chroma_format_idc == YUV400 ? 0 :
+                   sps->chroma_format_idc == YUV420 ? 7 : 3;
 
     imgpel *img1,*img2;
     short dx,dy;

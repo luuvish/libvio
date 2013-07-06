@@ -167,8 +167,13 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
   }
   init_qp_process(cps, imax(sps->QpBdOffsetY, sps->QpBdOffsetC));
 
+  int pic_unit_bitsize_on_disk;
+  if (sps->BitDepthY > sps->BitDepthC || sps->chroma_format_idc == YUV400)
+    pic_unit_bitsize_on_disk = (sps->BitDepthY > 8) ? 16 : 8;
+  else
+    pic_unit_bitsize_on_disk = (sps->BitDepthC > 8) ? 16 : 8;
   if(layer_id == 0 )
-    init_output(cps, ((cps->pic_unit_bitsize_on_disk+7) >> 3));
+    init_output(cps, ((pic_unit_bitsize_on_disk + 7) >> 3));
   else
     cps->img2buf = p_Vid->p_EncodePar[0]->img2buf;
   p_Vid->global_init_done[layer_id] = 1;
@@ -270,8 +275,6 @@ static void reset_format_info(sps_t *sps, VideoParameters *p_Vid, FrameFormat *s
   output->bit_depth[0] = source->bit_depth[0] = sps->bit_depth_luma_minus8 + 8;
   output->bit_depth[1] = source->bit_depth[1] = sps->bit_depth_chroma_minus8 + 8;
   output->bit_depth[2] = source->bit_depth[2] = sps->bit_depth_chroma_minus8 + 8;  
-  output->pic_unit_size_on_disk = (imax(output->bit_depth[0], output->bit_depth[1]) > 8) ? 16 : 8;
-  output->pic_unit_size_shift3 = output->pic_unit_size_on_disk >> 3;
 
   output->frame_rate  = source->frame_rate;
   output->color_model = source->color_model;
@@ -379,65 +382,7 @@ static void set_coding_par(sps_t *sps, CodingParameters *cps)
   }
   //pel bitdepth init
 
-  if(sps->BitDepthY > sps->BitDepthC || sps->chroma_format_idc == YUV400)
-    cps->pic_unit_bitsize_on_disk = (sps->BitDepthY > 8) ? 16 : 8;
-  else
-    cps->pic_unit_bitsize_on_disk = (sps->BitDepthC > 8) ? 16 : 8;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-
-  if (sps->chroma_format_idc != YUV400)
-  {
-    //for chrominance part
-    cps->shiftpel_x  = mb_cr_size_x == 8 ? 3 : 2;
-    cps->shiftpel_y  = mb_cr_size_y == 8 ? 3 : 2;
-    cps->total_scale = cps->shiftpel_x + cps->shiftpel_y;
-  }
-  else
-  {
-    cps->shiftpel_x    = 0;
-    cps->shiftpel_y    = 0;
-    cps->total_scale   = 0;
-  }
-
   cps->rgb_output =  (sps->vui_parameters.matrix_coefficients==0);
-}
-
-static void init_frext(VideoParameters *p_Vid)  //!< video parameters
-{
-    sps_t *sps = p_Vid->active_sps;
-  //pel bitdepth init
-
-  if(sps->BitDepthY > sps->BitDepthC || sps->chroma_format_idc == YUV400)
-    p_Vid->pic_unit_bitsize_on_disk = (sps->BitDepthY > 8)? 16:8;
-  else
-    p_Vid->pic_unit_bitsize_on_disk = (sps->BitDepthC > 8)? 16:8;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-
-  if (sps->chroma_format_idc != YUV400)
-  {
-    //for chrominance part
-    p_Vid->subpel_x    = mb_cr_size_x == 8 ? 7 : 3;
-    p_Vid->subpel_y    = mb_cr_size_y == 8 ? 7 : 3;
-    p_Vid->shiftpel_x  = mb_cr_size_x == 8 ? 3 : 2;
-    p_Vid->shiftpel_y  = mb_cr_size_y == 8 ? 3 : 2;
-    p_Vid->total_scale = p_Vid->shiftpel_x + p_Vid->shiftpel_y;
-  }
-  else
-  {
-    p_Vid->subpel_x      = 0;
-    p_Vid->subpel_y      = 0;
-    p_Vid->shiftpel_x    = 0;
-    p_Vid->shiftpel_y    = 0;
-    p_Vid->total_scale   = 0;
-  }
 }
 
 static void set_global_coding_par(VideoParameters *p_Vid, CodingParameters *cps)
@@ -467,8 +412,6 @@ static void set_global_coding_par(VideoParameters *p_Vid, CodingParameters *cps)
         p_Vid->iChromaPadX = p_Vid->iLumaPadX;
         p_Vid->iChromaPadY = p_Vid->iLumaPadY;
     }
-
-    init_frext(p_Vid);
 }
 
 void activate_sps (VideoParameters *p_Vid, sps_t *sps)

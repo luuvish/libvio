@@ -281,7 +281,13 @@ void write_picture(VideoParameters *p_Vid, StorablePicture *p, int p_out, int re
 
 static void allocate_p_dec_pic(VideoParameters *p_Vid, DecodedPicList *pDecPic, StorablePicture *p, int iLumaSize, int iFrameSize, int iLumaSizeX, int iLumaSizeY, int iChromaSizeX, int iChromaSizeY)
 {
-  int symbol_size_in_bytes = ((p_Vid->pic_unit_bitsize_on_disk+7) >> 3);
+  sps_t *sps = p_Vid->active_sps;
+  int pic_unit_bitsize_on_disk;
+  if (sps->BitDepthY > sps->BitDepthC || sps->chroma_format_idc == YUV400)
+    pic_unit_bitsize_on_disk = (sps->BitDepthY > 8) ? 16 : 8;
+  else
+    pic_unit_bitsize_on_disk = (sps->BitDepthC > 8) ? 16 : 8;
+  int symbol_size_in_bytes = ((pic_unit_bitsize_on_disk + 7) >> 3);
   
   if(pDecPic->pY)
     mem_free(pDecPic->pY);
@@ -292,11 +298,11 @@ static void allocate_p_dec_pic(VideoParameters *p_Vid, DecodedPicList *pDecPic, 
   //init;
   pDecPic->iYUVFormat = p->chroma_format_idc;
   pDecPic->iYUVStorageFormat = 0;
-  pDecPic->iBitDepth = p_Vid->pic_unit_bitsize_on_disk;
-  pDecPic->iWidth = iLumaSizeX; //p->size_x;
-  pDecPic->iHeight = iLumaSizeY; //p->size_y;
-  pDecPic->iYBufStride = iLumaSizeX*symbol_size_in_bytes; //p->size_x *symbol_size_in_bytes;
-  pDecPic->iUVBufStride = iChromaSizeX*symbol_size_in_bytes; //p->size_x_cr*symbol_size_in_bytes;
+  pDecPic->iBitDepth = pic_unit_bitsize_on_disk;
+  pDecPic->iWidth = iLumaSizeX;
+  pDecPic->iHeight = iLumaSizeY;
+  pDecPic->iYBufStride = iLumaSizeX*symbol_size_in_bytes;
+  pDecPic->iUVBufStride = iChromaSizeX*symbol_size_in_bytes;
 }
 
 
@@ -346,13 +352,19 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
 {
   InputParameters *p_Inp = p_Vid->p_Inp;
   DecodedPicList *pDecPic;
+  sps_t *sps = p_Vid->active_sps;
+  int pic_unit_bitsize_on_disk;
+  if (sps->BitDepthY > sps->BitDepthC || sps->chroma_format_idc == YUV400)
+    pic_unit_bitsize_on_disk = (sps->BitDepthY > 8) ? 16 : 8;
+  else
+    pic_unit_bitsize_on_disk = (sps->BitDepthC > 8) ? 16 : 8;
 
   static const int SubWidthC  [4]= { 1, 2, 2, 1};
   static const int SubHeightC [4]= { 1, 2, 1, 1};
 
   int crop_left, crop_right, crop_top, crop_bottom;
-  int symbol_size_in_bytes = ((p_Vid->pic_unit_bitsize_on_disk+7) >> 3);
-  int rgb_output =  p_Vid->p_EncodePar[p->layer_id]->rgb_output; //(p_Vid->active_sps->vui_parameters.matrix_coefficients==0);
+  int symbol_size_in_bytes = ((pic_unit_bitsize_on_disk + 7) >> 3);
+  int rgb_output =  p_Vid->p_EncodePar[p->layer_id]->rgb_output;
   unsigned char *buf;
   //int iPicSizeTab[4] = {2, 3, 4, 6};
   int iLumaSize, iFrameSize;
@@ -368,7 +380,6 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
   // note: this tone-mapping is working for RGB format only. Sharp
   if (p->seiHasTone_mapping && rgb_output)
   {
-    //printf("output frame %d with tone model id %d\n",  p->frame_num, p->tone_mapping_model_id);
     symbol_size_in_bytes = (p->tonemapped_bit_depth>8)? 2 : 1;
     tone_map(p->imgY, p->tone_mapping_lut, p->size_x, p->size_y);
     tone_map(p->imgUV[0], p->tone_mapping_lut, p->size_x_cr, p->size_y_cr);

@@ -861,16 +861,21 @@ void find_snr(VideoParameters *p_Vid,
   InputParameters *p_Inp = p_Vid->p_Inp;
   SNRParameters   *snr   = p_Vid->snr;
   sps_t *sps = p_Vid->active_sps;
+  int pic_unit_bitsize_on_disk;
+  if (sps->BitDepthY > sps->BitDepthC || sps->chroma_format_idc == YUV400)
+    pic_unit_bitsize_on_disk = (sps->BitDepthY > 8) ? 16 : 8;
+  else
+    pic_unit_bitsize_on_disk = (sps->BitDepthC > 8) ? 16 : 8;
 
   int k;
   int ret;
   int64 diff_comp[3] = {0};
   int64  status;
-  int symbol_size_in_bytes = (p_Vid->pic_unit_bitsize_on_disk >> 3);
+  int symbol_size_in_bytes = (pic_unit_bitsize_on_disk >> 3);
   int comp_size_x[3], comp_size_y[3];
   int64 framesize_in_bytes;
 
-  Boolean rgb_output = (Boolean) (p_Vid->active_sps->vui_parameters.matrix_coefficients==0);
+  bool rgb_output = sps->vui_parameters.matrix_coefficients == 0;
   unsigned char *buf;
   imgpel **cur_ref [3];
   imgpel **cur_comp[3]; 
