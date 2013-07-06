@@ -337,7 +337,6 @@ void readRefFrame_CABAC(Macroblock *currMB,
                         DecodingEnvironment *dep_dp)
 {
   Slice *currSlice = currMB->p_Slice;
-  VideoParameters *p_Vid = currMB->p_Vid;
   StorablePicture *dec_picture = currSlice->dec_picture;
   MotionInfoContexts *ctx = currSlice->mot_ctx;
   Macroblock *neighborMB = NULL;
@@ -350,8 +349,10 @@ void readRefFrame_CABAC(Macroblock *currMB,
 
   PixelPos block_a, block_b;
 
-  get4x4Neighbour(currMB, currMB->subblock_x - 1, currMB->subblock_y    , p_Vid->mb_size[IS_LUMA], &block_a);
-  get4x4Neighbour(currMB, currMB->subblock_x,     currMB->subblock_y - 1, p_Vid->mb_size[IS_LUMA], &block_b);
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
+  get4x4Neighbour(currMB, currMB->subblock_x - 1, currMB->subblock_y    , mb_size, &block_a);
+  get4x4Neighbour(currMB, currMB->subblock_x,     currMB->subblock_y - 1, mb_size, &block_b);
 
   if (block_b.available)
   {
@@ -404,7 +405,7 @@ void read_MVD_CABAC( Macroblock *currMB,
                     SyntaxElement *se,
                     DecodingEnvironment *dep_dp)
 {  
-  int *mb_size = currMB->p_Vid->mb_size[IS_LUMA];
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
   Slice *currSlice = currMB->p_Slice;
   MotionInfoContexts *ctx = currSlice->mot_ctx;
   int i = currMB->subblock_x;
@@ -463,7 +464,6 @@ void read_mvd_CABAC_mbaff( Macroblock *currMB,
                     SyntaxElement *se,
                     DecodingEnvironment *dep_dp)
 {
-  VideoParameters *p_Vid = currMB->p_Vid;
   Slice *currSlice = currMB->p_Slice;
   MotionInfoContexts *ctx = currSlice->mot_ctx;
   int i = currMB->subblock_x;
@@ -476,7 +476,9 @@ void read_mvd_CABAC_mbaff( Macroblock *currMB,
 
   PixelPos block_a, block_b;
 
-  get4x4NeighbourBase(currMB, i - 1, j    , p_Vid->mb_size[IS_LUMA], &block_a);
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
+  get4x4NeighbourBase(currMB, i - 1, j    , mb_size, &block_a);
   if (block_a.available)
   {
     a = iabs(currSlice->mb_data[block_a.mb_addr].mvd[list_idx][block_a.y][block_a.x][k]);
@@ -489,7 +491,7 @@ void read_mvd_CABAC_mbaff( Macroblock *currMB,
     }
   }
 
-  get4x4NeighbourBase(currMB, i    , j - 1, p_Vid->mb_size[IS_LUMA], &block_b);
+  get4x4NeighbourBase(currMB, i    , j - 1, mb_size, &block_b);
   if (block_b.available)
   {
     b = iabs(currSlice->mb_data[block_b.mb_addr].mvd[list_idx][block_b.y][block_b.x][k]);
@@ -569,7 +571,6 @@ void read_CBP_CABAC(Macroblock *currMB,
                     SyntaxElement *se,
                     DecodingEnvironment *dep_dp)
 {
-  VideoParameters *p_Vid = currMB->p_Vid;
   StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
   Slice *currSlice = currMB->p_Slice;
   TextureInfoContexts *ctx = currSlice->tex_ctx;  
@@ -582,6 +583,8 @@ void read_CBP_CABAC(Macroblock *currMB,
   int cbp_bit;
   int mask;
   PixelPos block_a;
+
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
 
   //  coding of luma part (bit by bit)
   for (mb_y=0; mb_y < 4; mb_y += 2)
@@ -607,7 +610,7 @@ void read_CBP_CABAC(Macroblock *currMB,
 
       if (mb_x == 0)
       {
-        get4x4Neighbour(currMB, (mb_x<<2) - 1, (mb_y << 2), p_Vid->mb_size[IS_LUMA], &block_a);
+        get4x4Neighbour(currMB, (mb_x<<2) - 1, (mb_y << 2), mb_size, &block_a);
         if (block_a.available)
         {
           if(currSlice->mb_data[block_a.mb_addr].mb_type==IPCM)
@@ -727,6 +730,7 @@ static int read_and_store_CBP_block_bit_444 (Macroblock          *currMB,
                                              int                  type)
 {
   Slice *currSlice = currMB->p_Slice;
+  sps_t *sps = currSlice->active_sps;
   VideoParameters *p_Vid = currMB->p_Vid;
   StorablePicture *dec_picture = currSlice->dec_picture;
   TextureInfoContexts *tex_ctx = currSlice->tex_ctx;
@@ -750,12 +754,22 @@ static int read_and_store_CBP_block_bit_444 (Macroblock          *currMB,
   int ctx;
   int bit_pos_a   = 0;
   int bit_pos_b   = 0;
-  
+
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_size[2][2] = {
+      { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
+      { mb_cr_size_x, mb_cr_size_y }
+    };
+
   PixelPos block_a, block_b;
   if (y_ac)
   {
-    get4x4Neighbour(currMB, i - 1, j    , p_Vid->mb_size[IS_LUMA], &block_a);
-    get4x4Neighbour(currMB, i    , j - 1, p_Vid->mb_size[IS_LUMA], &block_b);
+    get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
+    get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
     if (block_a.available)
         bit_pos_a = 4*block_a.y + block_a.x;
       if (block_b.available)
@@ -763,13 +777,13 @@ static int read_and_store_CBP_block_bit_444 (Macroblock          *currMB,
   }
   else if (y_dc)
   {
-    get4x4Neighbour(currMB, i - 1, j    , p_Vid->mb_size[IS_LUMA], &block_a);
-    get4x4Neighbour(currMB, i    , j - 1, p_Vid->mb_size[IS_LUMA], &block_b);
+    get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
+    get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
   }
   else if (u_ac||v_ac)
   {
-    get4x4Neighbour(currMB, i - 1, j    , p_Vid->mb_size[IS_CHROMA], &block_a);
-    get4x4Neighbour(currMB, i    , j - 1, p_Vid->mb_size[IS_CHROMA], &block_b);
+    get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
+    get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);
     if (block_a.available)
       bit_pos_a = 4*block_a.y + block_a.x;
     if (block_b.available)
@@ -777,8 +791,8 @@ static int read_and_store_CBP_block_bit_444 (Macroblock          *currMB,
   }
   else
   {
-    get4x4Neighbour(currMB, i - 1, j    , p_Vid->mb_size[IS_CHROMA], &block_a);
-    get4x4Neighbour(currMB, i    , j - 1, p_Vid->mb_size[IS_CHROMA], &block_b);
+    get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
+    get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);
   }
   
   if (dec_picture->chroma_format_idc!=YUV444)
@@ -988,10 +1002,19 @@ static int read_and_store_CBP_block_bit_normal (Macroblock          *currMB,
                                                 int                  type)
 {
   Slice *currSlice = currMB->p_Slice;
-  VideoParameters *p_Vid = currMB->p_Vid;
+  sps_t *sps = currSlice->active_sps;
   TextureInfoContexts *tex_ctx = currSlice->tex_ctx;
   int cbp_bit     = 1;  // always one for 8x8 mode
   Macroblock *mb_data = currSlice->mb_data;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_size[2][2] = {
+      { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
+      { mb_cr_size_x, mb_cr_size_y }
+    };
 
   if (type==LUMA_16DC)
   {
@@ -1001,8 +1024,8 @@ static int read_and_store_CBP_block_bit_normal (Macroblock          *currMB,
 
     PixelPos block_a, block_b;
 
-    get4x4NeighbourBase(currMB, -1,  0, p_Vid->mb_size[IS_LUMA], &block_a);
-    get4x4NeighbourBase(currMB,  0, -1, p_Vid->mb_size[IS_LUMA], &block_b);
+    get4x4NeighbourBase(currMB, -1,  0, mb_size[IS_LUMA], &block_a);
+    get4x4NeighbourBase(currMB,  0, -1, mb_size[IS_LUMA], &block_b);
 
     //--- get bits from neighboring blocks ---
     if (block_b.available)
@@ -1038,8 +1061,8 @@ static int read_and_store_CBP_block_bit_normal (Macroblock          *currMB,
 
     PixelPos block_a, block_b;
 
-    get4x4NeighbourBase(currMB, i - 1, j    , p_Vid->mb_size[IS_LUMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, p_Vid->mb_size[IS_LUMA], &block_b);
+    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
+    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
 
     //--- get bits from neighboring blocks ---
     if (block_b.available)
@@ -1075,8 +1098,8 @@ static int read_and_store_CBP_block_bit_normal (Macroblock          *currMB,
 
     PixelPos block_a, block_b;
 
-    get4x4NeighbourBase(currMB, i - 1, j    , p_Vid->mb_size[IS_LUMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, p_Vid->mb_size[IS_LUMA], &block_b);
+    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
+    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
 
     //--- get bits from neighboring blocks ---
     if (block_b.available)
@@ -1112,8 +1135,8 @@ static int read_and_store_CBP_block_bit_normal (Macroblock          *currMB,
 
     PixelPos block_a, block_b;
 
-    get4x4NeighbourBase(currMB, i - 1, j    , p_Vid->mb_size[IS_LUMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, p_Vid->mb_size[IS_LUMA], &block_b);
+    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
+    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
 
     //--- get bits from neighboring blocks ---
     if (block_b.available)
@@ -1150,8 +1173,8 @@ static int read_and_store_CBP_block_bit_normal (Macroblock          *currMB,
 
     PixelPos block_a, block_b;
 
-    get4x4NeighbourBase(currMB, i - 1, j    , p_Vid->mb_size[IS_LUMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, p_Vid->mb_size[IS_LUMA], &block_b);
+    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
+    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
 
     //--- get bits from neighboring blocks ---
     if (block_b.available)
@@ -1198,8 +1221,8 @@ static int read_and_store_CBP_block_bit_normal (Macroblock          *currMB,
 
     PixelPos block_a, block_b;
 
-    get4x4NeighbourBase(currMB, i - 1, j    , p_Vid->mb_size[IS_CHROMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, p_Vid->mb_size[IS_CHROMA], &block_b);    
+    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
+    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);    
 
     //--- get bits from neighboring blocks ---
     if (block_b.available)
@@ -1242,8 +1265,8 @@ static int read_and_store_CBP_block_bit_normal (Macroblock          *currMB,
 
     PixelPos block_a, block_b;
 
-    get4x4NeighbourBase(currMB, i - 1, j    , p_Vid->mb_size[IS_CHROMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, p_Vid->mb_size[IS_CHROMA], &block_b);    
+    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
+    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);    
 
     //--- get bits from neighboring blocks ---
     if (block_b.available)

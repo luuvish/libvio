@@ -20,255 +20,6 @@
 
 
 
-void ref_pic_list_modification(Slice *currSlice)
-{
-    byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
-    DataPartition *partition = &currSlice->partArr[dP_nr];
-    Bitstream *s = partition->bitstream;
-
-    currSlice->ref_pic_list_modification_flag_l0 = 0;
-    if (currSlice->slice_type != I_slice && currSlice->slice_type != SI_slice) {
-        currSlice->ref_pic_list_modification_flag_l0 = s->u(1, "SH: ref_pic_list_modification_flag_l0");
-        if (currSlice->ref_pic_list_modification_flag_l0) {
-            int i = 0;
-            do {
-                currSlice->modification_of_pic_nums_idc[0][i] = s->ue("SH: modification_of_pic_nums_idc_l0");
-                if (currSlice->modification_of_pic_nums_idc[0][i] == 0 ||
-                    currSlice->modification_of_pic_nums_idc[0][i] == 1)
-                    currSlice->abs_diff_pic_num_minus1[0][i] = s->ue("SH: abs_diff_pic_num_minus1_l0");
-                else if (currSlice->modification_of_pic_nums_idc[0][i] == 2)
-                    currSlice->long_term_pic_num[0][i] = s->ue("SH: long_term_pic_idx_l0");
-            } while (currSlice->modification_of_pic_nums_idc[0][i++] != 3);
-        }
-    }
-
-    currSlice->ref_pic_list_modification_flag_l1 = 0;
-    if (currSlice->slice_type == B_slice) {
-        currSlice->ref_pic_list_modification_flag_l1 = s->u(1, "SH: ref_pic_list_reordering_flag_l1");
-        if (currSlice->ref_pic_list_modification_flag_l1) {
-            int i = 0;
-            do {
-                currSlice->modification_of_pic_nums_idc[1][i] = s->ue("SH: modification_of_pic_nums_idc_l1");
-                if (currSlice->modification_of_pic_nums_idc[1][i] == 0 ||
-                    currSlice->modification_of_pic_nums_idc[1][i] == 1)
-                    currSlice->abs_diff_pic_num_minus1[1][i] = s->ue("SH: abs_diff_pic_num_minus1_l1");
-                else if (currSlice->modification_of_pic_nums_idc[1][i] == 2)
-                    currSlice->long_term_pic_num[1][i] = s->ue("SH: long_term_pic_idx_l1");
-            } while (currSlice->modification_of_pic_nums_idc[1][i++] != 3);
-        }
-    }
-}
-
-#if (MVC_EXTENSION_ENABLE)
-static void ref_pic_list_mvc_modification(Slice *currSlice)
-{
-    byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
-    DataPartition *partition = &(currSlice->partArr[dP_nr]);
-    Bitstream *s = partition->bitstream;
-
-    currSlice->ref_pic_list_modification_flag_l0 = 0;
-    if (currSlice->slice_type != I_slice && currSlice->slice_type != SI_slice) {
-        currSlice->ref_pic_list_modification_flag_l0 = s->u(1, "SH: ref_pic_list_modification_flag_l0");
-        if (currSlice->ref_pic_list_modification_flag_l0) {
-            int i = 0;
-            do {
-                currSlice->modification_of_pic_nums_idc[0][i] = s->ue("SH: modification_of_pic_nums_idc_l0");
-                if (currSlice->modification_of_pic_nums_idc[0][i] == 0 ||
-                    currSlice->modification_of_pic_nums_idc[0][i] == 1)
-                    currSlice->abs_diff_pic_num_minus1[0][i] = s->ue("SH: abs_diff_pic_num_minus1_l0");
-                else if (currSlice->modification_of_pic_nums_idc[0][i] == 2)
-                    currSlice->long_term_pic_num[0][i] = s->ue("SH: long_term_pic_idx_l0");
-                else if (currSlice->modification_of_pic_nums_idc[0][i] == 4 ||
-                         currSlice->modification_of_pic_nums_idc[0][i] == 5)
-                    currSlice->abs_diff_view_idx_minus1[0][i] = s->ue("SH: abs_diff_view_idx_minus1_l0");
-            } while (currSlice->modification_of_pic_nums_idc[0][i++] != 3);
-        }
-    }
-
-    currSlice->ref_pic_list_modification_flag_l1 = 0;
-    if (currSlice->slice_type == B_slice) {
-        currSlice->ref_pic_list_modification_flag_l1 = s->u(1, "SH: ref_pic_list_reordering_flag_l1");
-        if (currSlice->ref_pic_list_modification_flag_l1) {
-            int i = 0;
-            do {
-                currSlice->modification_of_pic_nums_idc[1][i] = s->ue("SH: modification_of_pic_nums_idc_l1");
-                if (currSlice->modification_of_pic_nums_idc[1][i] == 0 ||
-                    currSlice->modification_of_pic_nums_idc[1][i] == 1)
-                    currSlice->abs_diff_pic_num_minus1[1][i] = s->ue("SH: abs_diff_pic_num_minus1_l1");
-                else if (currSlice->modification_of_pic_nums_idc[1][i] == 2)
-                    currSlice->long_term_pic_num[1][i] = s->ue("SH: long_term_pic_idx_l1");
-                else if (currSlice->modification_of_pic_nums_idc[1][i] == 4 ||
-                         currSlice->modification_of_pic_nums_idc[1][i] == 5)
-                    currSlice->abs_diff_view_idx_minus1[1][i] = s->ue("SH: abs_diff_view_idx_minus1_l1");
-            } while (currSlice->modification_of_pic_nums_idc[1][i++] != 3);
-        }
-    }
-}
-#endif
-
-
-/*!
- ************************************************************************
- * \brief
- *    read the weighted prediction tables
- ************************************************************************
- */
-static void pred_weight_table(Slice *currSlice)
-{
-    VideoParameters *p_Vid = currSlice->p_Vid;
-    sps_t *active_sps = p_Vid->active_sps;
-    byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
-    DataPartition *partition = &(currSlice->partArr[dP_nr]);
-    Bitstream *s = partition->bitstream;
-
-    int ChromaArrayType = active_sps->chroma_format_idc;
-    int i, j;
-
-    currSlice->luma_log2_weight_denom = (unsigned short) s->ue("SH: luma_log2_weight_denom");
-    if (ChromaArrayType != 0)
-        currSlice->chroma_log2_weight_denom = (unsigned short) s->ue("SH: chroma_log2_weight_denom");
-
-    for (i=0; i<MAX_REFERENCE_PICTURES; i++) {
-        int comp;
-        for (comp=0; comp<3; comp++) {
-            int log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
-            currSlice->wp_weight[0][i][comp] = 1 << log_weight_denom;
-            currSlice->wp_weight[1][i][comp] = 1 << log_weight_denom;
-        }
-    }
-
-    for (i = 0; i < currSlice->num_ref_idx_l0_active_minus1 + 1; i++) {
-        currSlice->luma_weight_l0_flag = s->u(1, "SH: luma_weight_flag_l0");
-        if (currSlice->luma_weight_l0_flag) {
-            currSlice->wp_weight[LIST_0][i][0] = s->se("SH: luma_weight_l0");
-            currSlice->wp_offset[LIST_0][i][0] = s->se("SH: luma_offset_l0");
-
-            currSlice->luma_weight_l0[i] = currSlice->wp_weight[LIST_0][i][0];
-            currSlice->luma_offset_l0[i] = currSlice->wp_offset[LIST_0][i][0];
-
-            currSlice->wp_offset[LIST_0][i][0] = currSlice->wp_offset[LIST_0][i][0]<<(p_Vid->bitdepth_luma - 8);
-        } else {
-            currSlice->wp_weight[LIST_0][i][0] = 1 << currSlice->luma_log2_weight_denom;
-            currSlice->wp_offset[LIST_0][i][0] = 0;
-        }
-
-        if (ChromaArrayType != 0) {
-            currSlice->chroma_weight_l0_flag = s->u(1, "SH: chroma_weight_flag_l0");
-            for (j=1; j<3; j++) {
-                if (currSlice->chroma_weight_l0_flag) {
-                    currSlice->wp_weight[LIST_0][i][j] = s->se("SH: chroma_weight_l0");
-                    currSlice->wp_offset[LIST_0][i][j] = s->se("SH: chroma_offset_l0");
-
-                    currSlice->chroma_weight_l0[i][j-1] = currSlice->wp_weight[LIST_0][i][j];
-                    currSlice->chroma_offset_l0[i][j-1] = currSlice->wp_offset[LIST_0][i][j];
-
-                    currSlice->wp_offset[LIST_0][i][j] = currSlice->wp_offset[LIST_0][i][j]<<(p_Vid->bitdepth_chroma-8);
-                } else {
-                    currSlice->wp_weight[LIST_0][i][j] = 1<<currSlice->chroma_log2_weight_denom;
-                    currSlice->wp_offset[LIST_0][i][j] = 0;
-                }
-            }
-        }
-    }
-
-    if (currSlice->slice_type != B_SLICE)
-        return;
-
-    for (i = 0; i < currSlice->num_ref_idx_l1_active_minus1 + 1; i++) {
-        currSlice->luma_weight_l1_flag = s->u(1, "SH: luma_weight_flag_l1");
-        if (currSlice->luma_weight_l1_flag) {
-            currSlice->wp_weight[LIST_1][i][0] = s->se("SH: luma_weight_l1");
-            currSlice->wp_offset[LIST_1][i][0] = s->se("SH: luma_offset_l1");
-
-            currSlice->luma_weight_l1[i] = currSlice->wp_weight[LIST_1][i][0];
-            currSlice->luma_offset_l1[i] = currSlice->wp_offset[LIST_1][i][0];
-
-            currSlice->wp_offset[LIST_1][i][0] = currSlice->wp_offset[LIST_1][i][0]<<(p_Vid->bitdepth_luma-8);
-        } else {
-            currSlice->wp_weight[LIST_1][i][0] = 1<<currSlice->luma_log2_weight_denom;
-            currSlice->wp_offset[LIST_1][i][0] = 0;
-        }
-
-        if (ChromaArrayType != 0) {
-            currSlice->chroma_weight_l1_flag = s->u(1, "SH: chroma_weight_flag_l1");
-            for (j = 1; j < 3; j++) {
-                if (currSlice->chroma_weight_l1_flag) {
-                    currSlice->wp_weight[LIST_1][i][j] = s->se("SH: chroma_weight_l1");
-                    currSlice->wp_offset[LIST_1][i][j] = s->se("SH: chroma_offset_l1");
-
-                    currSlice->chroma_weight_l1[i][j-1] = currSlice->wp_weight[LIST_1][i][j];
-                    currSlice->chroma_offset_l1[i][j-1] = currSlice->wp_offset[LIST_1][i][j];
-
-                    currSlice->wp_offset[LIST_1][i][j] = currSlice->wp_offset[LIST_1][i][j]<<(p_Vid->bitdepth_chroma-8);
-                } else {
-                    currSlice->wp_weight[LIST_1][i][j] = 1<<currSlice->chroma_log2_weight_denom;
-                    currSlice->wp_offset[LIST_1][i][j] = 0;
-                }
-            }
-        }
-    }
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    read the memory control operations
- ************************************************************************
- */
-void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *s, Slice *pSlice)
-{
-    int val;
-
-    DecRefPicMarking_t *tmp_drpm, *tmp_drpm2;
-
-    // free old buffer content
-    while (pSlice->dec_ref_pic_marking_buffer) {
-        tmp_drpm = pSlice->dec_ref_pic_marking_buffer;
-        pSlice->dec_ref_pic_marking_buffer = tmp_drpm->Next;
-        free(tmp_drpm);
-    }
-
-#if (MVC_EXTENSION_ENABLE)
-    if ( pSlice->idr_flag || (pSlice->svc_extension_flag == 0 && pSlice->NaluHeaderMVCExt.non_idr_flag == 0) ) {
-#else
-    if (pSlice->idr_flag) {
-#endif
-        pSlice->no_output_of_prior_pics_flag = s->u(1, "SH: no_output_of_prior_pics_flag");
-        p_Vid->no_output_of_prior_pics_flag = pSlice->no_output_of_prior_pics_flag;
-        pSlice->long_term_reference_flag = s->u(1, "SH: long_term_reference_flag");
-    } else {
-        pSlice->adaptive_ref_pic_marking_mode_flag = s->u(1, "SH: adaptive_ref_pic_marking_mode_flag");
-        if (pSlice->adaptive_ref_pic_marking_mode_flag) {
-            // read Memory Management Control Operation
-            do {
-                tmp_drpm = (DecRefPicMarking_t*)calloc (1,sizeof (DecRefPicMarking_t));
-                tmp_drpm->Next = NULL;
-
-                val = tmp_drpm->memory_management_control_operation = s->ue("SH: memory_management_control_operation");
-
-                if ((val==1)||(val==3))
-                    tmp_drpm->difference_of_pic_nums_minus1 = s->ue("SH: difference_of_pic_nums_minus1");
-                if (val==2)
-                    tmp_drpm->long_term_pic_num = s->ue("SH: long_term_pic_num");
-
-                if ((val==3)||(val==6))
-                    tmp_drpm->long_term_frame_idx = s->ue("SH: long_term_frame_idx");
-                if (val==4)
-                    tmp_drpm->max_long_term_frame_idx_plus1 = s->ue("SH: max_long_term_pic_idx_plus1");
-
-                // add command
-                if (pSlice->dec_ref_pic_marking_buffer==NULL)
-                    pSlice->dec_ref_pic_marking_buffer=tmp_drpm;
-                else {
-                    tmp_drpm2=pSlice->dec_ref_pic_marking_buffer;
-                    while (tmp_drpm2->Next!=NULL) tmp_drpm2=tmp_drpm2->Next;
-                        tmp_drpm2->Next=tmp_drpm;
-                }
-            } while (val != 0);
-        }
-    }
-}
 
 void slice_header(Slice *currSlice)
 {
@@ -444,10 +195,258 @@ void slice_header(Slice *currSlice)
         len = CeilLog2(len + 1);
         currSlice->slice_group_change_cycle = s->u(len, "SH: slice_group_change_cycle");
     }
+}
 
-    p_Vid->PicHeightInMbs = p_Vid->FrameHeightInMbs / ( 1 + currSlice->field_pic_flag );
-    p_Vid->PicSizeInMbs   = p_Vid->PicWidthInMbs * p_Vid->PicHeightInMbs;
-    p_Vid->FrameSizeInMbs = p_Vid->PicWidthInMbs * p_Vid->FrameHeightInMbs;
+void ref_pic_list_modification(Slice *currSlice)
+{
+    byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
+    DataPartition *partition = &currSlice->partArr[dP_nr];
+    Bitstream *s = partition->bitstream;
+
+    currSlice->ref_pic_list_modification_flag_l0 = 0;
+    if (currSlice->slice_type != I_slice && currSlice->slice_type != SI_slice) {
+        currSlice->ref_pic_list_modification_flag_l0 = s->u(1, "SH: ref_pic_list_modification_flag_l0");
+        if (currSlice->ref_pic_list_modification_flag_l0) {
+            int i = 0;
+            do {
+                currSlice->modification_of_pic_nums_idc[0][i] = s->ue("SH: modification_of_pic_nums_idc_l0");
+                if (currSlice->modification_of_pic_nums_idc[0][i] == 0 ||
+                    currSlice->modification_of_pic_nums_idc[0][i] == 1)
+                    currSlice->abs_diff_pic_num_minus1[0][i] = s->ue("SH: abs_diff_pic_num_minus1_l0");
+                else if (currSlice->modification_of_pic_nums_idc[0][i] == 2)
+                    currSlice->long_term_pic_num[0][i] = s->ue("SH: long_term_pic_idx_l0");
+            } while (currSlice->modification_of_pic_nums_idc[0][i++] != 3);
+        }
+    }
+
+    currSlice->ref_pic_list_modification_flag_l1 = 0;
+    if (currSlice->slice_type == B_slice) {
+        currSlice->ref_pic_list_modification_flag_l1 = s->u(1, "SH: ref_pic_list_reordering_flag_l1");
+        if (currSlice->ref_pic_list_modification_flag_l1) {
+            int i = 0;
+            do {
+                currSlice->modification_of_pic_nums_idc[1][i] = s->ue("SH: modification_of_pic_nums_idc_l1");
+                if (currSlice->modification_of_pic_nums_idc[1][i] == 0 ||
+                    currSlice->modification_of_pic_nums_idc[1][i] == 1)
+                    currSlice->abs_diff_pic_num_minus1[1][i] = s->ue("SH: abs_diff_pic_num_minus1_l1");
+                else if (currSlice->modification_of_pic_nums_idc[1][i] == 2)
+                    currSlice->long_term_pic_num[1][i] = s->ue("SH: long_term_pic_idx_l1");
+            } while (currSlice->modification_of_pic_nums_idc[1][i++] != 3);
+        }
+    }
+}
+
+#if (MVC_EXTENSION_ENABLE)
+void ref_pic_list_mvc_modification(Slice *currSlice)
+{
+    byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
+    DataPartition *partition = &(currSlice->partArr[dP_nr]);
+    Bitstream *s = partition->bitstream;
+
+    currSlice->ref_pic_list_modification_flag_l0 = 0;
+    if (currSlice->slice_type != I_slice && currSlice->slice_type != SI_slice) {
+        currSlice->ref_pic_list_modification_flag_l0 = s->u(1, "SH: ref_pic_list_modification_flag_l0");
+        if (currSlice->ref_pic_list_modification_flag_l0) {
+            int i = 0;
+            do {
+                currSlice->modification_of_pic_nums_idc[0][i] = s->ue("SH: modification_of_pic_nums_idc_l0");
+                if (currSlice->modification_of_pic_nums_idc[0][i] == 0 ||
+                    currSlice->modification_of_pic_nums_idc[0][i] == 1)
+                    currSlice->abs_diff_pic_num_minus1[0][i] = s->ue("SH: abs_diff_pic_num_minus1_l0");
+                else if (currSlice->modification_of_pic_nums_idc[0][i] == 2)
+                    currSlice->long_term_pic_num[0][i] = s->ue("SH: long_term_pic_idx_l0");
+                else if (currSlice->modification_of_pic_nums_idc[0][i] == 4 ||
+                         currSlice->modification_of_pic_nums_idc[0][i] == 5)
+                    currSlice->abs_diff_view_idx_minus1[0][i] = s->ue("SH: abs_diff_view_idx_minus1_l0");
+            } while (currSlice->modification_of_pic_nums_idc[0][i++] != 3);
+        }
+    }
+
+    currSlice->ref_pic_list_modification_flag_l1 = 0;
+    if (currSlice->slice_type == B_slice) {
+        currSlice->ref_pic_list_modification_flag_l1 = s->u(1, "SH: ref_pic_list_reordering_flag_l1");
+        if (currSlice->ref_pic_list_modification_flag_l1) {
+            int i = 0;
+            do {
+                currSlice->modification_of_pic_nums_idc[1][i] = s->ue("SH: modification_of_pic_nums_idc_l1");
+                if (currSlice->modification_of_pic_nums_idc[1][i] == 0 ||
+                    currSlice->modification_of_pic_nums_idc[1][i] == 1)
+                    currSlice->abs_diff_pic_num_minus1[1][i] = s->ue("SH: abs_diff_pic_num_minus1_l1");
+                else if (currSlice->modification_of_pic_nums_idc[1][i] == 2)
+                    currSlice->long_term_pic_num[1][i] = s->ue("SH: long_term_pic_idx_l1");
+                else if (currSlice->modification_of_pic_nums_idc[1][i] == 4 ||
+                         currSlice->modification_of_pic_nums_idc[1][i] == 5)
+                    currSlice->abs_diff_view_idx_minus1[1][i] = s->ue("SH: abs_diff_view_idx_minus1_l1");
+            } while (currSlice->modification_of_pic_nums_idc[1][i++] != 3);
+        }
+    }
+}
+#endif
+
+void pred_weight_table(Slice *currSlice)
+{
+    byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
+    DataPartition *partition = &(currSlice->partArr[dP_nr]);
+    Bitstream *s = partition->bitstream;
+
+    sps_t *sps = currSlice->active_sps;
+    int i, j;
+
+    currSlice->luma_log2_weight_denom = s->ue("SH: luma_log2_weight_denom");
+    currSlice->chroma_log2_weight_denom = 0;
+    if (sps->ChromaArrayType != 0)
+        currSlice->chroma_log2_weight_denom = s->ue("SH: chroma_log2_weight_denom");
+
+    assert(currSlice->luma_log2_weight_denom >= 0 && currSlice->luma_log2_weight_denom <= 7);
+    assert(currSlice->chroma_log2_weight_denom >= 0 && currSlice->chroma_log2_weight_denom <= 7);
+
+    for (i = 0; i < MAX_NUM_REF_IDX; i++) {
+        int comp;
+        for (comp = 0; comp < 3; comp++) {
+            int log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
+            currSlice->wp_weight[0][i][comp] = 1 << log_weight_denom;
+            currSlice->wp_weight[1][i][comp] = 1 << log_weight_denom;
+        }
+    }
+
+    for (i = 0; i <= currSlice->num_ref_idx_l0_active_minus1; i++) {
+        currSlice->luma_weight_l0_flag[i] = s->u(1, "SH: luma_weight_flag_l0");
+        currSlice->luma_weight_l0     [i] = 1 << currSlice->luma_log2_weight_denom;
+        currSlice->luma_offset_l0     [i] = 0;
+        if (currSlice->luma_weight_l0_flag[i]) {
+            currSlice->luma_weight_l0[i] = s->se("SH: luma_weight_l0");
+            currSlice->luma_offset_l0[i] = s->se("SH: luma_offset_l0");
+        }
+
+        assert(currSlice->luma_weight_l0[i] >= -128 && currSlice->luma_weight_l0[i] <= 127);
+        assert(currSlice->luma_offset_l0[i] >= -128 && currSlice->luma_offset_l0[i] <= 127);
+
+        currSlice->wp_weight[LIST_0][i][0] = currSlice->luma_weight_l0[i];
+        currSlice->wp_offset[LIST_0][i][0] = currSlice->luma_offset_l0[i];
+        currSlice->wp_offset[LIST_0][i][0] <<= sps->bit_depth_luma_minus8;
+
+        if (sps->ChromaArrayType != 0) {
+            currSlice->chroma_weight_l0_flag[i] = s->u(1, "SH: chroma_weight_flag_l0");
+            for (j = 0; j < 2; j++) {
+                currSlice->chroma_weight_l0[i][j] = 1 << currSlice->chroma_log2_weight_denom;
+                currSlice->chroma_offset_l0[i][j] = 0;
+                if (currSlice->chroma_weight_l0_flag[i]) {
+                    currSlice->chroma_weight_l0[i][j] = s->se("SH: chroma_weight_l0");
+                    currSlice->chroma_offset_l0[i][j] = s->se("SH: chroma_offset_l0");
+                }
+
+                assert(currSlice->chroma_weight_l0[i][j] >= -128 &&
+                       currSlice->chroma_weight_l0[i][j] <=  127);
+                assert(currSlice->chroma_offset_l0[i][j] >= -128 &&
+                       currSlice->chroma_offset_l0[i][j] <=  127);
+
+                currSlice->wp_weight[LIST_0][i][j + 1] = currSlice->chroma_weight_l0[i][j];
+                currSlice->wp_offset[LIST_0][i][j + 1] = currSlice->chroma_offset_l0[i][j];
+                currSlice->wp_offset[LIST_0][i][j + 1] <<= sps->bit_depth_chroma_minus8;
+            }
+        }
+    }
+
+    if (currSlice->slice_type != B_SLICE)
+        return;
+
+    for (i = 0; i <= currSlice->num_ref_idx_l1_active_minus1; i++) {
+        currSlice->luma_weight_l1_flag[i] = s->u(1, "SH: luma_weight_flag_l1");
+        currSlice->luma_weight_l1     [i] = 1 << currSlice->luma_log2_weight_denom;
+        currSlice->luma_offset_l1     [i] = 0;
+        if (currSlice->luma_weight_l1_flag[i]) {
+            currSlice->luma_weight_l1[i] = s->se("SH: luma_weight_l1");
+            currSlice->luma_offset_l1[i] = s->se("SH: luma_offset_l1");
+        }
+
+        assert(currSlice->luma_weight_l1[i] >= -128 && currSlice->luma_weight_l1[i] <= 127);
+        assert(currSlice->luma_offset_l1[i] >= -128 && currSlice->luma_offset_l1[i] <= 127);
+
+        currSlice->wp_weight[LIST_1][i][0] = currSlice->luma_weight_l1[i];
+        currSlice->wp_offset[LIST_1][i][0] = currSlice->luma_offset_l1[i];
+        currSlice->wp_offset[LIST_1][i][0] <<= sps->bit_depth_luma_minus8;
+
+        if (sps->ChromaArrayType != 0) {
+            currSlice->chroma_weight_l1_flag[i] = s->u(1, "SH: chroma_weight_flag_l1");
+            for (j = 0; j < 2; j++) {
+                currSlice->chroma_weight_l1[i][j] = 1 << currSlice->chroma_log2_weight_denom;
+                currSlice->chroma_offset_l1[i][j] = 0;
+                if (currSlice->chroma_weight_l1_flag[i]) {
+                    currSlice->chroma_weight_l1[i][j] = s->se("SH: chroma_weight_l1");
+                    currSlice->chroma_offset_l1[i][j] = s->se("SH: chroma_offset_l1");
+                }
+
+                assert(currSlice->chroma_weight_l1[i][j] >= -128 &&
+                       currSlice->chroma_weight_l1[i][j] <=  127);
+                assert(currSlice->chroma_offset_l1[i][j] >= -128 &&
+                       currSlice->chroma_offset_l1[i][j] <=  127);
+
+                currSlice->wp_weight[LIST_1][i][j + 1] = currSlice->chroma_weight_l1[i][j];
+                currSlice->wp_offset[LIST_1][i][j + 1] = currSlice->chroma_offset_l1[i][j];
+                currSlice->wp_offset[LIST_1][i][j + 1] <<= sps->bit_depth_chroma_minus8;
+            }
+        }
+    }
+}
+
+void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *s, Slice *currSlice)
+{
+    //byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
+    //DataPartition *partition = &currSlice->partArr[dP_nr];
+    //Bitstream *s = partition->bitstream;
+
+    sps_t *sps = currSlice->active_sps;
+    int val;
+
+    DecRefPicMarking_t *tmp_drpm, *tmp_drpm2;
+
+    // free old buffer content
+    while (currSlice->dec_ref_pic_marking_buffer) {
+        tmp_drpm = currSlice->dec_ref_pic_marking_buffer;
+        currSlice->dec_ref_pic_marking_buffer = tmp_drpm->Next;
+        free(tmp_drpm);
+    }
+
+#if (MVC_EXTENSION_ENABLE)
+    if (currSlice->idr_flag || (currSlice->svc_extension_flag == 0 && currSlice->NaluHeaderMVCExt.non_idr_flag == 0) ) {
+#else
+    if (currSlice->idr_flag) {
+#endif
+        currSlice->no_output_of_prior_pics_flag = s->u(1, "SH: no_output_of_prior_pics_flag");
+        p_Vid->no_output_of_prior_pics_flag = currSlice->no_output_of_prior_pics_flag;
+        currSlice->long_term_reference_flag = s->u(1, "SH: long_term_reference_flag");
+
+        assert(sps->max_num_ref_frames > 0 || currSlice->long_term_reference_flag == 1);
+    } else {
+        currSlice->adaptive_ref_pic_marking_mode_flag = s->u(1, "SH: adaptive_ref_pic_marking_mode_flag");
+        if (currSlice->adaptive_ref_pic_marking_mode_flag) {
+            do {
+                tmp_drpm = (DecRefPicMarking_t*)calloc (1,sizeof (DecRefPicMarking_t));
+                tmp_drpm->Next = NULL;
+
+                val = tmp_drpm->memory_management_control_operation = s->ue("SH: memory_management_control_operation");
+
+                if ((val==1)||(val==3))
+                    tmp_drpm->difference_of_pic_nums_minus1 = s->ue("SH: difference_of_pic_nums_minus1");
+                if (val==2)
+                    tmp_drpm->long_term_pic_num = s->ue("SH: long_term_pic_num");
+
+                if ((val==3)||(val==6))
+                    tmp_drpm->long_term_frame_idx = s->ue("SH: long_term_frame_idx");
+                if (val==4)
+                    tmp_drpm->max_long_term_frame_idx_plus1 = s->ue("SH: max_long_term_pic_idx_plus1");
+
+                // add command
+                if (currSlice->dec_ref_pic_marking_buffer==NULL)
+                    currSlice->dec_ref_pic_marking_buffer=tmp_drpm;
+                else {
+                    tmp_drpm2=currSlice->dec_ref_pic_marking_buffer;
+                    while (tmp_drpm2->Next!=NULL) tmp_drpm2=tmp_drpm2->Next;
+                        tmp_drpm2->Next=tmp_drpm;
+                }
+            } while (val != 0);
+        }
+    }
 }
 
 
@@ -529,7 +528,7 @@ void decode_poc(VideoParameters *p_Vid, Slice *pSlice)
                 p_Vid->PreviousFrameNum = 0;
             }
             if (pSlice->frame_num<p_Vid->PreviousFrameNum)  //not first pix of IDRGOP
-                p_Vid->FrameNumOffset = p_Vid->PreviousFrameNumOffset + p_Vid->max_frame_num;
+                p_Vid->FrameNumOffset = p_Vid->PreviousFrameNumOffset + p_Vid->active_sps->MaxFrameNum;
             else
                 p_Vid->FrameNumOffset = p_Vid->PreviousFrameNumOffset;
         }
@@ -587,7 +586,7 @@ void decode_poc(VideoParameters *p_Vid, Slice *pSlice)
                 p_Vid->PreviousFrameNumOffset = 0;
             }
             if (pSlice->frame_num<p_Vid->PreviousFrameNum)
-                p_Vid->FrameNumOffset = p_Vid->PreviousFrameNumOffset + p_Vid->max_frame_num;
+                p_Vid->FrameNumOffset = p_Vid->PreviousFrameNumOffset + p_Vid->active_sps->MaxFrameNum;
             else
                 p_Vid->FrameNumOffset = p_Vid->PreviousFrameNumOffset;
 

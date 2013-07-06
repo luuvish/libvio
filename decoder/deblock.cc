@@ -45,10 +45,12 @@ static const char chroma_edge[2][4][4] = //[dir][edge][yuv_format]
 // likely already set - see testing via asserts
 static void init_neighbors(VideoParameters *p_Vid)
 {
+    Slice *currSlice = p_Vid->ppSliceList[0];
+    sps_t *sps = p_Vid->active_sps;
     int i, j;
-    int width = p_Vid->PicWidthInMbs;
-    int height = p_Vid->PicHeightInMbs;
-    int size = p_Vid->PicSizeInMbs;
+    int width  = sps->PicWidthInMbs;
+    int height = sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag);
+    int size   = width * height;
     Macroblock *currMB = &p_Vid->mb_data[0];
     // do the top left corner
     currMB->mbup = NULL;
@@ -110,10 +112,12 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         Slice  *currSlice = MbQ->p_Slice;
         int       mvlimit = (currSlice->field_pic_flag || (p->mb_aff_frame_flag && MbQ->mb_field_decoding_flag)) ? 2 : 4;
 
+        int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
         sps_t *active_sps = p_Vid->active_sps;
 
         MbQ->DeblockCall = (Boolean)1;
-        get_mb_pos (p_Vid, MbQAddr, p_Vid->mb_size[IS_LUMA], &mb_x, &mb_y);
+        get_mb_pos (p_Vid, MbQAddr, mb_size, &mb_x, &mb_y);
 
         if (MbQ->mb_type == I8MB)
             assert(MbQ->luma_transform_size_8x8_flag);
@@ -304,7 +308,8 @@ static void make_frame_picture_JV(VideoParameters *p_Vid)
 
 void init_Deblock(VideoParameters *p_Vid, int mb_aff_frame_flag)
 {
-    if (p_Vid->yuv_format == YUV444 && p_Vid->active_sps->separate_colour_plane_flag) {
+    sps_t *sps = p_Vid->active_sps;
+    if (sps->chroma_format_idc == YUV444 && sps->separate_colour_plane_flag) {
         change_plane_JV(p_Vid, PLANE_Y, NULL);
         init_neighbors(p_Dec->p_Vid);
         change_plane_JV(p_Vid, PLANE_U, NULL);

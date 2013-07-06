@@ -193,7 +193,7 @@ static void Report(VideoParameters *p_Vid)
 
   fprintf(p_log,"%3d |",p_Vid->number);
   fprintf(p_log,"%4dx%-4d|", p_Vid->width, p_Vid->height);
-  fprintf(p_log," %s |", &(yuv_formats[p_Vid->yuv_format][0]));
+  fprintf(p_log," %s |", &(yuv_formats[p_Vid->active_sps->chroma_format_idc][0]));
 
   if (active_pps)
   {
@@ -299,7 +299,7 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
   }
 
   // free mem, allocated for structure p_Vid
-  if( (cps->separate_colour_plane_flag != 0) )
+  if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
   {
     int i;
     for(i=0; i<MAX_PLANE; i++)
@@ -429,7 +429,6 @@ static int alloc_decoder(DecoderParams **p_Dec)
 static void init_video_params(VideoParameters *p_Vid)
 {
     InputParameters *p_Inp = p_Vid->p_Inp;
-    p_Vid->oldFrameSizeInMbs = (unsigned int) -1;
 
     p_Vid->imgY_ref  = NULL;
     p_Vid->imgUV_ref = NULL;

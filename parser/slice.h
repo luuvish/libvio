@@ -88,16 +88,16 @@ typedef struct slice_t {
 
     uint8_t     luma_log2_weight_denom;                               // ue(v)
     uint8_t     chroma_log2_weight_denom;                             // ue(v)
-    bool        luma_weight_l0_flag;                                  // u(1)
+    bool        luma_weight_l0_flag  [MAX_NUM_REF_IDX];               // u(1)
     int8_t      luma_weight_l0       [MAX_NUM_REF_IDX];               // se(v)
     int8_t      luma_offset_l0       [MAX_NUM_REF_IDX];               // se(v)
-    bool        chroma_weight_l0_flag;                                // u(1)
+    bool        chroma_weight_l0_flag[MAX_NUM_REF_IDX];               // u(1)
     int8_t      chroma_weight_l0     [MAX_NUM_REF_IDX][2];            // se(v)
     int8_t      chroma_offset_l0     [MAX_NUM_REF_IDX][2];            // se(v)
-    bool        luma_weight_l1_flag;                                  // u(1)
+    bool        luma_weight_l1_flag  [MAX_NUM_REF_IDX];               // u(1)
     int8_t      luma_weight_l1       [MAX_NUM_REF_IDX];               // se(v)
     int8_t      luma_offset_l1       [MAX_NUM_REF_IDX];               // se(v)
-    bool        chroma_weight_l1_flag;                                // u(1)
+    bool        chroma_weight_l1_flag[MAX_NUM_REF_IDX];               // u(1)
     int8_t      chroma_weight_l1     [MAX_NUM_REF_IDX][2];            // se(v)
     int8_t      chroma_offset_l1     [MAX_NUM_REF_IDX][2];            // se(v)
 
@@ -109,6 +109,7 @@ typedef struct slice_t {
   //uint32_t    long_term_pic_num;                                    // ue(v)
   //uint32_t    long_term_frame_idx;                                  // ue(v)
   //uint32_t    max_long_term_frame_idx_plus1;                        // ue(v)
+    DecRefPicMarking_t       *dec_ref_pic_marking_buffer; //!< stores the memory management control operations
 
     uint8_t     cabac_init_idc;                                       // ue(v)
     int8_t      slice_qp_delta;                                       // se(v)
@@ -133,8 +134,6 @@ typedef struct slice_t {
     int                    ***wp_weight;  // weight in [list][index][component] order
     int                    ***wp_offset;  // offset in [list][index][component] order
     int                   ****wbp_weight; //weight in [list][fw_index][bw_index][component] order
-
-    DecRefPicMarking_t       *dec_ref_pic_marking_buffer; //!< stores the memory management control operations
 
 
     int                       toppoc;    //poc for this top field
@@ -245,6 +244,9 @@ typedef struct slice_t {
 
 void slice_header(Slice *currSlice);
 void ref_pic_list_modification(Slice *currSlice);
+void ref_pic_list_mvc_modification(Slice *currSlice);
+void pred_weight_table(Slice *currSlice);
+//void dec_ref_pic_marking(Slice *currSlice);
 
 void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *currStream, Slice *pSlice);
 

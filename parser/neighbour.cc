@@ -151,7 +151,7 @@ void CheckAvailabilityOfNeighborsCABAC(Macroblock *currMB)
 {
   VideoParameters *p_Vid = currMB->p_Vid;
   PixelPos up, left;
-  int *mb_size = p_Vid->mb_size[IS_LUMA];
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
 
   p_Vid->getNeighbour(currMB, -1,  0, mb_size, &left);
   p_Vid->getNeighbour(currMB,  0, -1, mb_size, &up);
@@ -553,7 +553,7 @@ void get_neighbors(Macroblock *currMB,       // <--  current Macroblock
                    int         blockshape_x  // <--  block width
                    )
 {
-  int *mb_size = currMB->p_Vid->mb_size[IS_LUMA];
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
   
   get4x4Neighbour(currMB, mb_x - 1,            mb_y    , mb_size, block    );
   get4x4Neighbour(currMB, mb_x,                mb_y - 1, mb_size, block + 1);
@@ -598,10 +598,17 @@ void get_neighbors(Macroblock *currMB,       // <--  current Macroblock
 void check_dp_neighbors (Macroblock *currMB)
 {
   VideoParameters *p_Vid = currMB->p_Vid;
+  sps_t *sps = p_Vid->active_sps;
   PixelPos up, left;
 
-  p_Vid->getNeighbour(currMB, -1,  0, p_Vid->mb_size[1], &left);
-  p_Vid->getNeighbour(currMB,  0, -1, p_Vid->mb_size[1], &up);
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_size[2] = { mb_cr_size_x, mb_cr_size_y };
+
+  p_Vid->getNeighbour(currMB, -1,  0, mb_size, &left);
+  p_Vid->getNeighbour(currMB,  0, -1, mb_size, &up);
 
   if ((currMB->is_intra_block == FALSE) || (!(p_Vid->active_pps->constrained_intra_pred_flag)) )
   {
@@ -635,8 +642,10 @@ int predict_nnz(Macroblock *currMB, int block_type, int i,int j)
   int pred_nnz = 0;
   int cnt      = 0;
 
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
   // left block
-  get4x4Neighbour(currMB, i - 1, j, p_Vid->mb_size[IS_LUMA], &pix);
+  get4x4Neighbour(currMB, i - 1, j, mb_size, &pix);
 
   if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode == PAR_DP_3))
   {
@@ -668,7 +677,7 @@ int predict_nnz(Macroblock *currMB, int block_type, int i,int j)
   }
 
   // top block
-  get4x4Neighbour(currMB, i, j - 1, p_Vid->mb_size[IS_LUMA], &pix);
+  get4x4Neighbour(currMB, i, j - 1, mb_size, &pix);
 
   if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode==PAR_DP_3))
   {
@@ -721,6 +730,14 @@ int predict_nnz_chroma(Macroblock *currMB, int i,int j)
 {
   StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
 
+    sps_t *sps = currMB->p_Slice->active_sps;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_size[2] = { mb_cr_size_x, mb_cr_size_y };
+
   if (dec_picture->chroma_format_idc != YUV444)
   {
     VideoParameters *p_Vid = currMB->p_Vid;    
@@ -731,7 +748,7 @@ int predict_nnz_chroma(Macroblock *currMB, int i,int j)
 
     //YUV420 and YUV422
     // left block
-    get4x4Neighbour(currMB, ((i&0x01)<<2) - 1, j, p_Vid->mb_size[IS_CHROMA], &pix);
+    get4x4Neighbour(currMB, ((i&0x01)<<2) - 1, j, mb_size, &pix);
 
     if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode==PAR_DP_3))
     {
@@ -747,7 +764,7 @@ int predict_nnz_chroma(Macroblock *currMB, int i,int j)
     }
 
     // top block
-    get4x4Neighbour(currMB, ((i&0x01)<<2), j - 1, p_Vid->mb_size[IS_CHROMA], &pix);
+    get4x4Neighbour(currMB, ((i&0x01)<<2), j - 1, mb_size, &pix);
 
     if ((currMB->is_intra_block == TRUE) && pix.available && p_Vid->active_pps->constrained_intra_pred_flag && (currSlice->dp_mode==PAR_DP_3))
     {

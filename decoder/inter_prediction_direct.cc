@@ -380,8 +380,9 @@ static int get_colocated_info_8x8(Macroblock *currMB, StorablePicture *list1, in
     else
     {
       PicMotionParams *fs = &list1->mv_info[RSD(j)][RSD(i)];
+      sps_t *sps = currMB->p_Vid->active_sps;
       int moving;
-      if(currMB->p_Vid->active_sps->separate_colour_plane_flag && currMB->p_Vid->yuv_format==YUV444)
+      if(sps->separate_colour_plane_flag && sps->chroma_format_idc == YUV444)
         fs = &list1->JVmv_info[currMB->p_Slice->colour_plane_id][RSD(j)][RSD(i)];
       moving= !((((fs->ref_idx[LIST_0] == 0)
         &&  (iabs(fs->mv[LIST_0].mv_x)>>1 == 0)
@@ -737,6 +738,7 @@ int get_direct8x8temporal(Macroblock *currMB, StorablePicture *dec_picture, int 
 
     int k, i, j, i4, j4, j6;
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     PicMotionParams *mv_info = NULL, *colocated = NULL;
   
@@ -757,7 +759,7 @@ int get_direct8x8temporal(Macroblock *currMB, StorablePicture *dec_picture, int 
         mv_info   = &dec_picture->mv_info[j4][i4];
         colocated = &list1[0]->mv_info[RSD(j6)][RSD(i4)];
 
-        if (currMB->p_Vid->active_sps->separate_colour_plane_flag && currMB->p_Vid->yuv_format==YUV444)
+        if (sps->separate_colour_plane_flag && sps->chroma_format_idc == YUV444)
             colocated = &list1[0]->JVmv_info[currMB->p_Slice->colour_plane_id][RSD(j6)][RSD(i4)];
         if (currSlice->MbaffFrameFlag) {
             assert(p_Vid->active_sps->direct_8x8_inference_flag);
@@ -871,6 +873,7 @@ int get_direct4x4temporal(Macroblock *currMB, StorablePicture *dec_picture, int 
 
     int k;
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
   
     int list_offset = currMB->list_offset;
     StorablePicture **list0 = currSlice->listX[LIST_0 + list_offset];
@@ -889,7 +892,7 @@ int get_direct4x4temporal(Macroblock *currMB, StorablePicture *dec_picture, int 
         int j6   = currMB->block_y_aff + j;
         PicMotionParams *mv_info = &dec_picture->mv_info[j4][i4];
         PicMotionParams *colocated = &list1[0]->mv_info[j6][i4];
-        if (currMB->p_Vid->active_sps->separate_colour_plane_flag && currMB->p_Vid->yuv_format==YUV444)
+        if (sps->separate_colour_plane_flag && sps->chroma_format_idc == YUV444)
             colocated = &list1[0]->JVmv_info[currMB->p_Slice->colour_plane_id][RSD(j6)][RSD(i4)];
         assert (pred_dir<=2);
 

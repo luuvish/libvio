@@ -496,6 +496,7 @@ static void concealBlocks( VideoParameters *p_Vid, int lastColumn, int lastRow, 
  */
 static void pixMeanInterpolateBlock( VideoParameters *p_Vid, imgpel *src[], imgpel *block, int blockSize, int frameWidth )
 {
+  sps_t *sps = p_Vid->active_sps;
   int row, column, k, tmp, srcCounter = 0, weight = 0, bmax = blockSize - 1;
 
   k = 0;
@@ -537,7 +538,7 @@ static void pixMeanInterpolateBlock( VideoParameters *p_Vid, imgpel *src[], imgp
       if ( srcCounter > 0 )
         block[ k + column ] = (imgpel)(tmp/srcCounter);
       else
-        block[ k + column ] = (imgpel) (blockSize == 8 ? p_Vid->dc_pred_value_comp[1] : p_Vid->dc_pred_value_comp[0]);
+        block[ k + column ] = (imgpel) (blockSize == 8 ? (1 << (sps->BitDepthC - 1)) : (1 << (sps->BitDepthY - 1)));
     }
     k += frameWidth;
   }

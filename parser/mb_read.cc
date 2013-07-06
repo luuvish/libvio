@@ -269,13 +269,14 @@ static char readRefPictureIdx_Null(Macroblock *currMB, SyntaxElement *currSE, Da
 void read_delta_quant(SyntaxElement *currSE, DataPartition *dP, Macroblock *currMB, const byte *partMap, int type)
 {
   Slice *currSlice = currMB->p_Slice;
-  VideoParameters *p_Vid = currMB->p_Vid;
+  sps_t *sps = currSlice->active_sps;
+  pps_t *pps = currSlice->active_pps;
  
   currSE->type = type;
 
   dP = &(currSlice->partArr[partMap[currSE->type]]);
 
-  if (p_Vid->active_pps->entropy_coding_mode_flag == (Boolean) CAVLC || dP->bitstream->ei_flag)
+  if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)
   {
     currSE->mapping = linfo_se;
   }
@@ -284,15 +285,13 @@ void read_delta_quant(SyntaxElement *currSE, DataPartition *dP, Macroblock *curr
 
   dP->readSyntaxElement(currMB, currSE, dP);
   currMB->delta_quant = (short) currSE->value1;
-  if ((currMB->delta_quant < -(26 + p_Vid->bitdepth_luma_qp_scale/2)) || (currMB->delta_quant > (25 + p_Vid->bitdepth_luma_qp_scale/2)))
+  if ((currMB->delta_quant < -(26 + sps->QpBdOffsetY/2)) || (currMB->delta_quant > (25 + sps->QpBdOffsetY/2)))
   {
       printf("mb_qp_delta is out of range (%d)\n", currMB->delta_quant);
-    currMB->delta_quant = iClip3(-(26 + p_Vid->bitdepth_luma_qp_scale/2), (25 + p_Vid->bitdepth_luma_qp_scale/2), currMB->delta_quant);
-
-    //error ("mb_qp_delta is out of range", 500);
+      currMB->delta_quant = iClip3(-(26 + sps->QpBdOffsetY/2), (25 + sps->QpBdOffsetY/2), currMB->delta_quant);
   }
 
-  currSlice->SliceQpY = ((currSlice->SliceQpY + currMB->delta_quant + 52 + 2*p_Vid->bitdepth_luma_qp_scale)%(52+p_Vid->bitdepth_luma_qp_scale)) - p_Vid->bitdepth_luma_qp_scale;
+  currSlice->SliceQpY = ((currSlice->SliceQpY + currMB->delta_quant + 52 + 2*sps->QpBdOffsetY)%(52+sps->QpBdOffsetY)) - sps->QpBdOffsetY;
   update_qp(currMB, currSlice->SliceQpY);
 }
 
@@ -749,6 +748,8 @@ static void read_ipred_8x8_modes_mbaff(Macroblock *currMB)
 
   PixelPos left_block, top_block;
 
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
   currSE.type = SE_INTRAPREDMODE;
 
   dP = &(currSlice->partArr[partMap[SE_INTRAPREDMODE]]);
@@ -772,8 +773,8 @@ static void read_ipred_8x8_modes_mbaff(Macroblock *currMB)
       dP->readSyntaxElement(currMB, &currSE, dP);
     }
 
-    get4x4Neighbour(currMB, (bx << 2) - 1, (by << 2),     p_Vid->mb_size[IS_LUMA], &left_block);
-    get4x4Neighbour(currMB, (bx << 2),     (by << 2) - 1, p_Vid->mb_size[IS_LUMA], &top_block );
+    get4x4Neighbour(currMB, (bx << 2) - 1, (by << 2),     mb_size, &left_block);
+    get4x4Neighbour(currMB, (bx << 2),     (by << 2) - 1, mb_size, &top_block );
 
     //get from array and decode
 
@@ -822,6 +823,8 @@ static void read_ipred_8x8_modes(Macroblock *currMB)
   PixelPos left_mb, top_mb;
   PixelPos left_block, top_block;
 
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
   currSE.type = SE_INTRAPREDMODE;
 
   dP = &(currSlice->partArr[partMap[SE_INTRAPREDMODE]]);
@@ -829,8 +832,8 @@ static void read_ipred_8x8_modes(Macroblock *currMB)
   if (!(p_Vid->active_pps->entropy_coding_mode_flag == (Boolean) CAVLC || dP->bitstream->ei_flag))
     currSE.reading = readIntraPredMode_CABAC;
 
-  get4x4Neighbour(currMB, -1,  0, p_Vid->mb_size[IS_LUMA], &left_mb);
-  get4x4Neighbour(currMB,  0, -1, p_Vid->mb_size[IS_LUMA], &top_mb );
+  get4x4Neighbour(currMB, -1,  0, mb_size, &left_mb);
+  get4x4Neighbour(currMB,  0, -1, mb_size, &top_mb );
 
   for(b8 = 0; b8 < 4; ++b8)  //loop 8x8 blocks
   {
@@ -851,8 +854,8 @@ static void read_ipred_8x8_modes(Macroblock *currMB)
       dP->readSyntaxElement(currMB, &currSE, dP);
     }
 
-    get4x4Neighbour(currMB, (bx<<2) - 1, (by<<2),     p_Vid->mb_size[IS_LUMA], &left_block);
-    get4x4Neighbour(currMB, (bx<<2),     (by<<2) - 1, p_Vid->mb_size[IS_LUMA], &top_block );
+    get4x4Neighbour(currMB, (bx<<2) - 1, (by<<2),     mb_size, &left_block);
+    get4x4Neighbour(currMB, (bx<<2),     (by<<2) - 1, mb_size, &top_block );
     
     //get from array and decode
 
@@ -902,6 +905,8 @@ static void read_ipred_4x4_modes_mbaff(Macroblock *currMB)
 
   PixelPos left_block, top_block;
 
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
   currSE.type = SE_INTRAPREDMODE;
 
   dP = &(currSlice->partArr[partMap[SE_INTRAPREDMODE]]);
@@ -929,8 +934,8 @@ static void read_ipred_4x4_modes_mbaff(Macroblock *currMB)
           dP->readSyntaxElement(currMB, &currSE, dP);
         }
 
-        get4x4Neighbour(currMB, (bx<<2) - 1, (by<<2),     p_Vid->mb_size[IS_LUMA], &left_block);
-        get4x4Neighbour(currMB, (bx<<2),     (by<<2) - 1, p_Vid->mb_size[IS_LUMA], &top_block );
+        get4x4Neighbour(currMB, (bx<<2) - 1, (by<<2),     mb_size, &left_block);
+        get4x4Neighbour(currMB, (bx<<2),     (by<<2) - 1, mb_size, &top_block );
 
         //get from array and decode
 
@@ -990,6 +995,8 @@ static void read_ipred_4x4_modes(Macroblock *currMB)
   PixelPos left_mb, top_mb;
   PixelPos left_block, top_block;
 
+  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
   currSE.type = SE_INTRAPREDMODE;
 
   dP = &(currSlice->partArr[partMap[SE_INTRAPREDMODE]]);
@@ -997,8 +1004,8 @@ static void read_ipred_4x4_modes(Macroblock *currMB)
   if (!(p_Vid->active_pps->entropy_coding_mode_flag == (Boolean) CAVLC || dP->bitstream->ei_flag))
     currSE.reading = readIntraPredMode_CABAC;
 
-  get4x4Neighbour(currMB, -1,  0, p_Vid->mb_size[IS_LUMA], &left_mb);
-  get4x4Neighbour(currMB,  0, -1, p_Vid->mb_size[IS_LUMA], &top_mb );
+  get4x4Neighbour(currMB, -1,  0, mb_size, &left_mb);
+  get4x4Neighbour(currMB,  0, -1, mb_size, &top_mb );
 
   for(b8 = 0; b8 < 4; ++b8)  //loop 8x8 blocks
   {       
@@ -1020,8 +1027,8 @@ static void read_ipred_4x4_modes(Macroblock *currMB)
           dP->readSyntaxElement(currMB, &currSE, dP);
         }
 
-        get4x4Neighbour(currMB, (bx<<2) - 1, (by<<2),     p_Vid->mb_size[IS_LUMA], &left_block);
-        get4x4Neighbour(currMB, (bx<<2),     (by<<2) - 1, p_Vid->mb_size[IS_LUMA], &top_block );
+        get4x4Neighbour(currMB, (bx<<2) - 1, (by<<2),     mb_size, &left_block);
+        get4x4Neighbour(currMB, (bx<<2),     (by<<2) - 1, mb_size, &top_block );
 
         //get from array and decode
 
@@ -1196,27 +1203,31 @@ static void init_macroblock(Macroblock *currMB)
 static void concealIPCMcoeffs(Macroblock *currMB)
 {
     Slice *currSlice = currMB->p_Slice;
-    VideoParameters *p_Vid = currMB->p_Vid;
-    StorablePicture *dec_picture = currSlice->dec_picture;
+    sps_t *sps = currSlice->active_sps;
     int i, j, k;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
     for(i=0;i<MB_BLOCK_SIZE;++i) {
         for(j=0;j<MB_BLOCK_SIZE;++j)
-        currSlice->cof[0][i][j] = p_Vid->dc_pred_value_comp[0];
+        currSlice->cof[0][i][j] = (1 << (sps->BitDepthY - 1));
     }
 
-    if ((dec_picture->chroma_format_idc != YUV400) && (p_Vid->active_sps->separate_colour_plane_flag == 0)) {
+    if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
         for (k = 0; k < 2; ++k)
-            for(i=0;i<p_Vid->mb_cr_size_y;++i)
-                for(j=0;j<p_Vid->mb_cr_size_x;++j)
-                    currSlice->cof[k][i][j] = p_Vid->dc_pred_value_comp[k];
+            for(i=0;i<mb_cr_size_y;++i)
+                for(j=0;j<mb_cr_size_x;++j)
+                    currSlice->cof[k][i][j] = (1 << (sps->BitDepthC - 1));
     }
 }
 
 
 void readIPCM_CABAC(Slice *currSlice, struct datapartition_dec *dP)
 {
-    VideoParameters *p_Vid = currSlice->p_Vid;
+    sps_t *sps = currSlice->active_sps;
     StorablePicture *dec_picture = currSlice->dec_picture;
     Bitstream* currStream = dP->bitstream;
     DecodingEnvironment *dep = &dP->bitstream->de_cabac;
@@ -1228,6 +1239,11 @@ void readIPCM_CABAC(Slice *currSlice, struct datapartition_dec *dP)
     int bitoffset, bitdepth;
     int uv, i, j;
 
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+
     while (dep->DbitsLeft >= 8) {
         dep->Dvalue   >>= 8;
         dep->DbitsLeft -= 8;
@@ -1237,7 +1253,7 @@ void readIPCM_CABAC(Slice *currSlice, struct datapartition_dec *dP)
     bitoffset = (*dep->Dcodestrm_len) << 3;
 
     // read luma values
-    bitdepth = p_Vid->bitdepth_luma;
+    bitdepth = sps->BitDepthY;
     for (i = 0; i < MB_BLOCK_SIZE; i++) {
         for (j = 0; j < MB_BLOCK_SIZE; j++) {
             bits_read += GetBits(buf, bitoffset, &val, BitstreamLengthInBits, bitdepth);
@@ -1248,11 +1264,11 @@ void readIPCM_CABAC(Slice *currSlice, struct datapartition_dec *dP)
     }
 
     // read chroma values
-    bitdepth = p_Vid->bitdepth_chroma;
-    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->active_sps->separate_colour_plane_flag == 0) {
+    bitdepth = sps->BitDepthC;
+    if (dec_picture->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
         for (uv = 1; uv < 3; ++uv) {
-            for (i = 0; i < p_Vid->mb_cr_size_y; ++i) {
-                for (j = 0; j < p_Vid->mb_cr_size_x; ++j) {
+            for (i = 0; i < mb_cr_size_y; ++i) {
+                for (j = 0; j < mb_cr_size_x; ++j) {
                     bits_read += GetBits(buf, bitoffset, &val, BitstreamLengthInBits, bitdepth);
                     currSlice->cof[uv][i][j] = val;
 
@@ -1271,37 +1287,42 @@ void readIPCM_CABAC(Slice *currSlice, struct datapartition_dec *dP)
 
 static void read_IPCM_coeffs_from_NAL(Slice *currSlice, struct datapartition_dec *dP)
 {
-    VideoParameters *p_Vid = currSlice->p_Vid;
+    sps_t *sps = currSlice->active_sps;
+    pps_t *pps = currSlice->active_pps;
 
-    StorablePicture *dec_picture = currSlice->dec_picture;
     Bitstream *currStream = dP->bitstream;
     int i, j;
 
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+
     //For CABAC, we don't need to read bits to let stream byte aligned
     //  because we have variable for integer bytes position
-    if (p_Vid->active_pps->entropy_coding_mode_flag) {
+    if (pps->entropy_coding_mode_flag) {
         readIPCM_CABAC(currSlice, dP);
         return;
     }
 
     //read bits to let stream byte aligned
     if ((dP->bitstream->frame_bitoffset & 0x07) != 0)
-        currStream->f(8 - ((dP->bitstream->frame_bitoffset) & 0x07));
+        currStream->f(8 - (currStream->frame_bitoffset & 0x07));
 
     //read luma and chroma IPCM coefficients
     for (i = 0; i < MB_BLOCK_SIZE; i++) {
         for (j = 0; j < MB_BLOCK_SIZE; j++)
-            currSlice->cof[0][i][j] = currStream->f(p_Vid->bitdepth_luma);
+            currSlice->cof[0][i][j] = currStream->f(sps->BitDepthY);
     }
 
-    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->active_sps->separate_colour_plane_flag == 0) {
-        for (i = 0; i < p_Vid->mb_cr_size_y; i++) {
-            for (j = 0; j < p_Vid->mb_cr_size_x; j++)
-                currSlice->cof[1][i][j] = currStream->f(p_Vid->bitdepth_chroma);
+    if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
+        for (i = 0; i < mb_cr_size_y; i++) {
+            for (j = 0; j < mb_cr_size_x; j++)
+                currSlice->cof[1][i][j] = currStream->f(sps->BitDepthC);
         }
-        for (i = 0; i < p_Vid->mb_cr_size_y; i++) {
-            for (j = 0; j < p_Vid->mb_cr_size_x; j++)
-                currSlice->cof[2][i][j] = currStream->f(p_Vid->bitdepth_chroma);
+        for (i = 0; i < mb_cr_size_y; i++) {
+            for (j = 0; j < mb_cr_size_x; j++)
+                currSlice->cof[2][i][j] = currStream->f(sps->BitDepthC);
         }
     }
 }
@@ -1675,11 +1696,11 @@ static bool check_mb_skip_cavlc(Macroblock *currMB)
             dP->bitstream->frame_bitoffset--;
         } else if (currSlice->cod_counter > 0) {
             // check left macroblock pair first
-            if (mb_is_available(mb_nr - 2, currMB) && (mb_nr % (p_Vid->PicWidthInMbs * 2)) != 0)
+            if (mb_is_available(mb_nr - 2, currMB) && (mb_nr % (p_Vid->active_sps->PicWidthInMbs * 2)) != 0)
                 currMB->mb_field_decoding_flag = p_Vid->mb_data[mb_nr - 2].mb_field_decoding_flag;
             // check top macroblock pair
-            else if (mb_is_available(mb_nr - 2 * p_Vid->PicWidthInMbs, currMB))
-                currMB->mb_field_decoding_flag = p_Vid->mb_data[mb_nr - 2 * p_Vid->PicWidthInMbs].mb_field_decoding_flag;
+            else if (mb_is_available(mb_nr - 2 * p_Vid->active_sps->PicWidthInMbs, currMB))
+                currMB->mb_field_decoding_flag = p_Vid->mb_data[mb_nr - 2 * p_Vid->active_sps->PicWidthInMbs].mb_field_decoding_flag;
             else
                 currMB->mb_field_decoding_flag = FALSE;
         }

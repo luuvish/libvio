@@ -259,47 +259,16 @@ typedef struct coding_par {
     int height_cr;                              //!< height chroma
 
     int pic_unit_bitsize_on_disk;
-    short bitdepth_luma;
-    short bitdepth_chroma;
-    int bitdepth_scale[2];
-    int bitdepth_luma_qp_scale;
-    int bitdepth_chroma_qp_scale;
-    unsigned int dc_pred_value_comp[MAX_PLANE]; //!< component value for DC prediction (depends on component pel bit depth)
-    int max_pel_value_comp[MAX_PLANE];       //!< max value that one picture element (pixel) can take (depends on pic_unit_bitdepth)
-
-    int yuv_format;
-    int lossless_qpprime_flag;
-    int num_blk8x8_uv;
-    int num_uv_blocks;
-    int num_cdc_coeff;
-    int mb_cr_size_x;
-    int mb_cr_size_y;
-    int mb_cr_size_x_blk;
-    int mb_cr_size_y_blk;
-    int mb_cr_size;
-    int mb_size[3][2];                         //!< component macroblock dimensions
-    int mb_size_blk[3][2];                     //!< component macroblock dimensions 
-    int mb_size_shift[3][2];
 
     int max_vmv_r;                             //!< maximum vertical motion vector range in luma quarter frame pixel units for the current level_idc
-    int separate_colour_plane_flag;
-    int ChromaArrayType;
-    int max_frame_num;
-    unsigned int PicWidthInMbs;
-    unsigned int PicHeightInMapUnits;
-    unsigned int FrameHeightInMbs;
-    unsigned int FrameSizeInMbs;
     int iLumaPadX;
     int iLumaPadY;
     int iChromaPadX;
     int iChromaPadY;
 
-    int subpel_x;
-    int subpel_y;
     int shiftpel_x;
     int shiftpel_y;
     int total_scale;
-    unsigned int oldFrameSizeInMbs;
 
     //padding info;
     void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
@@ -514,9 +483,6 @@ typedef struct video_par {
   int PreviousFrameNumOffset;
   // /////////////////////////
 
-  unsigned int PicHeightInMbs;
-  unsigned int PicSizeInMbs;
-
   int no_output_of_prior_pics_flag;
 
   int last_has_mmco_5;
@@ -618,42 +584,16 @@ typedef struct video_par {
   int height_cr;                              //!< height chroma
   // Fidelity Range Extensions Stuff
   int pic_unit_bitsize_on_disk;
-  short bitdepth_luma;
-  short bitdepth_chroma;
-  int bitdepth_scale[2];
-  int bitdepth_luma_qp_scale;
-  int bitdepth_chroma_qp_scale;
-  unsigned int dc_pred_value_comp[MAX_PLANE]; //!< component value for DC prediction (depends on component pel bit depth)
-  int max_pel_value_comp[MAX_PLANE];       //!< max value that one picture element (pixel) can take (depends on pic_unit_bitdepth)
 
   int pic_unit_size_on_disk;
 
   int profile_idc;
-  int yuv_format;
-  int lossless_qpprime_flag;
-  int num_blk8x8_uv;
-  int num_uv_blocks;
-  int num_cdc_coeff;
-  int mb_cr_size_x;
-  int mb_cr_size_y;
-  int mb_cr_size_x_blk;
-  int mb_cr_size_y_blk;
-  int mb_cr_size;
-  int mb_size[3][2];                         //!< component macroblock dimensions
-  int mb_size_blk[3][2];                     //!< component macroblock dimensions 
-  int mb_size_shift[3][2];
   int subpel_x;
   int subpel_y;
   int shiftpel_x;
   int shiftpel_y;
   int total_scale;
-  int max_frame_num;
 
-  unsigned int PicWidthInMbs;
-  unsigned int PicHeightInMapUnits;
-  unsigned int FrameHeightInMbs;
-  unsigned int FrameSizeInMbs;
-  unsigned int oldFrameSizeInMbs;
   int max_vmv_r;                             //!< maximum vertical motion vector range in luma quarter frame pixel units for the current level_idc
   //int max_mb_vmv_r;                        //!< maximum vertical motion vector range in luma quarter pixel units for the current level_idc
 /******************* end deprecative variables; ***************************************/

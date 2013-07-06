@@ -775,7 +775,7 @@ static void unmark_long_term_field_for_reference_by_frame_idx(DecodedPictureBuff
 
   assert(structure!=FRAME);
   if (curr_pic_num<0)
-    curr_pic_num += (2 * p_Vid->max_frame_num);
+    curr_pic_num += (2 * p_Vid->active_sps->MaxFrameNum);
 
   for(i=0; i<p_Dpb->ltref_frames_in_buffer; i++)
   {

@@ -508,7 +508,7 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
     if (p_Inp->write_uv)
     {
       int i,j;
-      imgpel cr_val = (imgpel) (1<<(p_Vid->bitdepth_luma - 1));
+      imgpel cr_val = (imgpel) (1<<(p_Vid->active_sps->BitDepthY - 1));
 
       get_mem3Dpel (&(p->imgUV), 1, p->size_y/2, p->size_x/2);
       
@@ -578,22 +578,23 @@ void uninit_out_buffer(VideoParameters *p_Vid)
  */
 void clear_picture(VideoParameters *p_Vid, StorablePicture *p)
 {
+  sps_t *sps = p_Vid->active_sps;
   int i,j;
 
   for(i=0;i<p->size_y;i++)
   {
     for (j=0; j<p->size_x; j++)
-      p->imgY[i][j] = (imgpel) p_Vid->dc_pred_value_comp[0];
+      p->imgY[i][j] = (imgpel) (1 << (sps->BitDepthY - 1));
   }
   for(i=0;i<p->size_y_cr;i++)
   {
     for (j=0; j<p->size_x_cr; j++)
-      p->imgUV[0][i][j] = (imgpel) p_Vid->dc_pred_value_comp[1];
+      p->imgUV[0][i][j] = (imgpel) (1 << (sps->BitDepthC - 1));
   }
   for(i=0;i<p->size_y_cr;i++)
   {
     for (j=0; j<p->size_x_cr; j++)
-      p->imgUV[1][i][j] = (imgpel) p_Vid->dc_pred_value_comp[2];
+      p->imgUV[1][i][j] = (imgpel) (1 << (sps->BitDepthC - 1));
   }
 }
 

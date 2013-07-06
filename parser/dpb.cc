@@ -808,7 +808,6 @@ void update_pic_num(Slice *currSlice)
   sps_t *active_sps = p_Vid->active_sps;
 
   int add_top = 0, add_bottom = 0;
-  int max_frame_num = 1 << (active_sps->log2_max_frame_num_minus4 + 4);
 
   if (!currSlice->field_pic_flag)
   {
@@ -820,7 +819,7 @@ void update_pic_num(Slice *currSlice)
         {
           if( p_Dpb->fs_ref[i]->frame_num > currSlice->frame_num )
           {
-            p_Dpb->fs_ref[i]->frame_num_wrap = p_Dpb->fs_ref[i]->frame_num - max_frame_num;
+            p_Dpb->fs_ref[i]->frame_num_wrap = p_Dpb->fs_ref[i]->frame_num - active_sps->MaxFrameNum;
           }
           else
           {
@@ -861,7 +860,7 @@ void update_pic_num(Slice *currSlice)
       {
         if( p_Dpb->fs_ref[i]->frame_num > currSlice->frame_num )
         {
-          p_Dpb->fs_ref[i]->frame_num_wrap = p_Dpb->fs_ref[i]->frame_num - max_frame_num;
+          p_Dpb->fs_ref[i]->frame_num_wrap = p_Dpb->fs_ref[i]->frame_num - active_sps->MaxFrameNum;
         }
         else
         {
@@ -1351,12 +1350,12 @@ void reorder_ref_pic_list(Slice *currSlice, int cur_list)
 
   if (p_Vid->structure==FRAME)
   {
-    maxPicNum  = p_Vid->max_frame_num;
+    maxPicNum  = p_Vid->active_sps->MaxFrameNum;
     currPicNum = currSlice->frame_num;
   }
   else
   {
-    maxPicNum  = 2 * p_Vid->max_frame_num;
+    maxPicNum  = 2 * p_Vid->active_sps->MaxFrameNum;
     currPicNum = 2 * currSlice->frame_num + 1;
   }
 
@@ -2488,7 +2487,7 @@ void fill_frame_num_gap(VideoParameters *p_Vid, Slice *currSlice)
 
   printf("A gap in frame number is found, try to fill it.\n");
 
-  UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % p_Vid->max_frame_num;
+  UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % active_sps->MaxFrameNum;
   CurrFrameNum = currSlice->frame_num; //p_Vid->frame_num;
 
   while (CurrFrameNum != UnusedShortTermFrameNum)
@@ -2519,7 +2518,7 @@ void fill_frame_num_gap(VideoParameters *p_Vid, Slice *currSlice)
 
     picture=NULL;
     p_Vid->pre_frame_num = UnusedShortTermFrameNum;
-    UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % p_Vid->max_frame_num;
+    UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % active_sps->MaxFrameNum;
   }
   currSlice->delta_pic_order_cnt[0] = tmp1;
   currSlice->delta_pic_order_cnt[1] = tmp2;
@@ -2697,7 +2696,7 @@ void process_picture_in_dpb_s(VideoParameters *p_Vid, StorablePicture *p_pic)
 
   for(i=0; i<p_pic->size_y; i++)
     memcpy(d_img[0][i], p_pic->imgY[i], p_pic->size_x*sizeof(imgpel));
-  if (p_Vid->yuv_format != YUV400)
+  if (p_Vid->active_sps->chroma_format_idc != YUV400)
   {
     for(i=0; i<p_pic->size_y_cr; i++)
       memcpy(d_img[1][i], p_pic->imgUV[0][i], p_pic->size_x_cr * sizeof(imgpel));
@@ -2741,7 +2740,7 @@ int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
   {
     memory_size += get_mem2Dpel(&(p_ImgData->frm_data[0]), p_Vid->height, p_Vid->width);
 
-    if (p_Vid->yuv_format != YUV400)
+    if (sps->chroma_format_idc != YUV400)
     {
       int i, j, k;
       memory_size += get_mem2Dpel(&(p_ImgData->frm_data[1]), p_Vid->height_cr, p_Vid->width_cr);
@@ -2758,7 +2757,7 @@ int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
 
         for (k = 1; k < 3; k++)
         {
-          mean_val = (imgpel) ((p_Vid->max_pel_value_comp[k] + 1) >> 1);
+          mean_val = (imgpel) (p_Vid->active_sps->BitDepthC);
 
           for (j = 0; j < p_Vid->height_cr; j++)
           {
@@ -2770,12 +2769,12 @@ int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
     }
   }
 
-  if (!p_Vid->active_sps->frame_mbs_only_flag)
+  if (!sps->frame_mbs_only_flag)
   {
     // allocate memory for field reference frame buffers
     memory_size += init_top_bot_planes(p_ImgData->frm_data[0], p_Vid->height, &(p_ImgData->top_data[0]), &(p_ImgData->bot_data[0]));
 
-    if (p_Vid->yuv_format != YUV400)
+    if (sps->chroma_format_idc != YUV400)
     {
       memory_size += 4*(sizeof(imgpel**));
 

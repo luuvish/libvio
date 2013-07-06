@@ -47,18 +47,19 @@ static void mc_prediction(imgpel *mb_pred,
 {
     int weight, offset, denom, color_clip;
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
+    pps_t *pps = currSlice->active_pps;
     if (currSlice->weighted_pred_flag) {
-        VideoParameters *p_Vid = currMB->p_Vid;
         short ref_idx_wp = l0_refframe;
         int type = currSlice->slice_type;
         if (currMB->mb_field_decoding_flag &&
-            ((p_Vid->active_pps->weighted_pred_flag && (type == P_SLICE || type == SP_SLICE))||
-             (p_Vid->active_pps->weighted_bipred_idc == 1 && (type == B_SLICE))))
+            ((pps->weighted_pred_flag && (type == P_SLICE || type == SP_SLICE))||
+             (pps->weighted_bipred_idc == 1 && (type == B_SLICE))))
             ref_idx_wp >>= 1;
         weight = currSlice->wp_weight[pred_dir][ref_idx_wp][pl];
         offset = currSlice->wp_offset[pred_dir][ref_idx_wp][pl];
         denom  = pl > 0 ? currSlice->chroma_log2_weight_denom : currSlice->luma_log2_weight_denom;
-        color_clip = p_Vid->max_pel_value_comp[pl];
+        color_clip = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
     }
 
     for (int j = 0; j < block_size_y; j++) {
@@ -80,6 +81,7 @@ static void bi_prediction(imgpel *mb_pred,
 {
     int weight0, weight1, offset, denom, color_clip;
     VideoParameters *p_Vid = currMB->p_Vid;
+    sps_t *sps = p_Vid->active_sps;
     int weighted_bipred_idc = p_Vid->active_pps->weighted_bipred_idc;
     if (weighted_bipred_idc) {
         Slice *currSlice = currMB->p_Slice;
@@ -97,7 +99,7 @@ static void bi_prediction(imgpel *mb_pred,
         weight1 = wp_weight1[pl];
         offset  = (wp_offset0[pl] + wp_offset1[pl] + 1) >> 1;
         denom   = pl > 0 ? currSlice->chroma_log2_weight_denom + 1 : currSlice->luma_log2_weight_denom + 1;
-        color_clip = p_Vid->max_pel_value_comp[pl];
+        color_clip = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
     }
 
     int row_inc = MB_BLOCK_SIZE - block_size_x;
@@ -309,11 +311,11 @@ void get_block_luma(StorablePicture *curr_ref, int x_pos, int y_pos, int block_s
                     imgpel **block, int shift_x, int maxold_x, int maxold_y,
                     ColorPlane pl, Macroblock *currMB)
 {
-    VideoParameters *p_Vid = currMB->p_Vid;
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     int **tmp_res = currSlice->tmp_res;
-    int max_imgpel_value = p_Vid->max_pel_value_comp[pl];
-    imgpel no_ref_value = (imgpel) p_Vid->dc_pred_value_comp[pl];
+    int max_imgpel_value = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
+    imgpel no_ref_value = (imgpel) (pl ? (1 << (sps->BitDepthC - 1)) : (1 << (sps->BitDepthY - 1)));
 
     if (curr_ref->no_ref) {
         memset(block[0],no_ref_value,block_size_y * block_size_x * sizeof(imgpel));
@@ -379,7 +381,8 @@ static void get_block_chroma(StorablePicture *curr_ref, int x_pos, int y_pos,
                              imgpel *block1, imgpel *block2, VideoParameters *p_Vid)
 {
     int total_scale = p_Vid->total_scale;
-    imgpel no_ref_value = (imgpel)p_Vid->dc_pred_value_comp[1];
+    sps_t *sps = p_Vid->active_sps;
+    imgpel no_ref_value = (imgpel)(1 << (sps->BitDepthC - 1));
     int subpel_x = p_Vid->subpel_x;
     int subpel_y = p_Vid->subpel_y;
     int shiftpel_x = p_Vid->shiftpel_x;
@@ -453,6 +456,7 @@ void perform_mc(Macroblock *currMB, ColorPlane pl, StorablePicture *dec_picture,
     int vec1_x, vec1_y, vec2_x, vec2_y;
     VideoParameters *p_Vid = currMB->p_Vid;    
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
 
     int i4 = currMB->block_x + i;
     int j4 = currMB->block_y + j;
@@ -474,6 +478,11 @@ void perform_mc(Macroblock *currMB, ColorPlane pl, StorablePicture *dec_picture,
     MotionVector *l0_mv_array, *l1_mv_array;
     short l0_refframe, l1_refframe;
     StorablePicture *list0, *list1;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
     if (pred_dir != 2) {
         l0_mv_array = &mv_info->mv[pred_dir];
@@ -536,14 +545,14 @@ void perform_mc(Macroblock *currMB, ColorPlane pl, StorablePicture *dec_picture,
         int maxold_x = dec_picture->size_x_cr_m1;
         int maxold_y = currMB->mb_field_decoding_flag ? (dec_picture->size_y_cr >> 1) - 1 : dec_picture->size_y_cr_m1;
 
-        if (p_Vid->mb_cr_size_x == MB_BLOCK_SIZE) {
+        if (mb_cr_size_x == MB_BLOCK_SIZE) {
             ioff_cr = ioff;
             block_size_x_cr = block_size_x;
         } else {
             ioff_cr = ioff >> 1;
             block_size_x_cr = block_size_x >> 1;
         }
-        if (p_Vid->mb_cr_size_y == MB_BLOCK_SIZE) {
+        if (mb_cr_size_y == MB_BLOCK_SIZE) {
             joff_cr = joff;
             block_size_y_cr = block_size_y;
         } else {

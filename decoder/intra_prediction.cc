@@ -39,10 +39,20 @@ static inline int Clip3(int low, int high, int x)
 static void neighbouring_samples_4x4(imgpel *pred, bool *available, Macroblock *currMB, ColorPlane pl, int xO, int yO)
 {
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
-    int *mb_size = (pl) ? p_Vid->mb_size[IS_CHROMA] : p_Vid->mb_size[IS_LUMA];
     PixelPos pix_a, pix_b, pix_c, pix_d, pix_x[4];
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_size_xy[2][2] = {
+        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
+        { mb_cr_size_x, mb_cr_size_y }
+    };
+    int *mb_size = mb_size_xy[pl == 0 ? IS_LUMA : IS_CHROMA];
 
     bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
     bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
@@ -109,13 +119,23 @@ static void neighbouring_samples_4x4(imgpel *pred, bool *available, Macroblock *
 static void neighbouring_samples_8x8(imgpel *pred, bool *available, Macroblock *currMB, ColorPlane pl, int xO, int yO)
 {
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
-    int *mb_size = (pl) ? p_Vid->mb_size[IS_CHROMA] : p_Vid->mb_size[IS_LUMA];
     PixelPos pix_a, pix_b, pix_c, pix_d, pix_x[8];
 
     bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
     bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_size_xy[2][2] = {
+        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
+        { mb_cr_size_x, mb_cr_size_y }
+    };
+    int *mb_size = mb_size_xy[pl == 0 ? IS_LUMA : IS_CHROMA];
 
     if (MbaffFrameFlag == 0) {
         getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
@@ -212,13 +232,23 @@ static void neighbouring_samples_8x8(imgpel *pred, bool *available, Macroblock *
 static void neighbouring_samples_16x16(imgpel *pred, bool *available, Macroblock *currMB, ColorPlane pl, int xO, int yO)
 {
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
-    int *mb_size = (pl) ? p_Vid->mb_size[IS_CHROMA] : p_Vid->mb_size[IS_LUMA];
     PixelPos pix_a, pix_b, pix_d, pix_x[16];
 
     bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
     bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_size_xy[2][2] = {
+        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
+        { mb_cr_size_x, mb_cr_size_y }
+    };
+    int *mb_size = mb_size_xy[pl == 0 ? IS_LUMA : IS_CHROMA];
 
     if (MbaffFrameFlag == 0) {
         getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
@@ -275,24 +305,34 @@ static void neighbouring_samples_16x16(imgpel *pred, bool *available, Macroblock
 static void neighbouring_samples_chroma(imgpel *pred, bool *available, Macroblock *currMB, ColorPlane pl, int xO, int yO)
 {
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
-    int *mb_size = (pl) ? p_Vid->mb_size[IS_CHROMA] : p_Vid->mb_size[IS_LUMA];
     //PixelPos pix_a;
     PixelPos pix_b, pix_d, pix_x[16];
 
     bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
     bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
 
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_size_xy[2][2] = {
+        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
+        { mb_cr_size_x, mb_cr_size_y }
+    };
+    int *mb_size = mb_size_xy[pl == 0 ? IS_LUMA : IS_CHROMA];
+
     if (MbaffFrameFlag == 0) {
         //getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
-        for (int i = 0; i < p_Vid->mb_cr_size_y; i++)
+        for (int i = 0; i < mb_cr_size_y; i++)
             getNonAffNeighbour(currMB, xO - 1, yO + i, mb_size, &pix_x[i]);
         getNonAffNeighbour(currMB, xO    , yO - 1, mb_size, &pix_b);
         getNonAffNeighbour(currMB, xO - 1, yO - 1, mb_size, &pix_d);
     } else {
         //getAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
-        for (int i = 0; i < p_Vid->mb_cr_size_y; i++)
+        for (int i = 0; i < mb_cr_size_y; i++)
             getAffNeighbour(currMB, xO - 1, yO + i, mb_size, &pix_x[i]);
         getAffNeighbour(currMB, xO    , yO - 1, mb_size, &pix_b);
         getAffNeighbour(currMB, xO - 1, yO - 1, mb_size, &pix_d);
@@ -301,11 +341,11 @@ static void neighbouring_samples_chroma(imgpel *pred, bool *available, Macrobloc
     if (constrained_intra_pred_flag) {
         available[0] = 1;
         //available[0] = pix_a.available ? currSlice->intra_block[pix_a.mb_addr] : 0;
-        for (int i = 0; i < p_Vid->mb_cr_size_y/2; i++)
+        for (int i = 0; i < mb_cr_size_y/2; i++)
             available[0] &= pix_x[i].available ? currSlice->intra_block[pix_x[i].mb_addr] : 0;
         available[1] = pix_b.available ? currSlice->intra_block[pix_b.mb_addr] : 0;
         available[2] = 1;
-        for (int i = p_Vid->mb_cr_size_y/2; i < p_Vid->mb_cr_size_y; i++)
+        for (int i = mb_cr_size_y/2; i < mb_cr_size_y; i++)
             available[2] &= pix_x[i].available ? currSlice->intra_block[pix_x[i].mb_addr] : 0;
         available[3] = pix_d.available ? currSlice->intra_block[pix_d.mb_addr] : 0;
     } else {
@@ -328,16 +368,16 @@ static void neighbouring_samples_chroma(imgpel *pred, bool *available, Macrobloc
 //            pix -= 16 * width;
 //        for (int y = 0; y < 4; y++)
 //            p(-1, y) = pix[y * dy * width];
-        for (int y = 0; y < p_Vid->mb_cr_size_y/2; y++)
+        for (int y = 0; y < mb_cr_size_y/2; y++)
             p(-1, y) = img[pix_x[y].pos_y][pix_x[y].pos_x];
     }
     if (available[2]) {
-        for (int y = p_Vid->mb_cr_size_y/2; y < p_Vid->mb_cr_size_y; y++)
+        for (int y = mb_cr_size_y/2; y < mb_cr_size_y; y++)
             p(-1, y) = img[pix_x[y].pos_y][pix_x[y].pos_x];
     }
     if (available[1]) {
         imgpel *pix = &img[pix_b.pos_y][pix_b.pos_x];
-        for (int x = 0; x < p_Vid->mb_cr_size_x; x++)
+        for (int x = 0; x < mb_cr_size_x; x++)
             p(x, -1) = pix[x];
     }
 #undef p
@@ -865,8 +905,9 @@ void intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
     byte predmode = p_Vid->ipredmode[currMB->block_y + joff/4][currMB->block_x + ioff/4];
     currMB->ipmode_DPCM = predmode; //For residual DPCM
 
-    int BitDepth = pl ? p_Vid->bitdepth_chroma : p_Vid->bitdepth_luma;
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
+    int BitDepth = pl ? sps->BitDepthC : sps->BitDepthY;
     imgpel *pred = &currSlice->mb_pred[pl][joff][ioff];
     imgpel pix[9 * 9];
     bool available[4];
@@ -964,9 +1005,9 @@ void intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
     byte predmode = currMB->p_Slice->ipredmode[block_y][block_x];
     currMB->ipmode_DPCM = predmode;  //For residual DPCM
 
-    VideoParameters *p_Vid = currMB->p_Vid;
-    int BitDepth = pl ? p_Vid->bitdepth_chroma : p_Vid->bitdepth_luma;
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
+    int BitDepth = pl ? sps->BitDepthC : sps->BitDepthY;
     imgpel *pred = &currSlice->mb_pred[pl][joff][ioff];
     imgpel pix[17 * 17];
     bool available[4];
@@ -1055,11 +1096,11 @@ void intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
  */
 void intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
-    VideoParameters *p_Vid = currMB->p_Vid;
     currMB->ipmode_DPCM = currMB->i16mode;
 
-    int BitDepth = pl ? p_Vid->bitdepth_chroma : p_Vid->bitdepth_luma;
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
+    int BitDepth = pl ? sps->BitDepthC : sps->BitDepthY;
     imgpel *pred = &currSlice->mb_pred[pl][0][0];
     imgpel pix[17 * 17];
     bool available[4];
@@ -1110,18 +1151,23 @@ void intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
  */
 void intra_pred_chroma(Macroblock *currMB)
 {
-    VideoParameters *p_Vid = currMB->p_Vid;
-
-    int BitDepth = p_Vid->bitdepth_chroma;
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+
+    int BitDepth = currSlice->active_sps->BitDepthC;
     imgpel *pred[2];
     int size[2];
     imgpel pix[2][17 * 17];
     bool available[2][4];
     pred[0] = &currSlice->mb_pred[1][0][0];
     pred[1] = &currSlice->mb_pred[2][0][0];
-    size[0] = p_Vid->mb_cr_size_x;
-    size[1] = p_Vid->mb_cr_size_y;
+    size[0] = mb_cr_size_x;
+    size[1] = mb_cr_size_y;
     neighbouring_samples_chroma(pix[0], available[0], currMB, PLANE_U, 0, 0);
     neighbouring_samples_chroma(pix[1], available[1], currMB, PLANE_V, 0, 0);
 

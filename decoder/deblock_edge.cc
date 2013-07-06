@@ -240,17 +240,25 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
                                 && Abs(q[1] - q[0]) < beta;
 */
     VideoParameters *p_Vid = MbQ->p_Vid;
-
+    sps_t *sps = p_Vid->active_sps;
     int width = chromaEdgeFlag == 0 ? p->iLumaStride : p->iChromaStride;
     int PelNum = pl ? pelnum_cr[verticalEdgeFlag ? 0 : 1][p->chroma_format_idc] : MB_BLOCK_SIZE;
-    int bitdepth_scale = pl ? p_Vid->bitdepth_scale[IS_CHROMA]
-                            : p_Vid->bitdepth_scale[IS_LUMA];
-    int *mb_size = p_Vid->mb_size[chromaEdgeFlag == 0 ? IS_LUMA : IS_CHROMA];
+    int bitdepth_scale = 1 << (pl ? sps->bit_depth_chroma_minus8 : sps->bit_depth_luma_minus8);
     PixelPos pixP, pixQ;
 
     int yQ = (edge < 16 ? edge - 1: 0);
 
     int xQ = edge - 1;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_size_xy[2][2] = {
+        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
+        { mb_cr_size_x, mb_cr_size_y }
+    };
+    int *mb_size = mb_size_xy[chromaEdgeFlag == 0 ? IS_LUMA : IS_CHROMA];
 
     //if (MbQ->DFDisableIdc == 0) {
     if (MbP || MbQ->DFDisableIdc == 0) {
@@ -284,7 +292,7 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
             if (chromaEdgeFlag == 0)
                 MbP = get_non_aff_neighbor_luma(MbQ, xQ, yQ);
             else
-                MbP = get_non_aff_neighbor_chroma(MbQ, xQ, yQ, p_Vid->mb_cr_size_x, p_Vid->mb_cr_size_y);
+                MbP = get_non_aff_neighbor_chroma(MbQ, xQ, yQ, mb_cr_size_x, mb_cr_size_y);
 
             Macroblock *MbP = &(p_Vid->mb_data[pixP.mb_addr]);
             int bS = Strength[PelNum == 8 ? pel >> 1 : pel >> 2];
@@ -316,7 +324,7 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
                 if (bS == 4)
                     deblock_strong(SrcPtrP, SrcPtrQ, incP, incQ, Alpha, Beta, bS, chromaEdgeFlag);
                 else if (bS != 0)
-                    deblock_normal(SrcPtrP, SrcPtrQ, incP, incQ, Alpha, Beta, bS, chromaEdgeFlag, pl, p_Vid->bitdepth_luma, p_Vid->bitdepth_chroma, indexA);
+                    deblock_normal(SrcPtrP, SrcPtrQ, incP, incQ, Alpha, Beta, bS, chromaEdgeFlag, pl, sps->BitDepthY, sps->BitDepthC, indexA);
             }
         }
     }
@@ -327,15 +335,24 @@ static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool ch
                        ColorPlane pl, imgpel **Img, int edge, StorablePicture *p)
 {
     VideoParameters *p_Vid = MbQ->p_Vid;
+    sps_t *sps = p_Vid->active_sps;
 
     int width = chromaEdgeFlag == 0 ? p->iLumaStride : p->iChromaStride;
     int PelNum = pl ? pelnum_cr[verticalEdgeFlag ? 0 : 1][p->chroma_format_idc] : MB_BLOCK_SIZE;
-    int bitdepth_scale = pl ? p_Vid->bitdepth_scale[IS_CHROMA]
-                            : p_Vid->bitdepth_scale[IS_LUMA];
-    int *mb_size = p_Vid->mb_size[chromaEdgeFlag == 0 ? IS_LUMA : IS_CHROMA];
+    int bitdepth_scale = 1 << (pl ? sps->bit_depth_chroma_minus8 : sps->bit_depth_luma_minus8);
     PixelPos pixP, pixQ;
 
     int yQ = (edge < MB_BLOCK_SIZE ? edge : 1);
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_size_xy[2][2] = {
+        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
+        { mb_cr_size_x, mb_cr_size_y }
+    };
+    int *mb_size = mb_size_xy[chromaEdgeFlag == 0 ? IS_LUMA : IS_CHROMA];
 
     if (MbQ->DFDisableIdc == 0) {
         for (int pel = 0; pel < PelNum; ++pel) {
@@ -375,7 +392,7 @@ static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool ch
                 if (bS == 4)
                     deblock_strong(SrcPtrP, SrcPtrQ, incP, incQ, Alpha, Beta, bS, chromaEdgeFlag);
                 else if (bS > 0)
-                    deblock_normal(SrcPtrP, SrcPtrQ, incP, incQ, Alpha, Beta, bS, chromaEdgeFlag, pl, p_Vid->bitdepth_luma, p_Vid->bitdepth_chroma, indexA);
+                    deblock_normal(SrcPtrP, SrcPtrQ, incP, incQ, Alpha, Beta, bS, chromaEdgeFlag, pl, sps->BitDepthY, sps->BitDepthC, indexA);
             }
         }
     }

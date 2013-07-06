@@ -77,10 +77,17 @@ int ercConcealInterFrame(frame *recfr, objectBuffer_t *object_list,
                          int picSizeX, int picSizeY, ercVariables_t *errorVar, int chroma_format_idc )
 {
   VideoParameters *p_Vid = recfr->p_Vid;
+  sps_t *sps = p_Vid->active_sps;
   int lastColumn = 0, lastRow = 0, predBlocks[8];
   int lastCorruptedRow = -1, firstCorruptedRow = -1;
   int currRow = 0, row, column, columnInd, areaHeight = 0, i = 0;
   imgpel *predMB;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_cr_size = mb_cr_size_x * mb_cr_size_y;
 
   /* if concealment is on */
   if ( errorVar && errorVar->concealment )
@@ -89,7 +96,7 @@ int ercConcealInterFrame(frame *recfr, objectBuffer_t *object_list,
     if ( errorVar->nOfCorruptedSegments )
     {
       if (chroma_format_idc != YUV400)
-        predMB = (imgpel *) malloc ( (256 + (p_Vid->mb_cr_size)*2) * sizeof (imgpel));
+        predMB = (imgpel *) malloc ( (256 + mb_cr_size * 2) * sizeof (imgpel));
       else
         predMB = (imgpel *) malloc(256 * sizeof (imgpel));
 
@@ -568,7 +575,13 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   
   Macroblock *currMB = &p_Vid->mb_data[mb_nr];   // intialization code deleted, see below, StW  
   currSlice = currMB->p_Slice;
+  sps_t *sps = currSlice->active_sps;
   tmp_res = currSlice->tmp_res;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
   // This should be allocated only once. 
   get_mem2Dpel(&tmp_block, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
@@ -577,11 +590,17 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   currMB->mb.x = (short) (x/MB_BLOCK_SIZE);
   currMB->mb.y = (short) (y/MB_BLOCK_SIZE);
   currMB->block_y = currMB->mb.y * BLOCK_SIZE;
-  currMB->pix_c_y = currMB->mb.y * p_Vid->mb_cr_size_y;
+  currMB->pix_c_y = currMB->mb.y * mb_cr_size_y;
   currMB->block_x = currMB->mb.x * BLOCK_SIZE;
-  currMB->pix_c_x = currMB->mb.x * p_Vid->mb_cr_size_x;
+  currMB->pix_c_x = currMB->mb.x * mb_cr_size_x;
 
   mv_mul=4;
+
+    int num_uv_blocks;
+    if (sps->chroma_format_idc != YUV400)
+        num_uv_blocks = (((1 << sps->chroma_format_idc) & (~0x1)) >> 1);
+    else
+        num_uv_blocks = 0;
 
   // luma *******************************************************
 
@@ -621,10 +640,10 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   if (dec_picture->chroma_format_idc != YUV400)
   {
     // chroma *******************************************************
-    f1_x = 64/p_Vid->mb_cr_size_x;
+    f1_x = 64/mb_cr_size_x;
     f2_x=f1_x-1;
 
-    f1_y = 64/p_Vid->mb_cr_size_y;
+    f1_y = 64/mb_cr_size_y;
     f2_y=f1_y-1;
 
     f3=f1_x*f1_y;
@@ -632,7 +651,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
 
     for(uv=0;uv<2;uv++)
     {
-      for (b8=0;b8<(p_Vid->num_uv_blocks);b8++)
+      for (b8=0;b8<num_uv_blocks;b8++)
       {
         for(b4=0;b4<4;b4++)
         {
@@ -705,6 +724,7 @@ static void copyPredMB (int currYBlockNum, imgpel *predMB, frame *recfr,
                         int picSizeX, int regionSize)
 {
   VideoParameters *p_Vid = recfr->p_Vid;
+  sps_t *sps = p_Vid->active_sps;
   StorablePicture *dec_picture = p_Vid->dec_picture;
   int j, k, xmin, ymin, xmax, ymax;
   int locationTmp;
@@ -715,6 +735,9 @@ static void copyPredMB (int currYBlockNum, imgpel *predMB, frame *recfr,
   ymin = (yPosYBlock(currYBlockNum,picSizeX)<<3);
   xmax = xmin + regionSize -1;
   ymax = ymin + regionSize -1;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
 
   for (j = ymin; j <= ymax; j++)
   {
@@ -731,7 +754,7 @@ static void copyPredMB (int currYBlockNum, imgpel *predMB, frame *recfr,
     {
       for (k = (xmin>>uv_x); k <= (xmax>>uv_x); k++)
       {
-        locationTmp = (j-(ymin>>uv_y)) * p_Vid->mb_cr_size_x + (k-(xmin>>1)) + 256;
+        locationTmp = (j-(ymin>>uv_y)) * mb_cr_size_x + (k-(xmin>>1)) + 256;
         dec_picture->imgUV[0][j][k] = predMB[locationTmp];
 
         locationTmp += 64;
@@ -876,6 +899,12 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
   
   Macroblock *currMB = &p_Vid->mb_data[mb_nr];   // intialization code deleted, see below, StW  
   Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
   get_mem2Dpel(&tmp_block, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
@@ -884,9 +913,9 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
   currMB->mb.x = (short) (x/BLOCK_SIZE);
   currMB->mb.y = (short) (y/BLOCK_SIZE);
   currMB->block_y = currMB->mb.y * BLOCK_SIZE;
-  currMB->pix_c_y = currMB->mb.y * p_Vid->mb_cr_size_y/4;
+  currMB->pix_c_y = currMB->mb.y * mb_cr_size_y/4;
   currMB->block_x = currMB->mb.x * BLOCK_SIZE;
-  currMB->pix_c_x = currMB->mb.x * p_Vid->mb_cr_size_x/4;
+  currMB->pix_c_x = currMB->mb.x * mb_cr_size_x/4;
 
   mv_mul=4;
 
@@ -914,10 +943,10 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
   if (dec_picture->chroma_format_idc != YUV400)
   {
     // chroma *******************************************************
-    f1_x = 64/(p_Vid->mb_cr_size_x);
+    f1_x = 64/mb_cr_size_x;
     f2_x=f1_x-1;
 
-    f1_y = 64/(p_Vid->mb_cr_size_y);
+    f1_y = 64/mb_cr_size_y;
     f2_y=f1_y-1;
 
     f3=f1_x*f1_y;
@@ -1121,7 +1150,13 @@ static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoPar
   int mm, nn;
   int scale = 1;
   StorablePicture *dec_picture = p_Vid->dec_picture;
+    sps_t *sps = p_Vid->active_sps;
   // InputParameters *test;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
   int current_mb_nr = 0;
 
@@ -1163,7 +1198,7 @@ static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoPar
   {
     if (dec_picture->chroma_format_idc != YUV400)
     {
-      storeYUV = (imgpel *) malloc ( (16 + (p_Vid->mb_cr_size_x*p_Vid->mb_cr_size_y)*2/16) * sizeof (imgpel));
+      storeYUV = (imgpel *) malloc ( (16 + (mb_cr_size_x*mb_cr_size_y)*2/16) * sizeof (imgpel));
     }
     else
     {
@@ -1304,7 +1339,7 @@ void conceal_lost_frames(DecodedPictureBuffer *p_Dpb, Slice *pSlice)
     p_Vid->earlier_missing_poc = 0;
   }
   else
-    UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % p_Vid->max_frame_num;
+    UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % p_Vid->active_sps->MaxFrameNum;
 
   CurrFrameNum = pSlice->frame_num;
 
@@ -1350,7 +1385,7 @@ void conceal_lost_frames(DecodedPictureBuffer *p_Dpb, Slice *pSlice)
     picture=NULL;
 
     p_Vid->pre_frame_num = UnusedShortTermFrameNum;
-    UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % p_Vid->max_frame_num;
+    UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % p_Vid->active_sps->MaxFrameNum;
 
     // update reference flags and set current flag.
     for(i=16;i>0;i--)
@@ -1405,7 +1440,6 @@ void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSlic
 
   unsigned i;
   int j;
-  int max_frame_num = 1 << (active_sps->log2_max_frame_num_minus4 + 4);
   int diff;
 
   int list0idx = 0;
@@ -1420,7 +1454,7 @@ void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSlic
       if(p_Dpb->fs[i]->concealment_reference == 1)
       {
         if(p_Dpb->fs[i]->frame_num > p_Vid->frame_to_conceal)
-          p_Dpb->fs_ref[i]->frame_num_wrap = p_Dpb->fs[i]->frame_num - max_frame_num;
+          p_Dpb->fs_ref[i]->frame_num_wrap = p_Dpb->fs[i]->frame_num - active_sps->MaxFrameNum;
         else
           p_Dpb->fs_ref[i]->frame_num_wrap = p_Dpb->fs[i]->frame_num;
         p_Dpb->fs_ref[i]->frame->pic_num = p_Dpb->fs_ref[i]->frame_num_wrap;

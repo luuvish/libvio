@@ -81,7 +81,7 @@ static void setup_buffers(VideoParameters *p_Vid, int layer_id)
   {
     p_Vid->imgY_ref = cps->imgY_ref;
     p_Vid->imgUV_ref = cps->imgUV_ref;
-    if(cps->separate_colour_plane_flag)
+    if(p_Vid->active_sps->separate_colour_plane_flag)
     {
      for( i=0; i<MAX_PLANE; i++ )
      {
@@ -106,7 +106,6 @@ static void setup_buffers(VideoParameters *p_Vid, int layer_id)
     p_Vid->nz_coeff = cps->nz_coeff;
     p_Vid->qp_per_matrix = cps->qp_per_matrix;
     p_Vid->qp_rem_matrix = cps->qp_rem_matrix;
-    p_Vid->oldFrameSizeInMbs = cps->oldFrameSizeInMbs;
     p_Vid->img2buf = cps->img2buf;
     p_Vid->last_dec_layer_id = layer_id;
   }
@@ -241,12 +240,11 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   int i;
   int nplane;
   StorablePicture *dec_picture = NULL;
-  sps_t *active_sps = p_Vid->active_sps;
+  sps_t *sps = p_Vid->active_sps;
+  pps_t *pps = p_Vid->active_pps;
   DecodedPictureBuffer *p_Dpb = currSlice->p_Dpb;
 
-  p_Vid->PicHeightInMbs = p_Vid->FrameHeightInMbs / ( 1 + currSlice->field_pic_flag );
-  p_Vid->PicSizeInMbs   = p_Vid->PicWidthInMbs * p_Vid->PicHeightInMbs;
-  p_Vid->FrameSizeInMbs = p_Vid->PicWidthInMbs * p_Vid->FrameHeightInMbs;
+  int PicSizeInMbs = sps->PicWidthInMbs * (sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag));
 
   p_Vid->bFrameInit = 1;
   if (p_Vid->dec_picture)
@@ -259,22 +257,22 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   setup_buffers(p_Vid, currSlice->layer_id);
 
   if (p_Vid->recovery_point)
-    p_Vid->recovery_frame_num = (currSlice->frame_num + p_Vid->recovery_frame_cnt) % p_Vid->max_frame_num;
+    p_Vid->recovery_frame_num = (currSlice->frame_num + p_Vid->recovery_frame_cnt) % sps->MaxFrameNum;
 
   if (currSlice->idr_flag)
     p_Vid->recovery_frame_num = currSlice->frame_num;
 
   if (p_Vid->recovery_point == 0 &&
     currSlice->frame_num != p_Vid->pre_frame_num &&
-    currSlice->frame_num != (p_Vid->pre_frame_num + 1) % p_Vid->max_frame_num)
+    currSlice->frame_num != (p_Vid->pre_frame_num + 1) % sps->MaxFrameNum)
   {
-    if (active_sps->gaps_in_frame_num_value_allowed_flag == 0)
+    if (sps->gaps_in_frame_num_value_allowed_flag == 0)
     {
 #if (DISABLE_ERC == 0)
       // picture error concealment
       if(p_Inp->conceal_mode !=0)
       {
-        if((currSlice->frame_num) < ((p_Vid->pre_frame_num + 1) % p_Vid->max_frame_num))
+        if((currSlice->frame_num) < ((p_Vid->pre_frame_num + 1) % sps->MaxFrameNum))
         {
           /* Conceal lost IDR frames and any frames immediately
              following the IDR. Use frame copy for these since
@@ -329,8 +327,8 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   dec_picture->frame_poc=currSlice->framepoc;
   dec_picture->qp = currSlice->SliceQpY;
   dec_picture->slice_qp_delta = currSlice->slice_qp_delta;
-  dec_picture->chroma_qp_offset[0] = p_Vid->active_pps->chroma_qp_index_offset;
-  dec_picture->chroma_qp_offset[1] = p_Vid->active_pps->second_chroma_qp_index_offset;
+  dec_picture->chroma_qp_offset[0] = pps->chroma_qp_index_offset;
+  dec_picture->chroma_qp_offset[1] = pps->second_chroma_qp_index_offset;
   dec_picture->iCodingType = !currSlice->field_pic_flag ? (currSlice->MbaffFrameFlag? FRAME_MB_PAIR_CODING:FRAME_CODING): FIELD_CODING;
   dec_picture->layer_id = currSlice->layer_id;
 #if (MVC_EXTENSION_ENABLE)
@@ -348,7 +346,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   // here the third parameter should, if perfectly, be equal to the number of slices per frame.
   // using little value is ok, the code will allocate more memory if the slice number is larger
 #if (DISABLE_ERC == 0)
-  ercReset(p_Vid->erc_errorVar, p_Vid->PicSizeInMbs, p_Vid->PicSizeInMbs, dec_picture->size_x);
+  ercReset(p_Vid->erc_errorVar, PicSizeInMbs, PicSizeInMbs, dec_picture->size_x);
 #endif
   p_Vid->erc_mvperMB = 0;
 
@@ -368,27 +366,27 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   }
 
   // CAVLC init
-  if (p_Vid->active_pps->entropy_coding_mode_flag == (Boolean) CAVLC)
+  if (!pps->entropy_coding_mode_flag)
   {
-    memset(p_Vid->nz_coeff[0][0][0], -1, p_Vid->PicSizeInMbs * 48 *sizeof(byte)); // 3 * 4 * 4
+    memset(p_Vid->nz_coeff[0][0][0], -1, PicSizeInMbs * 48 *sizeof(byte)); // 3 * 4 * 4
   }
 
   // Set the slice_nr member of each MB to -1, to ensure correct when packet loss occurs
   // TO set Macroblock Map (mark all MBs as 'have to be concealed')
-  if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
+  if(sps->separate_colour_plane_flag)
   {
     for( nplane=0; nplane<MAX_PLANE; ++nplane )
     {      
       Macroblock *currMB = p_Vid->mb_data_JV[nplane];
       char *intra_block = p_Vid->intra_block_JV[nplane];
-      for(i=0; i<(int)p_Vid->PicSizeInMbs; ++i)
+      for(i=0; i < PicSizeInMbs; ++i)
       {
         reset_mbs(currMB++);
       }
-      memset(p_Vid->ipredmode_JV[nplane][0], DC_PRED, 16 * p_Vid->FrameHeightInMbs * p_Vid->PicWidthInMbs * sizeof(char));
-      if(p_Vid->active_pps->constrained_intra_pred_flag)
+      memset(p_Vid->ipredmode_JV[nplane][0], DC_PRED, 16 * sps->FrameHeightInMbs * sps->PicWidthInMbs * sizeof(char));
+      if(pps->constrained_intra_pred_flag)
       {
-        for (i=0; i<(int)p_Vid->PicSizeInMbs; ++i)
+        for (i=0; i<PicSizeInMbs; ++i)
         {
           intra_block[i] = 1;
         }
@@ -398,16 +396,16 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   else
   {
     Macroblock *currMB = p_Vid->mb_data;
-    for(i=0; i<(int)p_Vid->PicSizeInMbs; ++i)
+    for(i=0; i<PicSizeInMbs; ++i)
       reset_mbs(currMB++);
-    if(p_Vid->active_pps->constrained_intra_pred_flag)
+    if(pps->constrained_intra_pred_flag)
     {
-      for (i=0; i<(int)p_Vid->PicSizeInMbs; ++i)
+      for (i=0; i<PicSizeInMbs; ++i)
       {
         p_Vid->intra_block[i] = 1;
       }
     }
-    memset(p_Vid->ipredmode[0], DC_PRED, 16 * p_Vid->FrameHeightInMbs * p_Vid->PicWidthInMbs * sizeof(char));
+    memset(p_Vid->ipredmode[0], DC_PRED, 16 * sps->FrameHeightInMbs * sps->PicWidthInMbs * sizeof(char));
   }  
 
   dec_picture->slice_type = p_Vid->type;
@@ -421,7 +419,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   currSlice->dec_ref_pic_marking_buffer   = NULL;
 
   dec_picture->mb_aff_frame_flag = currSlice->MbaffFrameFlag;
-  dec_picture->PicWidthInMbs     = p_Vid->PicWidthInMbs;
+  dec_picture->PicWidthInMbs     = sps->PicWidthInMbs;
 
   p_Vid->get_mb_block_pos = dec_picture->mb_aff_frame_flag ? get_mb_block_pos_mbaff : get_mb_block_pos_normal;
   p_Vid->getNeighbour     = dec_picture->mb_aff_frame_flag ? getAffNeighbour : getNonAffNeighbour;
@@ -433,17 +431,17 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
 
   dec_picture->coded_frame = !currSlice->field_pic_flag;
 
-  dec_picture->chroma_format_idc = active_sps->chroma_format_idc;
+  dec_picture->chroma_format_idc = sps->chroma_format_idc;
 
-  dec_picture->frame_mbs_only_flag = active_sps->frame_mbs_only_flag;
-  dec_picture->frame_cropping_flag = active_sps->frame_cropping_flag;
+  dec_picture->frame_mbs_only_flag = sps->frame_mbs_only_flag;
+  dec_picture->frame_cropping_flag = sps->frame_cropping_flag;
 
   if (dec_picture->frame_cropping_flag)
   {
-    dec_picture->frame_crop_left_offset   = active_sps->frame_crop_left_offset;
-    dec_picture->frame_crop_right_offset  = active_sps->frame_crop_right_offset;
-    dec_picture->frame_crop_top_offset    = active_sps->frame_crop_top_offset;
-    dec_picture->frame_crop_bottom_offset = active_sps->frame_crop_bottom_offset;
+    dec_picture->frame_crop_left_offset   = sps->frame_crop_left_offset;
+    dec_picture->frame_crop_right_offset  = sps->frame_crop_right_offset;
+    dec_picture->frame_crop_top_offset    = sps->frame_crop_top_offset;
+    dec_picture->frame_crop_bottom_offset = sps->frame_crop_bottom_offset;
   }
 
 #if (ENABLE_OUTPUT_TONEMAPPING)
@@ -466,7 +464,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
     dec_picture->seiHasTone_mapping = 0;
 #endif
 
-  if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
+  if(sps->separate_colour_plane_flag)
   {
     p_Vid->dec_picture_JV[0] = p_Vid->dec_picture;
     p_Vid->dec_picture_JV[1] = alloc_storable_picture (p_Vid, (PictureStructure) currSlice->structure, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr, 1);
@@ -862,6 +860,7 @@ void find_snr(VideoParameters *p_Vid,
 {
   InputParameters *p_Inp = p_Vid->p_Inp;
   SNRParameters   *snr   = p_Vid->snr;
+  sps_t *sps = p_Vid->active_sps;
 
   int k;
   int ret;
@@ -871,18 +870,12 @@ void find_snr(VideoParameters *p_Vid,
   int comp_size_x[3], comp_size_y[3];
   int64 framesize_in_bytes;
 
-  unsigned int max_pix_value_sqd[3];
-
   Boolean rgb_output = (Boolean) (p_Vid->active_sps->vui_parameters.matrix_coefficients==0);
   unsigned char *buf;
   imgpel **cur_ref [3];
   imgpel **cur_comp[3]; 
   // picture error concealment
   char yuv_types[4][6]= {"4:0:0","4:2:0","4:2:2","4:4:4"};
-
-  max_pix_value_sqd[0] = iabs2(p_Vid->max_pel_value_comp[0]);
-  max_pix_value_sqd[1] = iabs2(p_Vid->max_pel_value_comp[1]);
-  max_pix_value_sqd[2] = iabs2(p_Vid->max_pel_value_comp[2]);
 
   cur_ref[0]  = p_Vid->imgY_ref;
   cur_ref[1]  = p->chroma_format_idc != YUV400 ? p_Vid->imgUV_ref[0] : NULL;
@@ -938,8 +931,9 @@ void find_snr(VideoParameters *p_Vid,
     // Compute SSE
     diff_comp[k] = compute_SSE(cur_ref[k], cur_comp[k], 0, 0, comp_size_y[k], comp_size_x[k]);
 
+    int max_pix_value_sqd = iabs2((1 << (k > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1);
     // Collecting SNR statistics
-    snr->snr[k] = psnr( max_pix_value_sqd[k], comp_size_x[k] * comp_size_y[k], (float) diff_comp[k]);   
+    snr->snr[k] = psnr( max_pix_value_sqd, comp_size_x[k] * comp_size_y[k], (float) diff_comp[k]);   
 
     if (snr->frame_ctr == 0) // first
     {

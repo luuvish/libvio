@@ -666,12 +666,12 @@ void reorder_ref_pic_list_mvc(Slice *currSlice, int cur_list, int **anchor_ref, 
 
   if (!currSlice->field_pic_flag)
   {
-    maxPicNum  = p_Vid->max_frame_num;
+    maxPicNum  = p_Vid->active_sps->MaxFrameNum;
     currPicNum = currSlice->frame_num;
   }
   else
   {
-    maxPicNum  = 2 * p_Vid->max_frame_num;
+    maxPicNum  = 2 * p_Vid->active_sps->MaxFrameNum;
     currPicNum = 2 * currSlice->frame_num + 1;
   }
 

@@ -56,17 +56,18 @@
 void update_qp(Macroblock *currMB, int qp)
 {
     VideoParameters *p_Vid = currMB->p_Vid;
+    sps_t *sps = p_Vid->active_sps;
     StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
     currMB->qp = qp;
-    currMB->qp_scaled[0] = qp + p_Vid->bitdepth_luma_qp_scale;
+    currMB->qp_scaled[0] = qp + sps->QpBdOffsetY;
 
     for (int i = 0; i < 2; i++) {
-        currMB->qpc[i] = iClip3 (-p_Vid->bitdepth_chroma_qp_scale, 51, currMB->qp + dec_picture->chroma_qp_offset[i]);
+        currMB->qpc[i] = iClip3 (-(sps->QpBdOffsetC), 51, currMB->qp + dec_picture->chroma_qp_offset[i]);
         currMB->qpc[i] = currMB->qpc[i] < 0 ? currMB->qpc[i] : QP_SCALE_CR[currMB->qpc[i]];
-        currMB->qp_scaled[i + 1] = currMB->qpc[i] + p_Vid->bitdepth_chroma_qp_scale;
+        currMB->qp_scaled[i + 1] = currMB->qpc[i] + sps->QpBdOffsetC;
     }
 
-    currMB->is_lossless = (currMB->qp_scaled[0] == 0 && p_Vid->lossless_qpprime_flag == 1);
+    currMB->is_lossless = (currMB->qp_scaled[0] == 0 && sps->qpprime_y_zero_transform_bypass_flag);
     set_read_comp_coeff_cavlc(currMB);
     set_read_comp_coeff_cabac(currMB);
 }
@@ -80,8 +81,15 @@ void update_qp(Macroblock *currMB, int qp)
 void start_macroblock(Macroblock *currMB)
 {
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currSlice->p_Vid;
     int mb_nr = currMB->mbAddrX;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    int mb_cr_size = mb_cr_size_x * mb_cr_size_y;
 
     /* Update coordinates of the current macroblock */
     if (currSlice->MbaffFrameFlag) {
@@ -101,8 +109,8 @@ void start_macroblock(Macroblock *currMB)
     currMB->block_y_aff = mb_y << BLOCK_SHIFT;                 /* interlace relative vertical position */
     currMB->pix_x       = mb_x << MB_BLOCK_SHIFT;              /* horizontal luma pixel position */
     currMB->pix_y       = mb_y << MB_BLOCK_SHIFT;              /* vertical luma pixel position */
-    currMB->pix_c_x     = mb_x * currMB->p_Vid->mb_cr_size_x;  /* horizontal chroma pixel position */
-    currMB->pix_c_y     = mb_y * currMB->p_Vid->mb_cr_size_y;  /* vertical chroma pixel position */
+    currMB->pix_c_x     = mb_x * mb_cr_size_x;  /* horizontal chroma pixel position */
+    currMB->pix_c_y     = mb_y * mb_cr_size_y;  /* vertical chroma pixel position */
 
     // reset intra mode
     currMB->is_intra_block = FALSE;
@@ -133,8 +141,8 @@ void start_macroblock(Macroblock *currMB)
     // initialize currSlice->mb_rres
     if (currSlice->is_reset_coeff == FALSE) {
         memset( currSlice->mb_rres[0][0], 0, MB_PIXELS * sizeof(int));
-        memset( currSlice->mb_rres[1][0], 0, p_Vid->mb_cr_size * sizeof(int));
-        memset( currSlice->mb_rres[2][0], 0, p_Vid->mb_cr_size * sizeof(int));
+        memset( currSlice->mb_rres[1][0], 0, mb_cr_size * sizeof(int));
+        memset( currSlice->mb_rres[2][0], 0, mb_cr_size * sizeof(int));
         if (currSlice->is_reset_coeff_cr == FALSE) {
             memset( currSlice->cof[0][0], 0, 3 * MB_PIXELS * sizeof(int));
             currSlice->is_reset_coeff_cr = TRUE;
@@ -164,6 +172,8 @@ bool exit_macroblock(Slice *currSlice)
     VideoParameters *p_Vid = currSlice->p_Vid;
     int eos_bit = (!currSlice->MbaffFrameFlag || currSlice->current_mb_nr % 2);
     int startcode_follows;
+    sps_t *sps = currSlice->active_sps;
+    int PicSizeInMbs = sps->PicWidthInMbs * (sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag));
 
     //! The if() statement below resembles the original code, which tested
     //! p_Vid->current_mb_nr == p_Vid->PicSizeInMbs.  Both is, of course, nonsense
@@ -172,7 +182,7 @@ bool exit_macroblock(Slice *currSlice)
 
     ++(currSlice->num_dec_mb);
 
-    if (currSlice->current_mb_nr == p_Vid->PicSizeInMbs - 1)
+    if (currSlice->current_mb_nr == PicSizeInMbs - 1)
         return 1;
 
     currSlice->current_mb_nr = FmoGetNextMBNr(p_Vid, currSlice->current_mb_nr);

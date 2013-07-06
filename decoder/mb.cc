@@ -80,7 +80,12 @@ static void set_chroma_vector(Macroblock *currMB)
 static int mb_pred_skip(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture)
 {
     Slice *currSlice = currMB->p_Slice;
-    VideoParameters *p_Vid = currMB->p_Vid;
+    sps_t *sps = currSlice->active_sps;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
     set_chroma_vector(currMB);
 
@@ -89,8 +94,8 @@ static int mb_pred_skip(Macroblock *currMB, ColorPlane curr_plane, imgpel **curr
     copy_image_data_16x16(&currImg[currMB->pix_y], currSlice->mb_pred[curr_plane], currMB->pix_x, 0);
 
     if ((dec_picture->chroma_format_idc != YUV400) && (dec_picture->chroma_format_idc != YUV444)) {
-        copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, p_Vid->mb_size[1][0], p_Vid->mb_size[1][1]);
-        copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, p_Vid->mb_size[1][0], p_Vid->mb_size[1][1]);
+        copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
+        copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
     }
     return 1;
 }
@@ -170,7 +175,7 @@ static int mb_pred_b_d8x8temporal(Macroblock *currMB, ColorPlane curr_plane, img
     int k;
     int block8x8;   // needed for ABT
     Slice *currSlice = currMB->p_Slice;
-    VideoParameters *p_Vid = currMB->p_Vid;
+    sps_t *sps = currSlice->active_sps;
     int dir8x8 = currSlice->active_sps->direct_8x8_inference_flag;
 
     set_chroma_vector(currMB);
@@ -178,6 +183,11 @@ static int mb_pred_b_d8x8temporal(Macroblock *currMB, ColorPlane curr_plane, img
     int k_inc = dir8x8 ? 1 : BLOCK_MULTIPLE;
     int block_size_x = dir8x8 ? SMB_BLOCK_SIZE : BLOCK_SIZE;
     int block_size_y = dir8x8 ? SMB_BLOCK_SIZE : BLOCK_SIZE;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
     for (block8x8 = 0; block8x8 < 4; block8x8++) {
         int pred_dir = currMB->b8pdir[block8x8];
@@ -201,8 +211,8 @@ static int mb_pred_b_d8x8temporal(Macroblock *currMB, ColorPlane curr_plane, img
         copy_image_data_16x16(&currImg[currMB->pix_y], currSlice->mb_pred[curr_plane], currMB->pix_x, 0);
 
         if (dec_picture->chroma_format_idc != YUV400 && dec_picture->chroma_format_idc != YUV444) {
-            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, p_Vid->mb_size[1][0], p_Vid->mb_size[1][1]);
-            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, p_Vid->mb_size[1][0], p_Vid->mb_size[1][1]);
+            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
+            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
         }
     } else {
         iTransform(currMB, curr_plane, 0); 
@@ -218,7 +228,12 @@ static int mb_pred_b_d8x8spatial(Macroblock *currMB, ColorPlane curr_plane, imgp
     int i4, j4;
     int block8x8;
     Slice *currSlice = currMB->p_Slice;
-    VideoParameters *p_Vid = currMB->p_Vid;
+    sps_t *sps = currSlice->active_sps;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
     int pred_dir = 0;
 
@@ -251,8 +266,8 @@ static int mb_pred_b_d8x8spatial(Macroblock *currMB, ColorPlane curr_plane, imgp
         copy_image_data_16x16(&currImg[currMB->pix_y], currSlice->mb_pred[curr_plane], currMB->pix_x, 0);
 
         if (dec_picture->chroma_format_idc != YUV400 && dec_picture->chroma_format_idc != YUV444) {
-            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, p_Vid->mb_size[1][0], p_Vid->mb_size[1][1]);
-            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, p_Vid->mb_size[1][0], p_Vid->mb_size[1][1]);
+            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
+            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
         }
     } else {
         iTransform(currMB, curr_plane, 0); 
@@ -269,9 +284,14 @@ static int mb_pred_b_d4x4spatial(Macroblock *currMB, ColorPlane curr_plane, imgp
     int k;
     int block8x8;
     Slice *currSlice = currMB->p_Slice;
-    VideoParameters *p_Vid = currMB->p_Vid;
+    sps_t *sps = currSlice->active_sps;
 
     int pred_dir = 0;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
     set_chroma_vector(currMB);
 
@@ -295,8 +315,8 @@ static int mb_pred_b_d4x4spatial(Macroblock *currMB, ColorPlane curr_plane, imgp
         copy_image_data_16x16(&currImg[currMB->pix_y], currSlice->mb_pred[curr_plane], currMB->pix_x, 0);
 
         if ((dec_picture->chroma_format_idc != YUV400) && (dec_picture->chroma_format_idc != YUV444)) {
-            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, p_Vid->mb_size[1][0], p_Vid->mb_size[1][1]);
-            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, p_Vid->mb_size[1][0], p_Vid->mb_size[1][1]);
+            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
+            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
         }
     } else {
         iTransform(currMB, curr_plane, 0); 
@@ -371,8 +391,14 @@ static int mb_pred_ipcm(Macroblock *currMB)
 {
     int i, j, k;
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     StorablePicture *dec_picture = currSlice->dec_picture;
+
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
     for (i = 0; i < MB_BLOCK_SIZE; ++i) {
         for (j = 0;j < MB_BLOCK_SIZE ; ++j)
@@ -381,8 +407,8 @@ static int mb_pred_ipcm(Macroblock *currMB)
 
     if (dec_picture->chroma_format_idc != YUV400 && p_Vid->active_sps->separate_colour_plane_flag == 0) {
         for (k = 0; k < 2; ++k) {
-            for (i = 0; i < p_Vid->mb_cr_size_y; ++i) {
-                for (j = 0;j < p_Vid->mb_cr_size_x; ++j)
+            for (i = 0; i < mb_cr_size_y; ++i) {
+                for (j = 0;j < mb_cr_size_x; ++j)
                     dec_picture->imgUV[k][currMB->pix_c_y + i][currMB->pix_c_x + j] = (imgpel) currSlice->cof[k + 1][i][j];
             }
         }
@@ -410,8 +436,8 @@ static int mb_pred_ipcm(Macroblock *currMB)
 
 static void intra_cr_decoding(Macroblock *currMB, int yuv)
 {
-    VideoParameters *p_Vid = currMB->p_Vid;
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     StorablePicture *dec_picture = currSlice->dec_picture;
     imgpel **curUV;
     int uv;
@@ -419,10 +445,21 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
     int ioff, joff;
     int i,j;
 
+    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV444 ? 16 : 8;
+    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
+                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+
     intra_pred_chroma(currMB);// last argument is ignored, computes needed data for both uv channels
 
     void (*itrans_4x4)(struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
     itrans_4x4 = (currMB->is_lossless == FALSE) ? itrans4x4 : itrans4x4_ls;
+
+    int num_uv_blocks;
+    if (sps->chroma_format_idc != YUV400)
+        num_uv_blocks = (((1 << sps->chroma_format_idc) & (~0x1)) >> 1);
+    else
+        num_uv_blocks = 0;
 
     for (uv = 0; uv < 2; uv++) {
 
@@ -432,14 +469,14 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
             if (currMB->c_ipred_mode == VERT_PRED_8 || currMB->c_ipred_mode == HOR_PRED_8)
                 Inv_Residual_trans_Chroma(currMB, uv) ;
             else {
-                for (j = 0; j < p_Vid->mb_cr_size_y; j++)
-                    for (i = 0; i < p_Vid->mb_cr_size_x; i++)
+                for (j = 0; j < mb_cr_size_y; j++)
+                    for (i = 0; i < mb_cr_size_x; i++)
                         currSlice->mb_rres[uv + 1][j][i] = currSlice->cof[uv + 1][j][i];
             }
         }
 
         if (currMB->mb_type != SI4MB && currMB->cbp >> 4) {
-            for (b8 = 0; b8 < p_Vid->num_uv_blocks; b8++) {
+            for (b8 = 0; b8 < num_uv_blocks; b8++) {
                 for (b4 = 0; b4 < 4; b4++) {
                     joff = subblk_offset_y[yuv][b8][b4];          
                     ioff = subblk_offset_x[yuv][b8][b4];          
@@ -462,7 +499,7 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
             }
             currSlice->is_reset_coeff_cr = FALSE;
         } else { 
-            for (b8 = 0; b8 < p_Vid->num_uv_blocks; b8++) {
+            for (b8 = 0; b8 < num_uv_blocks; b8++) {
                 for (b4 = 0; b4 < 4; b4++) {
                     joff = subblk_offset_y[yuv][b8][b4];
                     ioff = subblk_offset_x[yuv][b8][b4];          

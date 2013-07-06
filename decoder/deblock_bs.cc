@@ -310,9 +310,11 @@ void get_strength_ver_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
     Slice *currSlice = MbQ->p_Slice;
     BlockPos *PicPos = p_Vid->PicPos;
 
+    int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
     if (p->slice_type == SP_SLICE || p->slice_type == SI_SLICE) {
         for (idx = 0; idx < MB_BLOCK_SIZE; ++idx) {
-            getAffNeighbour(MbQ, edge - 1, idx, p_Vid->mb_size[IS_LUMA], &pixP);
+            getAffNeighbour(MbQ, edge - 1, idx, mb_size, &pixP);
             blkQ = (short) ((idx & 0xFFFC) + (edge >> 2));
             blkP = (short) ((pixP.y & 0xFFFC) + (pixP.x >> 2));
 
@@ -322,7 +324,7 @@ void get_strength_ver_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
             Strength[idx] = (edge == 0) ? 4 : 3;
         }
     } else {
-        getAffNeighbour(MbQ, edge - 1, 0, p_Vid->mb_size[IS_LUMA], &pixP);
+        getAffNeighbour(MbQ, edge - 1, 0, mb_size, &pixP);
 
         MbP = &(p_Vid->mb_data[pixP.mb_addr]);
         // Neighboring Frame MBs
@@ -386,7 +388,7 @@ void get_strength_ver_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
             }
         } else {
             for (idx = 0; idx < MB_BLOCK_SIZE; ++idx) {
-                getAffNeighbour(MbQ, edge - 1, idx, p_Vid->mb_size[IS_LUMA], &pixP);
+                getAffNeighbour(MbQ, edge - 1, idx, mb_size, &pixP);
                 blkQ = (short) ((idx & 0xFFFC) + (edge >> 2));
                 blkP = (short) ((pixP.y & 0xFFFC) + (pixP.x >> 2));
 
@@ -474,10 +476,12 @@ void get_strength_hor_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
     VideoParameters *p_Vid = MbQ->p_Vid;
     BlockPos *PicPos = p_Vid->PicPos;
 
+    int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
     if (p->slice_type == SP_SLICE || p->slice_type == SI_SLICE) {
         for (idx = 0; idx < MB_BLOCK_SIZE; idx += BLOCK_SIZE) {
             xQ = idx;
-            getAffNeighbour(MbQ, xQ, yQ - 1, p_Vid->mb_size[IS_LUMA], &pixP);
+            getAffNeighbour(MbQ, xQ, yQ - 1, mb_size, &pixP);
 
             blkQ = (short) ((yQ & 0xFFFC) + (xQ >> 2));
             blkP = (short) ((pixP.y & 0xFFFC) + (pixP.x >> 2));
@@ -490,7 +494,7 @@ void get_strength_hor_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
             *(int*)(Strength+idx) = StrValue * 0x01010101;
         }
     } else {
-        getAffNeighbour(MbQ, 0, yQ - 1, p_Vid->mb_size[IS_LUMA], &pixP);
+        getAffNeighbour(MbQ, 0, yQ - 1, mb_size, &pixP);
         MbP = &(p_Vid->mb_data[pixP.mb_addr]);
         MbQ->mixedModeEdgeFlag = (byte) (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag); 
 
@@ -501,7 +505,7 @@ void get_strength_hor_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
         } else {
             for (idx = 0; idx < MB_BLOCK_SIZE; idx += BLOCK_SIZE) {
                 xQ = idx;    
-                getAffNeighbour(MbQ, xQ, yQ - 1, p_Vid->mb_size[IS_LUMA], &pixP);
+                getAffNeighbour(MbQ, xQ, yQ - 1, mb_size, &pixP);
 
                 blkQ = (short) ((yQ & 0xFFFC) + (xQ >> 2));
                 blkP = (short) ((pixP.y & 0xFFFC) + (pixP.x >> 2));
