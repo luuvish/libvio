@@ -132,6 +132,7 @@ typedef struct slice_t {
     int8_t      QsY;
     int8_t      FilterOffsetA;
     int8_t      FilterOffsetB;
+    uint32_t    MapUnitsInSliceGroup0;
 
     int32_t     PicOrderCntMsb;
     uint32_t    FrameNumOffset;

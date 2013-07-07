@@ -417,6 +417,9 @@ typedef struct video_par {
     int      last_has_mmco_5;
     int      last_pic_bottom_field;
 
+    // FMO
+    int     *MbToSliceGroupMap;
+    int     *MapUnitToSliceGroupMap;
 
     pps_t      *active_pps;
     sps_t      *active_sps;
@@ -527,11 +530,6 @@ typedef struct video_par {
   int    recovery_flag;
 
 
-
-  // FMO
-  int *MbToSliceGroupMap;
-  int *MapUnitToSliceGroupMap;
-  int  NumberOfSliceGroups;    // the number of slice groups -1 (0 == scan order, 7 == maximum)
 
   void (*buf2img)          (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int o_size_x, int o_size_y, int symbol_size_in_bytes, int bitshift);
   void (*getNeighbour)     (struct macroblock_dec *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);

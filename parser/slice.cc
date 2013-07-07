@@ -225,6 +225,8 @@ void slice_header(Slice *currSlice)
         len = CeilLog2(len + 1);
         currSlice->slice_group_change_cycle = s->u(len, "SH: slice_group_change_cycle");
     }
+
+    currSlice->MapUnitsInSliceGroup0 = imin(currSlice->slice_group_change_cycle * pps->SliceGroupChangeRate, sps->PicSizeInMapUnits);
 }
 
 void ref_pic_list_modification(Slice *currSlice)
