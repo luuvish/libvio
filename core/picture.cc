@@ -89,10 +89,10 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
   }
 
   // allocate memory for reference frame in find_snr
-  memory_size += get_mem2Dpel(&cps->imgY_ref, cps->height, cps->width);
+  memory_size += get_mem2Dpel(&cps->imgY_ref, sps->FrameHeightInMbs*16, sps->PicWidthInMbs*16);
   if (sps->chroma_format_idc != YUV400)
   {
-    memory_size += get_mem3Dpel(&cps->imgUV_ref, 2, cps->height_cr, cps->width_cr);
+    memory_size += get_mem3Dpel(&cps->imgUV_ref, 2, sps->FrameHeightInMbs * sps->MbHeightC, sps->PicWidthInMbs * sps->MbWidthC);
   }
   else
     cps->imgUV_ref = NULL;
@@ -218,8 +218,8 @@ static void reset_format_info(sps_t *sps, VideoParameters *p_Vid, FrameFormat *s
     crop_left = crop_right = crop_top = crop_bottom = 0;
   }
 
-  source->width[0] = p_Vid->width - crop_left - crop_right;
-  source->height[0] = p_Vid->height - crop_top - crop_bottom;
+  source->width[0] = (sps->PicWidthInMbs * 16) - crop_left - crop_right;
+  source->height[0] = (sps->FrameHeightInMbs * 16) - crop_top - crop_bottom;
 
   // cropping for chroma
   if (sps->frame_cropping_flag)
@@ -243,18 +243,18 @@ static void reset_format_info(sps_t *sps, VideoParameters *p_Vid, FrameFormat *s
   }
   else
   {
-    source->width[1]  = p_Vid->width_cr - crop_left - crop_right;
+    source->width[1]  = (sps->PicWidthInMbs * sps->MbWidthC) - crop_left - crop_right;
     source->width[2]  = source->width[1];
-    source->height[1] = p_Vid->height_cr - crop_top - crop_bottom;
+    source->height[1] = (sps->FrameHeightInMbs * sps->MbHeightC) - crop_top - crop_bottom;
     source->height[2] = source->height[1];
   }
 
-  output->width[0]  = p_Vid->width;
-  source->width[1]  = p_Vid->width_cr;
-  source->width[2]  = p_Vid->width_cr;
-  output->height[0] = p_Vid->height;
-  output->height[1] = p_Vid->height_cr;
-  output->height[2] = p_Vid->height_cr;
+  output->width[0]  = sps->PicWidthInMbs * 16;
+  source->width[1]  = sps->PicWidthInMbs * sps->MbWidthC;
+  source->width[2]  = sps->PicWidthInMbs * sps->MbWidthC;
+  output->height[0] = sps->FrameHeightInMbs * 16;
+  output->height[1] = sps->FrameHeightInMbs * sps->MbHeightC;
+  output->height[2] = sps->FrameHeightInMbs * sps->MbHeightC;
 
   source->size_cmp[0] = source->width[0] * source->height[0];
   source->size_cmp[1] = source->width[1] * source->height[1];
@@ -297,7 +297,7 @@ static void reset_format_info(sps_t *sps, VideoParameters *p_Vid, FrameFormat *s
     p_Vid->first_sps = 0;
     if(!p_Inp->bDisplayDecParams) {
       fprintf(stdout,"Profile IDC  : %d\n", sps->profile_idc);
-      fprintf(stdout,"Image Format : %dx%d (%dx%d)\n", source->width[0], source->height[0], p_Vid->width, p_Vid->height);
+      fprintf(stdout,"Image Format : %dx%d (%dx%d)\n", source->width[0], source->height[0], sps->PicWidthInMbs*16, sps->FrameHeightInMbs*16);
       if (sps->chroma_format_idc == YUV400)
         fprintf(stdout,"Color Format : 4:0:0 ");
       else if (sps->chroma_format_idc == YUV420)
@@ -351,32 +351,16 @@ static void set_coding_par(sps_t *sps, CodingParameters *cps)
   }
 
   // Fidelity Range Extensions stuff (part 1)
-  cps->width_cr        = 0;
-  cps->height_cr       = 0;
-
-  cps->width = sps->PicWidthInMbs * MB_BLOCK_SIZE;
-  cps->height = sps->FrameHeightInMbs * MB_BLOCK_SIZE;  
-
   cps->iLumaPadX = MCBUF_LUMA_PAD_X;
   cps->iLumaPadY = MCBUF_LUMA_PAD_Y;
   cps->iChromaPadX = MCBUF_CHROMA_PAD_X;
   cps->iChromaPadY = MCBUF_CHROMA_PAD_Y;
-  if (sps->chroma_format_idc == YUV420)
+  if (sps->chroma_format_idc == YUV422)
   {
-    cps->width_cr  = (cps->width  >> 1);
-    cps->height_cr = (cps->height >> 1);
-  }
-  else if (sps->chroma_format_idc == YUV422)
-  {
-    cps->width_cr  = (cps->width >> 1);
-    cps->height_cr = cps->height;
     cps->iChromaPadY = MCBUF_CHROMA_PAD_Y*2;
   }
   else if (sps->chroma_format_idc == YUV444)
   {
-    //YUV444
-    cps->width_cr = cps->width;
-    cps->height_cr = cps->height;
     cps->iChromaPadX = cps->iLumaPadX;
     cps->iChromaPadY = cps->iLumaPadY;
   }
@@ -387,28 +371,16 @@ static void set_coding_par(sps_t *sps, CodingParameters *cps)
 
 static void set_global_coding_par(VideoParameters *p_Vid, CodingParameters *cps)
 {
-    p_Vid->width_cr        = 0;
-    p_Vid->height_cr       = 0;
     p_Vid->max_vmv_r = cps->max_vmv_r;
 
     // Fidelity Range Extensions stuff (part 1)
-    p_Vid->width = cps->width;
-    p_Vid->height = cps->height;
     p_Vid->iLumaPadX = MCBUF_LUMA_PAD_X;
     p_Vid->iLumaPadY = MCBUF_LUMA_PAD_Y;
     p_Vid->iChromaPadX = MCBUF_CHROMA_PAD_X;
     p_Vid->iChromaPadY = MCBUF_CHROMA_PAD_Y;
-    if (p_Vid->active_sps->chroma_format_idc == YUV420) {
-        p_Vid->width_cr  = (p_Vid->width  >> 1);
-        p_Vid->height_cr = (p_Vid->height >> 1);
-    } else if (p_Vid->active_sps->chroma_format_idc == YUV422) {
-        p_Vid->width_cr  = (p_Vid->width >> 1);
-        p_Vid->height_cr = p_Vid->height;
+    if (p_Vid->active_sps->chroma_format_idc == YUV422) {
         p_Vid->iChromaPadY = MCBUF_CHROMA_PAD_Y*2;
     } else if (p_Vid->active_sps->chroma_format_idc == YUV444) {
-        //YUV444
-        p_Vid->width_cr = p_Vid->width;
-        p_Vid->height_cr = p_Vid->height;
         p_Vid->iChromaPadX = p_Vid->iLumaPadX;
         p_Vid->iChromaPadY = p_Vid->iLumaPadY;
     }
@@ -466,9 +438,9 @@ void activate_sps (VideoParameters *p_Vid, sps_t *sps)
 #endif
 
 #if (DISABLE_ERC == 0)
-        ercInit(p_Vid, p_Vid->width, p_Vid->height, 1);
+        sps_t *sps = p_Vid->active_sps;
+        ercInit(p_Vid, sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16, 1);
         if (p_Vid->dec_picture) {
-            sps_t *sps = p_Vid->active_sps;
             Slice *currSlice = p_Vid->ppSliceList[0];
             int PicSizeInMbs = sps->PicWidthInMbs * (sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag));
             ercReset(p_Vid->erc_errorVar, PicSizeInMbs, PicSizeInMbs, p_Vid->dec_picture->size_x);

@@ -299,14 +299,14 @@ void seq_parameter_set_rbsp(DataPartition *p, sps_t *sps)
     }
 
     assert(sps->log2_max_pic_order_cnt_lsb_minus4 >= 0 && sps->log2_max_pic_order_cnt_lsb_minus4 <= 12);
-    sps->MaxPicOrderCntLsb = 1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4);
     assert(sps->offset_for_non_ref_pic >= -(1 << 31) + 1 && sps->offset_for_non_ref_pic <= (1 << 31) - 1);
     assert(sps->offset_for_top_to_bottom_field >= -(1 << 31) + 1 && sps->offset_for_top_to_bottom_field <= (1 << 31) - 1);
     assert(sps->num_ref_frames_in_pic_order_cnt_cycle >= 0 && sps->num_ref_frames_in_pic_order_cnt_cycle <= 255);
 
-    // ExpectedDeltaPerPicOrderCntCycle = 0;
-    // for (i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++)
-    //     ExpectedDeltaPerPicOrderCntCycle += offset_for_ref_frame[i];
+    sps->MaxPicOrderCntLsb = 1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4);
+    sps->ExpectedDeltaPerPicOrderCntCycle = 0;
+    for (i = 0; i < sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
+        sps->ExpectedDeltaPerPicOrderCntCycle += sps->offset_for_ref_frame[i];
 
     sps->max_num_ref_frames                        = s->ue("SPS: num_ref_frames");
 

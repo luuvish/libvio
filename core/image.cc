@@ -138,7 +138,7 @@ static void init_mvc_picture(Slice *currSlice)
     for (i = 0; i < (int)p_Dpb->used_size/*size*/; i++)
     {
       FrameStore *fs = p_Dpb->fs[i];
-      if ((fs->top_field->view_id == 0) && (fs->top_field->top_poc == currSlice->toppoc))
+      if ((fs->top_field->view_id == 0) && (fs->top_field->top_poc == currSlice->TopFieldOrderCnt))
       {
         p_pic = fs->top_field;
         break;
@@ -150,7 +150,7 @@ static void init_mvc_picture(Slice *currSlice)
     for (i = 0; i < (int)p_Dpb->used_size/*size*/; i++)
     {
       FrameStore *fs = p_Dpb->fs[i];
-      if ((fs->bottom_field->view_id == 0) && (fs->bottom_field->bottom_poc == currSlice->bottompoc))
+      if ((fs->bottom_field->view_id == 0) && (fs->bottom_field->bottom_poc == currSlice->BottomFieldOrderCnt))
       {
         p_pic = fs->bottom_field;
         break;
@@ -321,9 +321,11 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
     gettime (&(p_Vid->start_time));             // start time
   }
 
-  dec_picture = p_Vid->dec_picture = alloc_storable_picture (p_Vid, currSlice->structure, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr, 1);
-  dec_picture->top_poc=currSlice->toppoc;
-  dec_picture->bottom_poc=currSlice->bottompoc;
+  dec_picture = p_Vid->dec_picture = alloc_storable_picture (p_Vid, currSlice->structure,
+      sps->PicWidthInMbs*16, sps->FrameHeightInMbs*16,
+      sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
+  dec_picture->top_poc=currSlice->TopFieldOrderCnt;
+  dec_picture->bottom_poc=currSlice->BottomFieldOrderCnt;
   dec_picture->frame_poc=currSlice->framepoc;
   dec_picture->qp = currSlice->SliceQpY;
   dec_picture->slice_qp_delta = currSlice->slice_qp_delta;
@@ -353,10 +355,10 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
     if (!currSlice->field_pic_flag)
         dec_picture->poc = currSlice->framepoc;
     else if (!currSlice->bottom_field_flag) {
-        dec_picture->poc = currSlice->toppoc;
+        dec_picture->poc = currSlice->TopFieldOrderCnt;
         p_Vid->number *= 2;
     } else {
-        dec_picture->poc = currSlice->bottompoc;
+        dec_picture->poc = currSlice->BottomFieldOrderCnt;
         p_Vid->number = p_Vid->number * 2 + 1;
     }
 
@@ -467,9 +469,13 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   if(sps->separate_colour_plane_flag)
   {
     p_Vid->dec_picture_JV[0] = p_Vid->dec_picture;
-    p_Vid->dec_picture_JV[1] = alloc_storable_picture (p_Vid, (PictureStructure) currSlice->structure, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr, 1);
+    p_Vid->dec_picture_JV[1] = alloc_storable_picture (p_Vid, (PictureStructure) currSlice->structure,
+      sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+      sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
     copy_dec_picture_JV( p_Vid, p_Vid->dec_picture_JV[1], p_Vid->dec_picture_JV[0] );
-    p_Vid->dec_picture_JV[2] = alloc_storable_picture (p_Vid, (PictureStructure) currSlice->structure, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr, 1);
+    p_Vid->dec_picture_JV[2] = alloc_storable_picture (p_Vid, (PictureStructure) currSlice->structure,
+      sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+      sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
     copy_dec_picture_JV( p_Vid, p_Vid->dec_picture_JV[2], p_Vid->dec_picture_JV[0] );
   }
 }
@@ -650,8 +656,8 @@ int decode_one_frame(DecoderParams *pDecoder)
             p_Vid->dec_picture->max_slice_id = (short) imax(currSlice->current_slice_nr, p_Vid->dec_picture->max_slice_id);
             if (p_Vid->iSliceNumOfCurrPic > 0) {
                 currSlice->framepoc  = (*ppSliceList)->framepoc;
-                currSlice->toppoc    = (*ppSliceList)->toppoc;
-                currSlice->bottompoc = (*ppSliceList)->bottompoc;  
+                currSlice->TopFieldOrderCnt    = (*ppSliceList)->TopFieldOrderCnt;
+                currSlice->BottomFieldOrderCnt = (*ppSliceList)->BottomFieldOrderCnt;  
                 currSlice->ThisPOC   = (*ppSliceList)->ThisPOC;
             }
             p_Vid->iSliceNumOfCurrPic++;

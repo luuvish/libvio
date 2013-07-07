@@ -192,7 +192,7 @@ static void Report(VideoParameters *p_Vid)
   fprintf(p_log,"%20.20s|",p_Inp->infile);
 
   fprintf(p_log,"%3d |",p_Vid->number);
-  fprintf(p_log,"%4dx%-4d|", p_Vid->width, p_Vid->height);
+  fprintf(p_log,"%4dx%-4d|", p_Vid->active_sps->PicWidthInMbs*16, p_Vid->active_sps->FrameHeightInMbs*16);
   fprintf(p_log," %s |", &(yuv_formats[p_Vid->active_sps->chroma_format_idc][0]));
 
   if (active_pps)

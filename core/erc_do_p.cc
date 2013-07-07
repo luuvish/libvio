@@ -569,13 +569,13 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   int b8, b4;
   int yuv = dec_picture->chroma_format_idc - 1;
 
+  sps_t *sps = p_Vid->active_sps;
   int ref_frame = imax (mv[2], 0); // !!KS: quick fix, we sometimes seem to get negative ref_pic here, so restrict to zero and above
-  int mb_nr = y/16*(p_Vid->width/16)+x/16; ///currSlice->current_mb_nr;
+  int mb_nr = y/16*(sps->PicWidthInMbs)+x/16; ///currSlice->current_mb_nr;
   int **tmp_res = NULL;
   
   Macroblock *currMB = &p_Vid->mb_data[mb_nr];   // intialization code deleted, see below, StW  
   currSlice = currMB->p_Slice;
-  sps_t *sps = currSlice->active_sps;
   tmp_res = currSlice->tmp_res;
 
     int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
@@ -1190,7 +1190,9 @@ static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoPar
     dst->PicWidthInMbs = src->PicWidthInMbs;
     dst->PicSizeInMbs = src->PicSizeInMbs;
 
-    CopyImgData( src->imgY, src->imgUV, dst->imgY, dst->imgUV, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr);
+    CopyImgData( src->imgY, src->imgUV, dst->imgY, dst->imgUV,
+      sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+      sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC);
   }
 
   // Conceals the missing frame by motion vector copy concealment
@@ -1319,6 +1321,7 @@ copy_prev_pic_to_concealed_pic(StorablePicture *picture, DecodedPictureBuffer *p
 void conceal_lost_frames(DecodedPictureBuffer *p_Dpb, Slice *pSlice)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
+  sps_t *sps = p_Vid->active_sps;
   int CurrFrameNum;
   int UnusedShortTermFrameNum;
   StorablePicture *picture = NULL;
@@ -1345,7 +1348,9 @@ void conceal_lost_frames(DecodedPictureBuffer *p_Dpb, Slice *pSlice)
 
   while (CurrFrameNum != UnusedShortTermFrameNum)
   {
-    picture = alloc_storable_picture (p_Vid, FRAME, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr, 1);
+    picture = alloc_storable_picture (p_Vid, FRAME,
+        sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+        sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
 
     picture->coded_frame = 1;
     picture->pic_num = UnusedShortTermFrameNum;
@@ -1724,6 +1729,7 @@ void delete_list( VideoParameters *p_Vid, struct concealment_node *ptr )
 void conceal_non_ref_pics(DecodedPictureBuffer *p_Dpb, int diff)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
+  sps_t *sps = p_Vid->active_sps;
   int missingpoc = 0;
   unsigned int i, pos = 0;
   StorablePicture *conceal_from_picture = NULL;
@@ -1741,7 +1747,9 @@ void conceal_non_ref_pics(DecodedPictureBuffer *p_Dpb, int diff)
     p_Dpb->used_size = p_Dpb->size;
     if((p_Vid->pocs_in_dpb[i+1] - p_Vid->pocs_in_dpb[i]) > p_Vid->poc_gap)
     {
-      conceal_to_picture = alloc_storable_picture (p_Vid, FRAME, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr, 1);
+      conceal_to_picture = alloc_storable_picture (p_Vid, FRAME,
+        sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+        sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
 
       missingpoc = p_Vid->pocs_in_dpb[i] + p_Vid->poc_gap;
       // Diagnostics
@@ -1843,13 +1851,15 @@ void write_lost_non_ref_pic(DecodedPictureBuffer *p_Dpb, int poc, int p_out)
 void write_lost_ref_after_idr(DecodedPictureBuffer *p_Dpb, int pos)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
+  sps_t *sps = p_Vid->active_sps;
 
   int temp = 1;
 
   if(p_Vid->last_out_fs->frame == NULL)
   {
-    p_Vid->last_out_fs->frame = alloc_storable_picture (p_Vid, FRAME, p_Vid->width, p_Vid->height,
-      p_Vid->width_cr, p_Vid->height_cr, 1);
+    p_Vid->last_out_fs->frame = alloc_storable_picture (p_Vid, FRAME,
+      sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+      sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
     p_Vid->last_out_fs->is_used = 3;
   }
 

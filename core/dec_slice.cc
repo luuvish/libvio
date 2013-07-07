@@ -229,7 +229,7 @@ static void fill_wp_params(Slice *currSlice)
                                     currSlice->wbp_weight[k+0][i][j][comp] =   32;
                                     currSlice->wbp_weight[k+1][i][j][comp] =   32;
                                 } else {
-                                    tb = iClip3(-128,127,((k==2)?currSlice->toppoc:currSlice->bottompoc) - currSlice->listX[k+LIST_0][i]->poc);
+                                    tb = iClip3(-128,127,((k==2)?currSlice->TopFieldOrderCnt:currSlice->BottomFieldOrderCnt) - currSlice->listX[k+LIST_0][i]->poc);
 
                                     tx = (16384 + iabs(td/2))/td;
                                     DistScaleFactor = iClip3(-1024, 1023, (tx*tb + 32 )>>6);

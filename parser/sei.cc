@@ -118,6 +118,8 @@ void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
   int delta_spare_frame_num, CandidateSpareFrameNum, SpareFrameNum = 0;
   int ref_area_indicator;
 
+  sps_t *sps = p_Vid->active_sps;
+
   int m, n, left, right, top, bottom,directx, directy;
   byte ***map;
 
@@ -133,7 +135,7 @@ void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
 
   num_spare_pics = 1 + buf->ue("SEI: num_spare_pics_minus1");
 
-  get_mem3D(&map, num_spare_pics, p_Vid->height >> 4, p_Vid->width >> 4);
+  get_mem3D(&map, num_spare_pics, sps->FrameHeightInMbs, sps->PicWidthInMbs);
 
   for (i=0; i<num_spare_pics; i++)
   {
@@ -156,13 +158,13 @@ void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
     switch ( ref_area_indicator )
     {
     case 0:   // The whole frame can serve as spare picture
-      for (y=0; y<p_Vid->height >> 4; y++)
-        for (x=0; x<p_Vid->width >> 4; x++)
+      for (y=0; y<sps->FrameHeightInMbs; y++)
+        for (x=0; x<sps->PicWidthInMbs; x++)
           map[i][y][x] = 0;
       break;
     case 1:   // The map is not compressed
-      for (y=0; y<p_Vid->height >> 4; y++)
-        for (x=0; x<p_Vid->width >> 4; x++)
+      for (y=0; y<sps->FrameHeightInMbs; y++)
+        for (x=0; x<sps->PicWidthInMbs; x++)
         {
           map[i][y][x] = (byte) buf->u(1, "SEI: ref_mb_indicator");
         }
@@ -174,15 +176,15 @@ void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
       bitc = bit0;
       no_bit0 = -1;
 
-      x = ( (p_Vid->width >> 4) - 1 ) / 2;
-      y = ( (p_Vid->height >> 4) - 1 ) / 2;
+      x = ( sps->PicWidthInMbs - 1 ) / 2;
+      y = ( sps->FrameHeightInMbs - 1 ) / 2;
       left = right = x;
       top = bottom = y;
       directx = 0;
       directy = 1;
 
-      for (m=0; m<p_Vid->height >> 4; m++)
-        for (n=0; n<p_Vid->width >> 4; n++)
+      for (m=0; m<sps->FrameHeightInMbs; m++)
+        for (n=0; n<sps->PicWidthInMbs; n++)
         {
 
           if (no_bit0<0)
@@ -217,7 +219,7 @@ void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
           else if ( directx == 1 && directy == 0 )
           {
             if (x < right) x++;
-            else if (x == (p_Vid->width >> 4) - 1)
+            else if (x == sps->PicWidthInMbs - 1)
             {
               y = top - 1;
               top--;
@@ -253,7 +255,7 @@ void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
           else if ( directx == 0 && directy == 1 )
           {
             if (y < bottom) y++;
-            else if (y == (p_Vid->height >> 4) - 1)
+            else if (y == sps->FrameHeightInMbs - 1)
             {
               x = right+1;
               right++;

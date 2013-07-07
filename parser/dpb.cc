@@ -189,7 +189,7 @@ void check_num_ref(DecodedPictureBuffer *p_Dpb)
 void init_dpb(VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb, int type)
 {
   unsigned i; 
-  sps_t *active_sps = p_Vid->active_sps;
+  sps_t *sps = p_Vid->active_sps;
 
   p_Dpb->p_Vid = p_Vid;
   if (p_Dpb->init_done)
@@ -197,13 +197,13 @@ void init_dpb(VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb, int type)
     free_dpb(p_Dpb);
   }
 
-  p_Dpb->size = getDpbSize(p_Vid, active_sps) + p_Vid->p_Inp->dpb_plus[type==2? 1: 0];
-  p_Dpb->num_ref_frames = active_sps->max_num_ref_frames; 
+  p_Dpb->size = getDpbSize(p_Vid, sps) + p_Vid->p_Inp->dpb_plus[type==2? 1: 0];
+  p_Dpb->num_ref_frames = sps->max_num_ref_frames; 
 
 #if (MVC_EXTENSION_ENABLE)
-  if ((unsigned int)active_sps->max_dec_frame_buffering < active_sps->max_num_ref_frames)
+  if ((unsigned int)sps->max_dec_frame_buffering < sps->max_num_ref_frames)
 #else
-  if (p_Dpb->size < active_sps->max_num_ref_frames)
+  if (p_Dpb->size < sps->max_num_ref_frames)
 #endif
   {
     error ("DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n", 1000);
@@ -259,18 +259,12 @@ void init_dpb(VideoParameters *p_Vid, DecodedPictureBuffer *p_Dpb, int type)
     p_Dpb->fs_ilref[0] = NULL;
 #endif
 
-  /*
-  for (i = 0; i < 6; i++)
-  {
-  currSlice->listX[i] = calloc(MAX_LIST_SIZE, sizeof (StorablePicture*)); // +1 for reordering
-  if (NULL==currSlice->listX[i])
-  no_mem_exit("init_dpb: currSlice->listX[i]");
-  }
-  */
   /* allocate a dummy storable picture */
   if(!p_Vid->no_reference_picture)
   {
-    p_Vid->no_reference_picture = alloc_storable_picture (p_Vid, FRAME, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr, 1);
+    p_Vid->no_reference_picture = alloc_storable_picture (p_Vid, FRAME,
+        sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+        sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
     p_Vid->no_reference_picture->top_field    = p_Vid->no_reference_picture;
     p_Vid->no_reference_picture->bottom_field = p_Vid->no_reference_picture;
     p_Vid->no_reference_picture->frame        = p_Vid->no_reference_picture;
@@ -1568,13 +1562,13 @@ static void adaptive_memory_management(DecodedPictureBuffer *p_Dpb, StorablePict
     {
     case TOP_FIELD:
       {
-        //p->poc = p->top_poc = p_Vid->toppoc =0;
+        //p->poc = p->top_poc = p_Vid->TopFieldOrderCnt =0;
         p->poc = p->top_poc = 0;
         break;
       }
     case BOTTOM_FIELD:
       {
-        //p->poc = p->bottom_poc = p_Vid->bottompoc = 0;
+        //p->poc = p->bottom_poc = p_Vid->BottomFieldOrderCnt = 0;
         p->poc = p->bottom_poc = 0;
         break;
       }
@@ -1583,8 +1577,8 @@ static void adaptive_memory_management(DecodedPictureBuffer *p_Dpb, StorablePict
         p->top_poc    -= p->poc;
         p->bottom_poc -= p->poc;
 
-        //p_Vid->toppoc = p->top_poc;
-        //p_Vid->bottompoc = p->bottom_poc;
+        //p_Vid->TopFieldOrderCnt = p->top_poc;
+        //p_Vid->BottomFieldOrderCnt = p->bottom_poc;
 
         p->poc = imin (p->top_poc, p->bottom_poc);
         //p_Vid->framepoc = p->poc;
@@ -2476,7 +2470,7 @@ void dpb_combine_field(VideoParameters *p_Vid, FrameStore *fs)
  */
 void fill_frame_num_gap(VideoParameters *p_Vid, Slice *currSlice)
 {
-  sps_t *active_sps = p_Vid->active_sps;
+  sps_t *sps = p_Vid->active_sps;
   
   int CurrFrameNum;
   int UnusedShortTermFrameNum;
@@ -2487,12 +2481,14 @@ void fill_frame_num_gap(VideoParameters *p_Vid, Slice *currSlice)
 
   printf("A gap in frame number is found, try to fill it.\n");
 
-  UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % active_sps->MaxFrameNum;
-  CurrFrameNum = currSlice->frame_num; //p_Vid->frame_num;
+  UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % sps->MaxFrameNum;
+  CurrFrameNum = currSlice->frame_num;
 
   while (CurrFrameNum != UnusedShortTermFrameNum)
   {
-    picture = alloc_storable_picture (p_Vid, FRAME, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr, 1);
+    picture = alloc_storable_picture (p_Vid, FRAME,
+        sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+        sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
     picture->coded_frame = 1;
     picture->pic_num = UnusedShortTermFrameNum;
     picture->frame_num = UnusedShortTermFrameNum;
@@ -2505,12 +2501,12 @@ void fill_frame_num_gap(VideoParameters *p_Vid, Slice *currSlice)
 #endif
 
     currSlice->frame_num = UnusedShortTermFrameNum;
-    if (active_sps->pic_order_cnt_type!=0)
+    if (sps->pic_order_cnt_type!=0)
     {
       decode_poc(p_Vid, p_Vid->ppSliceList[0]);
     }
-    picture->top_poc    = currSlice->toppoc;
-    picture->bottom_poc = currSlice->bottompoc;
+    picture->top_poc    = currSlice->TopFieldOrderCnt;
+    picture->bottom_poc = currSlice->BottomFieldOrderCnt;
     picture->frame_poc  = currSlice->framepoc;
     picture->poc        = currSlice->framepoc;
 
@@ -2518,7 +2514,7 @@ void fill_frame_num_gap(VideoParameters *p_Vid, Slice *currSlice)
 
     picture=NULL;
     p_Vid->pre_frame_num = UnusedShortTermFrameNum;
-    UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % active_sps->MaxFrameNum;
+    UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % sps->MaxFrameNum;
   }
   currSlice->delta_pic_order_cnt[0] = tmp1;
   currSlice->delta_pic_order_cnt[1] = tmp2;
@@ -2713,19 +2709,19 @@ int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
   
   // allocate memory for reference frame buffers: p_ImgData->frm_data
   p_ImgData->format           = p_Inp->output;
-  p_ImgData->format.width[0]  = p_Vid->width;    
-  p_ImgData->format.width[1]  = p_Vid->width_cr;
-  p_ImgData->format.width[2]  = p_Vid->width_cr;
-  p_ImgData->format.height[0] = p_Vid->height;  
-  p_ImgData->format.height[1] = p_Vid->height_cr;
-  p_ImgData->format.height[2] = p_Vid->height_cr;
+  p_ImgData->format.width[0]  = sps->PicWidthInMbs * 16;
+  p_ImgData->format.width[1]  = sps->PicWidthInMbs * sps->MbWidthC;
+  p_ImgData->format.width[2]  = sps->PicWidthInMbs * sps->MbWidthC;
+  p_ImgData->format.height[0] = sps->FrameHeightInMbs * 16;
+  p_ImgData->format.height[1] = sps->FrameHeightInMbs * sps->MbHeightC;
+  p_ImgData->format.height[2] = sps->FrameHeightInMbs * sps->MbHeightC;
   p_ImgData->format.yuv_format          = (ColorFormat) sps->chroma_format_idc;
   p_ImgData->format.auto_crop_bottom    = p_Inp->output.auto_crop_bottom;
   p_ImgData->format.auto_crop_right     = p_Inp->output.auto_crop_right;
   p_ImgData->format.auto_crop_bottom_cr = p_Inp->output.auto_crop_bottom_cr;
   p_ImgData->format.auto_crop_right_cr  = p_Inp->output.auto_crop_right_cr;
-  p_ImgData->frm_stride[0]    = p_Vid->width;
-  p_ImgData->frm_stride[1]    = p_ImgData->frm_stride[2] = p_Vid->width_cr;
+  p_ImgData->frm_stride[0]    = sps->PicWidthInMbs * 16;
+  p_ImgData->frm_stride[1]    = p_ImgData->frm_stride[2] = sps->PicWidthInMbs * sps->MbWidthC;
   p_ImgData->top_stride[0] = p_ImgData->bot_stride[0] = p_ImgData->frm_stride[0] << 1;
   p_ImgData->top_stride[1] = p_ImgData->top_stride[2] = p_ImgData->bot_stride[1] = p_ImgData->bot_stride[2] = p_ImgData->frm_stride[1] << 1;
 
@@ -2733,23 +2729,23 @@ int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
   {
     for( nplane=0; nplane < MAX_PLANE; nplane++ )
     {
-      memory_size += get_mem2Dpel(&(p_ImgData->frm_data[nplane]), p_Vid->height, p_Vid->width);
+      memory_size += get_mem2Dpel(&(p_ImgData->frm_data[nplane]), sps->FrameHeightInMbs * 16, sps->PicWidthInMbs * 16);
     }
   }
   else
   {
-    memory_size += get_mem2Dpel(&(p_ImgData->frm_data[0]), p_Vid->height, p_Vid->width);
+    memory_size += get_mem2Dpel(&(p_ImgData->frm_data[0]), sps->FrameHeightInMbs * 16, sps->PicWidthInMbs * 16);
 
     if (sps->chroma_format_idc != YUV400)
     {
       int i, j, k;
-      memory_size += get_mem2Dpel(&(p_ImgData->frm_data[1]), p_Vid->height_cr, p_Vid->width_cr);
-      memory_size += get_mem2Dpel(&(p_ImgData->frm_data[2]), p_Vid->height_cr, p_Vid->width_cr);
+      memory_size += get_mem2Dpel(&(p_ImgData->frm_data[1]), sps->FrameHeightInMbs * sps->MbHeightC, sps->PicWidthInMbs * sps->MbWidthC);
+      memory_size += get_mem2Dpel(&(p_ImgData->frm_data[2]), sps->FrameHeightInMbs * sps->MbHeightC, sps->PicWidthInMbs * sps->MbWidthC);
 
       if (sizeof(imgpel) == sizeof(unsigned char))
       {
         for (k = 1; k < 3; k++)
-          memset(p_ImgData->frm_data[k][0], 128, p_Vid->height_cr * p_Vid->width_cr * sizeof(imgpel));
+          memset(p_ImgData->frm_data[k][0], 128, sps->FrameHeightInMbs * sps->MbHeightC * sps->PicWidthInMbs * sps->MbWidthC * sizeof(imgpel));
       }
       else
       {
@@ -2757,11 +2753,11 @@ int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
 
         for (k = 1; k < 3; k++)
         {
-          mean_val = (imgpel) (p_Vid->active_sps->BitDepthC);
+          mean_val = (imgpel) (sps->BitDepthC);
 
-          for (j = 0; j < p_Vid->height_cr; j++)
+          for (j = 0; j < sps->FrameHeightInMbs * sps->MbHeightC; j++)
           {
-            for (i = 0; i < p_Vid->width_cr; i++)
+            for (i = 0; i < sps->PicWidthInMbs * sps->MbWidthC; i++)
               p_ImgData->frm_data[k][j][i] = mean_val;
           }
         }
@@ -2772,14 +2768,14 @@ int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
   if (!sps->frame_mbs_only_flag)
   {
     // allocate memory for field reference frame buffers
-    memory_size += init_top_bot_planes(p_ImgData->frm_data[0], p_Vid->height, &(p_ImgData->top_data[0]), &(p_ImgData->bot_data[0]));
+    memory_size += init_top_bot_planes(p_ImgData->frm_data[0], sps->FrameHeightInMbs * 16, &(p_ImgData->top_data[0]), &(p_ImgData->bot_data[0]));
 
     if (sps->chroma_format_idc != YUV400)
     {
       memory_size += 4*(sizeof(imgpel**));
 
-      memory_size += init_top_bot_planes(p_ImgData->frm_data[1], p_Vid->height_cr, &(p_ImgData->top_data[1]), &(p_ImgData->bot_data[1]));
-      memory_size += init_top_bot_planes(p_ImgData->frm_data[2], p_Vid->height_cr, &(p_ImgData->top_data[2]), &(p_ImgData->bot_data[2]));
+      memory_size += init_top_bot_planes(p_ImgData->frm_data[1], sps->FrameHeightInMbs * sps->MbHeightC, &(p_ImgData->top_data[1]), &(p_ImgData->bot_data[1]));
+      memory_size += init_top_bot_planes(p_ImgData->frm_data[2], sps->FrameHeightInMbs * sps->MbHeightC, &(p_ImgData->top_data[2]), &(p_ImgData->bot_data[2]));
     }
   }
 
@@ -2944,7 +2940,10 @@ StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePictur
   int ostride[2];
   imgpel ***img_in = NULL;
 
-  StorablePicture *p_stored_pic = alloc_storable_picture (p_Vid, (PictureStructure) p_Vid->structure, p_Vid->width, p_Vid->height, p_Vid->width_cr, p_Vid->height_cr, 0);
+  sps_t *sps = p_Vid->active_sps;
+  StorablePicture *p_stored_pic = alloc_storable_picture (p_Vid, (PictureStructure) p_Vid->structure,
+      sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+      sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 0);
 
   p_stored_pic->pic_num = p_pic->pic_num;
   p_stored_pic->frame_num = p_pic->frame_num;

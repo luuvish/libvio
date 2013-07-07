@@ -122,10 +122,24 @@ typedef struct slice_t {
 
     PictureStructure    structure;     //!< Identify picture structure type
     bool        MbaffFrameFlag;
+    uint32_t    PicHeightInMbs;
+    uint32_t    PicHeightInSampleL;
+    uint32_t    PicHeightInSampleC;
+    uint32_t    PicSizeInMbs;
+    uint32_t    MaxPicNum;
+    uint32_t    CurrPicNum;
     int8_t      SliceQpY;
     int8_t      QsY;
     int8_t      FilterOffsetA;
     int8_t      FilterOffsetB;
+
+    int32_t     PicOrderCntMsb;
+    uint32_t    FrameNumOffset;
+    int32_t     TopFieldOrderCnt;
+    int32_t     BottomFieldOrderCnt;
+    // for POC mode 1:
+    int         ThisPOC;
+    int         framepoc;
 
 
     //weighted prediction
@@ -136,17 +150,8 @@ typedef struct slice_t {
     int                   ****wbp_weight; //weight in [list][fw_index][bw_index][component] order
 
 
-    int                       toppoc;    //poc for this top field
-    int                       bottompoc; //poc of bottom field of frame
-    int                       framepoc;  //poc of this frame
 
 
-    // ////////////////////////
-    // for POC mode 0:
-    signed   int              PicOrderCntMsb;
-    // for POC mode 1:
-    unsigned int              AbsFrameNum;
-    int                       ThisPOC;
 
     //information need to move to slice;
     unsigned int              current_mb_nr; // bitstream order
@@ -172,13 +177,15 @@ typedef struct slice_t {
 #endif
 
     //slice header information;
-
+    int                       ref_flag[17]; //!< 0: i-th previous frame is incorrect
     char                      listXsize[6];
     struct storable_picture **listX[6];
 
     DataPartition            *partArr;      //!< array of partitions
     struct motion_info_context_t  *mot_ctx;      //!< pointer to struct of context models for use in CABAC
     struct texture_info_context_t *tex_ctx;      //!< pointer to struct of context models for use in CABAC
+
+
 
     int                       mvscale[6][MAX_REFERENCE_PICTURES];
 
@@ -225,7 +232,6 @@ typedef struct slice_t {
 
     // for signalling to the neighbour logic that this is a deblocker call
     int                       max_mb_vmv_r; //!< maximum vertical motion vector range in luma quarter pixel units for the current level_idc
-    int                       ref_flag[17]; //!< 0: i-th previous frame is incorrect
 
     int                       erc_mvperMB;
     struct macroblock_dec     *mb_data;

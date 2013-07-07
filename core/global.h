@@ -251,10 +251,6 @@ typedef struct decodedpic_t {
 typedef struct coding_par {
     int layer_id;
     int profile_idc;
-    int width;
-    int height;
-    int width_cr;                               //!< width chroma  
-    int height_cr;                              //!< height chroma
 
     int max_vmv_r;                             //!< maximum vertical motion vector range in luma quarter frame pixel units for the current level_idc
     int iLumaPadX;
@@ -414,20 +410,26 @@ typedef struct video_par {
     int  g_nFrame;
 
 
+    int32_t  prevPicOrderCntMsb;
+    uint32_t prevPicOrderCntLsb;
+    uint32_t prevFrameNum;
+    uint32_t prevFrameNumOffset;
+    int      last_has_mmco_5;
+    int      last_pic_bottom_field;
 
-  pps_t *active_pps;
-  sps_t *active_sps;
-  sps_t SeqParSet[MAXSPS];
-  pps_t PicParSet[MAXPPS];
 
+    pps_t      *active_pps;
+    sps_t      *active_sps;
+    sps_t       SeqParSet[MAXSPS];
+    pps_t       PicParSet[MAXPPS];
 
 #if (MVC_EXTENSION_ENABLE)
-    sub_sps_t *active_subset_sps;
-    sub_sps_t SubsetSeqParSet[MAXSPS];
-    int last_pic_width_in_mbs_minus1;
-    int last_pic_height_in_map_units_minus1;
-    int last_max_dec_frame_buffering;
-    int last_profile_idc;
+    sub_sps_t  *active_subset_sps;
+    sub_sps_t   SubsetSeqParSet[MAXSPS];
+    int         last_pic_width_in_mbs_minus1;
+    int         last_pic_height_in_map_units_minus1;
+    int         last_max_dec_frame_buffering;
+    int         last_profile_idc;
 #endif
 
   struct sei_params        *p_SEI;
@@ -462,23 +464,11 @@ typedef struct video_par {
   unsigned int pre_frame_num;           //!< store the frame_num in the last decoded slice. For detecting gap in frame_num.
   int non_conforming_stream;
 
-  // ////////////////////////
-  // for POC mode 0:
-  signed   int PrevPicOrderCntMsb;
-  unsigned int PrevPicOrderCntLsb;
-
   // for POC mode 1:
-  signed int ExpectedPicOrderCnt, PicOrderCntCycleCnt, FrameNumInPicOrderCntCycle;
-  unsigned int PreviousFrameNum, FrameNumOffset;
-  int ExpectedDeltaPerPicOrderCntCycle;
   int ThisPOC;
-  int PreviousFrameNumOffset;
   // /////////////////////////
 
   int no_output_of_prior_pics_flag;
-
-  int last_has_mmco_5;
-  int last_pic_bottom_field;
 
   int idr_psnr_number;
   int psnr_number;
@@ -570,10 +560,6 @@ typedef struct video_par {
   int dpb_layer_id;
 
 /******************* deprecative variables; ***************************************/
-  int width;
-  int height;
-  int width_cr;                               //!< width chroma  
-  int height_cr;                              //!< height chroma
   // Fidelity Range Extensions Stuff
 
   int profile_idc;

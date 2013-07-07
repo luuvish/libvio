@@ -287,6 +287,7 @@ static void make_frame_picture_JV(VideoParameters *p_Vid)
 {
     int uv, line;
     int nsize;
+    sps_t *sps = p_Vid->active_sps;
     p_Vid->dec_picture = p_Vid->dec_picture_JV[0];
 
     if (p_Vid->dec_picture->used_for_reference) {
@@ -298,8 +299,8 @@ static void make_frame_picture_JV(VideoParameters *p_Vid)
 
     // This could be done with pointers and seems not necessary
     for (uv = 0; uv < 2; uv++) {
-        for (line = 0; line < p_Vid->height; line++) {
-            nsize = sizeof(imgpel) * p_Vid->width;
+        for (line = 0; line < sps->FrameHeightInMbs * 16; line++) {
+            nsize = sizeof(imgpel) * sps->PicWidthInMbs * 16;
             memcpy( p_Vid->dec_picture->imgUV[uv][line], p_Vid->dec_picture_JV[uv+1]->imgY[line], nsize );
         }
         free_storable_picture(p_Vid->dec_picture_JV[uv+1]);

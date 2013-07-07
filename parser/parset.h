@@ -162,6 +162,7 @@ typedef struct seq_parameter_set_t {
     bool        UseDefaultScalingMatrix8x8Flag[6];
     uint32_t    MaxFrameNum;
     uint32_t    MaxPicOrderCntLsb;
+    int32_t     ExpectedDeltaPerPicOrderCntCycle;
     uint32_t    PicWidthInMbs;
     uint32_t    PicWidthInSamplesL;
     uint32_t    PicWidthInSamplesC;

@@ -67,7 +67,18 @@ void slice_header(Slice *currSlice)
 
     currSlice->structure = (PictureStructure) p_Vid->structure;
 
-    currSlice->MbaffFrameFlag = (sps->mb_adaptive_frame_field_flag && !currSlice->field_pic_flag);
+    currSlice->MbaffFrameFlag     = (sps->mb_adaptive_frame_field_flag && !currSlice->field_pic_flag);
+    currSlice->PicHeightInMbs     = sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag);
+    currSlice->PicHeightInSampleL = currSlice->PicHeightInMbs * 16;
+    currSlice->PicHeightInSampleC = currSlice->PicHeightInMbs * sps->MbHeightC;
+    currSlice->PicSizeInMbs       = sps->PicWidthInMbs * currSlice->PicHeightInMbs;
+    if (currSlice->field_pic_flag) {
+        currSlice->MaxPicNum  = 2 * sps->MaxFrameNum;
+        currSlice->CurrPicNum = currSlice->frame_num;
+    } else {
+        currSlice->MaxPicNum  = sps->MaxFrameNum;
+        currSlice->CurrPicNum = 2 * currSlice->frame_num + 1;
+    }
 
     if (currSlice->idr_flag)
         currSlice->idr_pic_id = s->ue("SH: idr_pic_id");
@@ -100,7 +111,7 @@ void slice_header(Slice *currSlice)
            currSlice->delta_pic_order_cnt[1] <=  (1 << 31) - 1);
 
     currSlice->redundant_pic_cnt = 0;
-    if (p_Vid->active_pps->redundant_pic_cnt_present_flag)
+    if (pps->redundant_pic_cnt_present_flag)
         currSlice->redundant_pic_cnt = s->ue("SH: redundant_pic_cnt");
 
     assert(currSlice->redundant_pic_cnt >= 0 && currSlice->redundant_pic_cnt <= 127);
@@ -119,8 +130,27 @@ void slice_header(Slice *currSlice)
                 currSlice->num_ref_idx_l1_active_minus1 = s->ue("SH: num_ref_idx_l1_active_minus1");
         }
     }
-    if (currSlice->slice_type != B_slice)
-        currSlice->num_ref_idx_l1_active_minus1 = -1;
+
+    if ((currSlice->slice_type == P_slice || currSlice->slice_type == SP_slice ||
+         currSlice->slice_type == B_slice) &&
+        !currSlice->field_pic_flag && pps->num_ref_idx_l0_default_active_minus1 > 15)
+        assert(currSlice->num_ref_idx_active_override_flag == 1);
+    if (currSlice->slice_type == B_slice &&
+        !currSlice->field_pic_flag && pps->num_ref_idx_l1_default_active_minus1 > 15)
+        assert(currSlice->num_ref_idx_active_override_flag == 1);
+
+    if (!currSlice->field_pic_flag)
+        assert(currSlice->num_ref_idx_l0_active_minus1 >= 0 &&
+               currSlice->num_ref_idx_l0_active_minus1 <= 15);
+    else
+        assert(currSlice->num_ref_idx_l0_active_minus1 >= 0 &&
+               currSlice->num_ref_idx_l0_active_minus1 <= 31);
+    if (!currSlice->field_pic_flag)
+        assert(currSlice->num_ref_idx_l1_active_minus1 >= 0 &&
+               currSlice->num_ref_idx_l1_active_minus1 <= 15);
+    else
+        assert(currSlice->num_ref_idx_l1_active_minus1 >= 0 &&
+               currSlice->num_ref_idx_l1_active_minus1 <= 31);
 
 #if (MVC_EXTENSION_ENABLE)
     // if (nal_unit_type == 20 || nal_unit_type == 21)
@@ -464,153 +494,154 @@ void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *s, Slice *currSlice)
  */
 void decode_poc(VideoParameters *p_Vid, Slice *pSlice)
 {
-    sps_t *active_sps = p_Vid->active_sps;
+    sps_t *sps = p_Vid->active_sps;
+    uint32_t absFrameNum;
+    int32_t  expectedPicOrderCnt;
+    uint32_t tempPicOrderCnt;
     int i;
-    // for POC mode 0:
-    unsigned int MaxPicOrderCntLsb = (1<<(active_sps->log2_max_pic_order_cnt_lsb_minus4+4));
 
-    switch (active_sps->pic_order_cnt_type) {
-    case 0: // POC MODE 0
-        // 1st
+    switch (sps->pic_order_cnt_type) {
+    case 0:
         if (pSlice->idr_flag) {
-            p_Vid->PrevPicOrderCntMsb = 0;
-            p_Vid->PrevPicOrderCntLsb = 0;
-        } else {
-            if (p_Vid->last_has_mmco_5) {
-                if (p_Vid->last_pic_bottom_field) {
-                    p_Vid->PrevPicOrderCntMsb = 0;
-                    p_Vid->PrevPicOrderCntLsb = 0;
-                } else {
-                    p_Vid->PrevPicOrderCntMsb = 0;
-                    p_Vid->PrevPicOrderCntLsb = pSlice->toppoc;
-                }
+            p_Vid->prevPicOrderCntMsb = 0;
+            p_Vid->prevPicOrderCntLsb = 0;
+        } else if (p_Vid->last_has_mmco_5) {
+            if (p_Vid->last_pic_bottom_field) {
+                p_Vid->prevPicOrderCntMsb = 0;
+                p_Vid->prevPicOrderCntLsb = 0;
+            } else {
+                p_Vid->prevPicOrderCntMsb = 0;
+                p_Vid->prevPicOrderCntLsb = pSlice->TopFieldOrderCnt;
             }
         }
-        // Calculate the MSBs of current picture
-        if( pSlice->pic_order_cnt_lsb  <  p_Vid->PrevPicOrderCntLsb  &&
-            ( p_Vid->PrevPicOrderCntLsb - pSlice->pic_order_cnt_lsb )  >=  ( MaxPicOrderCntLsb / 2 ) )
-            pSlice->PicOrderCntMsb = p_Vid->PrevPicOrderCntMsb + MaxPicOrderCntLsb;
-        else if ( pSlice->pic_order_cnt_lsb  >  p_Vid->PrevPicOrderCntLsb  &&
-                ( pSlice->pic_order_cnt_lsb - p_Vid->PrevPicOrderCntLsb )  >  ( MaxPicOrderCntLsb / 2 ) )
-            pSlice->PicOrderCntMsb = p_Vid->PrevPicOrderCntMsb - MaxPicOrderCntLsb;
-        else
-            pSlice->PicOrderCntMsb = p_Vid->PrevPicOrderCntMsb;
 
-        // 2nd
-        if (pSlice->field_pic_flag==0) {           //frame pix
-            pSlice->toppoc = pSlice->PicOrderCntMsb + pSlice->pic_order_cnt_lsb;
-            pSlice->bottompoc = pSlice->toppoc + pSlice->delta_pic_order_cnt_bottom;
-            pSlice->ThisPOC = pSlice->framepoc = (pSlice->toppoc < pSlice->bottompoc)? pSlice->toppoc : pSlice->bottompoc; // POC200301
-        } else if (pSlice->bottom_field_flag == FALSE) //top field
-            pSlice->ThisPOC= pSlice->toppoc = pSlice->PicOrderCntMsb + pSlice->pic_order_cnt_lsb;
-        else //bottom field
-            pSlice->ThisPOC= pSlice->bottompoc = pSlice->PicOrderCntMsb + pSlice->pic_order_cnt_lsb;
+        if ((pSlice->pic_order_cnt_lsb < p_Vid->prevPicOrderCntLsb) &&
+            (p_Vid->prevPicOrderCntLsb - pSlice->pic_order_cnt_lsb >= sps->MaxPicOrderCntLsb / 2))
+            pSlice->PicOrderCntMsb = p_Vid->prevPicOrderCntMsb + sps->MaxPicOrderCntLsb;
+        else if ((pSlice->pic_order_cnt_lsb > p_Vid->prevPicOrderCntLsb) &&
+                 (pSlice->pic_order_cnt_lsb - p_Vid->prevPicOrderCntLsb > sps->MaxPicOrderCntLsb / 2))
+            pSlice->PicOrderCntMsb = p_Vid->prevPicOrderCntMsb - sps->MaxPicOrderCntLsb;
+        else
+            pSlice->PicOrderCntMsb = p_Vid->prevPicOrderCntMsb;
+
+        pSlice->TopFieldOrderCnt    = 0;
+        pSlice->BottomFieldOrderCnt = 0;
+        if (!pSlice->field_pic_flag || !pSlice->bottom_field_flag)
+            pSlice->TopFieldOrderCnt = pSlice->PicOrderCntMsb + pSlice->pic_order_cnt_lsb;
+        if (!pSlice->field_pic_flag)
+            pSlice->BottomFieldOrderCnt = pSlice->TopFieldOrderCnt + pSlice->delta_pic_order_cnt_bottom;
+        else if (pSlice->bottom_field_flag)
+            pSlice->BottomFieldOrderCnt = pSlice->PicOrderCntMsb + pSlice->pic_order_cnt_lsb;
+
+        if (!pSlice->field_pic_flag)
+            pSlice->ThisPOC = pSlice->TopFieldOrderCnt < pSlice->BottomFieldOrderCnt ? pSlice->TopFieldOrderCnt : pSlice->BottomFieldOrderCnt;
+        else if (!pSlice->bottom_field_flag)
+            pSlice->ThisPOC = pSlice->TopFieldOrderCnt;
+        else
+            pSlice->ThisPOC = pSlice->BottomFieldOrderCnt;
+
         pSlice->framepoc = pSlice->ThisPOC;
         p_Vid->ThisPOC = pSlice->ThisPOC;
-
-        p_Vid->PreviousFrameNum = pSlice->frame_num;
-
+        p_Vid->prevFrameNum = pSlice->frame_num;
         if (pSlice->nal_ref_idc) {
-            p_Vid->PrevPicOrderCntLsb = pSlice->pic_order_cnt_lsb;
-            p_Vid->PrevPicOrderCntMsb = pSlice->PicOrderCntMsb;
+            p_Vid->prevPicOrderCntLsb = pSlice->pic_order_cnt_lsb;
+            p_Vid->prevPicOrderCntMsb = pSlice->PicOrderCntMsb;
         }
         break;
 
-    case 1: // POC MODE 1
-        // 1st
-        if (pSlice->idr_flag) {
-            p_Vid->FrameNumOffset=0;     //  first pix of IDRGOP,
-            if (pSlice->frame_num)
-                error("frame_num not equal to zero in IDR picture", -1020);
-        } else {
-            if (p_Vid->last_has_mmco_5) {
-                p_Vid->PreviousFrameNumOffset = 0;
-                p_Vid->PreviousFrameNum = 0;
-            }
-            if (pSlice->frame_num<p_Vid->PreviousFrameNum)  //not first pix of IDRGOP
-                p_Vid->FrameNumOffset = p_Vid->PreviousFrameNumOffset + p_Vid->active_sps->MaxFrameNum;
-            else
-                p_Vid->FrameNumOffset = p_Vid->PreviousFrameNumOffset;
+    case 1:
+        if (p_Vid->last_has_mmco_5) {
+            p_Vid->prevFrameNum       = 0;
+            p_Vid->prevFrameNumOffset = 0;
         }
 
-        // 2nd
-        if (active_sps->num_ref_frames_in_pic_order_cnt_cycle)
-            pSlice->AbsFrameNum = p_Vid->FrameNumOffset+pSlice->frame_num;
+        if (pSlice->idr_flag)
+            pSlice->FrameNumOffset = 0;
+        else if (p_Vid->prevFrameNum > pSlice->frame_num)
+            pSlice->FrameNumOffset = p_Vid->prevFrameNumOffset + sps->MaxFrameNum;
         else
-            pSlice->AbsFrameNum = 0;
-        if ( (!pSlice->nal_ref_idc) && pSlice->AbsFrameNum > 0)
-            pSlice->AbsFrameNum--;
+            pSlice->FrameNumOffset = p_Vid->prevFrameNumOffset;
 
-        // 3rd
-        p_Vid->ExpectedDeltaPerPicOrderCntCycle = 0;
+        if (sps->num_ref_frames_in_pic_order_cnt_cycle != 0)
+            absFrameNum = pSlice->FrameNumOffset + pSlice->frame_num;
+        else
+            absFrameNum = 0;
+        if (pSlice->nal_ref_idc == 0 && absFrameNum > 0)
+            absFrameNum--;
 
-        if (active_sps->num_ref_frames_in_pic_order_cnt_cycle)
-            for(i=0;i<(int) active_sps->num_ref_frames_in_pic_order_cnt_cycle;i++)
-                p_Vid->ExpectedDeltaPerPicOrderCntCycle += active_sps->offset_for_ref_frame[i];
-
-        if (pSlice->AbsFrameNum) {
-            p_Vid->PicOrderCntCycleCnt = (pSlice->AbsFrameNum-1)/active_sps->num_ref_frames_in_pic_order_cnt_cycle;
-            p_Vid->FrameNumInPicOrderCntCycle = (pSlice->AbsFrameNum-1)%active_sps->num_ref_frames_in_pic_order_cnt_cycle;
-            p_Vid->ExpectedPicOrderCnt = p_Vid->PicOrderCntCycleCnt*p_Vid->ExpectedDeltaPerPicOrderCntCycle;
-            for(i=0;i<=(int)p_Vid->FrameNumInPicOrderCntCycle;i++)
-                p_Vid->ExpectedPicOrderCnt += active_sps->offset_for_ref_frame[i];
+        if (absFrameNum > 0) {
+            uint32_t picOrderCntCycleCnt        = (absFrameNum - 1) / sps->num_ref_frames_in_pic_order_cnt_cycle;
+            uint32_t frameNumInPicOrderCntCycle = (absFrameNum - 1) % sps->num_ref_frames_in_pic_order_cnt_cycle;
+            expectedPicOrderCnt = picOrderCntCycleCnt * sps->ExpectedDeltaPerPicOrderCntCycle;
+            for (i = 0; i <= frameNumInPicOrderCntCycle; i++)
+                expectedPicOrderCnt += sps->offset_for_ref_frame[i];
         } else
-            p_Vid->ExpectedPicOrderCnt = 0;
+            expectedPicOrderCnt = 0;
+        if (pSlice->nal_ref_idc == 0)
+            expectedPicOrderCnt += sps->offset_for_non_ref_pic;
 
-        if (!pSlice->nal_ref_idc)
-            p_Vid->ExpectedPicOrderCnt += active_sps->offset_for_non_ref_pic;
+        pSlice->TopFieldOrderCnt    = 0;
+        pSlice->BottomFieldOrderCnt = 0;
+        if (!pSlice->field_pic_flag || !pSlice->bottom_field_flag)
+            pSlice->TopFieldOrderCnt = expectedPicOrderCnt + pSlice->delta_pic_order_cnt[0];
+        if (!pSlice->field_pic_flag)
+            pSlice->BottomFieldOrderCnt = pSlice->TopFieldOrderCnt + sps->offset_for_top_to_bottom_field + pSlice->delta_pic_order_cnt[1];
+        else if (pSlice->bottom_field_flag)
+            pSlice->BottomFieldOrderCnt = expectedPicOrderCnt + sps->offset_for_top_to_bottom_field + pSlice->delta_pic_order_cnt[0];
 
-        if (pSlice->field_pic_flag == 0) { //frame pix
-            pSlice->toppoc = p_Vid->ExpectedPicOrderCnt + pSlice->delta_pic_order_cnt[0];
-            pSlice->bottompoc = pSlice->toppoc + active_sps->offset_for_top_to_bottom_field + pSlice->delta_pic_order_cnt[1];
-            pSlice->ThisPOC = pSlice->framepoc = (pSlice->toppoc < pSlice->bottompoc)? pSlice->toppoc : pSlice->bottompoc; // POC200301
-        } else if (pSlice->bottom_field_flag == FALSE) //top field
-            pSlice->ThisPOC = pSlice->toppoc = p_Vid->ExpectedPicOrderCnt + pSlice->delta_pic_order_cnt[0];
-        else //bottom field
-            pSlice->ThisPOC = pSlice->bottompoc = p_Vid->ExpectedPicOrderCnt + active_sps->offset_for_top_to_bottom_field + pSlice->delta_pic_order_cnt[0];
-        pSlice->framepoc=pSlice->ThisPOC;
+        if (!pSlice->field_pic_flag)
+            pSlice->ThisPOC = pSlice->TopFieldOrderCnt < pSlice->BottomFieldOrderCnt ? pSlice->TopFieldOrderCnt : pSlice->BottomFieldOrderCnt;
+        else if (!pSlice->bottom_field_flag)
+            pSlice->ThisPOC = pSlice->TopFieldOrderCnt;
+        else
+            pSlice->ThisPOC = pSlice->BottomFieldOrderCnt;
 
-        p_Vid->PreviousFrameNum=pSlice->frame_num;
-        p_Vid->PreviousFrameNumOffset=p_Vid->FrameNumOffset;
+        pSlice->framepoc = pSlice->ThisPOC;
+        p_Vid->prevFrameNum = pSlice->frame_num;
+        p_Vid->prevFrameNumOffset = pSlice->FrameNumOffset;
         break;
 
-    case 2: // POC MODE 2
-        if (pSlice->idr_flag) { // IDR picture
-            p_Vid->FrameNumOffset=0;     //  first pix of IDRGOP,
-            pSlice->ThisPOC = pSlice->framepoc = pSlice->toppoc = pSlice->bottompoc = 0;
-            if (pSlice->frame_num)
-                error("frame_num not equal to zero in IDR picture", -1020);
-        } else {
-            if (p_Vid->last_has_mmco_5) {
-                p_Vid->PreviousFrameNum = 0;
-                p_Vid->PreviousFrameNumOffset = 0;
-            }
-            if (pSlice->frame_num<p_Vid->PreviousFrameNum)
-                p_Vid->FrameNumOffset = p_Vid->PreviousFrameNumOffset + p_Vid->active_sps->MaxFrameNum;
-            else
-                p_Vid->FrameNumOffset = p_Vid->PreviousFrameNumOffset;
-
-            pSlice->AbsFrameNum = p_Vid->FrameNumOffset+pSlice->frame_num;
-            if (!pSlice->nal_ref_idc)
-                pSlice->ThisPOC = (2*pSlice->AbsFrameNum - 1);
-            else
-                pSlice->ThisPOC = (2*pSlice->AbsFrameNum);
-
-            if (pSlice->field_pic_flag==0)
-                pSlice->toppoc = pSlice->bottompoc = pSlice->framepoc = pSlice->ThisPOC;
-            else if (pSlice->bottom_field_flag == FALSE)
-                pSlice->toppoc = pSlice->framepoc = pSlice->ThisPOC;
-            else 
-                pSlice->bottompoc = pSlice->framepoc = pSlice->ThisPOC;
+    case 2:
+        if (p_Vid->last_has_mmco_5) {
+            p_Vid->prevFrameNum       = 0;
+            p_Vid->prevFrameNumOffset = 0;
         }
 
-        p_Vid->PreviousFrameNum=pSlice->frame_num;
-        p_Vid->PreviousFrameNumOffset=p_Vid->FrameNumOffset;
+        if (pSlice->idr_flag)
+            pSlice->FrameNumOffset = 0;
+        else if (p_Vid->prevFrameNum > pSlice->frame_num)
+            pSlice->FrameNumOffset = p_Vid->prevFrameNumOffset + sps->MaxFrameNum;
+        else
+            pSlice->FrameNumOffset = p_Vid->prevFrameNumOffset;
+
+        if (pSlice->idr_flag)
+            tempPicOrderCnt = 0;
+        else if (pSlice->nal_ref_idc == 0)
+            tempPicOrderCnt = 2 * (pSlice->FrameNumOffset + pSlice->frame_num) - 1;
+        else
+            tempPicOrderCnt = 2 * (pSlice->FrameNumOffset + pSlice->frame_num);
+
+        pSlice->TopFieldOrderCnt    = 0;
+        pSlice->BottomFieldOrderCnt = 0;
+        if (!pSlice->field_pic_flag || !pSlice->bottom_field_flag)
+            pSlice->TopFieldOrderCnt = tempPicOrderCnt;
+        if (!pSlice->field_pic_flag || pSlice->bottom_field_flag)
+            pSlice->BottomFieldOrderCnt = tempPicOrderCnt;
+
+        if (!pSlice->field_pic_flag)
+            pSlice->ThisPOC = pSlice->TopFieldOrderCnt < pSlice->BottomFieldOrderCnt ? pSlice->TopFieldOrderCnt : pSlice->BottomFieldOrderCnt;
+        else if (!pSlice->bottom_field_flag)
+            pSlice->ThisPOC = pSlice->TopFieldOrderCnt;
+        else
+            pSlice->ThisPOC = pSlice->BottomFieldOrderCnt;
+
+        pSlice->framepoc = pSlice->ThisPOC;
+        p_Vid->prevFrameNum = pSlice->frame_num;
+        p_Vid->prevFrameNumOffset = pSlice->FrameNumOffset;
         break;
 
     default:
-        //error must occurs
-        assert( 1==0 );
+        assert(false);
         break;
     }
 }

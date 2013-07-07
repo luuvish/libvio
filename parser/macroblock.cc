@@ -93,8 +93,8 @@ void start_macroblock(Macroblock *currMB)
 
     /* Update coordinates of the current macroblock */
     if (currSlice->MbaffFrameFlag) {
-        currMB->mb.x = (short) (   (mb_nr) % ((2*p_Vid->width) / MB_BLOCK_SIZE));
-        currMB->mb.y = (short) (2*((mb_nr) / ((2*p_Vid->width) / MB_BLOCK_SIZE)));
+        currMB->mb.x = (short) (   (mb_nr) % (2 * sps->PicWidthInMbs));
+        currMB->mb.y = (short) (2*((mb_nr) / (2 * sps->PicWidthInMbs)));
 
         currMB->mb.y += (currMB->mb.x & 0x01);
         currMB->mb.x >>= 1;
