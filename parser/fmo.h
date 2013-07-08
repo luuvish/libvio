@@ -23,11 +23,10 @@ extern "C" {
 
 struct slice_t;
 
-extern int fmo_init (VideoParameters *p_Vid, struct slice_t *pSlice);
-extern int FmoFinit (VideoParameters *p_Vid);
+int fmo_init(VideoParameters *p_Vid, struct slice_t *pSlice);
+int FmoFinit(VideoParameters *p_Vid);
 
-extern int FmoGetSliceGroupId      (VideoParameters *p_Vid, int mb);
-extern int FmoGetNextMBNr          (VideoParameters *p_Vid, int CurrentMbNr);
+int FmoGetNextMBNr(VideoParameters *p_Vid, int CurrentMbNr);
 
 #ifdef __cplusplus
 }

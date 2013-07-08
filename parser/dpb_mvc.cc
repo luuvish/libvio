@@ -21,8 +21,6 @@
 #include "slice.h"
 #include "image.h"
 #include "dpb.h"
-#include "dpb_common.h"
-#include "dpb_mvc.h"
 #include "memalloc.h"
 #include "output.h"
 
@@ -58,74 +56,6 @@ static int get_maxViewIdx (VideoParameters *p_Vid, int view_id, int anchor_pic_f
   }
 
   return maxViewIdx;
-}
-
-/*!
- ************************************************************************
- * \brief
- *    Reordering process for short-term reference pictures
- *
- ************************************************************************
- */
-void reorder_short_term(Slice *currSlice, int cur_list, int num_ref_idx_lX_active_minus1, int picNumLX, int *refIdxLX, int currViewID)
-{
-  StorablePicture **RefPicListX = currSlice->listX[cur_list]; 
-  int cIdx, nIdx;
-
-  StorablePicture *picLX;
-
-  picLX = get_short_term_pic(currSlice, currSlice->p_Dpb, picNumLX);
-
-  for( cIdx = num_ref_idx_lX_active_minus1+1; cIdx > *refIdxLX; cIdx-- )
-    RefPicListX[ cIdx ] = RefPicListX[ cIdx - 1];
-
-  RefPicListX[ (*refIdxLX)++ ] = picLX;
-
-  nIdx = *refIdxLX;
-
-  for( cIdx = *refIdxLX; cIdx <= num_ref_idx_lX_active_minus1+1; cIdx++ )
-    if (RefPicListX[ cIdx ])
-    {
-      if( (RefPicListX[ cIdx ]->is_long_term ) ||  (RefPicListX[ cIdx ]->pic_num != picNumLX ) ||  
-        ( currViewID != -1 && RefPicListX[ cIdx ]->layer_id  != currViewID )
-        )
-        RefPicListX[ nIdx++ ] = RefPicListX[ cIdx ];
-    }
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    Reordering process for long-term reference pictures
- *
- ************************************************************************
- */
-void reorder_long_term(Slice *currSlice, StorablePicture **RefPicListX, int num_ref_idx_lX_active_minus1, int LongTermPicNum, int *refIdxLX, int currViewID)
-{
-  int cIdx, nIdx;
-
-  StorablePicture *picLX;
-
-  picLX = get_long_term_pic(currSlice, currSlice->p_Dpb, LongTermPicNum);
-
-  for( cIdx = num_ref_idx_lX_active_minus1+1; cIdx > *refIdxLX; cIdx-- )
-    RefPicListX[ cIdx ] = RefPicListX[ cIdx - 1];
-
-  RefPicListX[ (*refIdxLX)++ ] = picLX;
-
-  nIdx = *refIdxLX;
-
-  for( cIdx = *refIdxLX; cIdx <= num_ref_idx_lX_active_minus1+1; cIdx++ )
-  {
-    if (RefPicListX[ cIdx ])
-    {
-      if( (!RefPicListX[ cIdx ]->is_long_term ) ||  (RefPicListX[ cIdx ]->long_term_pic_num != LongTermPicNum ) ||  
-          ( currViewID != -1 && RefPicListX[ cIdx ]->layer_id  != currViewID )
-        )
-        RefPicListX[ nIdx++ ] = RefPicListX[ cIdx ];
-    }
-  }
 }
 
 /*!
@@ -232,7 +162,7 @@ void init_lists_i_slice_mvc(Slice *currSlice)
 void init_lists_p_slice_mvc(Slice *currSlice)
 {
   VideoParameters *p_Vid = currSlice->p_Vid;
-  DecodedPictureBuffer *p_Dpb = currSlice->p_Dpb;
+  dpb_t *p_Dpb = currSlice->p_Dpb;
 
   unsigned int i;
 
@@ -298,7 +228,7 @@ void init_lists_p_slice_mvc(Slice *currSlice)
 
     qsort((void *)fs_list0, list0idx, sizeof(FrameStore*), compare_fs_by_frame_num_desc);
 
-    //printf("fs_list0 (FrameNum): "); for (i=0; i<list0idx; i++){printf ("%d  ", fs_list0[i]->frame_num_wrap);} printf("\n");
+    //printf("fs_list0 (FrameNum): "); for (i=0; i<list0idx; i++){printf ("%d  ", fs_list0[i]->FrameNumWrap);} printf("\n");
 
     currSlice->listXsize[0] = 0;
     gen_pic_list_from_frame_list(currSlice->bottom_field_flag, fs_list0, list0idx, currSlice->listX[0], &currSlice->listXsize[0], 0);
@@ -370,7 +300,7 @@ void init_lists_p_slice_mvc(Slice *currSlice)
 void init_lists_b_slice_mvc(Slice *currSlice)
 {
   VideoParameters *p_Vid = currSlice->p_Vid;
-  DecodedPictureBuffer *p_Dpb = currSlice->p_Dpb;
+  dpb_t *p_Dpb = currSlice->p_Dpb;
 
   unsigned int i;
   int j;

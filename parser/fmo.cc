@@ -15,8 +15,6 @@
  */
 
 #include "global.h"
-#include "bitstream_elements.h"
-#include "defines.h"
 #include "slice.h"
 #include "fmo.h"
 

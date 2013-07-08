@@ -1000,87 +1000,6 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
 /*!
 ************************************************************************
 * \brief
-*    compares two stored pictures by picture number for qsort in descending order
-*
-************************************************************************
-*/
-static inline int compare_pic_by_pic_num_desc( const void *arg1, const void *arg2 )
-{
-  int pic_num1 = (*(StorablePicture**)arg1)->pic_num;
-  int pic_num2 = (*(StorablePicture**)arg2)->pic_num;
-
-  if (pic_num1 < pic_num2)
-    return 1;
-  if (pic_num1 > pic_num2)
-    return -1;
-  else
-    return 0;
-}
-
-/*!
-************************************************************************
-* \brief
-*    compares two stored pictures by picture number for qsort in descending order
-*
-************************************************************************
-*/
-static inline int compare_pic_by_lt_pic_num_asc( const void *arg1, const void *arg2 )
-{
-  int long_term_pic_num1 = (*(StorablePicture**)arg1)->long_term_pic_num;
-  int long_term_pic_num2 = (*(StorablePicture**)arg2)->long_term_pic_num;
-  if ( long_term_pic_num1 < long_term_pic_num2)
-    return -1;
-
-  if ( long_term_pic_num1 > long_term_pic_num2)
-    return 1;
-  else
-    return 0;
-}
-
-/*!
-************************************************************************
-* \brief
-*    compares two stored pictures by poc for qsort in ascending order
-*
-************************************************************************
-*/
-static inline int compare_pic_by_poc_asc( const void *arg1, const void *arg2 )
-{
-  int poc1 = (*(StorablePicture**)arg1)->poc;
-  int poc2 = (*(StorablePicture**)arg2)->poc;
-
-  if ( poc1 < poc2)
-    return -1;  
-  if ( poc1 > poc2)
-    return 1;
-  else
-    return 0;
-}
-
-
-/*!
-************************************************************************
-* \brief
-*    compares two stored pictures by poc for qsort in descending order
-*
-************************************************************************
-*/
-static inline int compare_pic_by_poc_desc( const void *arg1, const void *arg2 )
-{
-  int poc1 = (*(StorablePicture**)arg1)->poc;
-  int poc2 = (*(StorablePicture**)arg2)->poc;
-
-  if (poc1 < poc2)
-    return 1;
-  if (poc1 > poc2)
-    return -1;
-  else
-    return 0;
-}
-
-/*!
-************************************************************************
-* \brief
 *    Copy image data from one array to another array
 ************************************************************************
 */
@@ -1109,7 +1028,7 @@ static void CopyImgData(imgpel **inputY, imgpel ***inputUV, imgpel **outputY, im
 ************************************************************************
 */
 
-static StorablePicture* get_last_ref_pic_from_dpb(DecodedPictureBuffer *p_Dpb)
+static StorablePicture* get_last_ref_pic_from_dpb(dpb_t *p_Dpb)
 {
   int used_size = p_Dpb->used_size - 1;
   int i;
@@ -1294,7 +1213,7 @@ static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoPar
 */
 
 static void
-copy_prev_pic_to_concealed_pic(StorablePicture *picture, DecodedPictureBuffer *p_Dpb)
+copy_prev_pic_to_concealed_pic(StorablePicture *picture, dpb_t *p_Dpb)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   /* get the last ref pic in dpb */
@@ -1318,7 +1237,7 @@ copy_prev_pic_to_concealed_pic(StorablePicture *picture, DecodedPictureBuffer *p
 ************************************************************************
 */
 
-void conceal_lost_frames(DecodedPictureBuffer *p_Dpb, Slice *pSlice)
+void conceal_lost_frames(dpb_t *p_Dpb, Slice *pSlice)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   sps_t *sps = p_Vid->active_sps;
@@ -1353,7 +1272,7 @@ void conceal_lost_frames(DecodedPictureBuffer *p_Dpb, Slice *pSlice)
         sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
 
     picture->coded_frame = 1;
-    picture->pic_num = UnusedShortTermFrameNum;
+    picture->PicNum = UnusedShortTermFrameNum;
     picture->frame_num = UnusedShortTermFrameNum;
     picture->non_existing = 0;
     picture->is_output = 0;
@@ -1413,7 +1332,7 @@ void conceal_lost_frames(DecodedPictureBuffer *p_Dpb, Slice *pSlice)
 ************************************************************************
 */
 
-void update_ref_list_for_concealment(DecodedPictureBuffer *p_Dpb)
+void update_ref_list_for_concealment(dpb_t *p_Dpb)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   unsigned i, j= 0;
@@ -1438,7 +1357,7 @@ void update_ref_list_for_concealment(DecodedPictureBuffer *p_Dpb)
 *
 ************************************************************************
 */
-void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSliceType, bool field_pic_flag)
+void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool field_pic_flag)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   sps_t *active_sps = p_Vid->active_sps;
@@ -1458,11 +1377,11 @@ void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSlic
     {
       if(p_Dpb->fs[i]->concealment_reference == 1)
       {
-        if(p_Dpb->fs[i]->frame_num > p_Vid->frame_to_conceal)
-          p_Dpb->fs_ref[i]->frame_num_wrap = p_Dpb->fs[i]->frame_num - active_sps->MaxFrameNum;
+        if(p_Dpb->fs[i]->FrameNum > p_Vid->frame_to_conceal)
+          p_Dpb->fs_ref[i]->FrameNumWrap = p_Dpb->fs[i]->FrameNum - active_sps->MaxFrameNum;
         else
-          p_Dpb->fs_ref[i]->frame_num_wrap = p_Dpb->fs[i]->frame_num;
-        p_Dpb->fs_ref[i]->frame->pic_num = p_Dpb->fs_ref[i]->frame_num_wrap;
+          p_Dpb->fs_ref[i]->FrameNumWrap = p_Dpb->fs[i]->FrameNum;
+        p_Dpb->fs_ref[i]->frame->PicNum = p_Dpb->fs_ref[i]->FrameNumWrap;
       }
     }
   }
@@ -1575,7 +1494,7 @@ void init_lists_for_non_reference_loss(DecodedPictureBuffer *p_Dpb, int currSlic
 ************************************************************************
 */
 
-StorablePicture *get_pic_from_dpb(DecodedPictureBuffer *p_Dpb, int missingpoc, unsigned int *pos)
+StorablePicture *get_pic_from_dpb(dpb_t *p_Dpb, int missingpoc, unsigned int *pos)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   int used_size = p_Dpb->used_size - 1;
@@ -1726,7 +1645,7 @@ void delete_list( VideoParameters *p_Vid, struct concealment_node *ptr )
 ************************************************************************
 */
 
-void conceal_non_ref_pics(DecodedPictureBuffer *p_Dpb, int diff)
+void conceal_non_ref_pics(dpb_t *p_Dpb, int diff)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   sps_t *sps = p_Vid->active_sps;
@@ -1795,7 +1714,7 @@ void conceal_non_ref_pics(DecodedPictureBuffer *p_Dpb, int diff)
 ************************************************************************
 */
 
-void sliding_window_poc_management(DecodedPictureBuffer *p_Dpb, StorablePicture *p)
+void sliding_window_poc_management(dpb_t *p_Dpb, StorablePicture *p)
 {    
   if (p_Dpb->used_size == p_Dpb->size)
   {
@@ -1819,7 +1738,7 @@ void sliding_window_poc_management(DecodedPictureBuffer *p_Dpb, StorablePicture 
 ************************************************************************
 */
 
-void write_lost_non_ref_pic(DecodedPictureBuffer *p_Dpb, int poc, int p_out)
+void write_lost_non_ref_pic(dpb_t *p_Dpb, int poc, int p_out)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   FrameStore concealment_fs;
@@ -1848,7 +1767,7 @@ void write_lost_non_ref_pic(DecodedPictureBuffer *p_Dpb, int poc, int p_out)
 ************************************************************************
 */
 
-void write_lost_ref_after_idr(DecodedPictureBuffer *p_Dpb, int pos)
+void write_lost_ref_after_idr(dpb_t *p_Dpb, int pos)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   sps_t *sps = p_Vid->active_sps;

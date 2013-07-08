@@ -72,11 +72,11 @@ void slice_header(Slice *currSlice)
     currSlice->PicHeightInSampleL = currSlice->PicHeightInMbs * 16;
     currSlice->PicHeightInSampleC = currSlice->PicHeightInMbs * sps->MbHeightC;
     currSlice->PicSizeInMbs       = sps->PicWidthInMbs * currSlice->PicHeightInMbs;
-    if (currSlice->field_pic_flag) {
-        currSlice->MaxPicNum  = 2 * sps->MaxFrameNum;
+    if (!currSlice->field_pic_flag) {
+        currSlice->MaxPicNum  = sps->MaxFrameNum;
         currSlice->CurrPicNum = currSlice->frame_num;
     } else {
-        currSlice->MaxPicNum  = sps->MaxFrameNum;
+        currSlice->MaxPicNum  = 2 * sps->MaxFrameNum;
         currSlice->CurrPicNum = 2 * currSlice->frame_num + 1;
     }
 

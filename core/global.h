@@ -250,17 +250,9 @@ typedef struct decodedpic_t {
 //****************************** ~DM ***********************************
 typedef struct coding_par {
     int layer_id;
-    int profile_idc;
-
-    int max_vmv_r;                             //!< maximum vertical motion vector range in luma quarter frame pixel units for the current level_idc
-    int iLumaPadX;
-    int iLumaPadY;
-    int iChromaPadX;
-    int iChromaPadY;
 
     //padding info;
     void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
-    int rgb_output;
 
     imgpel **imgY_ref;                              //!< reference frame find snr
     imgpel ***imgUV_ref;
@@ -279,11 +271,11 @@ typedef struct coding_par {
 } CodingParameters;
 
 typedef struct layer_par {
-  int                            layer_id;
-  struct video_par              *p_Vid;
-  CodingParameters              *p_Cps;
-  sps_t      *p_SPS;
-  struct decoded_picture_buffer *p_Dpb;
+    int                              layer_id;
+    struct video_par                *p_Vid;
+    CodingParameters                *p_Cps;
+    sps_t                           *p_SPS;
+    struct decoded_picture_buffer_t *p_Dpb;
 } LayerParameters;
 
 
@@ -374,9 +366,9 @@ typedef struct video_par {
     OldSliceParams               *old_slice;
     SNRParameters                *snr;
 
-    struct decoded_picture_buffer *p_Dpb_layer[MAX_NUM_DPB_LAYERS];
-    CodingParameters              *p_EncodePar[MAX_NUM_DPB_LAYERS];
-    LayerParameters               *p_LayerPar [MAX_NUM_DPB_LAYERS];
+    struct decoded_picture_buffer_t *p_Dpb_layer[MAX_NUM_DPB_LAYERS];
+    CodingParameters                *p_EncodePar[MAX_NUM_DPB_LAYERS];
+    LayerParameters                 *p_LayerPar [MAX_NUM_DPB_LAYERS];
 
     bool global_init_done[2];
 
@@ -410,16 +402,16 @@ typedef struct video_par {
     int  g_nFrame;
 
 
-    int32_t  prevPicOrderCntMsb;
-    uint32_t prevPicOrderCntLsb;
-    uint32_t prevFrameNum;
-    uint32_t prevFrameNumOffset;
-    int      last_has_mmco_5;
-    int      last_pic_bottom_field;
+    int32_t     prevPicOrderCntMsb;
+    uint32_t    prevPicOrderCntLsb;
+    uint32_t    prevFrameNum;
+    uint32_t    prevFrameNumOffset;
+    int         last_has_mmco_5;
+    int         last_pic_bottom_field;
 
     // FMO
-    int     *MbToSliceGroupMap;
-    int     *MapUnitToSliceGroupMap;
+    int        *MbToSliceGroupMap;
+    int        *MapUnitToSliceGroupMap;
 
     pps_t      *active_pps;
     sps_t      *active_sps;
@@ -570,10 +562,9 @@ typedef struct video_par {
 } VideoParameters;
 
 
-typedef struct decoder_params
-{
-  InputParameters   *p_Inp;          //!< Input Parameters
-  VideoParameters   *p_Vid;          //!< Image Parameters
+typedef struct decoder_params {
+    InputParameters *p_Inp;
+    VideoParameters *p_Vid;
 } DecoderParams;
 
 extern DecoderParams  *p_Dec;

@@ -51,7 +51,7 @@ typedef struct slice_t {
     int                       svc_extension_flag;
 
     // dpb pointer
-    struct decoded_picture_buffer *p_Dpb;
+    struct decoded_picture_buffer_t *p_Dpb;
 
 
     //slice property;

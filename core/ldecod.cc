@@ -379,7 +379,7 @@ static void alloc_video_params(VideoParameters **p_Vid)
 
     // Allocate new dpb buffer
     for (int i = 0; i < MAX_NUM_DPB_LAYERS; i++) {
-        if (((*p_Vid)->p_Dpb_layer[i] = (DecodedPictureBuffer *)calloc(1, sizeof(DecodedPictureBuffer))) == NULL) 
+        if (((*p_Vid)->p_Dpb_layer[i] = (dpb_t *)calloc(1, sizeof(dpb_t))) == NULL) 
             no_mem_exit("alloc_video_params: p_Vid->p_Dpb_layer[i]");
         (*p_Vid)->p_Dpb_layer[i]->layer_id = i;
         (*p_Vid)->p_Dpb_layer[i]->p_Vid = (*p_Vid);

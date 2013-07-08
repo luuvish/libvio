@@ -51,8 +51,7 @@
 #include "biaridecod.h"
 
 #include "erc_api.h"
-#include "dpb_common.h"
-#include "dpb_mvc.h"
+#include "dpb.h"
 
 
 static inline float psnr(int max_sample_sq, int samples, float sse_distortion ) 
@@ -116,7 +115,7 @@ static void init_mvc_picture(Slice *currSlice)
 {
   int i;
   VideoParameters *p_Vid = currSlice->p_Vid;
-  DecodedPictureBuffer *p_Dpb = p_Vid->p_Dpb_layer[0];
+  dpb_t *p_Dpb = p_Vid->p_Dpb_layer[0];
 
   StorablePicture *p_pic = NULL;
 
@@ -193,7 +192,7 @@ static void copy_dec_picture_JV( VideoParameters *p_Vid, StorablePicture *dst, S
 
   dst->mb_aff_frame_flag    = src->mb_aff_frame_flag;
   dst->PicWidthInMbs        = src->PicWidthInMbs;
-  dst->pic_num              = src->pic_num;
+  dst->PicNum               = src->PicNum;
   dst->frame_num            = src->frame_num;
   dst->recovery_frame       = src->recovery_frame;
   dst->coded_frame          = src->coded_frame;
@@ -242,7 +241,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   StorablePicture *dec_picture = NULL;
   sps_t *sps = p_Vid->active_sps;
   pps_t *pps = p_Vid->active_pps;
-  DecodedPictureBuffer *p_Dpb = currSlice->p_Dpb;
+  dpb_t *p_Dpb = currSlice->p_Dpb;
 
   int PicSizeInMbs = sps->PicWidthInMbs * (sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag));
 
@@ -426,7 +425,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   p_Vid->get_mb_block_pos = dec_picture->mb_aff_frame_flag ? get_mb_block_pos_mbaff : get_mb_block_pos_normal;
   p_Vid->getNeighbour     = dec_picture->mb_aff_frame_flag ? getAffNeighbour : getNonAffNeighbour;
 
-  dec_picture->pic_num   = currSlice->frame_num;
+  dec_picture->PicNum    = currSlice->frame_num;
   dec_picture->frame_num = currSlice->frame_num;
 
   dec_picture->recovery_frame = (unsigned int) ((int) currSlice->frame_num == p_Vid->recovery_frame_num);
@@ -965,7 +964,7 @@ void find_snr(VideoParameters *p_Vid,
   if(p->concealed_pic)
   {
     fprintf(stdout,"%04d(P)  %8d %5d %5d %7.4f %7.4f %7.4f  %s %5d\n",
-      p_Vid->frame_no, p->frame_poc, p->pic_num, p->qp,
+      p_Vid->frame_no, p->frame_poc, p->PicNum, p->qp,
       snr->snr[0], snr->snr[1], snr->snr[2], yuv_types[p->chroma_format_idc], 0);
   }
 }

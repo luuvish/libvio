@@ -24,8 +24,7 @@
 #include "quantization.h"
 
 #include "erc_api.h"
-#include "dpb_common.h"
-#include "dpb_mvc.h"
+#include "dpb.h"
 
 
 /*!

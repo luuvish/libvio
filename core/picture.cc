@@ -25,8 +25,7 @@
 #include "biaridecod.h"
 
 #include "erc_api.h"
-#include "dpb_common.h"
-#include "dpb_mvc.h"
+#include "dpb.h"
 
 
 #include "dec_slice.h"
@@ -322,71 +321,39 @@ static void reset_format_info(sps_t *sps, VideoParameters *p_Vid, FrameFormat *s
 
 static void setup_layer_info(VideoParameters *p_Vid, sps_t *sps, LayerParameters *p_Lps)
 {
-  int layer_id = p_Lps->layer_id;
-  p_Lps->p_Vid = p_Vid;
-  p_Lps->p_Cps = p_Vid->p_EncodePar[layer_id];
-  p_Lps->p_SPS = sps;
-  p_Lps->p_Dpb = p_Vid->p_Dpb_layer[layer_id];
+    int layer_id = p_Lps->layer_id;
+    p_Lps->p_Vid = p_Vid;
+    p_Lps->p_Cps = p_Vid->p_EncodePar[layer_id];
+    p_Lps->p_SPS = sps;
+    p_Lps->p_Dpb = p_Vid->p_Dpb_layer[layer_id];
 }
 
-static void set_coding_par(sps_t *sps, CodingParameters *cps)
+static void set_global_coding_par(VideoParameters *p_Vid)
 {
-  // maximum vertical motion vector range in luma quarter pixel units
-  cps->profile_idc = sps->profile_idc;
-  if (sps->level_idc <= 10)
-  {
-    cps->max_vmv_r = 64 * 4;
-  }
-  else if (sps->level_idc <= 20)
-  {
-    cps->max_vmv_r = 128 * 4;
-  }
-  else if (sps->level_idc <= 30)
-  {
-    cps->max_vmv_r = 256 * 4;
-  }
-  else
-  {
-    cps->max_vmv_r = 512 * 4; // 512 pixels in quarter pixels
-  }
-
-  // Fidelity Range Extensions stuff (part 1)
-  cps->iLumaPadX = MCBUF_LUMA_PAD_X;
-  cps->iLumaPadY = MCBUF_LUMA_PAD_Y;
-  cps->iChromaPadX = MCBUF_CHROMA_PAD_X;
-  cps->iChromaPadY = MCBUF_CHROMA_PAD_Y;
-  if (sps->chroma_format_idc == YUV422)
-  {
-    cps->iChromaPadY = MCBUF_CHROMA_PAD_Y*2;
-  }
-  else if (sps->chroma_format_idc == YUV444)
-  {
-    cps->iChromaPadX = cps->iLumaPadX;
-    cps->iChromaPadY = cps->iLumaPadY;
-  }
-  //pel bitdepth init
-
-  cps->rgb_output =  (sps->vui_parameters.matrix_coefficients==0);
-}
-
-static void set_global_coding_par(VideoParameters *p_Vid, CodingParameters *cps)
-{
-    p_Vid->max_vmv_r = cps->max_vmv_r;
+    sps_t *sps = p_Vid->active_sps;
+    if (sps->level_idc <= 10)
+        p_Vid->max_vmv_r = 64 * 4;
+    else if (sps->level_idc <= 20)
+        p_Vid->max_vmv_r = 128 * 4;
+    else if (sps->level_idc <= 30)
+        p_Vid->max_vmv_r = 256 * 4;
+    else
+        p_Vid->max_vmv_r = 512 * 4; // 512 pixels in quarter pixels
 
     // Fidelity Range Extensions stuff (part 1)
-    p_Vid->iLumaPadX = MCBUF_LUMA_PAD_X;
-    p_Vid->iLumaPadY = MCBUF_LUMA_PAD_Y;
+    p_Vid->iLumaPadX   = MCBUF_LUMA_PAD_X;
+    p_Vid->iLumaPadY   = MCBUF_LUMA_PAD_Y;
     p_Vid->iChromaPadX = MCBUF_CHROMA_PAD_X;
     p_Vid->iChromaPadY = MCBUF_CHROMA_PAD_Y;
     if (p_Vid->active_sps->chroma_format_idc == YUV422) {
-        p_Vid->iChromaPadY = MCBUF_CHROMA_PAD_Y*2;
+        p_Vid->iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
     } else if (p_Vid->active_sps->chroma_format_idc == YUV444) {
         p_Vid->iChromaPadX = p_Vid->iLumaPadX;
         p_Vid->iChromaPadY = p_Vid->iLumaPadY;
     }
 }
 
-void activate_sps (VideoParameters *p_Vid, sps_t *sps)
+void activate_sps(VideoParameters *p_Vid, sps_t *sps)
 {
     InputParameters *p_Inp = p_Vid->p_Inp;  
 
@@ -397,15 +364,13 @@ void activate_sps (VideoParameters *p_Vid, sps_t *sps)
         p_Vid->active_sps = sps;
 
         if (p_Vid->dpb_layer_id == 0 && is_BL_profile(sps->profile_idc) && !p_Vid->p_Dpb_layer[0]->init_done) {
-            set_coding_par(sps, p_Vid->p_EncodePar[0]);
-            setup_layer_info( p_Vid, sps, p_Vid->p_LayerPar[0]);
+            setup_layer_info(p_Vid, sps, p_Vid->p_LayerPar[0]);
         } else if (p_Vid->dpb_layer_id == 1 && is_EL_profile(sps->profile_idc) && !p_Vid->p_Dpb_layer[1]->init_done) {
-            set_coding_par(sps, p_Vid->p_EncodePar[1]);
             setup_layer_info(p_Vid, sps, p_Vid->p_LayerPar[1]);
         }
 
         //to be removed in future;
-        set_global_coding_par(p_Vid, p_Vid->p_EncodePar[p_Vid->dpb_layer_id]);
+        set_global_coding_par(p_Vid);
         //end;
 
 #if (MVC_EXTENSION_ENABLE)
@@ -714,7 +679,7 @@ static void status_picture(VideoParameters *p_Vid, StorablePicture **dec_picture
     int frame_poc         = (*dec_picture)->frame_poc;  
     int refpic            = (*dec_picture)->used_for_reference;
     int qp                = (*dec_picture)->qp;
-    int pic_num           = (*dec_picture)->pic_num;
+    int pic_num           = (*dec_picture)->PicNum;
     int is_idr            = (*dec_picture)->idr_flag;
     int chroma_format_idc = (*dec_picture)->chroma_format_idc;
 

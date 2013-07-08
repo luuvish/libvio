@@ -364,7 +364,8 @@ static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_
 
   int crop_left, crop_right, crop_top, crop_bottom;
   int symbol_size_in_bytes = ((pic_unit_bitsize_on_disk + 7) >> 3);
-  int rgb_output =  p_Vid->p_EncodePar[p->layer_id]->rgb_output;
+  bool rgb_output = sps->vui_parameters.matrix_coefficients == 0;
+  //int rgb_output =  p_Vid->p_EncodePar[p->layer_id]->rgb_output;
   unsigned char *buf;
   //int iPicSizeTab[4] = {2, 3, 4, 6};
   int iLumaSize, iFrameSize;

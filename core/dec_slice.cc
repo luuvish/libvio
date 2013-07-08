@@ -25,8 +25,7 @@
 #include "biaridecod.h"
 
 #include "erc_api.h"
-#include "dpb_common.h"
-#include "dpb_mvc.h"
+#include "dpb.h"
 
 
 
@@ -80,76 +79,6 @@ static void linfo_cbp_inter_other(int len,int info,int *cbp, int *dummy)
   *cbp=NCBP[0][cbp_idx][1];
 }
 
-
-static void reorder_lists(Slice *currSlice)
-{
-    VideoParameters *p_Vid = currSlice->p_Vid;
-
-    if (currSlice->slice_type != I_SLICE && currSlice->slice_type != SI_SLICE) {
-        if (currSlice->ref_pic_list_modification_flag_l0)
-            reorder_ref_pic_list(currSlice, LIST_0);
-        if (p_Vid->no_reference_picture == currSlice->listX[0][currSlice->num_ref_idx_l0_active_minus1]) {
-            if (p_Vid->non_conforming_stream)
-                printf("RefPicList0[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_l0_active_minus1);
-            else
-                error("RefPicList0[ num_ref_idx_l0_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
-        }
-        // that's a definition
-        currSlice->listXsize[0] = (char) currSlice->num_ref_idx_l0_active_minus1 + 1;
-    }
-
-    if (currSlice->slice_type == B_SLICE) {
-        if (currSlice->ref_pic_list_modification_flag_l1)
-            reorder_ref_pic_list(currSlice, LIST_1);
-        if (p_Vid->no_reference_picture == currSlice->listX[1][currSlice->num_ref_idx_l1_active_minus1]) {
-            if (p_Vid->non_conforming_stream)
-                printf("RefPicList1[ %d ] is equal to 'no reference picture'\n", currSlice->num_ref_idx_l1_active_minus1);
-            else
-                error("RefPicList1[ num_ref_idx_l1_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
-        }
-        // that's a definition
-        currSlice->listXsize[1] = (char) currSlice->num_ref_idx_l1_active_minus1 + 1;
-    }
-}
-
-/*!
- ************************************************************************
- * \brief
- *    Initialize listX[2..5] from lists 0 and 1
- *    listX[2]: list0 for current_field==top
- *    listX[3]: list1 for current_field==top
- *    listX[4]: list0 for current_field==bottom
- *    listX[5]: list1 for current_field==bottom
- *
- ************************************************************************
- */
-static void init_mbaff_lists(VideoParameters *p_Vid, Slice *currSlice)
-{
-    unsigned j;
-    int i;
-
-    for (i = 2; i < 6; i++) {
-        for (j = 0; j < MAX_LIST_SIZE; j++)
-            currSlice->listX[i][j] = p_Vid->no_reference_picture;
-        currSlice->listXsize[i]=0;
-    }
-
-    for (i = 0; i < currSlice->listXsize[0]; i++) {
-        currSlice->listX[2][2*i  ] = currSlice->listX[0][i]->top_field;
-        currSlice->listX[2][2*i+1] = currSlice->listX[0][i]->bottom_field;
-        currSlice->listX[4][2*i  ] = currSlice->listX[0][i]->bottom_field;
-        currSlice->listX[4][2*i+1] = currSlice->listX[0][i]->top_field;
-    }
-    currSlice->listXsize[2] = currSlice->listXsize[4] = currSlice->listXsize[0] * 2;
-
-    for (i = 0; i < currSlice->listXsize[1]; i++) {
-        currSlice->listX[3][2*i  ] = currSlice->listX[1][i]->top_field;
-        currSlice->listX[3][2*i+1] = currSlice->listX[1][i]->bottom_field;
-        currSlice->listX[5][2*i  ] = currSlice->listX[1][i]->bottom_field;
-        currSlice->listX[5][2*i+1] = currSlice->listX[1][i]->top_field;
-    }
-    currSlice->listXsize[3] = currSlice->listXsize[5] = currSlice->listXsize[1] * 2;
-}
 
 
 static void fill_wp_params(Slice *currSlice)
