@@ -345,7 +345,17 @@ void change_plane_JV(VideoParameters *p_Vid, int nplane, Slice *pSlice)
 
 void pic_deblock(VideoParameters *p_Vid, StorablePicture *p)
 {
-    if (!p_Vid->iDeblockMode && (p_Vid->bDeblockEnable & (1<<p->used_for_reference))) {
+    int iDeblockMode = 1;
+    //init mb_data;
+    for (int j = 0; j < p_Vid->iSliceNumOfCurrPic; j++) {
+        if (p_Vid->ppSliceList[j]->disable_deblocking_filter_idc != 1)
+            iDeblockMode = 0;
+#if (MVC_EXTENSION_ENABLE)
+        assert(p_Vid->ppSliceList[j]->view_id == p_Vid->ppSliceList[0]->view_id);
+#endif
+    }
+
+    if (!iDeblockMode && (0x03 & (1<<p->used_for_reference))) {
         //deblocking for frame or field
         if (p_Vid->active_sps->separate_colour_plane_flag != 0) {
             int nplane;

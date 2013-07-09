@@ -424,8 +424,8 @@ void itrans_2(Macroblock *currMB,    //!< current macroblock
   int **cof = currSlice->cof[transform_pl];
   int qp_scaled = currMB->qp_scaled[transform_pl];
 
-  int qp_per = p_Vid->qp_per_matrix[ qp_scaled ];
-  int qp_rem = p_Vid->qp_rem_matrix[ qp_scaled ];      
+  int qp_per = qp_scaled / 6;
+  int qp_rem = qp_scaled % 6;
 
   int invLevelScale = currSlice->InvLevelScale4x4_Intra[pl][qp_rem][0][0];
   int **M4;
@@ -460,18 +460,17 @@ void itrans_sp(Macroblock *currMB,   //!< current macroblock
                int ioff,             //!< index to 4x4 block
                int joff)             //!< index to 4x4 block
 {
-  VideoParameters *p_Vid = currMB->p_Vid;
   Slice *currSlice = currMB->p_Slice;
   sps_t *sps = currSlice->active_sps;
   int i,j;  
   int ilev, icof;
 
   int qp = (currSlice->slice_type == SI_SLICE) ? currSlice->QsY : currSlice->SliceQpY;
-  int qp_per = p_Vid->qp_per_matrix[ qp ];
-  int qp_rem = p_Vid->qp_rem_matrix[ qp ];
+  int qp_per = qp / 6;
+  int qp_rem = qp % 6;
 
-  int qp_per_sp = p_Vid->qp_per_matrix[ currSlice->QsY ];
-  int qp_rem_sp = p_Vid->qp_rem_matrix[ currSlice->QsY ];
+  int qp_per_sp = currSlice->QsY / 6;
+  int qp_rem_sp = currSlice->QsY % 6;
   int q_bits_sp = Q_BITS + qp_per_sp;
 
   imgpel **mb_pred = currSlice->mb_pred[pl];
@@ -548,7 +547,6 @@ void itrans_sp_cr(Macroblock *currMB, int uv)
 {
   Slice *currSlice = currMB->p_Slice;
   sps_t *sps = currSlice->active_sps;
-  VideoParameters *p_Vid = currMB->p_Vid;
   int i,j,ilev, icof, n2,n1;
   int mp1[BLOCK_SIZE];
   int qp_per,qp_rem;
@@ -562,11 +560,11 @@ void itrans_sp_cr(Macroblock *currMB, int uv)
     int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
                        sps->chroma_format_idc == YUV420 ? 8 : 16;
 
-  qp_per    = p_Vid->qp_per_matrix[ ((currSlice->SliceQpY < 0 ? currSlice->SliceQpY : QP_SCALE_CR[currSlice->SliceQpY]))];
-  qp_rem    = p_Vid->qp_rem_matrix[ ((currSlice->SliceQpY < 0 ? currSlice->SliceQpY : QP_SCALE_CR[currSlice->SliceQpY]))];
+  qp_per    = (currSlice->SliceQpY < 0 ? currSlice->SliceQpY : QP_SCALE_CR[currSlice->SliceQpY]) / 6;
+  qp_rem    = (currSlice->SliceQpY < 0 ? currSlice->SliceQpY : QP_SCALE_CR[currSlice->SliceQpY]) % 6;
 
-  qp_per_sp = p_Vid->qp_per_matrix[ ((currSlice->QsY < 0 ? currSlice->QsY : QP_SCALE_CR[currSlice->QsY]))];
-  qp_rem_sp = p_Vid->qp_rem_matrix[ ((currSlice->QsY < 0 ? currSlice->QsY : QP_SCALE_CR[currSlice->QsY]))];
+  qp_per_sp = (currSlice->QsY < 0 ? currSlice->QsY : QP_SCALE_CR[currSlice->QsY]) / 6;
+  qp_rem_sp = (currSlice->QsY < 0 ? currSlice->QsY : QP_SCALE_CR[currSlice->QsY]) % 6;
   q_bits_sp = Q_BITS + qp_per_sp;  
 
   if (currSlice->slice_type == SI_SLICE)

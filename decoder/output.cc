@@ -744,7 +744,6 @@ void write_stored_frame( VideoParameters *p_Vid, FrameStore *fs, int p_out)
  */
 void direct_output(VideoParameters *p_Vid, StorablePicture *p, int p_out)
 {
-  InputParameters *p_Inp = p_Vid->p_Inp;
   if (p->structure==FRAME)
   {
     // we have a frame (or complementary field pair)
@@ -752,8 +751,6 @@ void direct_output(VideoParameters *p_Vid, StorablePicture *p, int p_out)
     flush_direct_output(p_Vid, p_out);
     write_picture (p_Vid, p, p_out, FRAME);
     calculate_frame_no(p_Vid, p);
-    if (-1 != p_Vid->p_ref && !p_Inp->silent)
-      find_snr(p_Vid, p, &p_Vid->p_ref);
     free_storable_picture(p);
     return;
   }
@@ -784,8 +781,6 @@ void direct_output(VideoParameters *p_Vid, StorablePicture *p, int p_out)
     write_picture (p_Vid, p_Vid->out_buffer->frame, p_out, FRAME);
 
     calculate_frame_no(p_Vid, p);
-    if (-1 != p_Vid->p_ref && !p_Inp->silent)
-      find_snr(p_Vid, p_Vid->out_buffer->frame, &p_Vid->p_ref);
     free_storable_picture(p_Vid->out_buffer->frame);
     p_Vid->out_buffer->frame = NULL;
     free_storable_picture(p_Vid->out_buffer->top_field);

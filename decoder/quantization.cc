@@ -156,27 +156,6 @@ static const int dequant_coef8[6][8][8] =
 };
 
 
-/*!
- ***********************************************************************
- * \brief
- *    Initiate quantization process arrays
- ***********************************************************************
- */
-
-void free_qp_matrices(CodingParameters *cps)
-{
-  if (cps->qp_per_matrix != NULL)
-  {
-    free (cps->qp_per_matrix);
-    cps->qp_per_matrix = NULL;
-  }
-
-  if (cps->qp_rem_matrix != NULL)
-  {
-    free (cps->qp_rem_matrix);
-    cps->qp_rem_matrix = NULL;
-  }
-}
 
 /*!
  ************************************************************************

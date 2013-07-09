@@ -394,6 +394,15 @@ static void get_block_chroma(StorablePicture *curr_ref, int x_pos, int y_pos,
     int subpel_y = sps->chroma_format_idc == YUV400 ? 0 :
                    sps->chroma_format_idc == YUV420 ? 7 : 3;
 
+    int iChromaPadX = MCBUF_CHROMA_PAD_X;
+    int iChromaPadY = MCBUF_CHROMA_PAD_Y;
+    if (sps->chroma_format_idc == YUV422)
+        iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
+    else if (sps->chroma_format_idc == YUV444) {
+        iChromaPadX = MCBUF_LUMA_PAD_X;
+        iChromaPadY = MCBUF_LUMA_PAD_Y;
+    }
+
     imgpel *img1,*img2;
     short dx,dy;
     int span = curr_ref->iChromaStride;
@@ -406,9 +415,9 @@ static void get_block_chroma(StorablePicture *curr_ref, int x_pos, int y_pos,
         x_pos = x_pos >> shiftpel_x;
         y_pos = y_pos >> shiftpel_y;
         //clip MV;
-        assert(vert_block_size <=p_Vid->iChromaPadY && block_size_x<=p_Vid->iChromaPadX);
-        x_pos = iClip3(-p_Vid->iChromaPadX, maxold_x, x_pos); //16
-        y_pos = iClip3(-p_Vid->iChromaPadY, maxold_y, y_pos); //8
+        assert(vert_block_size <= iChromaPadY && block_size_x <= iChromaPadX);
+        x_pos = iClip3(-iChromaPadX, maxold_x, x_pos); //16
+        y_pos = iClip3(-iChromaPadY, maxold_y, y_pos); //8
         img1 = &curr_ref->imgUV[0][y_pos][x_pos];
         img2 = &curr_ref->imgUV[1][y_pos][x_pos];
 
@@ -439,16 +448,15 @@ static void check_motion_vector_range(const MotionVector *mv, Slice *pSlice)
 
 static int CheckVertMV(Macroblock *currMB, int vec_y, int block_size_y)
 {
-    VideoParameters *p_Vid = currMB->p_Vid;
     StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
     int y_pos = vec_y >> 2;
     int maxold_y = (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;
 
-    if (block_size_y <= (p_Vid->iLumaPadY-4))
+    if (block_size_y <= (MCBUF_LUMA_PAD_Y-4))
         return 0;
 
-    if (y_pos < (2 - p_Vid->iLumaPadY) ||
-        y_pos > (maxold_y + p_Vid->iLumaPadY - block_size_y - 2))
+    if (y_pos < (2 - MCBUF_LUMA_PAD_Y) ||
+        y_pos > (maxold_y + MCBUF_LUMA_PAD_Y - block_size_y - 2))
         return 1;
     else
         return 0;

@@ -566,7 +566,16 @@ void alloc_pic_motion(PicMotionParamsOld *motion, int size_y, int size_x)
  */
 StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure structure, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output)
 {
-  sps_t *active_sps = p_Vid->active_sps;  
+  sps_t *sps = p_Vid->active_sps;  
+
+    int iChromaPadX = MCBUF_CHROMA_PAD_X;
+    int iChromaPadY = MCBUF_CHROMA_PAD_Y;
+    if (sps->chroma_format_idc == YUV422)
+        iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
+    else if (sps->chroma_format_idc == YUV444) {
+        iChromaPadX = MCBUF_LUMA_PAD_X;
+        iChromaPadY = MCBUF_LUMA_PAD_Y;
+    }
 
   StorablePicture *s;
   int   nplane;
@@ -584,28 +593,27 @@ StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure
   s->PicSizeInMbs = (size_x*size_y)/256;
   s->imgUV = NULL;
 
-  get_mem2Dpel_pad (&(s->imgY), size_y, size_x, p_Vid->iLumaPadY, p_Vid->iLumaPadX);
-  s->iLumaStride = size_x+2*p_Vid->iLumaPadX;
-  s->iLumaExpandedHeight = size_y+2*p_Vid->iLumaPadY;
+  get_mem2Dpel_pad (&(s->imgY), size_y, size_x, MCBUF_LUMA_PAD_Y, MCBUF_LUMA_PAD_X);
+  s->iLumaStride = size_x+2*MCBUF_LUMA_PAD_X;
+  s->iLumaExpandedHeight = size_y+2*MCBUF_LUMA_PAD_Y;
 
-  if (active_sps->chroma_format_idc != YUV400)
+  if (sps->chroma_format_idc != YUV400)
   {
-    get_mem3Dpel_pad(&(s->imgUV), 2, size_y_cr, size_x_cr, p_Vid->iChromaPadY, p_Vid->iChromaPadX);
+    get_mem3Dpel_pad(&(s->imgUV), 2, size_y_cr, size_x_cr, iChromaPadY, iChromaPadX);
   }
 
-  s->iChromaStride =size_x_cr + 2*p_Vid->iChromaPadX;
-  s->iChromaExpandedHeight = size_y_cr + 2*p_Vid->iChromaPadY;
-  s->iLumaPadY   = p_Vid->iLumaPadY;
-  s->iLumaPadX   = p_Vid->iLumaPadX;
-  s->iChromaPadY = p_Vid->iChromaPadY;
-  s->iChromaPadX = p_Vid->iChromaPadX;
+  s->chroma_format_idc = sps->chroma_format_idc;
+  s->iChromaStride =size_x_cr + 2*iChromaPadX;
+  s->iChromaExpandedHeight = size_y_cr + 2*iChromaPadY;
+  s->iChromaPadY = iChromaPadY;
+  s->iChromaPadX = iChromaPadX;
 
-  s->separate_colour_plane_flag = p_Vid->active_sps->separate_colour_plane_flag;
+  s->separate_colour_plane_flag = sps->separate_colour_plane_flag;
 
   get_mem2Dmp     ( &s->mv_info, (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
   alloc_pic_motion( &s->motion , (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
 
-  if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
+  if( (sps->separate_colour_plane_flag != 0) )
   {
     for( nplane=0; nplane<MAX_PLANE; nplane++ )
     {
@@ -622,7 +630,6 @@ StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure
   s->is_long_term        = 0;
   s->non_existing        = 0;
   s->is_output           = 0;
-  s->max_slice_id        = 0;
 #if (MVC_EXTENSION_ENABLE)
   s->view_id = -1;
 #endif
@@ -650,7 +657,7 @@ StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure
   s->top_poc = s->bottom_poc = s->poc = 0;
   s->seiHasTone_mapping = 0;
 
-  if(!p_Vid->active_sps->frame_mbs_only_flag && structure != FRAME)
+  if(!sps->frame_mbs_only_flag && structure != FRAME)
   {
     int i, j;
     for(j = 0; j < MAX_NUM_SLICES; j++)
@@ -724,6 +731,15 @@ void free_pic_motion(PicMotionParamsOld *motion)
  */
 void free_storable_picture(StorablePicture* p)
 {
+    int iChromaPadX = MCBUF_CHROMA_PAD_X;
+    int iChromaPadY = MCBUF_CHROMA_PAD_Y;
+    if (p->chroma_format_idc == YUV422)
+        iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
+    else if (p->chroma_format_idc == YUV444) {
+        iChromaPadX = MCBUF_LUMA_PAD_X;
+        iChromaPadY = MCBUF_LUMA_PAD_Y;
+    }
+
   int nplane;
   if (p)
   {
@@ -749,7 +765,7 @@ void free_storable_picture(StorablePicture* p)
 
     if (p->imgY)
     {
-      free_mem2Dpel_pad(p->imgY, p->iLumaPadY, p->iLumaPadX);
+      free_mem2Dpel_pad(p->imgY, MCBUF_LUMA_PAD_Y, MCBUF_LUMA_PAD_X);
       p->imgY = NULL;
     }
 
@@ -902,8 +918,6 @@ static void gen_field_ref_ids(VideoParameters *p_Vid, StorablePicture *p)
 
 void insert_picture_in_dpb(VideoParameters *p_Vid, FrameStore* fs, StorablePicture* p)
 {
-  InputParameters *p_Inp = p_Vid->p_Inp;
-//  printf ("insert (%s) pic with frame_num #%d, poc %d\n", (p->structure == FRAME)?"FRAME":(p->structure == TOP_FIELD)?"TOP_FIELD":"BOTTOM_FIELD", p->pic_num, p->poc);
   assert (p!=NULL);
   assert (fs!=NULL);
   switch (p->structure)
@@ -999,8 +1013,6 @@ void insert_picture_in_dpb(VideoParameters *p_Vid, FrameStore* fs, StorablePictu
   if (fs->is_used==3)
   {
     calculate_frame_no(p_Vid, p);
-    if (-1 != p_Vid->p_ref && !p_Inp->silent)
-      find_snr(p_Vid, fs->frame, &p_Vid->p_ref);
   }
 }
 
@@ -1761,7 +1773,6 @@ void append_interview_list(dpb_t *p_Dpb,
 
 void process_picture_in_dpb_s(VideoParameters *p_Vid, StorablePicture *p_pic)
 {
-  //InputParameters *p_Inp = p_Vid->p_Inp;
   ImageData *p_img_out = &p_Vid->tempData3;
   imgpel***  d_img;
   int i;
@@ -1798,25 +1809,13 @@ void process_picture_in_dpb_s(VideoParameters *p_Vid, StorablePicture *p_pic)
 
 int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
 {
-  InputParameters *p_Inp = p_Vid->p_Inp;
   int memory_size = 0;
   int nplane;
   
   // allocate memory for reference frame buffers: p_ImgData->frm_data
-  p_ImgData->format           = p_Inp->output;
-  p_ImgData->format.width[0]  = sps->PicWidthInMbs * 16;
-  p_ImgData->format.width[1]  = sps->PicWidthInMbs * sps->MbWidthC;
-  p_ImgData->format.width[2]  = sps->PicWidthInMbs * sps->MbWidthC;
-  p_ImgData->format.height[0] = sps->FrameHeightInMbs * 16;
-  p_ImgData->format.height[1] = sps->FrameHeightInMbs * sps->MbHeightC;
-  p_ImgData->format.height[2] = sps->FrameHeightInMbs * sps->MbHeightC;
-  p_ImgData->format.yuv_format          = (ColorFormat) sps->chroma_format_idc;
-  p_ImgData->format.auto_crop_bottom    = p_Inp->output.auto_crop_bottom;
-  p_ImgData->format.auto_crop_right     = p_Inp->output.auto_crop_right;
-  p_ImgData->format.auto_crop_bottom_cr = p_Inp->output.auto_crop_bottom_cr;
-  p_ImgData->format.auto_crop_right_cr  = p_Inp->output.auto_crop_right_cr;
-  p_ImgData->frm_stride[0]    = sps->PicWidthInMbs * 16;
-  p_ImgData->frm_stride[1]    = p_ImgData->frm_stride[2] = sps->PicWidthInMbs * sps->MbWidthC;
+  p_ImgData->yuv_format    = (ColorFormat) sps->chroma_format_idc;
+  p_ImgData->frm_stride[0] = sps->PicWidthInMbs * 16;
+  p_ImgData->frm_stride[1] = p_ImgData->frm_stride[2] = sps->PicWidthInMbs * sps->MbWidthC;
   p_ImgData->top_stride[0] = p_ImgData->bot_stride[0] = p_ImgData->frm_stride[0] << 1;
   p_ImgData->top_stride[1] = p_ImgData->top_stride[2] = p_ImgData->bot_stride[1] = p_ImgData->bot_stride[2] = p_ImgData->frm_stride[1] << 1;
 
@@ -1900,7 +1899,7 @@ void free_img_data(VideoParameters *p_Vid, ImageData *p_ImgData)
       p_ImgData->frm_data[0] = NULL;
     }
     
-    if (p_ImgData->format.yuv_format != YUV400)
+    if (p_ImgData->yuv_format != YUV400)
     {
       if (p_ImgData->frm_data[1])
       {
@@ -1919,7 +1918,7 @@ void free_img_data(VideoParameters *p_Vid, ImageData *p_ImgData)
   {
     free_top_bot_planes(p_ImgData->top_data[0], p_ImgData->bot_data[0]);
 
-    if (p_ImgData->format.yuv_format != YUV400)
+    if (p_ImgData->yuv_format != YUV400)
     {
       free_top_bot_planes(p_ImgData->top_data[1], p_ImgData->bot_data[1]);
       free_top_bot_planes(p_ImgData->top_data[2], p_ImgData->bot_data[2]);
@@ -2040,13 +2039,21 @@ StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePictur
       sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
       sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 0);
 
+    int iChromaPadX = MCBUF_CHROMA_PAD_X;
+    int iChromaPadY = MCBUF_CHROMA_PAD_Y;
+    if (sps->chroma_format_idc == YUV422)
+        iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
+    else if (sps->chroma_format_idc == YUV444) {
+        iChromaPadX = MCBUF_LUMA_PAD_X;
+        iChromaPadY = MCBUF_LUMA_PAD_Y;
+    }
+
   p_stored_pic->PicNum = p_pic->PicNum;
   p_stored_pic->frame_num = p_pic->frame_num;
   p_stored_pic->LongTermFrameIdx = p_pic->LongTermFrameIdx;
   p_stored_pic->LongTermPicNum = p_pic->LongTermPicNum;
   p_stored_pic->is_long_term = 0;
   p_stored_pic->non_existing = p_pic->non_existing;
-  p_stored_pic->max_slice_id = p_pic->max_slice_id;
   p_stored_pic->structure = p_pic->structure;
   p_stored_pic->size_x = p_pic->size_x;
   p_stored_pic->size_y = p_pic->size_y;
@@ -2113,14 +2120,14 @@ StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePictur
 
   copy_img_data(&p_stored_pic->imgY[0][0], &img_in[0][0][0], ostride[0], istride[0], p_pic->size_y, p_pic->size_x * sizeof(imgpel)); 
 
-  pad_buf(*p_stored_pic->imgY, p_stored_pic->size_x, p_stored_pic->size_y, p_stored_pic->iLumaStride, p_Vid->iLumaPadX, p_Vid->iLumaPadY);
+  pad_buf(*p_stored_pic->imgY, p_stored_pic->size_x, p_stored_pic->size_y, p_stored_pic->iLumaStride, MCBUF_LUMA_PAD_X, MCBUF_LUMA_PAD_Y);
 
   if (p_Vid->active_sps->chroma_format_idc != YUV400)
   {    
     copy_img_data(&p_stored_pic->imgUV[0][0][0], &img_in[1][0][0], ostride[1], istride[1], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(imgpel));
-    pad_buf(*p_stored_pic->imgUV[0], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, p_Vid->iChromaPadX, p_Vid->iChromaPadY);
+    pad_buf(*p_stored_pic->imgUV[0], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, iChromaPadX, iChromaPadY);
     copy_img_data(&p_stored_pic->imgUV[1][0][0], &img_in[2][0][0], ostride[1], istride[2], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(imgpel));
-    pad_buf(*p_stored_pic->imgUV[1], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, p_Vid->iChromaPadX, p_Vid->iChromaPadY);
+    pad_buf(*p_stored_pic->imgUV[1], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, iChromaPadX, iChromaPadY);
   }
 
   for (j = 0; j < (p_pic->size_y >> BLOCK_SHIFT); j++)

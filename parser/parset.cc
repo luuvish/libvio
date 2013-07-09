@@ -259,13 +259,13 @@ void seq_parameter_set_rbsp(DataPartition *p, sps_t *sps)
         sps->ChromaArrayType = sps->chroma_format_idc;
     else
         sps->ChromaArrayType = 0;
-    sps->SubWidthC = sps->chroma_format_idc < 3 ? 2 : 1;
+    sps->SubWidthC  = sps->chroma_format_idc < 3 ? 2 : 1;
     sps->SubHeightC = sps->chroma_format_idc < 2 ? 2 : 1;
     if (sps->chroma_format_idc == 0 || sps->separate_colour_plane_flag == 1) {
-        sps->MbWidthC = 0;
+        sps->MbWidthC  = 0;
         sps->MbHeightC = 0;
     } else {
-        sps->MbWidthC = 16 / sps->SubWidthC;
+        sps->MbWidthC  = 16 / sps->SubWidthC;
         sps->MbHeightC = 16 / sps->SubHeightC;
     }
 
@@ -317,11 +317,11 @@ void seq_parameter_set_rbsp(DataPartition *p, sps_t *sps)
     sps->pic_width_in_mbs_minus1               = s->ue("SPS: pic_width_in_mbs_minus1");
     sps->pic_height_in_map_units_minus1        = s->ue("SPS: pic_height_in_map_units_minus1");
 
-    sps->PicWidthInMbs = sps->pic_width_in_mbs_minus1 + 1;
-    sps->PicWidthInSamplesL = sps->PicWidthInMbs * 16;
-    sps->PicWidthInSamplesC = sps->PicWidthInMbs * sps->MbWidthC;
+    sps->PicWidthInMbs       = sps->pic_width_in_mbs_minus1 + 1;
+    sps->PicWidthInSamplesL  = sps->PicWidthInMbs * 16;
+    sps->PicWidthInSamplesC  = sps->PicWidthInMbs * sps->MbWidthC;
     sps->PicHeightInMapUnits = sps->pic_height_in_map_units_minus1 + 1;
-    sps->PicSizeInMapUnits = sps->PicWidthInMbs * sps->PicHeightInMapUnits;
+    sps->PicSizeInMapUnits   = sps->PicWidthInMbs * sps->PicHeightInMapUnits;
 
     sps->frame_mbs_only_flag                   = s->u(1, "SPS: frame_mbs_only_flag");
 

@@ -37,6 +37,7 @@ static inline int is_BL_profile(unsigned int profile_idc)
   return ( profile_idc == FREXT_CAVLC444 || profile_idc == BASELINE || profile_idc == MAIN || profile_idc == EXTENDED ||
            profile_idc == FREXT_HP || profile_idc == FREXT_Hi10P || profile_idc == FREXT_Hi422 || profile_idc == FREXT_Hi444);
 }
+
 static inline int is_EL_profile(unsigned int profile_idc) 
 {
   return ( (profile_idc == MVC_HIGH) || (profile_idc == STEREO_HIGH)
@@ -52,271 +53,78 @@ static inline int is_MVC_profile(unsigned int profile_idc)
   );
 }
 
-static void init_qp_process(CodingParameters *cps, int bitdepth_qp_scale)
-{
-  int i;
-
-  // We should allocate memory outside of this process since maybe we will have a change of SPS 
-  // and we may need to recreate these. Currently should only support same bitdepth
-  if (cps->qp_per_matrix == NULL)
-    if ((cps->qp_per_matrix = (int*)malloc((MAX_QP + 1 +  bitdepth_qp_scale)*sizeof(int))) == NULL)
-      no_mem_exit("init_qp_process: cps->qp_per_matrix");
-
-  if (cps->qp_rem_matrix == NULL)
-    if ((cps->qp_rem_matrix = (int*)malloc((MAX_QP + 1 +  bitdepth_qp_scale)*sizeof(int))) == NULL)
-      no_mem_exit("init_qp_process: cps->qp_rem_matrix");
-
-  for (i = 0; i < MAX_QP + bitdepth_qp_scale + 1; i++)
-  {
-    cps->qp_per_matrix[i] = i / 6;
-    cps->qp_rem_matrix[i] = i % 6;
-  }
-}
 
 static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
 {
-  int memory_size=0;
-  int i;
-  CodingParameters *cps = p_Vid->p_EncodePar[layer_id];
-  sps_t *sps = p_Vid->active_sps;
-  BlockPos* PicPos;
-  int FrameSizeInMbs = sps->PicWidthInMbs * sps->FrameHeightInMbs;
+    int memory_size=0;
+    int i;
+    CodingParameters *cps = p_Vid->p_EncodePar[layer_id];
+    sps_t *sps = p_Vid->active_sps;
+    BlockPos* PicPos;
+    int FrameSizeInMbs = sps->PicWidthInMbs * sps->FrameHeightInMbs;
 
-  if (p_Vid->global_init_done[layer_id])
-  {
-    free_layer_buffers(p_Vid, layer_id);
-  }
+    if (p_Vid->global_init_done[layer_id])
+        free_layer_buffers(p_Vid, layer_id);
 
-  // allocate memory for reference frame in find_snr
-  memory_size += get_mem2Dpel(&cps->imgY_ref, sps->FrameHeightInMbs*16, sps->PicWidthInMbs*16);
-  if (sps->chroma_format_idc != YUV400)
-  {
-    memory_size += get_mem3Dpel(&cps->imgUV_ref, 2, sps->FrameHeightInMbs * sps->MbHeightC, sps->PicWidthInMbs * sps->MbWidthC);
-  }
-  else
-    cps->imgUV_ref = NULL;
-
-  // allocate memory in structure p_Vid
-  if( (sps->separate_colour_plane_flag != 0) )
-  {
-    for( i=0; i<MAX_PLANE; ++i )
-    {
-      if(((cps->mb_data_JV[i]) = (Macroblock *) calloc(FrameSizeInMbs, sizeof(Macroblock))) == NULL)
-        no_mem_exit("init_global_buffers: cps->mb_data_JV");
+    // allocate memory in structure p_Vid
+    if (sps->separate_colour_plane_flag) {
+        for (i = 0; i < MAX_PLANE; i++) {
+            if (((cps->mb_data_JV[i]) = (Macroblock *) calloc(FrameSizeInMbs, sizeof(Macroblock))) == NULL)
+                no_mem_exit("init_global_buffers: cps->mb_data_JV");
+        }
+        cps->mb_data = NULL;
+    } else {
+        if (((cps->mb_data) = (Macroblock *) calloc(FrameSizeInMbs, sizeof(Macroblock))) == NULL)
+            no_mem_exit("init_global_buffers: cps->mb_data");
     }
-    cps->mb_data = NULL;
-  }
-  else
-  {
-    if(((cps->mb_data) = (Macroblock *) calloc(FrameSizeInMbs, sizeof(Macroblock))) == NULL)
-      no_mem_exit("init_global_buffers: cps->mb_data");
-  }
-  if(sps->separate_colour_plane_flag)
-  {
-    for( i=0; i<MAX_PLANE; ++i )
-    {
-      if(((cps->intra_block_JV[i]) = (char*) calloc(FrameSizeInMbs, sizeof(char))) == NULL)
-        no_mem_exit("init_global_buffers: cps->intra_block_JV");
+
+    if (sps->separate_colour_plane_flag) {
+        for (i = 0; i < MAX_PLANE; i++) {
+            if (((cps->intra_block_JV[i]) = (char*) calloc(FrameSizeInMbs, sizeof(char))) == NULL)
+                no_mem_exit("init_global_buffers: cps->intra_block_JV");
+        }
+        cps->intra_block = NULL;
+    } else {
+        if (((cps->intra_block) = (char*) calloc(FrameSizeInMbs, sizeof(char))) == NULL)
+            no_mem_exit("init_global_buffers: cps->intra_block");
     }
-    cps->intra_block = NULL;
-  }
-  else
-  {
-    if(((cps->intra_block) = (char*) calloc(FrameSizeInMbs, sizeof(char))) == NULL)
-      no_mem_exit("init_global_buffers: cps->intra_block");
-  }
 
-
-  if(((cps->PicPos) = (BlockPos*) calloc(FrameSizeInMbs + 1, sizeof(BlockPos))) == NULL)
-    no_mem_exit("init_global_buffers: PicPos");
-
-  PicPos = cps->PicPos;
-  for (i = 0; i < (int) FrameSizeInMbs + 1;++i)
-  {
-    PicPos[i].x = (short) (i % sps->PicWidthInMbs);
-    PicPos[i].y = (short) (i / sps->PicWidthInMbs);
-  }
-
-  if(sps->separate_colour_plane_flag)
-  {
-    for( i=0; i<MAX_PLANE; ++i )
-    {
-      get_mem2D(&(cps->ipredmode_JV[i]), 4*sps->FrameHeightInMbs, 4*p_Vid->active_sps->PicWidthInMbs);
+    if (((cps->PicPos) = (BlockPos*) calloc(FrameSizeInMbs + 1, sizeof(BlockPos))) == NULL)
+        no_mem_exit("init_global_buffers: PicPos");
+    PicPos = cps->PicPos;
+    for (i = 0; i < (int) FrameSizeInMbs + 1; i++) {
+        PicPos[i].x = (short) (i % sps->PicWidthInMbs);
+        PicPos[i].y = (short) (i / sps->PicWidthInMbs);
     }
-    cps->ipredmode = NULL;
-  }
-  else
-   memory_size += get_mem2D(&(cps->ipredmode), 4*sps->FrameHeightInMbs, 4*p_Vid->active_sps->PicWidthInMbs);
 
-  // CAVLC mem
-  memory_size += get_mem4D(&(cps->nz_coeff), FrameSizeInMbs, 3, BLOCK_SIZE, BLOCK_SIZE);
-  if(sps->separate_colour_plane_flag)
-  {
-    for( i=0; i<MAX_PLANE; ++i )
-    {
-      get_mem2Dint(&(cps->siblock_JV[i]), sps->FrameHeightInMbs, sps->PicWidthInMbs);
-      if(cps->siblock_JV[i]== NULL)
-        no_mem_exit("init_global_buffers: p_Vid->siblock_JV");
-    }
-    cps->siblock = NULL;
-  }
-  else
-  {
-    memory_size += get_mem2Dint(&(cps->siblock), sps->FrameHeightInMbs, sps->PicWidthInMbs);
-  }
-  init_qp_process(cps, imax(sps->QpBdOffsetY, sps->QpBdOffsetC));
+    if (sps->separate_colour_plane_flag) {
+        for (i = 0; i < MAX_PLANE; i++)
+            get_mem2D(&cps->ipredmode_JV[i], 4 * sps->FrameHeightInMbs, 4 * sps->PicWidthInMbs);
+        cps->ipredmode = NULL;
+    } else
+        memory_size += get_mem2D(&cps->ipredmode, 4 * sps->FrameHeightInMbs, 4 * sps->PicWidthInMbs);
 
-  int pic_unit_bitsize_on_disk;
-  if (sps->BitDepthY > sps->BitDepthC || sps->chroma_format_idc == YUV400)
-    pic_unit_bitsize_on_disk = (sps->BitDepthY > 8) ? 16 : 8;
-  else
-    pic_unit_bitsize_on_disk = (sps->BitDepthC > 8) ? 16 : 8;
-  if(layer_id == 0 )
-    init_output(cps, ((pic_unit_bitsize_on_disk + 7) >> 3));
-  else
-    cps->img2buf = p_Vid->p_EncodePar[0]->img2buf;
-  p_Vid->global_init_done[layer_id] = 1;
+    // CAVLC mem
+    memory_size += get_mem4D(&cps->nz_coeff, FrameSizeInMbs, 3, BLOCK_SIZE, BLOCK_SIZE);
 
-  return (memory_size);
-}
+    if (sps->separate_colour_plane_flag) {
+        for (i = 0; i < MAX_PLANE; i++) {
+            get_mem2Dint(&cps->siblock_JV[i], sps->FrameHeightInMbs, sps->PicWidthInMbs);
+            if (cps->siblock_JV[i] == NULL)
+                no_mem_exit("init_global_buffers: p_Vid->siblock_JV");
+        }
+        cps->siblock = NULL;
+    } else
+        memory_size += get_mem2Dint(&cps->siblock, sps->FrameHeightInMbs, sps->PicWidthInMbs);
 
-static void updateMaxValue(FrameFormat *format)
-{
-  format->max_value[0] = (1 << format->bit_depth[0]) - 1;
-  format->max_value_sq[0] = format->max_value[0] * format->max_value[0];
-  format->max_value[1] = (1 << format->bit_depth[1]) - 1;
-  format->max_value_sq[1] = format->max_value[1] * format->max_value[1];
-  format->max_value[2] = (1 << format->bit_depth[2]) - 1;
-  format->max_value_sq[2] = format->max_value[2] * format->max_value[2];
-}
+    int pic_unit_bitsize_on_disk = imax(sps->BitDepthY, sps->BitDepthC) > 8 ? 16 : 8;
+    if (layer_id == 0)
+        init_output(cps, (pic_unit_bitsize_on_disk + 7) >> 3);
+    else
+        cps->img2buf = p_Vid->p_EncodePar[0]->img2buf;
+    p_Vid->global_init_done[layer_id] = 1;
 
-static void reset_format_info(sps_t *sps, VideoParameters *p_Vid, FrameFormat *source, FrameFormat *output)
-{
-  InputParameters *p_Inp = p_Vid->p_Inp;
-  static const int SubWidthC  [4]= { 1, 2, 2, 1};
-  static const int SubHeightC [4]= { 1, 2, 1, 1};
-
-  int crop_left, crop_right;
-  int crop_top, crop_bottom;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-
-  // cropping for luma
-  if (sps->frame_cropping_flag)
-  {
-    crop_left   = SubWidthC [sps->chroma_format_idc] * sps->frame_crop_left_offset;
-    crop_right  = SubWidthC [sps->chroma_format_idc] * sps->frame_crop_right_offset;
-    crop_top    = SubHeightC[sps->chroma_format_idc] * ( 2 - sps->frame_mbs_only_flag ) *  sps->frame_crop_top_offset;
-    crop_bottom = SubHeightC[sps->chroma_format_idc] * ( 2 - sps->frame_mbs_only_flag ) *  sps->frame_crop_bottom_offset;
-  }
-  else
-  {
-    crop_left = crop_right = crop_top = crop_bottom = 0;
-  }
-
-  source->width[0] = (sps->PicWidthInMbs * 16) - crop_left - crop_right;
-  source->height[0] = (sps->FrameHeightInMbs * 16) - crop_top - crop_bottom;
-
-  // cropping for chroma
-  if (sps->frame_cropping_flag)
-  {
-    crop_left   = sps->frame_crop_left_offset;
-    crop_right  = sps->frame_crop_right_offset;
-    crop_top    = ( 2 - sps->frame_mbs_only_flag ) *  sps->frame_crop_top_offset;
-    crop_bottom = ( 2 - sps->frame_mbs_only_flag ) *  sps->frame_crop_bottom_offset;
-  }
-  else
-  {
-    crop_left = crop_right = crop_top = crop_bottom = 0;
-  }
-
-  if ((sps->chroma_format_idc==YUV400) && p_Inp->write_uv)
-  {
-    source->width[1]  = (source->width[0] >> 1);
-    source->width[2]  = source->width[1];
-    source->height[1] = (source->height[0] >> 1);
-    source->height[2] = source->height[1];
-  }
-  else
-  {
-    source->width[1]  = (sps->PicWidthInMbs * sps->MbWidthC) - crop_left - crop_right;
-    source->width[2]  = source->width[1];
-    source->height[1] = (sps->FrameHeightInMbs * sps->MbHeightC) - crop_top - crop_bottom;
-    source->height[2] = source->height[1];
-  }
-
-  output->width[0]  = sps->PicWidthInMbs * 16;
-  source->width[1]  = sps->PicWidthInMbs * sps->MbWidthC;
-  source->width[2]  = sps->PicWidthInMbs * sps->MbWidthC;
-  output->height[0] = sps->FrameHeightInMbs * 16;
-  output->height[1] = sps->FrameHeightInMbs * sps->MbHeightC;
-  output->height[2] = sps->FrameHeightInMbs * sps->MbHeightC;
-
-  source->size_cmp[0] = source->width[0] * source->height[0];
-  source->size_cmp[1] = source->width[1] * source->height[1];
-  source->size_cmp[2] = source->size_cmp[1];
-  source->size        = source->size_cmp[0] + source->size_cmp[1] + source->size_cmp[2];
-  source->mb_width    = source->width[0]  / MB_BLOCK_SIZE;
-  source->mb_height   = source->height[0] / MB_BLOCK_SIZE;
-
-  // output size (excluding padding)
-  output->size_cmp[0] = output->width[0] * output->height[0];
-  output->size_cmp[1] = output->width[1] * output->height[1];
-  output->size_cmp[2] = output->size_cmp[1];
-  output->size        = output->size_cmp[0] + output->size_cmp[1] + output->size_cmp[2];
-  output->mb_width    = output->width[0]  / MB_BLOCK_SIZE;
-  output->mb_height   = output->height[0] / MB_BLOCK_SIZE;
-
-
-  output->bit_depth[0] = source->bit_depth[0] = sps->bit_depth_luma_minus8 + 8;
-  output->bit_depth[1] = source->bit_depth[1] = sps->bit_depth_chroma_minus8 + 8;
-  output->bit_depth[2] = source->bit_depth[2] = sps->bit_depth_chroma_minus8 + 8;  
-
-  output->frame_rate  = source->frame_rate;
-  output->color_model = source->color_model;
-  output->yuv_format  = source->yuv_format = (ColorFormat) sps->chroma_format_idc;
-
-  output->auto_crop_bottom    = crop_bottom;
-  output->auto_crop_right     = crop_right;
-  output->auto_crop_bottom_cr = (crop_bottom * mb_cr_size_y) / MB_BLOCK_SIZE;
-  output->auto_crop_right_cr  = (crop_right * mb_cr_size_x) / MB_BLOCK_SIZE;
-
-  source->auto_crop_bottom    = output->auto_crop_bottom;
-  source->auto_crop_right     = output->auto_crop_right;
-  source->auto_crop_bottom_cr = output->auto_crop_bottom_cr;
-  source->auto_crop_right_cr  = output->auto_crop_right_cr;
-
-  updateMaxValue(source);
-  updateMaxValue(output);
-
-  if (p_Vid->first_sps) {
-    p_Vid->first_sps = 0;
-    if(!p_Inp->bDisplayDecParams) {
-      fprintf(stdout,"Profile IDC  : %d\n", sps->profile_idc);
-      fprintf(stdout,"Image Format : %dx%d (%dx%d)\n", source->width[0], source->height[0], sps->PicWidthInMbs*16, sps->FrameHeightInMbs*16);
-      if (sps->chroma_format_idc == YUV400)
-        fprintf(stdout,"Color Format : 4:0:0 ");
-      else if (sps->chroma_format_idc == YUV420)
-        fprintf(stdout,"Color Format : 4:2:0 ");
-      else if (sps->chroma_format_idc == YUV422)
-        fprintf(stdout,"Color Format : 4:2:2 ");
-      else
-        fprintf(stdout,"Color Format : 4:4:4 ");
-
-      fprintf(stdout,"(%d:%d:%d)\n", source->bit_depth[0], source->bit_depth[1], source->bit_depth[2]);
-      fprintf(stdout,"--------------------------------------------------------------------------\n");
-    }
-    if (!p_Inp->silent)
-    {
-      fprintf(stdout,"POC must = frame# or field# for SNRs to be correct\n");
-      fprintf(stdout,"--------------------------------------------------------------------------\n");
-      fprintf(stdout,"  Frame          POC  Pic#   QP    SnrY     SnrU     SnrV   Y:U:V Time(ms)\n");
-      fprintf(stdout,"--------------------------------------------------------------------------\n");
-    }
-  }
+    return memory_size;
 }
 
 static void setup_layer_info(VideoParameters *p_Vid, sps_t *sps, LayerParameters *p_Lps)
@@ -328,36 +136,11 @@ static void setup_layer_info(VideoParameters *p_Vid, sps_t *sps, LayerParameters
     p_Lps->p_Dpb = p_Vid->p_Dpb_layer[layer_id];
 }
 
-static void set_global_coding_par(VideoParameters *p_Vid)
-{
-    sps_t *sps = p_Vid->active_sps;
-    if (sps->level_idc <= 10)
-        p_Vid->max_vmv_r = 64 * 4;
-    else if (sps->level_idc <= 20)
-        p_Vid->max_vmv_r = 128 * 4;
-    else if (sps->level_idc <= 30)
-        p_Vid->max_vmv_r = 256 * 4;
-    else
-        p_Vid->max_vmv_r = 512 * 4; // 512 pixels in quarter pixels
-
-    // Fidelity Range Extensions stuff (part 1)
-    p_Vid->iLumaPadX   = MCBUF_LUMA_PAD_X;
-    p_Vid->iLumaPadY   = MCBUF_LUMA_PAD_Y;
-    p_Vid->iChromaPadX = MCBUF_CHROMA_PAD_X;
-    p_Vid->iChromaPadY = MCBUF_CHROMA_PAD_Y;
-    if (p_Vid->active_sps->chroma_format_idc == YUV422) {
-        p_Vid->iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
-    } else if (p_Vid->active_sps->chroma_format_idc == YUV444) {
-        p_Vid->iChromaPadX = p_Vid->iLumaPadX;
-        p_Vid->iChromaPadY = p_Vid->iLumaPadY;
-    }
-}
-
 void activate_sps(VideoParameters *p_Vid, sps_t *sps)
 {
-    InputParameters *p_Inp = p_Vid->p_Inp;  
-
     if (p_Vid->active_sps != sps) {
+        int prev_profile_idc = p_Vid->active_sps ? p_Vid->active_sps->profile_idc : 0;
+
         if (p_Vid->dec_picture)
             // this may only happen on slice loss
             exit_picture(p_Vid, &p_Vid->dec_picture);
@@ -369,52 +152,44 @@ void activate_sps(VideoParameters *p_Vid, sps_t *sps)
             setup_layer_info(p_Vid, sps, p_Vid->p_LayerPar[1]);
         }
 
-        //to be removed in future;
-        set_global_coding_par(p_Vid);
-        //end;
-
 #if (MVC_EXTENSION_ENABLE)
-        if (p_Vid->last_profile_idc != p_Vid->active_sps->profile_idc &&
-            is_BL_profile(p_Vid->active_sps->profile_idc) && !p_Vid->p_Dpb_layer[0]->init_done) {
-            init_global_buffers(p_Vid, 0);
+        if (prev_profile_idc != sps->profile_idc) {
+            if (is_BL_profile(sps->profile_idc) && !p_Vid->p_Dpb_layer[0]->init_done) {
+                init_global_buffers(p_Vid, 0);
 
-            if (!p_Vid->no_output_of_prior_pics_flag) {
-                flush_dpb(p_Vid->p_Dpb_layer[0]);
-                flush_dpb(p_Vid->p_Dpb_layer[1]);
-            }
-            init_dpb(p_Vid, p_Vid->p_Dpb_layer[0], 1);
-        } else if (p_Vid->last_profile_idc != p_Vid->active_sps->profile_idc &&
-                   (is_MVC_profile(p_Vid->last_profile_idc) || is_MVC_profile(p_Vid->active_sps->profile_idc)) &&
-                   (!p_Vid->p_Dpb_layer[1]->init_done)) {
-            assert(p_Vid->p_Dpb_layer[0]->init_done);
-            if (p_Vid->p_Dpb_layer[0]->init_done) {
-                free_dpb(p_Vid->p_Dpb_layer[0]);
+                if (!p_Vid->no_output_of_prior_pics_flag) {
+                    flush_dpb(p_Vid->p_Dpb_layer[0]);
+                    flush_dpb(p_Vid->p_Dpb_layer[1]);
+                }
                 init_dpb(p_Vid, p_Vid->p_Dpb_layer[0], 1);
+
+            } else if ((is_MVC_profile(prev_profile_idc) ||
+                        is_MVC_profile(sps->profile_idc)) &&
+                       !p_Vid->p_Dpb_layer[1]->init_done) {
+
+                assert(p_Vid->p_Dpb_layer[0]->init_done);
+                if (p_Vid->p_Dpb_layer[0]->init_done) {
+                    free_dpb(p_Vid->p_Dpb_layer[0]);
+                    init_dpb(p_Vid, p_Vid->p_Dpb_layer[0], 1);
+                }
+
+                init_global_buffers(p_Vid, 1);
+                // for now lets re_init both buffers. Later, we should only re_init appropriate one
+                // Note that we seem to be doing this for every frame which seems not good.
+                init_dpb(p_Vid, p_Vid->p_Dpb_layer[1], 2);
             }
-            init_global_buffers(p_Vid, 1);
-          // for now lets re_init both buffers. Later, we should only re_init appropriate one
-          // Note that we seem to be doing this for every frame which seems not good.
-            init_dpb(p_Vid, p_Vid->p_Dpb_layer[1], 2);
         }
-        p_Vid->last_pic_width_in_mbs_minus1 = p_Vid->active_sps->pic_width_in_mbs_minus1;  
-        p_Vid->last_pic_height_in_map_units_minus1 = p_Vid->active_sps->pic_height_in_map_units_minus1;
-        p_Vid->last_max_dec_frame_buffering = GetMaxDecFrameBuffering(p_Vid);
-        p_Vid->last_profile_idc = p_Vid->active_sps->profile_idc;
 #endif
 
 #if (DISABLE_ERC == 0)
-        sps_t *sps = p_Vid->active_sps;
         ercInit(p_Vid, sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16, 1);
         if (p_Vid->dec_picture) {
             Slice *currSlice = p_Vid->ppSliceList[0];
-            int PicSizeInMbs = sps->PicWidthInMbs * (sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag));
-            ercReset(p_Vid->erc_errorVar, PicSizeInMbs, PicSizeInMbs, p_Vid->dec_picture->size_x);
+            ercReset(p_Vid->erc_errorVar, currSlice->PicSizeInMbs, currSlice->PicSizeInMbs, p_Vid->dec_picture->size_x);
             p_Vid->erc_mvperMB = 0;
         }
 #endif
     }
-  
-    reset_format_info(sps, p_Vid, &p_Inp->source, &p_Inp->output);
 }
 
 void activate_pps(VideoParameters *p_Vid, pps_t *pps)
@@ -488,7 +263,6 @@ void UseParameterSet (Slice *currSlice)
 static void init_picture_decoding(VideoParameters *p_Vid)
 {
     Slice *pSlice = p_Vid->ppSliceList[0];
-    int j, i, iDeblockMode = 1;
 
     if (p_Vid->iSliceNumOfCurrPic >= MAX_NUM_SLICES)
         error ("Maximum number of supported slices exceeded. \nPlease recompile with increased value for MAX_NUM_SLICES", 200);
@@ -516,18 +290,8 @@ static void init_picture_decoding(VideoParameters *p_Vid)
     update_ref_list(p_Vid->p_Dpb_layer[pSlice->view_id]);
     update_ltref_list(p_Vid->p_Dpb_layer[pSlice->view_id]);
     update_pic_num(pSlice);
-    i = pSlice->view_id;
 #endif
     init_Deblock(p_Vid, pSlice->MbaffFrameFlag);
-    //init mb_data;
-    for (j = 0; j < p_Vid->iSliceNumOfCurrPic; j++) {
-        if (p_Vid->ppSliceList[j]->disable_deblocking_filter_idc != 1)
-            iDeblockMode = 0;
-#if (MVC_EXTENSION_ENABLE)
-        assert(p_Vid->ppSliceList[j]->view_id == i);
-#endif
-    }
-    p_Vid->iDeblockMode = iDeblockMode;
 }
 
 
@@ -553,16 +317,6 @@ void decode_picture(VideoParameters *p_Vid)
         p_Vid->num_dec_mb  += currSlice->num_dec_mb;
         p_Vid->erc_mvperMB += currSlice->erc_mvperMB;
     }
-
-#if MVC_EXTENSION_ENABLE
-    p_Vid->last_dec_view_id = p_Vid->dec_picture->view_id;
-#endif
-    if (p_Vid->dec_picture->structure == FRAME)
-        p_Vid->last_dec_poc = p_Vid->dec_picture->frame_poc;
-    else if (p_Vid->dec_picture->structure == TOP_FIELD)
-        p_Vid->last_dec_poc = p_Vid->dec_picture->top_poc;
-    else if (p_Vid->dec_picture->structure == BOTTOM_FIELD)
-        p_Vid->last_dec_poc = p_Vid->dec_picture->bottom_poc;
 
     exit_picture(p_Vid, &p_Vid->dec_picture);
 
@@ -646,17 +400,26 @@ void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, i
 
 void pad_dec_picture(VideoParameters *p_Vid, StorablePicture *dec_picture)
 {
-    int iPadX = p_Vid->iLumaPadX;
-    int iPadY = p_Vid->iLumaPadY;
+    int iPadX = MCBUF_LUMA_PAD_X;
+    int iPadY = MCBUF_LUMA_PAD_Y;
     int iWidth = dec_picture->size_x;
     int iHeight = dec_picture->size_y;
     int iStride = dec_picture->iLumaStride;
 
+    int iChromaPadX = MCBUF_CHROMA_PAD_X;
+    int iChromaPadY = MCBUF_CHROMA_PAD_Y;
+    if (dec_picture->chroma_format_idc == YUV422)
+        iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
+    else if (dec_picture->chroma_format_idc == YUV444) {
+        iChromaPadX = MCBUF_LUMA_PAD_X;
+        iChromaPadY = MCBUF_LUMA_PAD_Y;
+    }
+
     pad_buf(*dec_picture->imgY, iWidth, iHeight, iStride, iPadX, iPadY);
 
     if (dec_picture->chroma_format_idc != YUV400) {
-        iPadX = p_Vid->iChromaPadX;
-        iPadY = p_Vid->iChromaPadY;
+        iPadX = iChromaPadX;
+        iPadY = iChromaPadY;
         iWidth = dec_picture->size_x_cr;
         iHeight = dec_picture->size_y_cr;
         iStride = dec_picture->iChromaStride;

@@ -101,7 +101,6 @@ Mapping Map[] = {
     {"RefPOCGap",                &cfgparams.ref_poc_gap,                  0,   2.0,                       1,  0.0,              4.0,                             },
     {"POCGap",                   &cfgparams.poc_gap,                      0,   2.0,                       1,  0.0,              4.0,                             },
     {"Silent",                   &cfgparams.silent,                       0,   0.0,                       1,  0.0,              1.0,                             },
-    {"IntraProfileDeblocking",   &cfgparams.intra_profile_deblocking,     0,   1.0,                       1,  0.0,              1.0,                             },
     {"DecFrmNum",                &cfgparams.iDecFrmNum,                   0,   0.0,                       2,  0.0,              0.0,                             },
 #if (MVC_EXTENSION_ENABLE)
     {"DecodeAllLayers",          &cfgparams.DecodeAllLayers,              0,   0.0,                       1,  0.0,              1.0,                             },
@@ -502,8 +501,6 @@ static void PatchInp (InputParameters *p_Inp)
   //int i;
   //int storedBplus1;
   TestParams(Map, NULL);
-  if(p_Inp->export_views == 1)
-    p_Inp->dpb_plus[1] = imax(1, p_Inp->dpb_plus[1]);
 }
 
 /*!

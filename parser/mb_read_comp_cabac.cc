@@ -347,8 +347,8 @@ static void readCompCoeff8x8_CABAC (Macroblock *currMB, SyntaxElement *currSE, C
     // select scan type
     const byte (*pos_scan8x8) = (!currSlice->field_pic_flag && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN8x8[0] : FIELD_SCAN8x8[0];
 
-    int qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[pl] ];
-    int qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[pl] ];
+    int qp_per = currMB->qp_scaled[pl] / 6;
+    int qp_rem = currMB->qp_scaled[pl] % 6;
     
     int (*InvLevelScale8x8)[8] = (currMB->is_intra_block == TRUE) ? currSlice->InvLevelScale8x8_Intra[transform_pl][qp_rem] : currSlice->InvLevelScale8x8_Inter[transform_pl][qp_rem];
 
@@ -691,8 +691,8 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
 
     update_qp(currMB, currSlice->SliceQpY);
 
-    qp_per = p_Vid->qp_per_matrix[currMB->qp_scaled[currSlice->colour_plane_id]];
-    qp_rem = p_Vid->qp_rem_matrix[currMB->qp_scaled[currSlice->colour_plane_id]];
+    qp_per = currMB->qp_scaled[currSlice->colour_plane_id] / 6;
+    qp_rem = currMB->qp_scaled[currSlice->colour_plane_id] % 6;
 
     // luma coefficients
     //======= Other Modes & CABAC ========
@@ -710,8 +710,8 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
 
     //init quant parameters for chroma 
     for (i = 0; i < 2; ++i) {
-        qp_per_uv[i] = p_Vid->qp_per_matrix[currMB->qp_scaled[i + 1]];
-        qp_rem_uv[i] = p_Vid->qp_rem_matrix[currMB->qp_scaled[i + 1]];
+        qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
+        qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
     }
 
     //========================== CHROMA DC ============================
@@ -1018,8 +1018,8 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_400(Macroblock *currMB)
 
   update_qp(currMB, currSlice->SliceQpY);
 
-  qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[PLANE_Y] ];
-  qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[PLANE_Y] ];
+  qp_per = currMB->qp_scaled[PLANE_Y] / 6;
+  qp_rem = currMB->qp_scaled[PLANE_Y] % 6;
 
   //======= Other Modes & CABAC ========
   //------------------------------------          
@@ -1078,8 +1078,8 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
   //init constants for every chroma qp offset
   for (i=0; i<2; ++i)
   {
-    qp_per_uv[i] = p_Vid->qp_per_matrix[ currMB->qp_scaled[i + 1] ];
-    qp_rem_uv[i] = p_Vid->qp_rem_matrix[ currMB->qp_scaled[i + 1] ];
+    qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
+    qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
   }
 
 
@@ -1230,14 +1230,14 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
 
   update_qp(currMB, currSlice->SliceQpY);
 
-  qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
-  qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
+  qp_per = currMB->qp_scaled[currSlice->colour_plane_id] / 6;
+  qp_rem = currMB->qp_scaled[currSlice->colour_plane_id] % 6;
 
   //init quant parameters for chroma 
   for(i=0; i < 2; ++i)
   {
-    qp_per_uv[i] = p_Vid->qp_per_matrix[ currMB->qp_scaled[i + 1] ];
-    qp_rem_uv[i] = p_Vid->qp_rem_matrix[ currMB->qp_scaled[i + 1] ];
+    qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
+    qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
   }
 
 
@@ -1311,12 +1311,12 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
 
     update_qp(currMB, currSlice->SliceQpY);
 
-    qp_per = p_Vid->qp_per_matrix[ (currSlice->SliceQpY + sps->QpBdOffsetY) ];
-    qp_rem = p_Vid->qp_rem_matrix[ (currSlice->SliceQpY + sps->QpBdOffsetY) ];
+    qp_per = (currSlice->SliceQpY + sps->QpBdOffsetY) / 6;
+    qp_rem = (currSlice->SliceQpY + sps->QpBdOffsetY) % 6;
 
     //init constants for every chroma qp offset
-    qp_per_uv[uv] = p_Vid->qp_per_matrix[ (currMB->qpc[uv] + sps->QpBdOffsetC) ];
-    qp_rem_uv[uv] = p_Vid->qp_rem_matrix[ (currMB->qpc[uv] + sps->QpBdOffsetC) ];
+    qp_per_uv[uv] = (currMB->qpc[uv] + sps->QpBdOffsetC) / 6;
+    qp_rem_uv[uv] = (currMB->qpc[uv] + sps->QpBdOffsetC) % 6;
 
     InvLevelScale4x4 = intra? currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]] : currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
 
@@ -1403,8 +1403,8 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
   //init constants for every chroma qp offset
   for (i=0; i<2; ++i)
   {
-    qp_per_uv[i] = p_Vid->qp_per_matrix[ currMB->qp_scaled[i + 1] ];
-    qp_rem_uv[i] = p_Vid->qp_rem_matrix[ currMB->qp_scaled[i + 1] ];
+    qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
+    qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
   }
 
   // read CBP if not new intra mode
@@ -1554,14 +1554,14 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
 
   update_qp(currMB, currSlice->SliceQpY);
 
-  qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
-  qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
+  qp_per = currMB->qp_scaled[currSlice->colour_plane_id] / 6;
+  qp_rem = currMB->qp_scaled[currSlice->colour_plane_id] % 6;
 
   //init quant parameters for chroma 
   for(i=0; i < 2; ++i)
   {
-    qp_per_uv[i] = p_Vid->qp_per_matrix[ currMB->qp_scaled[i + 1] ];
-    qp_rem_uv[i] = p_Vid->qp_rem_matrix[ currMB->qp_scaled[i + 1] ];
+    qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
+    qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
   }
 
   InvLevelScale4x4 = intra? currSlice->InvLevelScale4x4_Intra[currSlice->colour_plane_id][qp_rem] : currSlice->InvLevelScale4x4_Inter[currSlice->colour_plane_id][qp_rem];
@@ -1597,8 +1597,8 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
         int **imgcof = currSlice->cof[uv + 1];
         int m3[2][4] = {{0,0,0,0},{0,0,0,0}};
         int m4[2][4] = {{0,0,0,0},{0,0,0,0}};
-        int qp_per_uv_dc = p_Vid->qp_per_matrix[ (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) ];       //for YUV422 only
-        int qp_rem_uv_dc = p_Vid->qp_rem_matrix[ (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) ];       //for YUV422 only
+        int qp_per_uv_dc = (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) / 6;       //for YUV422 only
+        int qp_rem_uv_dc = (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) % 6;       //for YUV422 only
         if (intra)
           InvLevelScale4x4 = currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv_dc];
         else 

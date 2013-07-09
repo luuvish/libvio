@@ -69,32 +69,9 @@ typedef enum {
 } PixelFormat;
 
 
-typedef struct frame_format
-{  
-  ColorFormat yuv_format;                    //!< YUV format (0=4:0:0, 1=4:2:0, 2=4:2:2, 3=4:4:4)
-  ColorModel  color_model;                   //!< 4:4:4 format (0: YUV, 1: RGB, 2: XYZ)
-  PixelFormat pixel_format;                  //!< pixel format support for certain interleaved yuv sources
-  double      frame_rate;                    //!< frame rate
-  int         width[3];                      //!< component frame width
-  int         height[3];                     //!< component frame height    
-  int         auto_crop_right;               //!< luma component auto crop right
-  int         auto_crop_bottom;              //!< luma component auto crop bottom
-  int         auto_crop_right_cr;            //!< chroma component auto crop right
-  int         auto_crop_bottom_cr;           //!< chroma component auto crop bottom
-  int         width_crop;                    //!< width after cropping consideration
-  int         height_crop;                   //!< height after cropping consideration
-  int         mb_width;                      //!< luma component frame width
-  int         mb_height;                     //!< luma component frame height    
-  int         size_cmp[3];                   //!< component sizes (width * height)
-  int         size;                          //!< total image size (sum of size_cmp)
-  int         bit_depth[3];                  //!< component bit depth  
-  int         max_value[3];                  //!< component max value
-  int         max_value_sq[3];               //!< component max value squared
-} FrameFormat;
-
 typedef struct image_data
 {
-  FrameFormat format;               //!< image format
+  ColorFormat yuv_format;                    //!< YUV format (0=4:0:0, 1=4:2:0, 2=4:2:2, 3=4:4:4)
   // Standard data
   imgpel **frm_data[MAX_PLANE];     //!< Frame Data
   imgpel **top_data[MAX_PLANE];     //!< pointers to top field data
@@ -254,8 +231,6 @@ typedef struct coding_par {
     //padding info;
     void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
-    imgpel **imgY_ref;                              //!< reference frame find snr
-    imgpel ***imgUV_ref;
     struct macroblock_dec *mb_data;               //!< array containing all MBs of a whole frame
     struct macroblock_dec *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
     char  *intra_block;
@@ -266,8 +241,6 @@ typedef struct coding_par {
     byte ****nz_coeff;
     int **siblock;
     int **siblock_JV[MAX_PLANE];
-    int *qp_per_matrix;
-    int *qp_rem_matrix;
 } CodingParameters;
 
 typedef struct layer_par {
@@ -292,11 +265,8 @@ typedef struct inp_par
     int poc_scale;
     int write_uv;
     int silent;
-    int intra_profile_deblocking;               //!< Loop filter usage determined by flags and parameters in bitstream 
 
     // Input/output sequence format related variables
-    FrameFormat source;                   //!< source related information
-    FrameFormat output;                   //!< output related information
 
 #if (MVC_EXTENSION_ENABLE)
     int  DecodeAllLayers;
@@ -306,11 +276,6 @@ typedef struct inp_par
     int conceal_mode;
     int ref_poc_gap;
     int poc_gap;
-
-    // Needed to allow compilation for decoder. May be used later for distortion computation operations
-    int stdRange;                         //!< 1 - standard range, 0 - full range
-    int videoCode;                        //!< 1 - 709, 3 - 601:  See VideoCode in io_tiff.
-    int export_views;
   
     int iDecFrmNum;
 
@@ -421,10 +386,6 @@ typedef struct video_par {
 #if (MVC_EXTENSION_ENABLE)
     sub_sps_t  *active_subset_sps;
     sub_sps_t   SubsetSeqParSet[MAXSPS];
-    int         last_pic_width_in_mbs_minus1;
-    int         last_pic_height_in_map_units_minus1;
-    int         last_max_dec_frame_buffering;
-    int         last_profile_idc;
 #endif
 
   struct sei_params        *p_SEI;
@@ -433,22 +394,23 @@ typedef struct video_par {
 
   //current picture property;
   unsigned int num_dec_mb;
-    char  *intra_block;
-    char  *intra_block_JV[MAX_PLANE];
 
   int type;                                   //!< image type INTER/INTRA
-
-  byte **ipredmode;                  //!< prediction type [90][74]
-  byte **ipredmode_JV[MAX_PLANE];
-  byte ****nz_coeff;
-  int **siblock;
-  int **siblock_JV[MAX_PLANE];
-  BlockPos *PicPos;
-
   int structure;                     //!< Identify picture structure type
 
-  struct macroblock_dec *mb_data;               //!< array containing all MBs of a whole frame
-  struct macroblock_dec *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
+    // global picture format dependent buffers, memory allocation in decod.c
+    struct macroblock_dec *mb_data;               //!< array containing all MBs of a whole frame
+    struct macroblock_dec *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
+    char  *intra_block;
+    char  *intra_block_JV[MAX_PLANE];
+    byte **ipredmode;                  //!< prediction type [90][74]
+    byte **ipredmode_JV[MAX_PLANE];
+    int **siblock;
+    int **siblock_JV[MAX_PLANE];
+    BlockPos *PicPos;
+    byte ****nz_coeff;
+
+
 
   // picture error concealment
   // concealment_head points to first node in list, concealment_end points to
@@ -486,22 +448,12 @@ typedef struct video_par {
   int recovery_frame_num;
   int recovery_poc;
 
-  byte *buf;
-  byte *ibuf;
-
   // Redundant slices. Should be moved to another structure and allocated only if extended profile
   unsigned int previous_frame_num; //!< frame number of previous slice
   //!< non-zero: i-th previous frame is correct
   int Is_primary_correct;          //!< if primary frame is correct, 0: incorrect
   int Is_redundant_correct;        //!< if redundant frame is correct, 0:incorrect
 
-
-  // global picture format dependent buffers, memory allocation in decod.c
-  imgpel **imgY_ref;                              //!< reference frame find snr
-  imgpel ***imgUV_ref;
-
-  int *qp_per_matrix;
-  int *qp_rem_matrix;
 
   struct frame_store *last_out_fs;
   int pocs_in_dpb[100];
@@ -518,7 +470,6 @@ typedef struct video_par {
   struct video_par *erc_img;
 
   struct storable_picture *pending_output;
-  int    pending_output_state;
   int    recovery_flag;
 
 
@@ -535,17 +486,7 @@ typedef struct video_par {
   void (*img2buf)          (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
   ImageData tempData3;
-  int iDeblockMode;  //0: deblock in picture, 1: deblock in slice;
-  int iLumaPadX;
-  int iLumaPadY;
-  int iChromaPadX;
-  int iChromaPadY;
   //control;
-  int bDeblockEnable;
-  int iPostProcess;
-  int bFrameInit;
-  int last_dec_poc;
-  int last_dec_view_id;
   int last_dec_layer_id;
   int dpb_layer_id;
 
@@ -553,12 +494,6 @@ typedef struct video_par {
   // Fidelity Range Extensions Stuff
 
   int profile_idc;
-
-  int max_vmv_r;                             //!< maximum vertical motion vector range in luma quarter frame pixel units for the current level_idc
-  //int max_mb_vmv_r;                        //!< maximum vertical motion vector range in luma quarter pixel units for the current level_idc
-/******************* end deprecative variables; ***************************************/
-
-  struct dec_stat_parameters *dec_stats;
 } VideoParameters;
 
 

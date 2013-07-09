@@ -281,16 +281,6 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
   if(!p_Vid->global_init_done[layer_id])
     return;
 
-  if (cps->imgY_ref)
-  {
-    free_mem2Dpel (cps->imgY_ref);
-    cps->imgY_ref = NULL;
-  }
-  if (cps->imgUV_ref)
-  {
-    free_mem3Dpel (cps->imgUV_ref);
-    cps->imgUV_ref = NULL;
-  }
   // CAVLC free mem
   if (cps->nz_coeff)
   {
@@ -342,9 +332,6 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
     free(cps->PicPos);
     cps->PicPos = NULL;
   }
-
-  free_qp_matrices(cps);
-
 
   p_Vid->global_init_done[layer_id] = 0;
 }
@@ -430,9 +417,6 @@ static void init_video_params(VideoParameters *p_Vid)
 {
     InputParameters *p_Inp = p_Vid->p_Inp;
 
-    p_Vid->imgY_ref  = NULL;
-    p_Vid->imgUV_ref = NULL;
-
     p_Vid->recovery_point = 0;
     p_Vid->recovery_point_found = 0;
     p_Vid->recovery_poc = 0x7fffffff; /* set to a max value */
@@ -457,30 +441,15 @@ static void init_video_params(VideoParameters *p_Vid)
 
     p_Vid->out_buffer = NULL;
     p_Vid->pending_output = NULL;
-    p_Vid->pending_output_state = FRAME;
     p_Vid->recovery_flag = 0;
 
 #if (ENABLE_OUTPUT_TONEMAPPING)
     init_tone_mapping_sei(p_Vid->seiToneMapping);
 #endif
 
-#if (MVC_EXTENSION_ENABLE)
-    p_Vid->last_pic_width_in_mbs_minus1 = 0;
-    p_Vid->last_pic_height_in_map_units_minus1 = 0;
-    p_Vid->last_max_dec_frame_buffering = 0;
-#endif
-
     p_Vid->newframe = 0;
     p_Vid->previous_frame_num = 0;
 
-    p_Vid->iLumaPadX = MCBUF_LUMA_PAD_X;
-    p_Vid->iLumaPadY = MCBUF_LUMA_PAD_Y;
-    p_Vid->iChromaPadX = MCBUF_CHROMA_PAD_X;
-    p_Vid->iChromaPadY = MCBUF_CHROMA_PAD_Y;
-
-    p_Vid->iPostProcess = 0;
-    p_Vid->bDeblockEnable = 0x3;
-    p_Vid->last_dec_view_id = -1;
     p_Vid->last_dec_layer_id = -1;
 }
 

@@ -78,8 +78,6 @@ static void setup_buffers(VideoParameters *p_Vid, int layer_id)
 
   if(p_Vid->last_dec_layer_id != layer_id)
   {
-    p_Vid->imgY_ref = cps->imgY_ref;
-    p_Vid->imgUV_ref = cps->imgUV_ref;
     if(p_Vid->active_sps->separate_colour_plane_flag)
     {
      for( i=0; i<MAX_PLANE; i++ )
@@ -103,8 +101,6 @@ static void setup_buffers(VideoParameters *p_Vid, int layer_id)
     }
     p_Vid->PicPos = cps->PicPos;
     p_Vid->nz_coeff = cps->nz_coeff;
-    p_Vid->qp_per_matrix = cps->qp_per_matrix;
-    p_Vid->qp_rem_matrix = cps->qp_rem_matrix;
     p_Vid->img2buf = cps->img2buf;
     p_Vid->last_dec_layer_id = layer_id;
   }
@@ -156,11 +152,7 @@ static void init_mvc_picture(Slice *currSlice)
       }
     }
   }
-  if(!p_pic)
-  {
-    p_Vid->bFrameInit = 0;
-  }
-  else
+  if(p_pic)
   {
     process_picture_in_dpb_s(p_Vid, p_pic);
     store_proc_picture_in_dpb (currSlice->p_Dpb, clone_storable_picture(p_Vid, p_pic));
@@ -245,7 +237,6 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
 
   int PicSizeInMbs = sps->PicWidthInMbs * (sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag));
 
-  p_Vid->bFrameInit = 1;
   if (p_Vid->dec_picture)
   {
     // this may only happen on slice loss
@@ -652,7 +643,6 @@ int decode_one_frame(DecoderParams *pDecoder)
         if ((current_header != SOP && current_header != EOS) ||
             (p_Vid->iSliceNumOfCurrPic == 0 && current_header == SOP)) {
             currSlice->current_slice_nr = (short) p_Vid->iSliceNumOfCurrPic;
-            p_Vid->dec_picture->max_slice_id = (short) imax(currSlice->current_slice_nr, p_Vid->dec_picture->max_slice_id);
             if (p_Vid->iSliceNumOfCurrPic > 0) {
                 currSlice->framepoc  = (*ppSliceList)->framepoc;
                 currSlice->TopFieldOrderCnt    = (*ppSliceList)->TopFieldOrderCnt;
@@ -691,138 +681,6 @@ int decode_one_frame(DecoderParams *pDecoder)
     return (iRet);
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Convert file read buffer to source picture structure
- * \param imgX
- *    Pointer to image plane
- * \param buf
- *    Buffer for file output
- * \param size_x
- *    horizontal image size in pixel
- * \param size_y
- *    vertical image size in pixel
- * \param symbol_size_in_bytes
- *    number of bytes used per pel
- ************************************************************************
- */
-static void buffer2img (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes)
-{
-  int i,j;
-
-  uint16 tmp16, ui16;
-  unsigned long  tmp32, ui32;
-
-  if (symbol_size_in_bytes> sizeof(imgpel))
-  {
-    error ("Source picture has higher bit depth than imgpel data type. \nPlease recompile with larger data type for imgpel.", 500);
-  }
-
-  if (( sizeof(char) == sizeof (imgpel)) && ( sizeof(char) == symbol_size_in_bytes))
-  {
-    // imgpel == pixel_in_file == 1 byte -> simple copy
-    memcpy(&imgX[0][0], buf, size_x * size_y);
-  }
-  else
-  {
-    // sizeof (imgpel) > sizeof(char)
-    if (testEndian())
-    {
-      // big endian
-      switch (symbol_size_in_bytes)
-      {
-      case 1:
-        {
-          for(j = 0; j < size_y; ++j)
-            for(i = 0; i < size_x; ++i)
-            {
-              imgX[j][i]= buf[i+j*size_x];
-            }
-          break;
-        }
-      case 2:
-        {
-          for(j=0;j<size_y;++j)
-            for(i=0;i<size_x;++i)
-            {
-              memcpy(&tmp16, buf+((i+j*size_x)*2), 2);
-              ui16  = (uint16) ((tmp16 >> 8) | ((tmp16&0xFF)<<8));
-              imgX[j][i] = (imgpel) ui16;
-            }
-          break;
-        }
-      case 4:
-        {
-          for(j=0;j<size_y;++j)
-            for(i=0;i<size_x;++i)
-            {
-              memcpy(&tmp32, buf+((i+j*size_x)*4), 4);
-              ui32  = ((tmp32&0xFF00)<<8) | ((tmp32&0xFF)<<24) | ((tmp32&0xFF0000)>>8) | ((tmp32&0xFF000000)>>24);
-              imgX[j][i] = (imgpel) ui32;
-            }
-        }
-      default:
-        {
-           error ("reading only from formats of 8, 16 or 32 bit allowed on big endian architecture", 500);
-           break;
-        }
-      }
-
-    }
-    else
-    {
-      // little endian
-      if (symbol_size_in_bytes == 1)
-      {
-        for (j=0; j < size_y; ++j)
-        {
-          for (i=0; i < size_x; ++i)
-          {
-            imgX[j][i]=*(buf++);
-          }
-        }
-      }
-      else
-      {
-        for (j=0; j < size_y; ++j)
-        {
-          int jpos = j*size_x;
-          for (i=0; i < size_x; ++i)
-          {
-            imgX[j][i]=0;
-            memcpy(&(imgX[j][i]), buf +((i+jpos)*symbol_size_in_bytes), symbol_size_in_bytes);
-          }
-        }
-      }
-
-    }
-  }
-}
-
-
-/*!
- ***********************************************************************
- * \brief
- *    compute generic SSE
- ***********************************************************************
- */
-static int64 compute_SSE(imgpel **imgRef, imgpel **imgSrc, int xRef, int xSrc, int ySize, int xSize)
-{
-  int i, j;
-  imgpel *lineRef, *lineSrc;
-  int64 distortion = 0;
-
-  for (j = 0; j < ySize; j++)
-  {
-    lineRef = &imgRef[j][xRef];    
-    lineSrc = &imgSrc[j][xSrc];
-
-    for (i = 0; i < xSize; i++)
-      distortion += iabs2( *lineRef++ - *lineSrc++ );
-  }
-  return distortion;
-}
 
 /*!
  ************************************************************************
@@ -843,130 +701,6 @@ void calculate_frame_no(VideoParameters *p_Vid, StorablePicture *p)
   p_Vid->psnr_number = imax(p_Vid->psnr_number, p_Vid->idr_psnr_number+psnrPOC);
 
   p_Vid->frame_no = p_Vid->idr_psnr_number + psnrPOC;
-}
-
-
-/*!
-************************************************************************
-* \brief
-*    Find PSNR for all three components.Compare decoded frame with
-*    the original sequence. Read p_Inp->jumpd frames to reflect frame skipping.
-* \param p_Vid
-*      video encoding parameters for current picture
-* \param p
-*      picture to be compared
-* \param p_ref
-*      file pointer piont to reference YUV reference file
-************************************************************************
-*/
-void find_snr(VideoParameters *p_Vid, 
-              StorablePicture *p,
-              int *p_ref)
-{
-  InputParameters *p_Inp = p_Vid->p_Inp;
-  SNRParameters   *snr   = p_Vid->snr;
-  sps_t *sps = p_Vid->active_sps;
-  int pic_unit_bitsize_on_disk;
-  if (sps->BitDepthY > sps->BitDepthC || sps->chroma_format_idc == YUV400)
-    pic_unit_bitsize_on_disk = (sps->BitDepthY > 8) ? 16 : 8;
-  else
-    pic_unit_bitsize_on_disk = (sps->BitDepthC > 8) ? 16 : 8;
-
-  int k;
-  int ret;
-  int64 diff_comp[3] = {0};
-  int64  status;
-  int symbol_size_in_bytes = (pic_unit_bitsize_on_disk >> 3);
-  int comp_size_x[3], comp_size_y[3];
-  int64 framesize_in_bytes;
-
-  bool rgb_output = sps->vui_parameters.matrix_coefficients == 0;
-  unsigned char *buf;
-  imgpel **cur_ref [3];
-  imgpel **cur_comp[3]; 
-  // picture error concealment
-  char yuv_types[4][6]= {"4:0:0","4:2:0","4:2:2","4:4:4"};
-
-  cur_ref[0]  = p_Vid->imgY_ref;
-  cur_ref[1]  = p->chroma_format_idc != YUV400 ? p_Vid->imgUV_ref[0] : NULL;
-  cur_ref[2]  = p->chroma_format_idc != YUV400 ? p_Vid->imgUV_ref[1] : NULL;
-
-  cur_comp[0] = p->imgY;
-  cur_comp[1] = p->chroma_format_idc != YUV400 ? p->imgUV[0]  : NULL;
-  cur_comp[2] =  p->chroma_format_idc!= YUV400 ? p->imgUV[1]  : NULL; 
-
-  comp_size_x[0] = p_Inp->source.width[0];
-  comp_size_y[0] = p_Inp->source.height[0];
-  comp_size_x[1] = comp_size_x[2] = p_Inp->source.width[1];
-  comp_size_y[1] = comp_size_y[2] = p_Inp->source.height[1];
-
-  framesize_in_bytes = (((int64) comp_size_x[0] * comp_size_y[0]) + ((int64) comp_size_x[1] * comp_size_y[1] ) * 2) * symbol_size_in_bytes;
-
-  // KS: this buffer should actually be allocated only once, but this is still much faster than the previous version
-  buf = (unsigned char *)malloc ( comp_size_x[0] * comp_size_y[0] * symbol_size_in_bytes );
-
-  if (NULL == buf)
-  {
-    no_mem_exit("find_snr: buf");
-  }
-
-  status = lseek (*p_ref, framesize_in_bytes * p_Vid->frame_no, SEEK_SET);
-  if (status == -1)
-  {
-    fprintf(stderr, "Warning: Could not seek to frame number %d in reference file. Shown PSNR might be wrong.\n", p_Vid->frame_no);
-    free (buf);
-    return;
-  }
-
-  if(rgb_output)
-    lseek (*p_ref, framesize_in_bytes/3, SEEK_CUR);
-
-  for (k = 0; k < ((p->chroma_format_idc != YUV400) ? 3 : 1); ++k)
-  {
-
-    if(rgb_output && k == 2)
-      lseek (*p_ref, -framesize_in_bytes, SEEK_CUR);
-
-    ret = read(*p_ref, buf, comp_size_x[k] * comp_size_y[k] * symbol_size_in_bytes);
-    if (ret != comp_size_x[k] * comp_size_y[k] * symbol_size_in_bytes)
-    {
-      printf ("Warning: could not read from reconstructed file\n");
-      memset (buf, 0, comp_size_x[k] * comp_size_y[k] * symbol_size_in_bytes);
-      close(*p_ref);
-      *p_ref = -1;
-      break;
-    }
-    buffer2img(cur_ref[k], buf, comp_size_x[k], comp_size_y[k], symbol_size_in_bytes);
-
-    // Compute SSE
-    diff_comp[k] = compute_SSE(cur_ref[k], cur_comp[k], 0, 0, comp_size_y[k], comp_size_x[k]);
-
-    int max_pix_value_sqd = iabs2((1 << (k > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1);
-    // Collecting SNR statistics
-    snr->snr[k] = psnr( max_pix_value_sqd, comp_size_x[k] * comp_size_y[k], (float) diff_comp[k]);   
-
-    if (snr->frame_ctr == 0) // first
-    {
-      snr->snra[k] = snr->snr[k];                                                        // keep luma snr for first frame
-    }
-    else
-    {
-      snr->snra[k] = (float)(snr->snra[k]*(snr->frame_ctr)+snr->snr[k])/(snr->frame_ctr + 1); // average snr chroma for all frames
-    }
-  }
-
-  if(rgb_output)
-    lseek (*p_ref, framesize_in_bytes * 2 / 3, SEEK_CUR);
-
-  free (buf);
-
-  // picture error concealment
-  if(p->concealed_pic)
-  {
-    fprintf(stdout,"%04d(P)  %8d %5d %5d %7.4f %7.4f %7.4f  %s %5d\n",
-      p_Vid->frame_no, p->frame_poc, p->PicNum, p->qp,
-      snr->snr[0], snr->snr[1], snr->snr[2], yuv_types[p->chroma_format_idc], 0);
-  }
 }
 
 

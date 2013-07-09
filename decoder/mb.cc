@@ -73,7 +73,18 @@ static void set_chroma_vector(Macroblock *currMB)
         }
     }
 
-    currSlice->max_mb_vmv_r = (currSlice->field_pic_flag || ( currMB->mb_field_decoding_flag )) ? p_Vid->max_vmv_r >> 1 : p_Vid->max_vmv_r;
+    int max_vmv_r;
+    sps_t *sps = currSlice->active_sps;
+    if (sps->level_idc <= 10)
+        max_vmv_r = 64 * 4;
+    else if (sps->level_idc <= 20)
+        max_vmv_r = 128 * 4;
+    else if (sps->level_idc <= 30)
+        max_vmv_r = 256 * 4;
+    else
+        max_vmv_r = 512 * 4; // 512 pixels in quarter pixels
+
+    currSlice->max_mb_vmv_r = currSlice->field_pic_flag || currMB->mb_field_decoding_flag ? max_vmv_r >> 1 : max_vmv_r;
 }
 
 

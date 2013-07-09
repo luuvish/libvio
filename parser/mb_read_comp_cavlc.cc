@@ -1490,8 +1490,8 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_400(Macroblock *currMB)
 
   update_qp(currMB, currSlice->SliceQpY);
 
-  qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[PLANE_Y] ];
-  qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[PLANE_Y] ];
+  qp_per = currMB->qp_scaled[PLANE_Y] / 6;
+  qp_rem = currMB->qp_scaled[PLANE_Y] % 6;
 
   InvLevelScale4x4 = intra? currSlice->InvLevelScale4x4_Intra[currSlice->colour_plane_id][qp_rem] : currSlice->InvLevelScale4x4_Inter[currSlice->colour_plane_id][qp_rem];
   InvLevelScale8x8 = intra? currSlice->InvLevelScale8x8_Intra[currSlice->colour_plane_id][qp_rem] : currSlice->InvLevelScale8x8_Inter[currSlice->colour_plane_id][qp_rem];
@@ -1684,14 +1684,14 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
 
   update_qp(currMB, currSlice->SliceQpY);
 
-  qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
-  qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
+  qp_per = currMB->qp_scaled[currSlice->colour_plane_id] / 6;
+  qp_rem = currMB->qp_scaled[currSlice->colour_plane_id] % 6;
 
   //init quant parameters for chroma 
   for(i=0; i < 2; ++i)
   {
-    qp_per_uv[i] = p_Vid->qp_per_matrix[ currMB->qp_scaled[i + 1] ];
-    qp_rem_uv[i] = p_Vid->qp_rem_matrix[ currMB->qp_scaled[i + 1] ];
+    qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
+    qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
   }
 
   InvLevelScale4x4 = intra? currSlice->InvLevelScale4x4_Intra[currSlice->colour_plane_id][qp_rem] : currSlice->InvLevelScale4x4_Inter[currSlice->colour_plane_id][qp_rem];
@@ -1727,8 +1727,8 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
         int **imgcof = currSlice->cof[PLANE_U + uv];
         int m3[2][4] = {{0,0,0,0},{0,0,0,0}};
         int m4[2][4] = {{0,0,0,0},{0,0,0,0}};
-        int qp_per_uv_dc = p_Vid->qp_per_matrix[ (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) ];       //for YUV422 only
-        int qp_rem_uv_dc = p_Vid->qp_rem_matrix[ (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) ];       //for YUV422 only
+        int qp_per_uv_dc = (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) / 6;       //for YUV422 only
+        int qp_rem_uv_dc = (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) % 6;       //for YUV422 only
         if (intra)
           InvLevelScale4x4 = currSlice->InvLevelScale4x4_Intra[PLANE_U + uv][qp_rem_uv_dc];
         else 
@@ -2019,14 +2019,14 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
 
   update_qp(currMB, currSlice->SliceQpY);
 
-  qp_per = p_Vid->qp_per_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
-  qp_rem = p_Vid->qp_rem_matrix[ currMB->qp_scaled[currSlice->colour_plane_id] ];
+  qp_per = currMB->qp_scaled[currSlice->colour_plane_id] / 6;
+  qp_rem = currMB->qp_scaled[currSlice->colour_plane_id] % 6;
 
   //init quant parameters for chroma 
   for(i=PLANE_U; i <= PLANE_V; ++i)
   {
-    qp_per_uv[i] = p_Vid->qp_per_matrix[ currMB->qp_scaled[i] ];
-    qp_rem_uv[i] = p_Vid->qp_rem_matrix[ currMB->qp_scaled[i] ];
+    qp_per_uv[i] = currMB->qp_scaled[i] / 6;
+    qp_rem_uv[i] = currMB->qp_scaled[i] % 6;
   }
 
   InvLevelScale4x4 = intra? currSlice->InvLevelScale4x4_Intra[currSlice->colour_plane_id][qp_rem] : currSlice->InvLevelScale4x4_Inter[currSlice->colour_plane_id][qp_rem];
@@ -2082,8 +2082,8 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
     update_qp(currMB, currSlice->SliceQpY);
 
     //init constants for every chroma qp offset
-    qp_per_uv[uv] = p_Vid->qp_per_matrix[ currMB->qp_scaled[uv] ];
-    qp_rem_uv[uv] = p_Vid->qp_rem_matrix[ currMB->qp_scaled[uv] ];
+    qp_per_uv[uv] = currMB->qp_scaled[uv] / 6;
+    qp_rem_uv[uv] = currMB->qp_scaled[uv] % 6;
 
     InvLevelScale4x4 = intra? currSlice->InvLevelScale4x4_Intra[uv][qp_rem_uv[uv]] : currSlice->InvLevelScale4x4_Inter[uv][qp_rem_uv[uv]];
     InvLevelScale8x8 = intra? currSlice->InvLevelScale8x8_Intra[uv][qp_rem_uv[uv]] : currSlice->InvLevelScale8x8_Inter[uv][qp_rem_uv[uv]];
@@ -2224,14 +2224,14 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
 
     update_qp(currMB, currSlice->SliceQpY);
 
-    qp_per = p_Vid->qp_per_matrix[currMB->qp_scaled[currSlice->colour_plane_id]];
-    qp_rem = p_Vid->qp_rem_matrix[currMB->qp_scaled[currSlice->colour_plane_id]];
+    qp_per = currMB->qp_scaled[currSlice->colour_plane_id] / 6;
+    qp_rem = currMB->qp_scaled[currSlice->colour_plane_id] % 6;
 
     int i;
     //init quant parameters for chroma 
     for (i = 0; i < 2; ++i) {
-        qp_per_uv[i] = p_Vid->qp_per_matrix[currMB->qp_scaled[i + 1]];
-        qp_rem_uv[i] = p_Vid->qp_rem_matrix[currMB->qp_scaled[i + 1]];
+        qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
+        qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
     }
 
     // luma coefficients

@@ -87,11 +87,6 @@ static const int quant_coef[6][4][4] = {
 
 struct slice_t;
 
-// exported functions
-// quantization initialization
-void init_qp_process (CodingParameters *cps);
-void free_qp_matrices(CodingParameters *cps);
-
 // For Q-matrix
 void assign_quant_params(struct slice_t *currslice);
 
