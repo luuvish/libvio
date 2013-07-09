@@ -1242,7 +1242,7 @@ static void read_comp_coeff_8x8_CAVLC (Macroblock *currMB, ColorPlane pl, int (*
 
                 currSlice->mb_rres[pl][block_y4 +j0][block_x4 +i0] = rshift_rnd_sf((levarr[k] * InvLevelScale8x8[j0][i0])<<qp_per, 6); // dequantization
               }
-            }//else (!currMB->luma_transform_size_8x8_flag)
+            }//else (!currMB->transform_size_8x8_flag)
           }
         }
       }
@@ -1412,7 +1412,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_400(Macroblock *currMB)
       currSE.type   =  SE_HEADER;
       dP = &(currSlice->partArr[partMap[SE_HEADER]]);
 
-      currMB->luma_transform_size_8x8_flag = dP->bitstream->f(1);
+      currMB->transform_size_8x8_flag = dP->bitstream->f(1);
     }
 
     //=====   DQUANT   =====
@@ -1499,7 +1499,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_400(Macroblock *currMB)
   // luma coefficients
   if (cbp)
   {
-    if (!currMB->luma_transform_size_8x8_flag) // 4x4 transform
+    if (!currMB->transform_size_8x8_flag) // 4x4 transform
     {
       currMB->read_comp_coeff_4x4_CAVLC (currMB, PLANE_Y, InvLevelScale4x4, qp_per, cbp, p_Vid->nz_coeff[mb_nr][PLANE_Y]);
     }
@@ -1606,7 +1606,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
       currSE.type   =  SE_HEADER;
       dP = &(currSlice->partArr[partMap[SE_HEADER]]);
 
-      currMB->luma_transform_size_8x8_flag = dP->bitstream->f(1);
+      currMB->transform_size_8x8_flag = dP->bitstream->f(1);
     }
 
     //=====   DQUANT   =====
@@ -1700,7 +1700,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_422(Macroblock *currMB)
   // luma coefficients
   if (cbp)
   {
-    if (!currMB->luma_transform_size_8x8_flag) // 4x4 transform
+    if (!currMB->transform_size_8x8_flag) // 4x4 transform
     {
       currMB->read_comp_coeff_4x4_CAVLC (currMB, PLANE_Y, InvLevelScale4x4, qp_per, cbp, p_Vid->nz_coeff[mb_nr][PLANE_Y]);
     }
@@ -1941,7 +1941,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
       currSE.type   =  SE_HEADER;
       dP = &(currSlice->partArr[partMap[SE_HEADER]]);
 
-      currMB->luma_transform_size_8x8_flag = dP->bitstream->f(1);
+      currMB->transform_size_8x8_flag = dP->bitstream->f(1);
     }
 
     //=====   DQUANT   =====
@@ -2035,7 +2035,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
   // luma coefficients
   if (cbp)
   {
-    if (!currMB->luma_transform_size_8x8_flag) // 4x4 transform
+    if (!currMB->transform_size_8x8_flag) // 4x4 transform
     {
       currMB->read_comp_coeff_4x4_CAVLC (currMB, PLANE_Y, InvLevelScale4x4, qp_per, cbp, p_Vid->nz_coeff[mb_nr][PLANE_Y]);
     }
@@ -2088,7 +2088,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_444(Macroblock *currMB)
     InvLevelScale4x4 = intra? currSlice->InvLevelScale4x4_Intra[uv][qp_rem_uv[uv]] : currSlice->InvLevelScale4x4_Inter[uv][qp_rem_uv[uv]];
     InvLevelScale8x8 = intra? currSlice->InvLevelScale8x8_Intra[uv][qp_rem_uv[uv]] : currSlice->InvLevelScale8x8_Inter[uv][qp_rem_uv[uv]];
 
-    if (!currMB->luma_transform_size_8x8_flag) // 4x4 transform
+    if (!currMB->transform_size_8x8_flag) // 4x4 transform
     {
       currMB->read_comp_coeff_4x4_CAVLC (currMB, (ColorPlane) (uv), InvLevelScale4x4, qp_per_uv[uv], cbp, p_Vid->nz_coeff[mb_nr][uv]);
     }
@@ -2162,7 +2162,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
             currSE.type = SE_HEADER;
             dP = &(currSlice->partArr[partMap[SE_HEADER]]);
 
-            currMB->luma_transform_size_8x8_flag = dP->bitstream->f(1);
+            currMB->transform_size_8x8_flag = dP->bitstream->f(1);
         }
 
         //=====   DQUANT   =====
@@ -2237,7 +2237,7 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
     // luma coefficients
     if (cbp) {
         int intra = currMB->is_intra_block == TRUE;
-        if (!currMB->luma_transform_size_8x8_flag) { // 4x4 transform
+        if (!currMB->transform_size_8x8_flag) { // 4x4 transform
             int (*InvLevelScale4x4)[4] = NULL;
             InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[currSlice->colour_plane_id][qp_rem]
                                      : currSlice->InvLevelScale4x4_Inter[currSlice->colour_plane_id][qp_rem];

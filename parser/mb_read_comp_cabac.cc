@@ -618,7 +618,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
             } else
                 dP->readSyntaxElement(currMB, &currSE, dP);
 
-            currMB->luma_transform_size_8x8_flag = (Boolean)currSE.value1;
+            currMB->transform_size_8x8_flag = (Boolean)currSE.value1;
         }
 
         //=====   DQUANT   =====
@@ -698,7 +698,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
     //======= Other Modes & CABAC ========
     //------------------------------------          
     if (cbp) {
-        if (currMB->luma_transform_size_8x8_flag)
+        if (currMB->transform_size_8x8_flag)
             //======= 8x8 transform size & CABAC ========
             currMB->read_comp_coeff_8x8_CABAC(currMB, &currSE, PLANE_Y); 
         else {
@@ -922,7 +922,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_400(Macroblock *currMB)
       {
         dP->readSyntaxElement(currMB, &currSE, dP);
       }
-      currMB->luma_transform_size_8x8_flag = (Boolean) currSE.value1;
+      currMB->transform_size_8x8_flag = (Boolean) currSE.value1;
     }
 
     //=====   DQUANT   =====
@@ -1025,7 +1025,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_400(Macroblock *currMB)
   //------------------------------------          
   if (cbp)
   {
-    if(currMB->luma_transform_size_8x8_flag) 
+    if(currMB->transform_size_8x8_flag) 
     {
       //======= 8x8 transform size & CABAC ========
       currMB->read_comp_coeff_8x8_CABAC (currMB, &currSE, PLANE_Y); 
@@ -1133,7 +1133,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
       {
         dP->readSyntaxElement(currMB, &currSE, dP);
       }
-      currMB->luma_transform_size_8x8_flag = (Boolean) currSE.value1;
+      currMB->transform_size_8x8_flag = (Boolean) currSE.value1;
     }
 
     //=====   DQUANT   =====
@@ -1249,7 +1249,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
     //------------------------------------          
     if (cbp)
     {
-      if(currMB->luma_transform_size_8x8_flag) 
+      if(currMB->transform_size_8x8_flag) 
       {
         //======= 8x8 transform size & CABAC ========
         currMB->read_comp_coeff_8x8_CABAC (currMB, &currSE, PLANE_Y); 
@@ -1323,7 +1323,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
     {  
       if (cbp)
       {
-        if(currMB->luma_transform_size_8x8_flag) 
+        if(currMB->transform_size_8x8_flag) 
         {
           //======= 8x8 transform size & CABAC ========
           currMB->read_comp_coeff_8x8_CABAC (currMB, &currSE, (ColorPlane) (PLANE_U + uv)); 
@@ -1457,7 +1457,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
       {
         dP->readSyntaxElement(currMB, &currSE, dP);
       }
-      currMB->luma_transform_size_8x8_flag = (Boolean) currSE.value1;
+      currMB->transform_size_8x8_flag = (Boolean) currSE.value1;
     }
 
     //=====   DQUANT   =====
@@ -1572,7 +1572,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
     //------------------------------------          
     if (cbp)
     {
-      if(currMB->luma_transform_size_8x8_flag) 
+      if(currMB->transform_size_8x8_flag) 
       {
         //======= 8x8 transform size & CABAC ========
         currMB->read_comp_coeff_8x8_CABAC (currMB, &currSE, PLANE_Y); 

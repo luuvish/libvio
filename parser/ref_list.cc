@@ -48,11 +48,11 @@ void idr_memory_management(dpb_t *p_Dpb, StorablePicture* p)
 
   	if (p->long_term_reference_flag) {
     	p_Dpb->max_long_term_pic_idx = 0;
-    	p->is_long_term           = 1;
-    	p->LongTermFrameIdx    = 0;
+    	p->is_long_term              = 1;
+    	p->LongTermFrameIdx          = 0;
   	} else {
     	p_Dpb->max_long_term_pic_idx = -1;
-    	p->is_long_term           = 0;
+    	p->is_long_term              = 0;
   	}
 
 #if (MVC_EXTENSION_ENABLE)

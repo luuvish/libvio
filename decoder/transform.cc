@@ -151,7 +151,7 @@ void Inv_Residual_trans_4x4(Macroblock *currMB,   //!< current macroblock
   int    **mb_rres = currSlice->mb_rres[pl];
   int    **cof     = currSlice->cof[pl];
 
-  if(currMB->ipmode_DPCM == VERT_PRED)
+  if(currMB->ipmode_DPCM == Intra_4x4_Vertical)
   {
     for(i=0; i<4; ++i)
     {
@@ -169,7 +169,7 @@ void Inv_Residual_trans_4x4(Macroblock *currMB,   //!< current macroblock
       mb_rres[joff + 3][ioff + i]=temp[3][i];
     }
   }
-  else if(currMB->ipmode_DPCM == HOR_PRED)
+  else if(currMB->ipmode_DPCM == Intra_4x4_Horizontal)
   {
     for(j=0; j<4; ++j)
     {
@@ -222,7 +222,7 @@ void Inv_Residual_trans_8x8(Macroblock *currMB, ColorPlane pl, int ioff,int joff
   imgpel **mb_rec  = currSlice->mb_rec[pl];
   int    **mb_rres = currSlice->mb_rres[pl];
 
-  if(currMB->ipmode_DPCM == VERT_PRED)
+  if(currMB->ipmode_DPCM == Intra_4x4_Vertical)
   {
     for(i=0; i<8; ++i)
     {
@@ -247,7 +247,7 @@ void Inv_Residual_trans_8x8(Macroblock *currMB, ColorPlane pl, int ioff,int joff
       mb_rres[joff+7][ioff+i]=temp[7][i];
     }
   }
-  else if(currMB->ipmode_DPCM == HOR_PRED)//HOR_PRED
+  else if(currMB->ipmode_DPCM == Intra_4x4_Horizontal)//Intra_4x4_Horizontal
   {
     for(i=0; i<8; ++i)
     {
@@ -302,7 +302,7 @@ void Inv_Residual_trans_16x16(Macroblock *currMB,   //!< current macroblock
   int    **mb_rres = currSlice->mb_rres[pl];
   int    **cof     = currSlice->cof[pl];
 
-  if(currMB->ipmode_DPCM == VERT_PRED_16)
+  if(currMB->ipmode_DPCM == Intra_16x16_Vertical)
   {
     for(i=0; i<MB_BLOCK_SIZE; ++i)
     {
@@ -317,7 +317,7 @@ void Inv_Residual_trans_16x16(Macroblock *currMB,   //!< current macroblock
         mb_rres[j][i]=temp[j][i];
     }
   }
-  else if(currMB->ipmode_DPCM == HOR_PRED_16)
+  else if(currMB->ipmode_DPCM == Intra_16x16_Horizontal)
   {
     for(j=0; j<MB_BLOCK_SIZE; ++j)
     {
@@ -376,7 +376,7 @@ void Inv_Residual_trans_Chroma(Macroblock *currMB, int uv)
   width  = mb_cr_size_x;
   height = mb_cr_size_y;
 
-  if(currMB->c_ipred_mode == VERT_PRED_8)
+  if(currMB->intra_chroma_pred_mode == Intra_Chroma_Vertical)
   {
     for(i=0; i<width; i++)
     {
@@ -390,7 +390,7 @@ void Inv_Residual_trans_Chroma(Macroblock *currMB, int uv)
         mb_rres[j][i] = temp[j][i];
     }
   }
-  else //HOR_PRED_8
+  else //Intra_Chroma_Horizontal
   {
     for(i=0; i<height; i++)
     {
@@ -815,7 +815,7 @@ void iTransform(Macroblock *currMB, ColorPlane pl, int smb)
 
   if ((currMB->cbp & 15) != 0 || smb)
   {
-    if(currMB->luma_transform_size_8x8_flag == 0) // 4x4 inverse transform
+    if(currMB->transform_size_8x8_flag == 0) // 4x4 inverse transform
     {
       iMBtrans4x4(currMB, pl, smb); 
     }

@@ -120,7 +120,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         get_mb_pos (p_Vid, MbQAddr, mb_size, &mb_x, &mb_y);
 
         if (MbQ->mb_type == I8MB)
-            assert(MbQ->luma_transform_size_8x8_flag);
+            assert(MbQ->transform_size_8x8_flag);
 
 //      fieldMbInFrameFlag = MbaffFrameFlag == 1 && mb_field_decoding_flag == 1
 
@@ -138,7 +138,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
 //                            (slice->disable_deblocking_filter_idc == 2 && mbAddrB == NULL) ? 0 : 1
 
         filterNon8x8LumaEdgesFlag[1] =
-        filterNon8x8LumaEdgesFlag[3] = !(MbQ->luma_transform_size_8x8_flag);
+        filterNon8x8LumaEdgesFlag[3] = !(MbQ->transform_size_8x8_flag);
 
         filterLeftMbEdgeFlag = (mb_x != 0);
         filterTopMbEdgeFlag  = (mb_y != 0);

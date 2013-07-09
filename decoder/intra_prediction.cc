@@ -999,7 +999,7 @@ void intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
  ************************************************************************
  */
 void intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
-{  
+{
     int block_x = (currMB->block_x) + (ioff >> 2);
     int block_y = (currMB->block_y) + (joff >> 2);
     byte predmode = currMB->p_Slice->ipredmode[block_y][block_x];
@@ -1159,7 +1159,7 @@ void intra_pred_chroma(Macroblock *currMB)
     int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
                        sps->chroma_format_idc == YUV420 ? 8 : 16;
 
-    int BitDepth = currSlice->active_sps->BitDepthC;
+    int BitDepth = sps->BitDepthC;
     imgpel *pred[2];
     int size[2];
     imgpel pix[2][17 * 17];
@@ -1171,7 +1171,7 @@ void intra_pred_chroma(Macroblock *currMB)
     neighbouring_samples_chroma(pix[0], available[0], currMB, PLANE_U, 0, 0);
     neighbouring_samples_chroma(pix[1], available[1], currMB, PLANE_V, 0, 0);
 
-    switch (currMB->c_ipred_mode) {
+    switch (currMB->intra_chroma_pred_mode) {
     case Intra_Chroma_DC:  
         break;
     case Intra_Chroma_Horizontal: 
@@ -1190,7 +1190,7 @@ void intra_pred_chroma(Macroblock *currMB)
         error("illegal chroma intra prediction mode", 600);
     }
 
-    switch (currMB->c_ipred_mode) {
+    switch (currMB->intra_chroma_pred_mode) {
     case Intra_Chroma_DC:  
         intrapred_chroma_dc(pred, pix, available[0], size, BitDepth);
         break;

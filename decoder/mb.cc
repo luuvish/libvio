@@ -477,7 +477,7 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
         curUV = dec_picture->imgUV[uv];
 
         if (currMB->is_lossless) {
-            if (currMB->c_ipred_mode == VERT_PRED_8 || currMB->c_ipred_mode == HOR_PRED_8)
+            if (currMB->intra_chroma_pred_mode == Intra_Chroma_Vertical || currMB->intra_chroma_pred_mode == Intra_Chroma_Horizontal)
                 Inv_Residual_trans_Chroma(currMB, uv) ;
             else {
                 for (j = 0; j < mb_cr_size_y; j++)

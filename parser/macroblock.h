@@ -111,15 +111,11 @@ typedef struct macroblock_dec {
     char                   b8mode[4];
     char                   b8pdir[4];
     char                   ipmode_DPCM;
-    char                   c_ipred_mode;       //!< chroma intra prediction mode
 
 
     short                  DFDisableIdc;
     short                  DFAlphaC0Offset;
     short                  DFBetaOffset;
-
-    short                  filterOffsetA;
-    short                  filterOffsetB;
 
     bool                   fieldMbInFrameFlag;
     bool                   filterInternalEdgesFlag;
@@ -132,7 +128,6 @@ typedef struct macroblock_dec {
 
 
 
-    Boolean                luma_transform_size_8x8_flag;
     Boolean                NoMbPartLessThan8x8Flag;
 
     int  (*read_and_store_CBP_block_bit)(struct macroblock_dec *currMB,

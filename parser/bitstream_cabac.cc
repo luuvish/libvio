@@ -317,8 +317,8 @@ void readMB_transform_size_flag_CABAC( Macroblock *currMB,
   Slice *currSlice = currMB->p_Slice;
   TextureInfoContexts*ctx = currSlice->tex_ctx;
 
-  int b = (currMB->mb_up   == NULL) ? 0 : currMB->mb_up->luma_transform_size_8x8_flag;
-  int a = (currMB->mb_left == NULL) ? 0 : currMB->mb_left->luma_transform_size_8x8_flag;
+  int b = (currMB->mb_up   == NULL) ? 0 : currMB->mb_up->transform_size_8x8_flag;
+  int a = (currMB->mb_left == NULL) ? 0 : currMB->mb_left->transform_size_8x8_flag;
 
   int act_sym = biari_decode_symbol(dep_dp, ctx->transform_size_contexts + a + b );
 
@@ -708,8 +708,8 @@ void readCIPredMode_CABAC(Macroblock *currMB,
   Macroblock          *MbUp   = currMB->mb_up;
   Macroblock          *MbLeft = currMB->mb_left;
 
-  int b = (MbUp != NULL)   ? (((MbUp->c_ipred_mode   != 0) && (MbUp->mb_type != IPCM)) ? 1 : 0) : 0;
-  int a = (MbLeft != NULL) ? (((MbLeft->c_ipred_mode != 0) && (MbLeft->mb_type != IPCM)) ? 1 : 0) : 0;
+  int b = (MbUp != NULL)   ? (((MbUp->intra_chroma_pred_mode   != 0) && (MbUp->mb_type != IPCM)) ? 1 : 0) : 0;
+  int a = (MbLeft != NULL) ? (((MbLeft->intra_chroma_pred_mode != 0) && (MbLeft->mb_type != IPCM)) ? 1 : 0) : 0;
   int act_ctx = a + b;
 
   *act_sym = biari_decode_symbol(dep_dp, ctx->cipr_contexts + act_ctx );
@@ -855,7 +855,7 @@ static int read_and_store_CBP_block_bit_444 (Macroblock          *currMB,
     if (block_b.available)
     {
       if((type==LUMA_8x8 || type==CB_8x8 || type==CR_8x8) &&
-         !mb_data[block_b.mb_addr].luma_transform_size_8x8_flag)
+         !mb_data[block_b.mb_addr].transform_size_8x8_flag)
       {}
       else if(mb_data[block_b.mb_addr].mb_type==IPCM)
         upper_bit=1;
@@ -880,7 +880,7 @@ static int read_and_store_CBP_block_bit_444 (Macroblock          *currMB,
     if (block_a.available)
     {
       if((type==LUMA_8x8 || type==CB_8x8 || type==CR_8x8) &&
-         !mb_data[block_a.mb_addr].luma_transform_size_8x8_flag)
+         !mb_data[block_a.mb_addr].transform_size_8x8_flag)
       {}
       else if(mb_data[block_a.mb_addr].mb_type==IPCM)
         left_bit=1;

@@ -117,7 +117,7 @@ void start_macroblock(Macroblock *currMB)
     currMB->mb_type         = 0;
     currMB->delta_quant     = 0;
     currMB->cbp             = 0;    
-    currMB->c_ipred_mode    = DC_PRED_8;
+    currMB->intra_chroma_pred_mode    = Intra_Chroma_DC;
 
     // Save the slice number of this macroblock. When the macroblock below
     // is coded it will use this to decide if prediction for above is possible
