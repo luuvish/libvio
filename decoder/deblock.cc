@@ -330,15 +330,11 @@ void change_plane_JV(VideoParameters *p_Vid, int nplane, Slice *pSlice)
 {
     p_Vid->mb_data     = p_Vid->mb_data_JV    [nplane];
     p_Vid->dec_picture = p_Vid->dec_picture_JV[nplane];
-    p_Vid->siblock     = p_Vid->siblock_JV    [nplane];
-    p_Vid->ipredmode   = p_Vid->ipredmode_JV  [nplane];
     p_Vid->intra_block = p_Vid->intra_block_JV[nplane];
 
     if (pSlice) {
         pSlice->mb_data     = p_Vid->mb_data_JV    [nplane];
         pSlice->dec_picture = p_Vid->dec_picture_JV[nplane];
-        pSlice->siblock     = p_Vid->siblock_JV    [nplane];
-        pSlice->ipredmode   = p_Vid->ipredmode_JV  [nplane];
         pSlice->intra_block = p_Vid->intra_block_JV[nplane];
     }
 }

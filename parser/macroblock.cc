@@ -236,7 +236,7 @@ static void interpret_mb_mode_P(Macroblock *currMB)
         currMB->is_intra_block = TRUE;
         currMB->mb_type = IPCM;
         currMB->cbp = -1;
-        currMB->i16mode = 0;
+        currMB->Intra16x16PredMode = 0;
 
         memset(currMB->b8mode, 0, 4 * sizeof(char));
         memset(currMB->b8pdir,-1, 4 * sizeof(char));
@@ -244,7 +244,7 @@ static void interpret_mb_mode_P(Macroblock *currMB)
         currMB->is_intra_block = TRUE;
         currMB->mb_type = I16MB;
         currMB->cbp = ICBPTAB[((mbmode-7))>>2];
-        currMB->i16mode = ((mbmode-7)) & 0x03;
+        currMB->Intra16x16PredMode = ((mbmode-7)) & 0x03;
         memset(currMB->b8mode, 0, 4 * sizeof(char));
         memset(currMB->b8pdir,-1, 4 * sizeof(char));
     }
@@ -270,7 +270,7 @@ static void interpret_mb_mode_I(Macroblock *currMB)
         currMB->is_intra_block = TRUE;
         currMB->mb_type=IPCM;
         currMB->cbp= -1;
-        currMB->i16mode = 0;
+        currMB->Intra16x16PredMode = 0;
 
         memset(currMB->b8mode, 0,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
@@ -278,7 +278,7 @@ static void interpret_mb_mode_I(Macroblock *currMB)
         currMB->is_intra_block = TRUE;
         currMB->mb_type = I16MB;
         currMB->cbp= ICBPTAB[(mbmode-1)>>2];
-        currMB->i16mode = (mbmode-1) & 0x03;
+        currMB->Intra16x16PredMode = (mbmode-1) & 0x03;
         memset(currMB->b8mode, 0, 4 * sizeof(char));
         memset(currMB->b8pdir,-1, 4 * sizeof(char));
     }
@@ -320,7 +320,7 @@ static void interpret_mb_mode_B(Macroblock *currMB)
         memset(currMB->b8pdir, -1, 4 * sizeof(char));
 
         currMB->cbp     = (int) ICBPTAB[(mbtype-24)>>2];
-        currMB->i16mode = (mbtype-24) & 0x03;
+        currMB->Intra16x16PredMode = (mbtype-24) & 0x03;
     } else if (mbtype == 22) { // 8x8(+split)
         mbmode = P8x8;       // b8mode and pdir is transmitted in additional codewords
     } else if (mbtype < 4) { // 16x16
@@ -334,7 +334,7 @@ static void interpret_mb_mode_B(Macroblock *currMB)
         memset(currMB->b8pdir,-1,4 * sizeof(char));
 
         currMB->cbp= -1;
-        currMB->i16mode = 0;
+        currMB->Intra16x16PredMode = 0;
     } else if ((mbtype & 0x01) == 0) { // 16x8
         mbmode = 2;
         memset(currMB->b8mode, 2,4 * sizeof(char));
@@ -366,7 +366,6 @@ static void interpret_mb_mode_SI(Macroblock *currMB)
         currMB->mb_type = SI4MB;
         memset(currMB->b8mode,IBLOCK,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
-        currMB->p_Slice->siblock[currMB->mb.y][currMB->mb.x]=1;
     } else if (mbmode == 1) {
         currMB->is_intra_block = TRUE;
         currMB->mb_type = I4MB;
@@ -376,14 +375,14 @@ static void interpret_mb_mode_SI(Macroblock *currMB)
         currMB->is_intra_block = TRUE;
         currMB->mb_type=IPCM;
         currMB->cbp= -1;
-        currMB->i16mode = 0;
+        currMB->Intra16x16PredMode = 0;
         memset(currMB->b8mode,0,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
     } else {
         currMB->is_intra_block = TRUE;
         currMB->mb_type = I16MB;
         currMB->cbp= ICBPTAB[(mbmode-2)>>2];
-        currMB->i16mode = (mbmode-2) & 0x03;
+        currMB->Intra16x16PredMode = (mbmode-2) & 0x03;
         memset(currMB->b8mode,0,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
     }

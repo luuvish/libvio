@@ -84,20 +84,14 @@ static void setup_buffers(VideoParameters *p_Vid, int layer_id)
      {
        p_Vid->mb_data_JV[i] = cps->mb_data_JV[i];
        p_Vid->intra_block_JV[i] = cps->intra_block_JV[i];
-       p_Vid->ipredmode_JV[i] = cps->ipredmode_JV[i];
-       p_Vid->siblock_JV[i] = cps->siblock_JV[i];
      }
      p_Vid->mb_data = NULL;
      p_Vid->intra_block = NULL;
-     p_Vid->ipredmode = NULL;
-     p_Vid->siblock = NULL;
     }
     else
     {
       p_Vid->mb_data = cps->mb_data;
       p_Vid->intra_block = cps->intra_block;
-      p_Vid->ipredmode = cps->ipredmode;
-      p_Vid->siblock = cps->siblock;
     }
     p_Vid->PicPos = cps->PicPos;
     p_Vid->nz_coeff = cps->nz_coeff;
@@ -375,7 +369,6 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
       {
         reset_mbs(currMB++);
       }
-      memset(p_Vid->ipredmode_JV[nplane][0], Intra_4x4_DC, 16 * sps->FrameHeightInMbs * sps->PicWidthInMbs * sizeof(char));
       if(pps->constrained_intra_pred_flag)
       {
         for (i=0; i<PicSizeInMbs; ++i)
@@ -397,7 +390,6 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
         p_Vid->intra_block[i] = 1;
       }
     }
-    memset(p_Vid->ipredmode[0], Intra_4x4_DC, 16 * sps->FrameHeightInMbs * sps->PicWidthInMbs * sizeof(char));
   }  
 
   dec_picture->slice_type = p_Vid->type;

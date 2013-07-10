@@ -236,11 +236,7 @@ typedef struct coding_par {
     char  *intra_block;
     char  *intra_block_JV[MAX_PLANE];
     BlockPos *PicPos;  
-    byte **ipredmode;                  //!< prediction type [90][74]
-    byte **ipredmode_JV[MAX_PLANE];
     byte ****nz_coeff;
-    int **siblock;
-    int **siblock_JV[MAX_PLANE];
 } CodingParameters;
 
 typedef struct layer_par {
@@ -403,10 +399,6 @@ typedef struct video_par {
     struct macroblock_dec *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
     char  *intra_block;
     char  *intra_block_JV[MAX_PLANE];
-    byte **ipredmode;                  //!< prediction type [90][74]
-    byte **ipredmode_JV[MAX_PLANE];
-    int **siblock;
-    int **siblock_JV[MAX_PLANE];
     BlockPos *PicPos;
     byte ****nz_coeff;
 

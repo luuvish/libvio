@@ -38,11 +38,6 @@ static const byte FIELD_SCAN[16][2] = {
     {3, 0}, {3, 1}, {3, 2}, {3, 3}
 };
 
-//! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
-static const int BLOCK_STEP[8][2] = {
-    {0, 0}, {4, 4}, {4, 2}, {2, 4},
-    {2, 2}, {2, 1}, {1, 2}, {1, 1}
-};
 
 //! single scan pattern
 static const byte SNGL_SCAN8x8[64][2] = {

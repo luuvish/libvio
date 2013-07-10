@@ -237,8 +237,6 @@ typedef struct slice_t {
     int                       erc_mvperMB;
     struct macroblock_dec     *mb_data;
     struct storable_picture  *dec_picture;
-    int                     **siblock;
-    byte                    **ipredmode;
     char                     *intra_block;
     char                      chroma_vector_adjustment[6][32];
 

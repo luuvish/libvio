@@ -901,8 +901,13 @@ static void intrapred_chroma_plane(imgpel *pred[2], imgpel pix[2][17*17], bool *
  */
 void intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
-    VideoParameters *p_Vid = currMB->p_Vid;
-    byte predmode = p_Vid->ipredmode[currMB->block_y + joff/4][currMB->block_x + ioff/4];
+    int block_pos[4][4] = {
+        {  0,  1,  4,  5 },
+        {  2,  3,  6,  7 },
+        {  8,  9, 12, 13 },
+        { 10, 11, 14, 15 }
+    };
+    uint8_t predmode = currMB->Intra4x4PredMode[block_pos[joff/4][ioff/4]];
     currMB->ipmode_DPCM = predmode; //For residual DPCM
 
     Slice *currSlice = currMB->p_Slice;
@@ -1000,9 +1005,7 @@ void intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
  */
 void intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
-    int block_x = (currMB->block_x) + (ioff >> 2);
-    int block_y = (currMB->block_y) + (joff >> 2);
-    byte predmode = currMB->p_Slice->ipredmode[block_y][block_x];
+    uint8_t predmode = currMB->Intra8x8PredMode[joff/8 * 2 + ioff/8];
     currMB->ipmode_DPCM = predmode;  //For residual DPCM
 
     Slice *currSlice = currMB->p_Slice;
@@ -1096,7 +1099,7 @@ void intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
  */
 void intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
 {
-    currMB->ipmode_DPCM = currMB->i16mode;
+    currMB->ipmode_DPCM = currMB->Intra16x16PredMode;
 
     Slice *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
@@ -1106,7 +1109,7 @@ void intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
     bool available[4];
     neighbouring_samples_16x16(pix, available, currMB, pl, 0, 0);
 
-    switch (currMB->i16mode) {
+    switch (currMB->Intra16x16PredMode) {
     case Intra_16x16_Vertical:
         if (!available[1])
             error ("invalid 16x16 intra pred Mode VERT_PRED_16",500);
@@ -1122,11 +1125,11 @@ void intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
             error ("invalid 16x16 intra pred Mode PLANE_16",500);
         break;
     default:
-        printf("illegal 16x16 intra prediction mode input: %d\n",currMB->i16mode);
+        printf("illegal 16x16 intra prediction mode input: %d\n",currMB->Intra16x16PredMode);
         return;
     }
 
-    switch (currMB->i16mode) {
+    switch (currMB->Intra16x16PredMode) {
     case Intra_16x16_Vertical:
         intra16x16_vert_pred_normal(pred, pix, available);
         break;

@@ -296,10 +296,6 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
     {
       free(cps->mb_data_JV[i]);
       cps->mb_data_JV[i] = NULL;
-      free_mem2Dint(cps->siblock_JV[i]);
-      cps->siblock_JV[i] = NULL;
-      free_mem2D(cps->ipredmode_JV[i]);
-      cps->ipredmode_JV[i] = NULL;
       free (cps->intra_block_JV[i]);
       cps->intra_block_JV[i] = NULL;
     }   
@@ -310,16 +306,6 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
     {
       free(cps->mb_data);
       cps->mb_data = NULL;
-    }
-    if(cps->siblock)
-    {
-      free_mem2Dint(cps->siblock);
-      cps->siblock = NULL;
-    }
-    if(cps->ipredmode)
-    {
-      free_mem2D(cps->ipredmode);
-      cps->ipredmode = NULL;
     }
     if(cps->intra_block)
     {

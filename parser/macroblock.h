@@ -83,8 +83,8 @@ typedef struct macroblock_dec {
 
     bool        prev_intra4x4_pred_mode_flag[16];
     uint8_t     rem_intra4x4_pred_mode      [16];
-    bool        prev_intra8x8_pred_mode_flag[16];
-    uint8_t     rem_intra8x8_pred_mode      [16];
+    bool        prev_intra8x8_pred_mode_flag[ 4];
+    uint8_t     rem_intra8x8_pred_mode      [ 4];
     uint8_t     intra_chroma_pred_mode;
 
     uint8_t     ref_idx_l0 [4];
@@ -95,6 +95,8 @@ typedef struct macroblock_dec {
 
     bool        noSubMbPartSizeLessThan8x8Flag;
     uint8_t     MbPartPredMode[4];
+    uint8_t     Intra4x4PredMode[16];
+    uint8_t     Intra8x8PredMode[4];
     uint8_t     Intra16x16PredMode;
     uint8_t     CodedBlockPatternLuma;
     uint8_t     CodedBlockPatternChroma;
@@ -107,7 +109,6 @@ typedef struct macroblock_dec {
     int                    cbp;
     CBPStructure           s_cbp[3];
 
-    int                    i16mode;
     char                   b8mode[4];
     char                   b8pdir[4];
     char                   ipmode_DPCM;

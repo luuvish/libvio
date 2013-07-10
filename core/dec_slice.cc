@@ -317,8 +317,6 @@ bool init_slice(Slice *currSlice)
     else {
         currSlice->mb_data     = p_Vid->mb_data;
         currSlice->dec_picture = p_Vid->dec_picture;
-        currSlice->siblock     = p_Vid->siblock;
-        currSlice->ipredmode   = p_Vid->ipredmode;
         currSlice->intra_block = p_Vid->intra_block;
     }
 

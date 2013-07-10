@@ -97,25 +97,8 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
         PicPos[i].y = (short) (i / sps->PicWidthInMbs);
     }
 
-    if (sps->separate_colour_plane_flag) {
-        for (i = 0; i < MAX_PLANE; i++)
-            get_mem2D(&cps->ipredmode_JV[i], 4 * sps->FrameHeightInMbs, 4 * sps->PicWidthInMbs);
-        cps->ipredmode = NULL;
-    } else
-        memory_size += get_mem2D(&cps->ipredmode, 4 * sps->FrameHeightInMbs, 4 * sps->PicWidthInMbs);
-
     // CAVLC mem
     memory_size += get_mem4D(&cps->nz_coeff, FrameSizeInMbs, 3, BLOCK_SIZE, BLOCK_SIZE);
-
-    if (sps->separate_colour_plane_flag) {
-        for (i = 0; i < MAX_PLANE; i++) {
-            get_mem2Dint(&cps->siblock_JV[i], sps->FrameHeightInMbs, sps->PicWidthInMbs);
-            if (cps->siblock_JV[i] == NULL)
-                no_mem_exit("init_global_buffers: p_Vid->siblock_JV");
-        }
-        cps->siblock = NULL;
-    } else
-        memory_size += get_mem2Dint(&cps->siblock, sps->FrameHeightInMbs, sps->PicWidthInMbs);
 
     int pic_unit_bitsize_on_disk = imax(sps->BitDepthY, sps->BitDepthC) > 8 ? 16 : 8;
     if (layer_id == 0)
