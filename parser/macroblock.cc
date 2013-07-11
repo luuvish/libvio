@@ -81,43 +81,34 @@ void start_macroblock(Macroblock *currMB)
 {
     Slice *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    VideoParameters *p_Vid = currSlice->p_Vid;
-    int mb_nr = currMB->mbAddrX;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-    int mb_cr_size = mb_cr_size_x * mb_cr_size_y;
+    int mb_cr_size = sps->MbWidthC * sps->MbHeightC;
 
     /* Update coordinates of the current macroblock */
     if (currSlice->MbaffFrameFlag) {
-        currMB->mb.x = (short) (   (mb_nr) % (2 * sps->PicWidthInMbs));
-        currMB->mb.y = (short) (2*((mb_nr) / (2 * sps->PicWidthInMbs)));
-
-        currMB->mb.y += (currMB->mb.x & 0x01);
-        currMB->mb.x >>= 1;
-    } else
-        currMB->mb = p_Vid->PicPos[mb_nr];
+        currMB->mb.x = (currMB->mbAddrX / 2) % sps->PicWidthInMbs;
+        currMB->mb.y = (currMB->mbAddrX / 2) / sps->PicWidthInMbs * 2 + (currMB->mbAddrX % 2);
+    } else {
+        currMB->mb.x = currMB->mbAddrX % sps->PicWidthInMbs;
+        currMB->mb.y = currMB->mbAddrX / sps->PicWidthInMbs;
+    }
 
     /* Define pixel/block positions */
     int mb_x = currMB->mb.x;
     int mb_y = currMB->mb.y;
-    currMB->block_x     = mb_x << BLOCK_SHIFT;                 /* horizontal block position */
-    currMB->block_y     = mb_y << BLOCK_SHIFT;                 /* vertical block position */
-    currMB->block_y_aff = mb_y << BLOCK_SHIFT;                 /* interlace relative vertical position */
-    currMB->pix_x       = mb_x << MB_BLOCK_SHIFT;              /* horizontal luma pixel position */
-    currMB->pix_y       = mb_y << MB_BLOCK_SHIFT;              /* vertical luma pixel position */
-    currMB->pix_c_x     = mb_x * mb_cr_size_x;  /* horizontal chroma pixel position */
-    currMB->pix_c_y     = mb_y * mb_cr_size_y;  /* vertical chroma pixel position */
+    currMB->block_x     = mb_x << BLOCK_SHIFT;    /* horizontal block position */
+    currMB->block_y     = mb_y << BLOCK_SHIFT;    /* vertical block position */
+    currMB->pix_x       = mb_x * 16;              /* horizontal luma pixel position */
+    currMB->pix_y       = mb_y * 16;              /* vertical luma pixel position */
+    currMB->pix_c_x     = mb_x * sps->MbWidthC;   /* horizontal chroma pixel position */
+    currMB->pix_c_y     = mb_y * sps->MbHeightC;  /* vertical chroma pixel position */
 
     // reset intra mode
-    currMB->is_intra_block = FALSE;
+    currMB->is_intra_block = 0;
     // reset mode info
-    currMB->mb_type         = 0;
-    currMB->delta_quant     = 0;
-    currMB->cbp             = 0;    
-    currMB->intra_chroma_pred_mode    = Intra_Chroma_DC;
+    currMB->mb_type        = 0;
+    currMB->delta_quant    = 0;
+    currMB->cbp            = 0;    
+    currMB->intra_chroma_pred_mode = Intra_Chroma_DC;
 
     // Save the slice number of this macroblock. When the macroblock below
     // is coded it will use this to decide if prediction for above is possible
@@ -125,7 +116,7 @@ void start_macroblock(Macroblock *currMB)
 
     CheckAvailabilityOfNeighbors(currMB);
 
-    set_read_and_store_CBP(currMB, currSlice->active_sps->chroma_format_idc);
+    set_read_and_store_CBP(currMB, sps->chroma_format_idc);
 
     // Reset syntax element entries in MB struct
     if (currSlice->slice_type != I_SLICE) {
@@ -155,7 +146,6 @@ void start_macroblock(Macroblock *currMB)
     currMB->DFDisableIdc      = currSlice->disable_deblocking_filter_idc;
     currMB->DFAlphaC0Offset   = currSlice->FilterOffsetA;
     currMB->DFBetaOffset      = currSlice->FilterOffsetB;
-    currMB->list_offset       = 0;
     currMB->mixedModeEdgeFlag = 0;
 }
 
@@ -373,16 +363,16 @@ static void interpret_mb_mode_SI(Macroblock *currMB)
         memset(currMB->b8pdir,-1,4 * sizeof(char));
     } else if (mbmode == 26) {
         currMB->is_intra_block = TRUE;
-        currMB->mb_type=IPCM;
-        currMB->cbp= -1;
+        currMB->mb_type = IPCM;
+        currMB->cbp = -1;
         currMB->Intra16x16PredMode = 0;
         memset(currMB->b8mode,0,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
     } else {
         currMB->is_intra_block = TRUE;
         currMB->mb_type = I16MB;
-        currMB->cbp= ICBPTAB[(mbmode-2)>>2];
-        currMB->Intra16x16PredMode = (mbmode-2) & 0x03;
+        currMB->cbp = ICBPTAB[(mbmode - 2) >> 2];
+        currMB->Intra16x16PredMode = (mbmode - 2) & 0x03;
         memset(currMB->b8mode,0,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
     }

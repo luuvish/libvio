@@ -53,7 +53,8 @@ static void set_chroma_vector(Macroblock *currMB)
         //////////////////////////
         // find out the correct list offsets
         if (currMB->mb_field_decoding_flag) {
-            int list_offset = currMB->list_offset;
+            int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
+                              currMB->mbAddrX % 2 ? 4 : 2 : 0;
 
             for (l = LIST_0 + list_offset; l <= (LIST_1 + list_offset); l++) {
                 for (k = 0; k < currSlice->listXsize[l]; k++) {

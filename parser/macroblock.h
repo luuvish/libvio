@@ -26,6 +26,101 @@ struct slice_t;
 struct video_par;
 struct inp_par;
 
+enum {
+    Intra_4x4 = 0,
+    Intra_8x8,
+    Intra_16x16,
+
+    Pred_L0 = 0,
+    Pred_L1,
+    BiPred,
+    Direct,
+
+    NA = 0
+};
+
+enum {
+    I_NxN = 0,
+    I_16x16_0_0_0,
+    I_16x16_1_0_0,
+    I_16x16_2_0_0,
+    I_16x16_3_0_0,
+    I_16x16_0_1_0,
+    I_16x16_1_1_0,
+    I_16x16_2_1_0,
+    I_16x16_3_1_0,
+    I_16x16_0_2_0,
+    I_16x16_1_2_0,
+    I_16x16_2_2_0,
+    I_16x16_3_2_0,
+    I_16x16_0_0_1,
+    I_16x16_1_0_1,
+    I_16x16_2_0_1,
+    I_16x16_3_0_1,
+    I_16x16_0_1_1,
+    I_16x16_1_1_1,
+    I_16x16_2_1_1,
+    I_16x16_3_1_1,
+    I_16x16_0_2_1,
+    I_16x16_1_2_1,
+    I_16x16_2_2_1,
+    I_16x16_3_2_1,
+    I_PCM,
+
+    P_L0_16x16 = 0,
+    P_L0_L0_16x8,
+    P_L0_L0_8x16,
+    P_8x8,
+    P_8x8ref0,
+    P_Skip,
+
+    B_Direct_16x16 = 0,
+    B_L0_16x16,
+    B_L1_16x16,
+    B_Bi_16x16,
+    B_L0_L0_16x8,
+    B_L0_L0_8x16,
+    B_L1_L1_16x8,
+    B_L1_L1_8x16,
+    B_L0_L1_16x8,
+    B_L0_L1_8x16,
+    B_L1_L0_16x8,
+    B_L1_L0_8x16,
+    B_L0_Bi_16x8,
+    B_L0_Bi_8x16,
+    B_L1_Bi_16x8,
+    B_L1_Bi_8x16,
+    B_Bi_L0_16x8,
+    B_Bi_L0_8x16,
+    B_Bi_L1_16x8,
+    B_Bi_L1_8x16,
+    B_Bi_Bi_16x8,
+    B_Bi_Bi_8x16,
+    B_8x8,
+    B_Skip
+};
+
+enum {
+    P_L0_8x8 = 0,
+    P_L0_8x4,
+    P_L0_4x8,
+    P_L0_4x4,
+
+    B_Direct_8x8 = 0,
+    B_L0_8x8,
+    B_L1_8x8,
+    B_Bi_8x8,
+    B_L0_8x4,
+    B_L0_4x8,
+    B_L1_8x4,
+    B_L1_4x8,
+    B_Bi_8x4,
+    B_Bi_4x8,
+    B_L0_4x4,
+    B_L1_4x4,
+    B_Bi_4x4
+};
+
 //! cbp structure
 typedef struct cbp_s {
     int64 blk     ;
@@ -44,7 +139,6 @@ typedef struct macroblock_dec {
     BlockPos               mb;
     int                    block_x;
     int                    block_y;
-    int                    block_y_aff;
     int                    pix_x;
     int                    pix_y;
     int                    pix_c_x;
@@ -65,7 +159,6 @@ typedef struct macroblock_dec {
     char                   ei_flag;             //!< error indicator flag that enables concealment
     char                   dpl_flag;            //!< error indicator flag that signals a missing data partition
     short                  delta_quant;         //!< for rate control
-    short                  list_offset;
 
     struct macroblock_dec *mb_up;   //!< pointer to neighboring MB (CABAC)
     struct macroblock_dec *mb_left; //!< pointer to neighboring MB (CABAC)
@@ -94,42 +187,48 @@ typedef struct macroblock_dec {
     uint8_t     sub_mb_type[4];
 
     bool        noSubMbPartSizeLessThan8x8Flag;
-    uint8_t     MbPartPredMode[4];
+    uint8_t     NumMbPart;
+    uint8_t     MbPartPredMode[2];
+    uint8_t     MbPartWidth;
+    uint8_t     MbPartHeight;
     uint8_t     Intra4x4PredMode[16];
     uint8_t     Intra8x8PredMode[4];
     uint8_t     Intra16x16PredMode;
     uint8_t     CodedBlockPatternLuma;
     uint8_t     CodedBlockPatternChroma;
+    uint8_t     NumSubMbPart   [4];
+    uint8_t     SubMbPredMode  [4];
+    uint8_t     SubMbPartWidth [4];
+    uint8_t     SubMbPartHeight[4];
     uint8_t     QPy;
     bool        TransformBypassModeFlag;
-    uint8_t     SubMbPredMode[4][4];
 
 
-    short                  mvd[2][BLOCK_MULTIPLE][BLOCK_MULTIPLE][2]; //!< indices correspond to [forw,backw][block_y][block_x][x,y]
-    int                    cbp;
-    CBPStructure           s_cbp[3];
+    short        mvd[2][BLOCK_MULTIPLE][BLOCK_MULTIPLE][2]; //!< indices correspond to [forw,backw][block_y][block_x][x,y]
+    int          cbp;
+    CBPStructure s_cbp[3];
 
-    char                   b8mode[4];
-    char                   b8pdir[4];
-    char                   ipmode_DPCM;
-
-
-    short                  DFDisableIdc;
-    short                  DFAlphaC0Offset;
-    short                  DFBetaOffset;
-
-    bool                   fieldMbInFrameFlag;
-    bool                   filterInternalEdgesFlag;
-    bool                   filterLeftMbEdgeFlag;
-    bool                   filterTopMbEdgeFlag;
-
-    bool                   mixedModeEdgeFlag;
-    byte                   strength_ver[4][4];  // bS
-    byte                   strength_hor[4][16]; // bS
+    char        b8mode[4];
+    char        b8pdir[4];
+    char        ipmode_DPCM;
 
 
+    short       DFDisableIdc;
+    short       DFAlphaC0Offset;
+    short       DFBetaOffset;
 
-    Boolean                NoMbPartLessThan8x8Flag;
+    bool        fieldMbInFrameFlag;
+    bool        filterInternalEdgesFlag;
+    bool        filterLeftMbEdgeFlag;
+    bool        filterTopMbEdgeFlag;
+
+    bool        mixedModeEdgeFlag;
+    byte        strength_ver[4][4];  // bS
+    byte        strength_hor[4][16]; // bS
+
+
+
+    bool        NoMbPartLessThan8x8Flag;
 
     int  (*read_and_store_CBP_block_bit)(struct macroblock_dec *currMB,
         DecodingEnvironment *dep_dp, int type);

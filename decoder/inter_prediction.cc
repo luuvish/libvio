@@ -86,7 +86,8 @@ static void bi_prediction(imgpel *mb_pred,
     if (weighted_bipred_idc) {
         Slice *currSlice = currMB->p_Slice;
 
-        int list_offset = currMB->list_offset;
+        int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
+                          currMB->mbAddrX % 2 ? 4 : 2 : 0;
         int l0_ref_idx  = (currMB->mb_field_decoding_flag && weighted_bipred_idc == 1) ? l0_refframe >> 1: l0_refframe;
         int l1_ref_idx  = (currMB->mb_field_decoding_flag && weighted_bipred_idc == 1) ? l1_refframe >> 1: l1_refframe;
         int wt_list_offset = (weighted_bipred_idc == 2) ? list_offset : 0;
@@ -478,7 +479,8 @@ void perform_mc(Macroblock *currMB, ColorPlane pl, StorablePicture *dec_picture,
     int joff = (j << 2);
     int chroma_format_idc = dec_picture->chroma_format_idc;
     PicMotionParams *mv_info = &dec_picture->mv_info[j4][i4];
-    int list_offset = currMB->list_offset;
+    int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
+                      currMB->mbAddrX % 2 ? 4 : 2 : 0;
 
     // vars for get_block_luma
     int shift_x  = dec_picture->iLumaStride;
@@ -511,13 +513,19 @@ void perform_mc(Macroblock *currMB, ColorPlane pl, StorablePicture *dec_picture,
         list1 = currSlice->listX[LIST_1 + list_offset][l1_refframe];
     }
 
+    int block_y_aff;
+    if (currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag)
+        block_y_aff = (currMB->block_y - 4 * (currMB->mbAddrX % 2)) / 2;
+    else
+        block_y_aff = currMB->block_y;
+
     check_motion_vector_range(l0_mv_array, currSlice);
     vec1_x = i4 * mv_mul + l0_mv_array->mv_x;
-    vec1_y = (currMB->block_y_aff + j) * mv_mul + l0_mv_array->mv_y;
+    vec1_y = (block_y_aff + j) * mv_mul + l0_mv_array->mv_y;
     if (pred_dir == 2) {
         check_motion_vector_range(l1_mv_array, currSlice);
         vec2_x = i4 * mv_mul + l1_mv_array->mv_x;
-        vec2_y = (currMB->block_y_aff + j) * mv_mul + l1_mv_array->mv_y;
+        vec2_y = (block_y_aff + j) * mv_mul + l1_mv_array->mv_y;
     }
 
     if (CheckVertMV(currMB, vec1_y, block_size_y)) {

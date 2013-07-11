@@ -251,7 +251,6 @@ int check_next_mb_and_get_field_mode_CABAC(Slice *currSlice,
   currMB->slice_nr = currSlice->current_slice_nr;
   currMB->mb_field_decoding_flag = currSlice->mb_data[currSlice->current_mb_nr-1].mb_field_decoding_flag;
   currMB->mbAddrX  = currSlice->current_mb_nr;
-  currMB->list_offset = ((currSlice->MbaffFrameFlag)&&(currMB->mb_field_decoding_flag))? (currMB->mbAddrX&0x01) ? 4 : 2 : 0;
 
   CheckAvailabilityOfNeighborsMBAFF(currMB);
   CheckAvailabilityOfNeighborsCABAC(currMB);
