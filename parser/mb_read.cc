@@ -433,7 +433,6 @@ static void read_motion_info_from_NAL(Macroblock *currMB)
     StorablePicture **list0 = currSlice->listX[LIST_0 + list_offset];
     StorablePicture **list1 = currSlice->listX[LIST_1 + list_offset];
     PicMotionParams **p_mv_info = &currSlice->dec_picture->mv_info[currMB->block_y];
-    int j4, i4;
 
     if (currSlice->slice_type == B_slice && currMB->mb_type == P8x8)
         update_direct_mv_info(currMB);   
@@ -469,8 +468,8 @@ static void read_motion_info_from_NAL(Macroblock *currMB)
     // record reference picture Ids for deblocking decisions
     PicMotionParams *mv_info;
     short ref_idx;
-    for (j4 = 0; j4 < 4; ++j4) {
-        for (i4 = currMB->block_x; i4 < currMB->block_x + 4; ++i4) {
+    for (int j4 = 0; j4 < 4; j4++) {
+        for (int i4 = currMB->block_x; i4 < currMB->block_x + 4; ++i4) {
             mv_info = &p_mv_info[j4][i4];
             ref_idx = mv_info->ref_idx[LIST_0];
             mv_info->ref_pic[LIST_0] = (ref_idx >= 0) ? list0[ref_idx] : NULL;

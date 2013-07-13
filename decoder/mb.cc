@@ -94,11 +94,6 @@ static int mb_pred_skip(Macroblock *currMB, ColorPlane curr_plane, imgpel **curr
     Slice *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
 
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-
     set_chroma_vector(currMB);
 
     perform_mc(currMB, curr_plane, dec_picture, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
@@ -106,8 +101,8 @@ static int mb_pred_skip(Macroblock *currMB, ColorPlane curr_plane, imgpel **curr
     copy_image_data_16x16(&currImg[currMB->pix_y], currSlice->mb_pred[curr_plane], currMB->pix_x, 0);
 
     if ((dec_picture->chroma_format_idc != YUV400) && (dec_picture->chroma_format_idc != YUV444)) {
-        copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
-        copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
+        copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, sps->MbWidthC, sps->MbHeightC);
+        copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, sps->MbWidthC, sps->MbHeightC);
     }
     return 1;
 }
@@ -184,47 +179,40 @@ static int mb_pred_p_inter(Macroblock *currMB, ColorPlane curr_plane, StorablePi
 
 static int mb_pred_b_d8x8temporal(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture)
 {
-    int k;
-    int block8x8;   // needed for ABT
     Slice *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    int dir8x8 = currSlice->active_sps->direct_8x8_inference_flag;
 
     set_chroma_vector(currMB);
 
-    int k_inc = dir8x8 ? 1 : BLOCK_MULTIPLE;
-    int block_size_x = dir8x8 ? SMB_BLOCK_SIZE : BLOCK_SIZE;
-    int block_size_y = dir8x8 ? SMB_BLOCK_SIZE : BLOCK_SIZE;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-
-    for (block8x8 = 0; block8x8 < 4; block8x8++) {
-        int pred_dir = currMB->b8pdir[block8x8];
-
-        int k_start = (block8x8 << 2);
-        int k_end = k_start + k_inc;
-
-        if (dir8x8)
-            pred_dir = get_direct8x8temporal(currMB, dec_picture, block8x8);
+    for (int block8x8 = 0; block8x8 < 4; block8x8++) {
+        if (sps->direct_8x8_inference_flag)
+            get_direct8x8temporal(currMB, dec_picture, block8x8);
         else
-            pred_dir = get_direct4x4temporal(currMB, dec_picture, block8x8);
+            get_direct4x4temporal(currMB, dec_picture, block8x8);
+    }
 
-        for (k = k_start; k < k_end; k ++) {
-            int i =  (decode_block_scan[k] & 3);
-            int j = ((decode_block_scan[k] >> 2) & 3);
-            perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, block_size_x, block_size_y);
+    if (sps->direct_8x8_inference_flag) {
+        for (int block8x8 = 0; block8x8 < 4; block8x8++) {
+            int pred_dir = currMB->b8pdir[block8x8];
+            int i = (block8x8 % 2) * 2;
+            int j = (block8x8 / 2) * 2;
+            perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, SMB_BLOCK_SIZE, SMB_BLOCK_SIZE);
+        }
+    } else {
+        for (int block4x4 = 0; block4x4 < 16; block4x4++) {
+            int pred_dir = currMB->b8pdir[block4x4 / 4];
+            int i  = ((block4x4 / 4) % 2) * 2 + ((block4x4 % 4) % 2);
+            int j  = ((block4x4 / 4) / 2) * 2 + ((block4x4 % 4) / 2);
+            perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, BLOCK_SIZE, BLOCK_SIZE);
         }
     }
 
     if (currMB->cbp == 0) {
         copy_image_data_16x16(&currImg[currMB->pix_y], currSlice->mb_pred[curr_plane], currMB->pix_x, 0);
 
-        if (dec_picture->chroma_format_idc != YUV400 && dec_picture->chroma_format_idc != YUV444) {
-            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
-            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
+        if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
+            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, sps->MbWidthC, sps->MbHeightC);
+            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, sps->MbWidthC, sps->MbHeightC);
         }
     } else {
         iTransform(currMB, curr_plane, 0); 
@@ -237,88 +225,37 @@ static int mb_pred_b_d8x8spatial(Macroblock *currMB, ColorPlane curr_plane, imgp
 {
     char l0_rFrame = -1, l1_rFrame = -1;
     MotionVector pmvl0 = zero_mv, pmvl1 = zero_mv;
-    int i4, j4;
-    int block8x8;
     Slice *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-
-    int pred_dir = 0;
 
     set_chroma_vector(currMB);
 
     prepare_direct_params(currMB, dec_picture, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
 
-    if (l0_rFrame == 0 || l1_rFrame == 0) {
-        for (block8x8 = 0; block8x8 < 4; block8x8++) {
-            int k_start = (block8x8 << 2);
-
-            int i  =  (decode_block_scan[k_start] & 3);
-            int j  = ((decode_block_scan[k_start] >> 2) & 3);
-            i4  = currMB->block_x + i;
-            j4  = currMB->block_y + j;
-
-            pred_dir = get_direct8x8spatial_eq(currMB, dec_picture, block8x8, &pmvl0, &pmvl1, l0_rFrame, l1_rFrame);
-
-            perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, SMB_BLOCK_SIZE, SMB_BLOCK_SIZE);
-        }
-    } else {
-
-        pred_dir = get_direct8x8spatial_ne(currMB, dec_picture, 0, &pmvl0, &pmvl1, l0_rFrame, l1_rFrame);
-
-        // Now perform Motion Compensation
-        perform_mc(currMB, curr_plane, dec_picture, pred_dir, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-    }
-
-    if (currMB->cbp == 0) {
-        copy_image_data_16x16(&currImg[currMB->pix_y], currSlice->mb_pred[curr_plane], currMB->pix_x, 0);
-
-        if (dec_picture->chroma_format_idc != YUV400 && dec_picture->chroma_format_idc != YUV444) {
-            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
-            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
-        }
-    } else {
-        iTransform(currMB, curr_plane, 0); 
-        currSlice->is_reset_coeff = FALSE;
-    }
-
-    return 1;
-}
-
-static int mb_pred_b_d4x4spatial(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture)
-{
-    char l0_rFrame = -1, l1_rFrame = -1;
-    MotionVector pmvl0 = zero_mv, pmvl1 = zero_mv;
-    int k;
-    int block8x8;
-    Slice *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-
     int pred_dir = 0;
+    if (l0_rFrame < 0 && l1_rFrame < 0)
+        pred_dir = 2;
+    else
+        pred_dir = l1_rFrame == -1 ? 0 : l0_rFrame == -1 ? 1 : 2;
 
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
+    if (sps->direct_8x8_inference_flag)
+        get_direct8x8spatial(currMB, dec_picture, &pmvl0, &pmvl1, l0_rFrame, l1_rFrame);
+    else
+        get_direct4x4spatial(currMB, dec_picture, &pmvl0, &pmvl1, l0_rFrame, l1_rFrame);
 
-    set_chroma_vector(currMB);
-
-    prepare_direct_params(currMB, dec_picture, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
-
-    for (block8x8 = 0; block8x8 < 4; block8x8++) {
-        int k_start = (block8x8 << 2);
-        int k_end = k_start + BLOCK_MULTIPLE;
-
-        pred_dir = get_direct4x4spatial(currMB, dec_picture, block8x8, &pmvl0, &pmvl1, l0_rFrame, l1_rFrame);
-
-        for (k = k_start; k < k_end; k ++) {
-            int i =  (decode_block_scan[k] & 3);
-            int j = ((decode_block_scan[k] >> 2) & 3);
-
+    if (sps->direct_8x8_inference_flag) {
+        if (l0_rFrame == 0 || l1_rFrame == 0) {
+            for (int block8x8 = 0; block8x8 < 4; block8x8++) {
+                int i = (block8x8 % 2) * 2;
+                int j = (block8x8 / 2) * 2;
+                perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, SMB_BLOCK_SIZE, SMB_BLOCK_SIZE);
+            }
+        } else
+            perform_mc(currMB, curr_plane, dec_picture, pred_dir, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+    } else {
+        for (int block4x4 = 0; block4x4 < 16; block4x4++) {
+            int i  = ((block4x4 / 4) % 2) * 2 + ((block4x4 % 4) % 2);
+            int j  = ((block4x4 / 4) / 2) * 2 + ((block4x4 % 4) / 2);
             perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, BLOCK_SIZE, BLOCK_SIZE);
         }
     }
@@ -326,9 +263,9 @@ static int mb_pred_b_d4x4spatial(Macroblock *currMB, ColorPlane curr_plane, imgp
     if (currMB->cbp == 0) {
         copy_image_data_16x16(&currImg[currMB->pix_y], currSlice->mb_pred[curr_plane], currMB->pix_x, 0);
 
-        if ((dec_picture->chroma_format_idc != YUV400) && (dec_picture->chroma_format_idc != YUV444)) {
-            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
-            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, mb_cr_size_x, mb_cr_size_y);
+        if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
+            copy_image_data(&dec_picture->imgUV[0][currMB->pix_c_y], currSlice->mb_pred[1], currMB->pix_c_x, 0, sps->MbWidthC, sps->MbHeightC);
+            copy_image_data(&dec_picture->imgUV[1][currMB->pix_c_y], currSlice->mb_pred[2], currMB->pix_c_x, 0, sps->MbWidthC, sps->MbHeightC);
         }
     } else {
         iTransform(currMB, curr_plane, 0); 
@@ -407,20 +344,15 @@ static int mb_pred_ipcm(Macroblock *currMB)
     VideoParameters *p_Vid = currMB->p_Vid;
     StorablePicture *dec_picture = currSlice->dec_picture;
 
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-
-    for (i = 0; i < MB_BLOCK_SIZE; ++i) {
-        for (j = 0;j < MB_BLOCK_SIZE ; ++j)
+    for (i = 0; i < 16; ++i) {
+        for (j = 0;j < 16 ; ++j)
             dec_picture->imgY[currMB->pix_y + i][currMB->pix_x + j] = (imgpel) currSlice->cof[0][i][j];
     }
 
-    if (dec_picture->chroma_format_idc != YUV400 && p_Vid->active_sps->separate_colour_plane_flag == 0) {
+    if (sps->chroma_format_idc != YUV400 && sps->separate_colour_plane_flag == 0) {
         for (k = 0; k < 2; ++k) {
-            for (i = 0; i < mb_cr_size_y; ++i) {
-                for (j = 0;j < mb_cr_size_x; ++j)
+            for (i = 0; i < sps->MbHeightC; ++i) {
+                for (j = 0;j < sps->MbWidthC; ++j)
                     dec_picture->imgUV[k][currMB->pix_c_y + i][currMB->pix_c_x + j] = (imgpel) currSlice->cof[k + 1][i][j];
             }
         }
@@ -457,11 +389,6 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
     int ioff, joff;
     int i,j;
 
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-
     intra_pred_chroma(currMB);// last argument is ignored, computes needed data for both uv channels
 
     void (*itrans_4x4)(struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
@@ -481,8 +408,8 @@ static void intra_cr_decoding(Macroblock *currMB, int yuv)
             if (currMB->intra_chroma_pred_mode == Intra_Chroma_Vertical || currMB->intra_chroma_pred_mode == Intra_Chroma_Horizontal)
                 Inv_Residual_trans_Chroma(currMB, uv) ;
             else {
-                for (j = 0; j < mb_cr_size_y; j++)
-                    for (i = 0; i < mb_cr_size_x; i++)
+                for (j = 0; j < sps->MbHeightC; j++)
+                    for (i = 0; i < sps->MbWidthC; i++)
                         currSlice->mb_rres[uv + 1][j][i] = currSlice->cof[uv + 1][j][i];
             }
         }
@@ -586,14 +513,10 @@ static int decode_one_component(Macroblock *currMB, ColorPlane curr_plane, imgpe
         else if (currSlice->slice_type == SP_SLICE)
             mb_pred_sp_skip(currMB, curr_plane, dec_picture);
         else if (currSlice->slice_type == B_SLICE) {
-            if (currSlice->direct_spatial_mv_pred_flag == 0)
+            if (currSlice->direct_spatial_mv_pred_flag)
+                mb_pred_b_d8x8spatial(currMB, curr_plane, currImg, dec_picture);
+            else
                 mb_pred_b_d8x8temporal(currMB, curr_plane, currImg, dec_picture);
-            else {
-                if (currSlice->active_sps->direct_8x8_inference_flag)
-                    mb_pred_b_d8x8spatial(currMB, curr_plane, currImg, dec_picture);
-                else
-                    mb_pred_b_d4x4spatial(currMB, curr_plane, currImg, dec_picture);
-            }
         }
     } else if (currSlice->slice_type == P_SLICE || currSlice->slice_type == SP_SLICE)
         mb_pred_p_inter(currMB, curr_plane, dec_picture);
@@ -639,11 +562,12 @@ static void init_cur_imgy(VideoParameters *p_Vid, Slice *currSlice, int pl)
 void decode_one_macroblock(Macroblock *currMB)
 {
     Slice *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;  
     StorablePicture *dec_picture = currSlice->dec_picture;
 
     // macroblock decoding **************************************************
-    if (currSlice->active_sps->chroma_format_idc == YUV444 && currSlice->active_sps->separate_colour_plane_flag == 0) {
+    if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag) {
         if (!currMB->is_intra_block) {
             init_cur_imgy(p_Vid, currSlice, PLANE_Y);
             decode_one_component(currMB, PLANE_Y, dec_picture->imgY, dec_picture);

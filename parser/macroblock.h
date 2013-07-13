@@ -226,8 +226,6 @@ typedef struct macroblock_dec {
     byte        strength_ver[4][4];  // bS
     byte        strength_hor[4][16]; // bS
 
-
-
     bool        NoMbPartLessThan8x8Flag;
 
     int  (*read_and_store_CBP_block_bit)(struct macroblock_dec *currMB,
