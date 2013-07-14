@@ -43,7 +43,7 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
 {
     Slice *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    int partmode = ((currMB->mb_type == P8x8) ? 4 : currMB->mb_type);
+    int partmode = currMB->mb_type == P8x8 ? 4 : currMB->mb_type;
     int step_h0  = BLOCK_STEP [partmode][0];
     int step_v0  = BLOCK_STEP [partmode][1];
 
@@ -257,9 +257,9 @@ static void update_direct_mv_info_temporal(Macroblock *currMB)
                                         mv_info->mv[LIST_1] = zero_mv;
                                     } else {
                                         mv_info->mv[LIST_0].mv_x = (short) ((mv_scale * colocated->mv[refList].mv_x + 128 ) >> 8);
-                                        mv_info->mv[LIST_0].mv_y = (short) ((mv_scale * mv_y/*colocated->mv[refList].mv_y*/ + 128 ) >> 8);
+                                        mv_info->mv[LIST_0].mv_y = (short) ((mv_scale * mv_y + 128 ) >> 8);
                                         mv_info->mv[LIST_1].mv_x = (short) (mv_info->mv[LIST_0].mv_x - colocated->mv[refList].mv_x);
-                                        mv_info->mv[LIST_1].mv_y = (short) (mv_info->mv[LIST_0].mv_y - mv_y/*colocated->mv[refList].mv_y*/);
+                                        mv_info->mv[LIST_1].mv_y = (short) (mv_info->mv[LIST_0].mv_y - mv_y);
                                     }
                                 }
                             }
@@ -683,7 +683,7 @@ void get_direct4x4temporal(Macroblock *currMB, StorablePicture *dec_picture, int
     }
 }
 
-void get_direct8x8spatial(Macroblock *currMB, StorablePicture *dec_picture, MotionVector *pmvl0, MotionVector *pmvl1, char l0_rFrame, char l1_rFrame)
+void get_direct8x8spatial(Macroblock *currMB, StorablePicture *dec_picture)
 {
     Slice *currSlice = currMB->p_Slice;
 
@@ -691,6 +691,16 @@ void get_direct8x8spatial(Macroblock *currMB, StorablePicture *dec_picture, Moti
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
     StorablePicture **list0 = currSlice->listX[LIST_0 + list_offset];
     StorablePicture **list1 = currSlice->listX[LIST_1 + list_offset];
+
+    char l0_rFrame = -1, l1_rFrame = -1;
+    MotionVector pmvl0 = zero_mv, pmvl1 = zero_mv;
+    prepare_direct_params(currMB, dec_picture, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
+
+    int pred_dir = 0;
+    if (l0_rFrame < 0 && l1_rFrame < 0)
+        pred_dir = 2;
+    else
+        pred_dir = l1_rFrame == -1 ? 0 : l0_rFrame == -1 ? 1 : 2;
 
     StorablePicture *ref_pic_l[2];
     char             ref_idx_l[2];
@@ -709,6 +719,7 @@ void get_direct8x8spatial(Macroblock *currMB, StorablePicture *dec_picture, Moti
     for (int block8x8 = 0; block8x8 < 4; block8x8++) {
         int i = (block8x8 % 2) * 2;
         int j = (block8x8 / 2) * 2;
+        currMB->b8pdir[block8x8] = pred_dir;
 
         PicMotionParams *mv_info = &dec_picture->mv_info[currMB->block_y + j][currMB->block_x + i];
         mv_info->ref_pic[LIST_0] = ref_pic_l[LIST_0];
@@ -723,21 +734,21 @@ void get_direct8x8spatial(Macroblock *currMB, StorablePicture *dec_picture, Moti
             else
                 block_y_aff = currMB->block_y;
             bool is_not_moving = (get_colocated_info_8x8(currMB, list1[0], currMB->block_x + i, block_y_aff + j) == 0);
-            mv_info->mv[LIST_0] = l0_rFrame == -1 || (l0_rFrame == 0 && is_not_moving) ? zero_mv : *pmvl0;
-            mv_info->mv[LIST_1] = l1_rFrame == -1 || (l1_rFrame == 0 && is_not_moving) ? zero_mv : *pmvl1;
+            mv_info->mv[LIST_0] = l0_rFrame == -1 || (l0_rFrame == 0 && is_not_moving) ? zero_mv : pmvl0;
+            mv_info->mv[LIST_1] = l1_rFrame == -1 || (l1_rFrame == 0 && is_not_moving) ? zero_mv : pmvl1;
         } else if (l0_rFrame < 0 && l1_rFrame < 0) {
             mv_info->mv[LIST_0] = zero_mv;
             mv_info->mv[LIST_1] = zero_mv;
         } else {
-            mv_info->mv[LIST_0] = l0_rFrame == -1 ? zero_mv : *pmvl0;
-            mv_info->mv[LIST_1] = l1_rFrame == -1 ? zero_mv : *pmvl1;
+            mv_info->mv[LIST_0] = l0_rFrame == -1 ? zero_mv : pmvl0;
+            mv_info->mv[LIST_1] = l1_rFrame == -1 ? zero_mv : pmvl1;
         }
 
         update_neighbor_mvs(&dec_picture->mv_info[currMB->block_y + j], mv_info, currMB->block_x + i);
     }
 }
 
-void get_direct4x4spatial(Macroblock *currMB, StorablePicture *dec_picture, MotionVector *pmvl0, MotionVector *pmvl1, char l0_rFrame, char l1_rFrame)
+void get_direct4x4spatial(Macroblock *currMB, StorablePicture *dec_picture)
 {
     Slice *currSlice = currMB->p_Slice;
 
@@ -745,6 +756,16 @@ void get_direct4x4spatial(Macroblock *currMB, StorablePicture *dec_picture, Moti
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
     StorablePicture **list0 = currSlice->listX[LIST_0 + list_offset];
     StorablePicture **list1 = currSlice->listX[LIST_1 + list_offset];
+
+    char l0_rFrame = -1, l1_rFrame = -1;
+    MotionVector pmvl0 = zero_mv, pmvl1 = zero_mv;
+    prepare_direct_params(currMB, dec_picture, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
+
+    int pred_dir = 0;
+    if (l0_rFrame < 0 && l1_rFrame < 0)
+        pred_dir = 2;
+    else
+        pred_dir = l1_rFrame == -1 ? 0 : l0_rFrame == -1 ? 1 : 2;
 
     StorablePicture *ref_pic_l[2];
     char             ref_idx_l[2];
@@ -763,6 +784,7 @@ void get_direct4x4spatial(Macroblock *currMB, StorablePicture *dec_picture, Moti
     for (int block4x4 = 0; block4x4 < 16; block4x4++) {
         int i = ((block4x4 / 4) % 2) * 2 + ((block4x4 % 4) % 2);
         int j = ((block4x4 / 4) / 2) * 2 + ((block4x4 % 4) / 2);
+        currMB->b8pdir[block4x4 / 4] = pred_dir;
 
         PicMotionParams *mv_info = &dec_picture->mv_info[currMB->block_y + j][currMB->block_x + i];
         mv_info->ref_pic[LIST_0] = ref_pic_l[LIST_0];
@@ -780,18 +802,15 @@ void get_direct4x4spatial(Macroblock *currMB, StorablePicture *dec_picture, Moti
             else
                 block_y_aff = currMB->block_y;
             bool is_not_moving = (get_colocated_info_4x4(currMB, list1[0], currMB->block_x + i, block_y_aff + j) == 0);
-            mv_info->mv[LIST_0] = l0_rFrame == -1 || (l0_rFrame == 0 && is_not_moving) ? zero_mv : *pmvl0;
-            mv_info->mv[LIST_1] = l1_rFrame == -1 || (l1_rFrame == 0 && is_not_moving) ? zero_mv : *pmvl1;
+            mv_info->mv[LIST_0] = l0_rFrame == -1 || (l0_rFrame == 0 && is_not_moving) ? zero_mv : pmvl0;
+            mv_info->mv[LIST_1] = l1_rFrame == -1 || (l1_rFrame == 0 && is_not_moving) ? zero_mv : pmvl1;
         }
     }
 }
 
 int get_inter8x8(Macroblock *currMB, StorablePicture *dec_picture, int block8x8)
 {
-    int block_size_x, block_size_y;
-    int k;
     Slice *currSlice = currMB->p_Slice;
-    VideoParameters *p_Vid = currMB->p_Vid;
 
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
@@ -800,61 +819,25 @@ int get_inter8x8(Macroblock *currMB, StorablePicture *dec_picture, int block8x8)
 
     int mv_mode  = currMB->b8mode[block8x8];
     int pred_dir = currMB->b8pdir[block8x8];
-    int k_start, k_end, k_inc;
 
-    if ( mv_mode != 0 ) {
-        k_start = (block8x8 << 2);
-        k_inc = (mv_mode == SMB8x4) ? 2 : 1;
-        k_end = (mv_mode == SMB8x8) ? k_start + 1 : ((mv_mode == SMB4x4) ? k_start + 4 : k_start + k_inc + 1);
+    if (mv_mode == 0) {
+        int k_start = (block8x8 << 2);
 
-        block_size_x = ( mv_mode == SMB8x4 || mv_mode == SMB8x8 ) ? SMB_BLOCK_SIZE : BLOCK_SIZE;
-        block_size_y = ( mv_mode == SMB4x8 || mv_mode == SMB8x8 ) ? SMB_BLOCK_SIZE : BLOCK_SIZE;
-    } else {
-        k_start = (block8x8 << 2);
-        k_end = k_start;
-        k_inc = 1;
+        for (int k = k_start; k < k_start + BLOCK_MULTIPLE; k ++) {
+            int i  =  (decode_block_scan[k] & 3);
+            int j  = ((decode_block_scan[k] >> 2) & 3);
+            int i4 = currMB->block_x + i;
+            int j4 = currMB->block_y + j;
+            PicMotionParams *mv_info = &dec_picture->mv_info[j4][i4];
 
-        if (p_Vid->active_sps->direct_8x8_inference_flag) {
-            block_size_x = SMB_BLOCK_SIZE;
-            block_size_y = SMB_BLOCK_SIZE;
-            k_end ++;
-        } else {
-            block_size_x = BLOCK_SIZE;
-            block_size_y = BLOCK_SIZE;
-            k_end += BLOCK_MULTIPLE;
-        }
-
-        // Prepare mvs (needed for deblocking and mv prediction
-        if (currSlice->direct_spatial_mv_pred_flag) {
-            for (k = k_start; k < k_start + BLOCK_MULTIPLE; k ++) {
-                int i  =  (decode_block_scan[k] & 3);
-                int j  = ((decode_block_scan[k] >> 2) & 3);
-                int i4 = currMB->block_x + i;
-                int j4 = currMB->block_y + j;
-                PicMotionParams *mv_info = &dec_picture->mv_info[j4][i4];
-
-                assert (pred_dir<=2);
-
-                //===== DIRECT PREDICTION =====
-                // motion information should be already set 
+            if (currSlice->direct_spatial_mv_pred_flag) {
                 if (mv_info->ref_idx[LIST_1] == -1)
                     pred_dir = 0;
                 else if (mv_info->ref_idx[LIST_0] == -1)
                     pred_dir = 1;
                 else
                     pred_dir = 2;
-            }
-        } else {
-            for (k = k_start; k < k_start + BLOCK_MULTIPLE; k ++) {
-                int i  =  (decode_block_scan[k] & 3);
-                int j  = ((decode_block_scan[k] >> 2) & 3);
-                int i4 = currMB->block_x + i;
-                int j4 = currMB->block_y + j;
-                PicMotionParams *mv_info = &dec_picture->mv_info[j4][i4];
-
-                assert (pred_dir<=2);
-
-                // store reference picture ID determined by direct mode
+            } else {
                 mv_info->ref_pic[LIST_0] = list0[(short)mv_info->ref_idx[LIST_0]];
                 mv_info->ref_pic[LIST_1] = list1[(short)mv_info->ref_idx[LIST_1]];
             }

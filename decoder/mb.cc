@@ -89,6 +89,12 @@ static void set_chroma_vector(Macroblock *currMB)
 }
 
 
+//! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
+static const int BLOCK_STEP[8][2] = {
+    {0, 0}, {4, 4}, {4, 2}, {2, 4},
+    {2, 2}, {2, 1}, {1, 2}, {1, 1}
+};
+
 static int mb_pred_skip(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture)
 {
     Slice *currSlice = currMB->p_Slice;
@@ -112,6 +118,7 @@ static int mb_pred_sp_skip(Macroblock *currMB, ColorPlane curr_plane, StorablePi
     set_chroma_vector(currMB);
 
     perform_mc(currMB, curr_plane, dec_picture, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+
     iTransform(currMB, curr_plane, 1);
     return 1;
 }
@@ -119,58 +126,29 @@ static int mb_pred_sp_skip(Macroblock *currMB, ColorPlane curr_plane, StorablePi
 static int mb_pred_p_inter(Macroblock *currMB, ColorPlane curr_plane, StorablePicture *dec_picture)
 {
     Slice *currSlice = currMB->p_Slice;
-    int smb = (currSlice->slice_type == SP_SLICE);
-//    int block4x4;
-//    int blockoffset = currMB->mb_type == P16x16 ? 16
-//                    : currMB->mb_type == P16x8 ? 8
-//                    : currMB->mb_type == P8x16 ? 8 : 4;
 
     set_chroma_vector(currMB);
 
-//    for (block4x4 = 0; block4x4 < 16; block4x4 += blockoffset) {
-//        int mv_mode  = currMB->b8mode[block4x4 / 4];
-//        int pred_dir = currMB->b8pdir[block4x4 / 4];
-//
-//        int ioff = ((block4x4 / 4) % 2) * 8 + ((block4x4 % 4) % 2) * 4;
-//        int joff = ((block4x4 / 4) / 2) * 8 + ((block4x4 % 4) / 2) * 4;
-//
-//        int block_size_x = currMB->mb_type == P16x8 ? MB_BLOCK_SIZE : BLOCK_SIZE_8x8;
-//        int block_size_y = currMB->mb_type == P16x8 ? MB_BLOCK_SIZE : BLOCK_SIZE_8x8;
-//    }
+    int partmode = (currMB->mb_type == P8x8 ? 4 : currMB->mb_type);
+    int step_h0  = BLOCK_STEP[partmode][0];
+    int step_v0  = BLOCK_STEP[partmode][1];
 
-    if (currMB->mb_type == P16x16)
-        perform_mc(currMB, curr_plane, dec_picture, currMB->b8pdir[0], 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-    else if (currMB->mb_type == P16x8) {
-        perform_mc(currMB, curr_plane, dec_picture, currMB->b8pdir[0], 0, 0, MB_BLOCK_SIZE, BLOCK_SIZE_8x8);
-        perform_mc(currMB, curr_plane, dec_picture, currMB->b8pdir[2], 0, 2, MB_BLOCK_SIZE, BLOCK_SIZE_8x8);
-    } else if (currMB->mb_type == P8x16) {
-        perform_mc(currMB, curr_plane, dec_picture, currMB->b8pdir[0], 0, 0, BLOCK_SIZE_8x8, MB_BLOCK_SIZE);
-        perform_mc(currMB, curr_plane, dec_picture, currMB->b8pdir[1], 2, 0, BLOCK_SIZE_8x8, MB_BLOCK_SIZE);
-    } else {
-        int block8x8;
-        for (block8x8 = 0; block8x8 < 4; block8x8++) {
+    for (int j0 = 0; j0 < 4; j0 += step_v0) {
+        for (int i0 = 0; i0 < 4; i0 += step_h0) {
+            int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
             int mv_mode  = currMB->b8mode[block8x8];
             int pred_dir = currMB->b8pdir[block8x8];
+            int step_h4  = BLOCK_STEP[mv_mode][0];
+            int step_v4  = BLOCK_STEP[mv_mode][1];
 
-            int k_start = block8x8 * 4;
-            int k_inc = (mv_mode == SMB8x4) ? 2 : 1;
-            int k_end = (mv_mode == SMB8x8) ? k_start + 1 :
-                        (mv_mode == SMB4x4) ? k_start + 4 :
-                                              k_start + k_inc + 1;
-
-            int block_size_x = ( mv_mode == SMB8x4 || mv_mode == SMB8x8 ) ? SMB_BLOCK_SIZE : BLOCK_SIZE;
-            int block_size_y = ( mv_mode == SMB4x8 || mv_mode == SMB8x8 ) ? SMB_BLOCK_SIZE : BLOCK_SIZE;
-
-            int k;
-            for (k = k_start; k < k_end; k += k_inc) {
-                int i =  (decode_block_scan[k] & 3);
-                int j = ((decode_block_scan[k] >> 2) & 3);
-                perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, block_size_x, block_size_y);
+            for (int j = j0; j < j0 + step_v0; j += step_v4) {
+                for (int i = i0; i < i0 + step_h0; i += step_h4)
+                    perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
             }
         }
     }
 
-    iTransform(currMB, curr_plane, smb);
+    iTransform(currMB, curr_plane, currSlice->slice_type == SP_SLICE);
 
     if (currMB->cbp != 0)
         currSlice->is_reset_coeff = FALSE;
@@ -191,19 +169,26 @@ static int mb_pred_b_d8x8temporal(Macroblock *currMB, ColorPlane curr_plane, img
             get_direct4x4temporal(currMB, dec_picture, block8x8);
     }
 
-    if (sps->direct_8x8_inference_flag) {
-        for (int block8x8 = 0; block8x8 < 4; block8x8++) {
+    //int partmode = (currMB->mb_type == P8x8 ? 4 : currMB->mb_type);
+    int step_h0 = 2; //BLOCK_STEP[partmode][0];
+    int step_v0 = 2; //BLOCK_STEP[partmode][1];
+
+    for (int j0 = 0; j0 < 4; j0 += step_v0) {
+        for (int i0 = 0; i0 < 4; i0 += step_h0) {
+            int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
+            int mv_mode  = currMB->b8mode[block8x8];
             int pred_dir = currMB->b8pdir[block8x8];
-            int i = (block8x8 % 2) * 2;
-            int j = (block8x8 / 2) * 2;
-            perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, SMB_BLOCK_SIZE, SMB_BLOCK_SIZE);
-        }
-    } else {
-        for (int block4x4 = 0; block4x4 < 16; block4x4++) {
-            int pred_dir = currMB->b8pdir[block4x4 / 4];
-            int i  = ((block4x4 / 4) % 2) * 2 + ((block4x4 % 4) % 2);
-            int j  = ((block4x4 / 4) / 2) * 2 + ((block4x4 % 4) / 2);
-            perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, BLOCK_SIZE, BLOCK_SIZE);
+            int step_h4  = BLOCK_STEP[mv_mode][0];
+            int step_v4  = BLOCK_STEP[mv_mode][1];
+            if (mv_mode == 0) {
+                step_h4 = sps->direct_8x8_inference_flag ? 2 : 1;
+                step_v4 = sps->direct_8x8_inference_flag ? 2 : 1;
+            }
+
+            for (int j = j0; j < j0 + step_v0; j += step_v4) {
+                for (int i = i0; i < i0 + step_h0; i += step_h4)
+                    perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
+            }
         }
     }
 
@@ -223,40 +208,36 @@ static int mb_pred_b_d8x8temporal(Macroblock *currMB, ColorPlane curr_plane, img
 
 static int mb_pred_b_d8x8spatial(Macroblock *currMB, ColorPlane curr_plane, imgpel **currImg, StorablePicture *dec_picture)
 {
-    char l0_rFrame = -1, l1_rFrame = -1;
-    MotionVector pmvl0 = zero_mv, pmvl1 = zero_mv;
     Slice *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
 
     set_chroma_vector(currMB);
 
-    prepare_direct_params(currMB, dec_picture, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
-
-    int pred_dir = 0;
-    if (l0_rFrame < 0 && l1_rFrame < 0)
-        pred_dir = 2;
-    else
-        pred_dir = l1_rFrame == -1 ? 0 : l0_rFrame == -1 ? 1 : 2;
-
     if (sps->direct_8x8_inference_flag)
-        get_direct8x8spatial(currMB, dec_picture, &pmvl0, &pmvl1, l0_rFrame, l1_rFrame);
+        get_direct8x8spatial(currMB, dec_picture);
     else
-        get_direct4x4spatial(currMB, dec_picture, &pmvl0, &pmvl1, l0_rFrame, l1_rFrame);
+        get_direct4x4spatial(currMB, dec_picture);
 
-    if (sps->direct_8x8_inference_flag) {
-        if (l0_rFrame == 0 || l1_rFrame == 0) {
-            for (int block8x8 = 0; block8x8 < 4; block8x8++) {
-                int i = (block8x8 % 2) * 2;
-                int j = (block8x8 / 2) * 2;
-                perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, SMB_BLOCK_SIZE, SMB_BLOCK_SIZE);
+    //int partmode = (currMB->mb_type == P8x8 ? 4 : currMB->mb_type);
+    int step_h0  = 2; //BLOCK_STEP[partmode][0];
+    int step_v0  = 2; //BLOCK_STEP[partmode][1];
+
+    for (int j0 = 0; j0 < 4; j0 += step_v0) {
+        for (int i0 = 0; i0 < 4; i0 += step_h0) {
+            int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
+            int mv_mode  = currMB->b8mode[block8x8];
+            int pred_dir = currMB->b8pdir[block8x8];
+            int step_h4  = BLOCK_STEP[mv_mode][0];
+            int step_v4  = BLOCK_STEP[mv_mode][1];
+            if (mv_mode == 0) {
+                step_h4 = sps->direct_8x8_inference_flag ? 2 : 1;
+                step_v4 = sps->direct_8x8_inference_flag ? 2 : 1;
             }
-        } else
-            perform_mc(currMB, curr_plane, dec_picture, pred_dir, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-    } else {
-        for (int block4x4 = 0; block4x4 < 16; block4x4++) {
-            int i  = ((block4x4 / 4) % 2) * 2 + ((block4x4 % 4) % 2);
-            int j  = ((block4x4 / 4) / 2) * 2 + ((block4x4 % 4) / 2);
-            perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, BLOCK_SIZE, BLOCK_SIZE);
+
+            for (int j = j0; j < j0 + step_v0; j += step_v4) {
+                for (int i = i0; i < i0 + step_h0; i += step_h4)
+                    perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
+            }
         }
     }
 
@@ -277,55 +258,40 @@ static int mb_pred_b_d8x8spatial(Macroblock *currMB, ColorPlane curr_plane, imgp
 
 static int mb_pred_b_inter8x8(Macroblock *currMB, ColorPlane curr_plane, StorablePicture *dec_picture)
 {
-    char l0_rFrame = -1, l1_rFrame = -1;
-    MotionVector pmvl0 = zero_mv, pmvl1 = zero_mv;
-    int block_size_x, block_size_y;
-    int k;
-    int block8x8;   // needed for ABT
     Slice *currSlice = currMB->p_Slice;
-    VideoParameters *p_Vid = currMB->p_Vid;
+    sps_t *sps = currSlice->active_sps;
 
     set_chroma_vector(currMB);
-  
-    // prepare direct modes
-    if (currSlice->direct_spatial_mv_pred_flag
-        && (!(currMB->b8mode[0] && currMB->b8mode[1] && currMB->b8mode[2] && currMB->b8mode[3])))
-        prepare_direct_params(currMB, dec_picture, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
 
-    for (block8x8=0; block8x8<4; block8x8++) {
-        int mv_mode  = currMB->b8mode[block8x8];
-        int pred_dir = currMB->b8pdir[block8x8];
-        int k_start, k_end, k_inc;
+    int partmode = (currMB->mb_type == P8x8 ? 4 : currMB->mb_type);
+    int step_h0  = BLOCK_STEP[partmode][0];
+    int step_v0  = BLOCK_STEP[partmode][1];
 
-        pred_dir = get_inter8x8(currMB, dec_picture, block8x8);
+    int pred_dirs[4];
 
-        if ( mv_mode != 0 ) {
-            k_start = (block8x8 << 2);
-            k_inc = (mv_mode == SMB8x4) ? 2 : 1;
-            k_end = (mv_mode == SMB8x8) ? k_start + 1 : ((mv_mode == SMB4x4) ? k_start + 4 : k_start + k_inc + 1);
-
-            block_size_x = ( mv_mode == SMB8x4 || mv_mode == SMB8x8 ) ? SMB_BLOCK_SIZE : BLOCK_SIZE;
-            block_size_y = ( mv_mode == SMB4x8 || mv_mode == SMB8x8 ) ? SMB_BLOCK_SIZE : BLOCK_SIZE;
-        } else {
-            k_start = (block8x8 << 2);
-            k_end = k_start;
-            k_inc = 1;
-
-            if (p_Vid->active_sps->direct_8x8_inference_flag) {
-                block_size_x = SMB_BLOCK_SIZE;
-                block_size_y = SMB_BLOCK_SIZE;
-                k_end ++;
-            } else {
-                block_size_x = BLOCK_SIZE;
-                block_size_y = BLOCK_SIZE;
-                k_end += BLOCK_MULTIPLE;
-            }
+    for (int j0 = 0; j0 < 4; j0 += step_v0) {
+        for (int i0 = 0; i0 < 4; i0 += step_h0) {
+            int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
+            pred_dirs[block8x8] = get_inter8x8(currMB, dec_picture, block8x8);
         }
+    }
 
-        for (k = k_start; k < k_end; k += k_inc) {
-            int i =  (decode_block_scan[k] & 3);
-            int j = ((decode_block_scan[k] >> 2) & 3);
-            perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, block_size_x, block_size_y);
+    for (int j0 = 0; j0 < 4; j0 += step_v0) {
+        for (int i0 = 0; i0 < 4; i0 += step_h0) {
+            int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
+            int mv_mode  = currMB->b8mode[block8x8];
+            int step_h4  = BLOCK_STEP[mv_mode][0];
+            int step_v4  = BLOCK_STEP[mv_mode][1];
+            int pred_dir = pred_dirs[block8x8];
+            if (mv_mode == 0) {
+                step_h4 = sps->direct_8x8_inference_flag ? 2 : 1;
+                step_v4 = sps->direct_8x8_inference_flag ? 2 : 1;
+            }
+
+            for (int j = j0; j < j0 + step_v0; j += step_v4) {
+                for (int i = i0; i < i0 + step_h0; i += step_h4)
+                    perform_mc(currMB, curr_plane, dec_picture, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
+            }
         }
     }
 

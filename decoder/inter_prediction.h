@@ -33,8 +33,8 @@ void perform_mc           (struct macroblock_dec *currMB, ColorPlane pl, Storabl
 
 void get_direct8x8temporal(struct macroblock_dec *currMB, StorablePicture *dec_picture, int block8x8);
 void get_direct4x4temporal(struct macroblock_dec *currMB, StorablePicture *dec_picture, int block8x8);
-void get_direct8x8spatial(struct macroblock_dec *currMB, StorablePicture *dec_picture, MotionVector *pmvl0, MotionVector *pmvl1, char l0_rFrame, char l1_rFrame);
-void get_direct4x4spatial(struct macroblock_dec *currMB, StorablePicture *dec_picture, MotionVector *pmvl0, MotionVector *pmvl1, char l0_rFrame, char l1_rFrame);
+void get_direct8x8spatial(struct macroblock_dec *currMB, StorablePicture *dec_picture);
+void get_direct4x4spatial(struct macroblock_dec *currMB, StorablePicture *dec_picture);
 int get_inter8x8(struct macroblock_dec *currMB, StorablePicture *dec_picture, int block8x8);
 
 void update_direct_mv_info(struct macroblock_dec *currMB);
