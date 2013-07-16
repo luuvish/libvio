@@ -67,8 +67,6 @@ void update_qp(Macroblock *currMB, int qp)
     }
 
     currMB->TransformBypassModeFlag = (currMB->qp_scaled[0] == 0 && sps->qpprime_y_zero_transform_bypass_flag);
-    set_read_comp_coeff_cavlc(currMB);
-    set_read_comp_coeff_cabac(currMB);
 }
 
 /*!
@@ -115,8 +113,6 @@ void start_macroblock(Macroblock *currMB)
     currMB->slice_nr = (short) currSlice->current_slice_nr;
 
     CheckAvailabilityOfNeighbors(currMB);
-
-    set_read_and_store_CBP(currMB, sps->chroma_format_idc);
 
     // Reset syntax element entries in MB struct
     if (currSlice->slice_type != I_SLICE) {

@@ -121,8 +121,7 @@ int  readSyntaxElement_CABAC         (struct macroblock_dec *currMB, SyntaxEleme
 
 int  check_next_mb_and_get_field_mode_CABAC(struct slice_t *currSlice, SyntaxElement *se, DataPartition  *act_dp);
 
-void set_read_and_store_CBP(struct macroblock_dec *currMB, int chroma_format_idc);
-
+int  read_and_store_CBP_block_bit(struct macroblock_dec *currMB, DecodingEnvironment *dep_dp, int type);
 
 
 void  init_contexts(struct slice_t *currslice);

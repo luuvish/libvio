@@ -239,10 +239,6 @@ typedef struct slice_t {
     struct storable_picture  *dec_picture;
     char                     *intra_block;
     char                      chroma_vector_adjustment[6][32];
-
-    void (*linfo_cbp_intra      )(int len, int info, int *cbp, int *dummy);
-    void (*linfo_cbp_inter      )(int len, int info, int *cbp, int *dummy);    
-    void (*read_CBP_and_coeffs_from_NAL)(struct macroblock_dec *currMB);
 } Slice;
 
 

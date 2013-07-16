@@ -226,14 +226,6 @@ typedef struct macroblock_dec {
     byte        strength_hor[4][16]; // bS
 
     bool        NoMbPartLessThan8x8Flag;
-
-    int  (*read_and_store_CBP_block_bit)(struct macroblock_dec *currMB,
-        DecodingEnvironment *dep_dp, int type);
-
-    void (*read_comp_coeff_4x4_CABAC)(struct macroblock_dec *currMB,
-        struct syntaxelement_dec *currSE, ColorPlane pl, int (*InvLevelScale4x4)[4], int qp_per, int cbp);
-    void (*read_comp_coeff_8x8_CABAC)(struct macroblock_dec *currMB,
-        struct syntaxelement_dec *currSE, ColorPlane pl);
 } Macroblock;
 
 void interpret_mb_mode(Macroblock *currMB);

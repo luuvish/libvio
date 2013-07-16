@@ -167,8 +167,6 @@ static int parse_idr(Slice *currSlice)
     } else
         current_header = SOS;
 
-    setup_read_macroblock(currSlice);
-
     // From here on, p_Vid->active_sps, p_Vid->active_pps and the slice header are valid
     if (currSlice->MbaffFrameFlag)
         currSlice->current_mb_nr = currSlice->first_mb_in_slice << 1;
@@ -235,8 +233,6 @@ static int parse_dpa(Slice *currSlice)
         CheckZeroByteVCL(p_Vid->bitstream, nalu);
     } else
         current_header = SOS;
-
-    setup_read_macroblock(currSlice);
 
     // From here on, p_Vid->active_sps, p_Vid->active_pps and the slice header are valid
     if (currSlice->MbaffFrameFlag)

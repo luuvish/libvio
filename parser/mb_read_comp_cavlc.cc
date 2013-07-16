@@ -1167,14 +1167,7 @@ static void read_tc_chroma_444(Macroblock *currMB)
 }
 
 
-/*!
- ************************************************************************
- * \brief
- *    Get coded block pattern and coefficients (run/level)
- *    from the NAL
- ************************************************************************
- */
-static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
+void read_CBP_and_coeffs_from_NAL_CAVLC(Macroblock *currMB)
 {
     Slice *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
@@ -1189,8 +1182,13 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
         //---------------------
         currSE.type = (currMB->mb_type == I4MB || currMB->mb_type == SI4MB || currMB->mb_type == I8MB) 
                       ? SE_CBP_INTRA : SE_CBP_INTER;
-        currSE.mapping = (currMB->mb_type == I4MB || currMB->mb_type == SI4MB || currMB->mb_type == I8MB)
-                         ? currSlice->linfo_cbp_intra : currSlice->linfo_cbp_inter;
+        currSE.mapping =
+            (currMB->mb_type == I4MB || currMB->mb_type == SI4MB || currMB->mb_type == I8MB) ?
+            (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ?
+             linfo_cbp_intra_other : linfo_cbp_intra_normal) :
+            (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ?
+             linfo_cbp_inter_other : linfo_cbp_inter_normal);
+
         dP = &(currSlice->partArr[partMap[currSE.type]]);
 
         dP->readSyntaxElement(currMB, &currSE, dP);
@@ -1243,21 +1241,4 @@ static void read_CBP_and_coeffs_from_NAL_CAVLC_420(Macroblock *currMB)
         read_tc_chroma_422(currMB);
     if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag)
         read_tc_chroma_444(currMB);
-}
-
-/*!
-************************************************************************
-* \brief
-*    setup coefficient reading functions for CAVLC
-*
-************************************************************************
-*/
-
-void set_read_CBP_and_coeffs_cavlc(Slice *currSlice)
-{
-    currSlice->read_CBP_and_coeffs_from_NAL = read_CBP_and_coeffs_from_NAL_CAVLC_420;
-}
-
-void set_read_comp_coeff_cavlc(Macroblock *currMB)
-{
 }

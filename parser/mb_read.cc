@@ -607,8 +607,6 @@ static void init_macroblock_direct(Macroblock *currMB)
     PicMotionParams **mv_info = &currMB->p_Slice->dec_picture->mv_info[currMB->block_y]; 
     int i, j;
 
-    set_read_comp_coeff_cabac(currMB);
-    set_read_comp_coeff_cavlc(currMB);
     i = currMB->block_x;
     for (j = 0; j < BLOCK_SIZE; ++j) {
         (*mv_info+i)->slice_no = slice_no;
@@ -633,9 +631,6 @@ static void init_macroblock(Macroblock *currMB)
         reset_mv_info(*mv_info + (i++), slice_no);
         reset_mv_info(*(mv_info++) + i, slice_no);
     }
-
-    set_read_comp_coeff_cabac(currMB);
-    set_read_comp_coeff_cavlc(currMB);
 }
 
 static void concealIPCMcoeffs(Macroblock *currMB)
@@ -894,9 +889,13 @@ static void read_skip_macroblock(Macroblock *currMB)
                 currSlice->cod_counter = -1;
             } else
                 reset_coeffs(currMB);
-        } else
+        } else {
             // read CBP and Coeffs  ***************************************************************
-            currSlice->read_CBP_and_coeffs_from_NAL(currMB);
+            if (pps->entropy_coding_mode_flag)
+                read_CBP_and_coeffs_from_NAL_CABAC(currMB);
+            else
+                read_CBP_and_coeffs_from_NAL_CAVLC(currMB);
+        }
     } else {
         currMB->transform_size_8x8_flag = 0;
         if (pps->constrained_intra_pred_flag)
@@ -940,7 +939,11 @@ static void read_intra_macroblock(Macroblock *currMB)
 
     init_macroblock(currMB);
     read_ipred_modes(currMB);
-    currSlice->read_CBP_and_coeffs_from_NAL(currMB);
+
+    if (pps->entropy_coding_mode_flag)
+        read_CBP_and_coeffs_from_NAL_CABAC(currMB);
+    else
+        read_CBP_and_coeffs_from_NAL_CAVLC(currMB);
 }
 
 static void read_inter_macroblock(Macroblock *currMB)
@@ -998,7 +1001,11 @@ static void read_inter_macroblock(Macroblock *currMB)
 
     init_macroblock(currMB);
     read_motion_info_from_NAL(currMB);
-    currSlice->read_CBP_and_coeffs_from_NAL(currMB);
+
+    if (pps->entropy_coding_mode_flag)
+        read_CBP_and_coeffs_from_NAL_CABAC(currMB);
+    else
+        read_CBP_and_coeffs_from_NAL_CAVLC(currMB);
 }
 
 static void read_i_pcm_macroblock(Macroblock *currMB)
@@ -1306,12 +1313,46 @@ void read_one_macroblock(Macroblock *currMB)
     }
 }
 
-void setup_read_macroblock(Slice *currSlice)
+
+//! gives CBP value from codeword number, both for intra and inter
+static const byte NCBP[2][48][2] = {
+      // 0      1        2       3       4       5       6       7       8       9      10      11
+    {{15, 0},{ 0, 1},{ 7, 2},{11, 4},{13, 8},{14, 3},{ 3, 5},{ 5,10},{10,12},{12,15},{ 1, 7},{ 2,11},
+     { 4,13},{ 8,14},{ 6, 6},{ 9, 9},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
+     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
+     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0}},
+    {{47, 0},{31,16},{15, 1},{ 0, 2},{23, 4},{27, 8},{29,32},{30, 3},{ 7, 5},{11,10},{13,12},{14,15},
+     {39,47},{43, 7},{45,11},{46,13},{16,14},{ 3, 6},{ 5, 9},{10,31},{12,35},{19,37},{21,42},{26,44},
+     {28,33},{35,34},{37,36},{42,40},{44,39},{ 1,43},{ 2,45},{ 4,46},{ 8,17},{17,18},{18,20},{20,24},
+     {24,19},{ 6,21},{ 9,26},{22,28},{25,23},{32,27},{33,29},{34,30},{36,22},{40,25},{38,38},{41,41}}
+};
+
+void linfo_cbp_intra_normal(int len, int info, int *cbp, int *dummy)
 {
-    if (!currSlice->p_Vid->active_pps->entropy_coding_mode_flag)
-        set_read_CBP_and_coeffs_cavlc(currSlice);
-    else
-        set_read_CBP_and_coeffs_cabac(currSlice);
+    int cbp_idx;
+    linfo_ue(len, info, &cbp_idx, dummy);
+    *cbp = NCBP[1][cbp_idx][0];
+}
+
+void linfo_cbp_intra_other(int len, int info, int *cbp, int *dummy)
+{
+    int cbp_idx;
+    linfo_ue(len, info, &cbp_idx, dummy);
+    *cbp = NCBP[0][cbp_idx][0];
+}
+
+void linfo_cbp_inter_normal(int len, int info, int *cbp, int *dummy)
+{
+    int cbp_idx;
+    linfo_ue(len, info, &cbp_idx, dummy);
+    *cbp = NCBP[1][cbp_idx][1];
+}
+
+void linfo_cbp_inter_other(int len, int info, int *cbp, int *dummy)
+{
+    int cbp_idx;
+    linfo_ue(len, info, &cbp_idx, dummy);
+    *cbp = NCBP[0][cbp_idx][1];
 }
 
 void read_delta_quant(SyntaxElement *currSE, DataPartition *dP, Macroblock *currMB, const byte *partMap, int type)

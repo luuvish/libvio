@@ -142,14 +142,15 @@ struct slice_t;
 
 void read_one_macroblock(Macroblock *currMB);
 
-void setup_read_macroblock(struct slice_t *currSlice);
+void linfo_cbp_intra_normal(int len, int info, int *cbp, int *dummy);
+void linfo_cbp_intra_other(int len, int info, int *cbp, int *dummy);
+void linfo_cbp_inter_normal(int len, int info, int *cbp, int *dummy);
+void linfo_cbp_inter_other(int len, int info, int *cbp, int *dummy);
 
 void read_delta_quant(SyntaxElement *currSE, DataPartition *dP, Macroblock *currMB, const byte *partMap, int type);
 
-void set_read_CBP_and_coeffs_cavlc(struct slice_t *currSlice);
-void set_read_CBP_and_coeffs_cabac(struct slice_t *currSlice);
-void set_read_comp_coeff_cavlc(Macroblock *currMB);
-void set_read_comp_coeff_cabac(Macroblock *currMB);
+void read_CBP_and_coeffs_from_NAL_CAVLC(Macroblock *currMB);
+void read_CBP_and_coeffs_from_NAL_CABAC(Macroblock *currMB);
 
 
 #ifdef __cplusplus
