@@ -68,7 +68,7 @@ static const byte TABLE_TCO[52][5] = {
 static const int pelnum_cr[2][4] =  {{0,8,16,16}, {0,8, 8,16}};  //[dir:0=vert, 1=hor.][yuv_format]
 
 
-static Macroblock* get_non_aff_neighbor_luma(Macroblock *mb, int xN, int yN)
+static mb_t* get_non_aff_neighbor_luma(mb_t *mb, int xN, int yN)
 {
     if (xN < 0)
         return mb->mbleft;
@@ -78,7 +78,7 @@ static Macroblock* get_non_aff_neighbor_luma(Macroblock *mb, int xN, int yN)
         return mb;
 }
 
-static Macroblock* get_non_aff_neighbor_chroma(Macroblock *mb, int xN, int yN, int block_width, int block_height)
+static mb_t* get_non_aff_neighbor_chroma(mb_t *mb, int xN, int yN, int block_width, int block_height)
 {
     if (xN < 0) {
         if (yN < block_height)
@@ -214,7 +214,7 @@ static void deblock_normal(imgpel *pixP, imgpel *pixQ, int widthP, int widthQ, i
 }
 
 static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaStyleFilteringFlag,
-                       Macroblock *MbP, Macroblock *MbQ, byte *Strength,
+                       mb_t *MbP, mb_t *MbQ, byte *Strength,
                        ColorPlane pl, imgpel **Img, int edge, StorablePicture *p)
 {
 /*
@@ -294,7 +294,7 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
             else
                 MbP = get_non_aff_neighbor_chroma(MbQ, xQ, yQ, mb_cr_size_x, mb_cr_size_y);
 
-            Macroblock *MbP = &(p_Vid->mb_data[pixP.mb_addr]);
+            mb_t *MbP = &(p_Vid->mb_data[pixP.mb_addr]);
             int bS = Strength[PelNum == 8 ? pel >> 1 : pel >> 2];
 
             //if (pixP.available && bS != 0) {
@@ -331,7 +331,7 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
 }
 
 static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaStyleFilteringFlag,
-                       Macroblock *MbP, Macroblock *MbQ, byte *Strength,
+                       mb_t *MbP, mb_t *MbQ, byte *Strength,
                        ColorPlane pl, imgpel **Img, int edge, StorablePicture *p)
 {
     VideoParameters *p_Vid = MbQ->p_Vid;
@@ -364,7 +364,7 @@ static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool ch
                 getAffNeighbour(MbQ, pel, yQ    , mb_size, &pixQ);
             }
 
-            Macroblock *MbP = &(p_Vid->mb_data[pixP.mb_addr]);
+            mb_t *MbP = &(p_Vid->mb_data[pixP.mb_addr]);
             int StrengthIdx = (PelNum == 8) ? ((MbQ->mb_field_decoding_flag && !MbP->mb_field_decoding_flag) ? pel << 1 : ((pel >> 1) << 2) + (pel & 0x01)) : pel;
             int bS = Strength[StrengthIdx];
 
@@ -399,42 +399,42 @@ static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool ch
 }
 
 
-static void edge_loop_luma_ver_MBAff(ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p)
+static void edge_loop_luma_ver_MBAff(ColorPlane pl, imgpel** Img, byte *Strength, mb_t *MbQ, int edge, StorablePicture *p)
 {
     deblock_mb_mbaff(1, 0, 0, MbQ, MbQ, Strength, pl, Img, edge, p);
 }
 
-static void edge_loop_luma_hor_MBAff(ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p)
+static void edge_loop_luma_hor_MBAff(ColorPlane pl, imgpel** Img, byte *Strength, mb_t *MbQ, int edge, StorablePicture *p)
 {
     deblock_mb_mbaff(0, 0, 0, MbQ, MbQ, Strength, pl, Img, edge, p);
 }
 
-static void edge_loop_chroma_ver_MBAff(imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, StorablePicture *p)
+static void edge_loop_chroma_ver_MBAff(imgpel** Img, byte *Strength, mb_t *MbQ, int edge, int uv, StorablePicture *p)
 {
     deblock_mb_mbaff(1, 1, 1, MbQ, MbQ, Strength, (ColorPlane)(uv+1), Img, edge, p);
 }
 
-static void edge_loop_chroma_hor_MBAff(imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, StorablePicture *p)
+static void edge_loop_chroma_hor_MBAff(imgpel** Img, byte *Strength, mb_t *MbQ, int edge, int uv, StorablePicture *p)
 {
     deblock_mb_mbaff(0, 1, 1, MbQ, MbQ, Strength, (ColorPlane)(uv+1), Img, edge, p);
 }
 
-static void edge_loop_luma_ver(ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p)
+static void edge_loop_luma_ver(ColorPlane pl, imgpel** Img, byte *Strength, mb_t *MbQ, int edge, StorablePicture *p)
 {
     deblock_mb(1, 0, 0, MbQ, MbQ, Strength, pl, Img, edge, p);
 }
 
-static void edge_loop_luma_hor(ColorPlane pl, imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, StorablePicture *p)
+static void edge_loop_luma_hor(ColorPlane pl, imgpel** Img, byte *Strength, mb_t *MbQ, int edge, StorablePicture *p)
 {
     deblock_mb(0, 0, 0, MbQ, MbQ, Strength, pl, Img, edge, p);
 }
 
-static void edge_loop_chroma_ver(imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, StorablePicture *p)
+static void edge_loop_chroma_ver(imgpel** Img, byte *Strength, mb_t *MbQ, int edge, int uv, StorablePicture *p)
 {
     deblock_mb(1, 1, 1, MbQ, MbQ, Strength, (ColorPlane)(uv+1), Img, edge, p);
 }
 
-static void edge_loop_chroma_hor(imgpel** Img, byte *Strength, Macroblock *MbQ, int edge, int uv, StorablePicture *p)
+static void edge_loop_chroma_hor(imgpel** Img, byte *Strength, mb_t *MbQ, int edge, int uv, StorablePicture *p)
 {
     deblock_mb(0, 1, 1, MbQ, MbQ, Strength, (ColorPlane)(uv+1), Img, edge, p);
 }

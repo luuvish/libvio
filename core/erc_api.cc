@@ -221,7 +221,7 @@ void ercSetErrorConcealment( ercVariables_t *errorVar, int value )
  * \param currMBNum
  *      The MB number where the new slice/segment starts
  * \param segment
- *      Segment/Slice No. counted by the caller
+ *      Segment/slice_t No. counted by the caller
  * \param bitPos
  *      Bitstream pointer: number of bits read from the buffer.
  * \param errorVar
@@ -247,7 +247,7 @@ void ercStartSegment( int currMBNum, int segment, unsigned int bitPos, ercVariab
  * \param currMBNum
  *      The last MB number of the previous segment
  * \param segment
- *      Segment/Slice No. counted by the caller
+ *      Segment/slice_t No. counted by the caller
  *      If (segment<0) the internal segment counter is used.
  * \param bitPos
  *      Bitstream pointer: number of bits read from the buffer.
@@ -440,7 +440,7 @@ void erc_picture(VideoParameters *p_Vid, StorablePicture **dec_picture)
  *    MB to the buffer of the error concealment module.
  ************************************************************************
  */
-void ercWriteMBMODEandMV(Macroblock *currMB)
+void ercWriteMBMODEandMV(mb_t *currMB)
 {
   VideoParameters *p_Vid = currMB->p_Vid;
   int i, ii, jj, currMBNum = currMB->mbAddrX; //p_Vid->currentSlice->current_mb_nr;

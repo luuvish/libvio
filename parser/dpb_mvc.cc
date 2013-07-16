@@ -65,7 +65,7 @@ static int get_maxViewIdx (VideoParameters *p_Vid, int view_id, int anchor_pic_f
  *
  ************************************************************************
  */
-static StorablePicture*  get_inter_view_pic(VideoParameters *p_Vid, Slice *currSlice, int targetViewID, int currPOC, int listidx)
+static StorablePicture*  get_inter_view_pic(VideoParameters *p_Vid, slice_t *currSlice, int targetViewID, int currPOC, int listidx)
 {
   unsigned i;
   unsigned int listinterview_size;
@@ -141,7 +141,7 @@ static void gen_pic_list_from_frame_interview_list(bool bottom_field_flag, Frame
 *
 ************************************************************************
 */
-void init_lists_i_slice_mvc(Slice *currSlice)
+void init_lists_i_slice_mvc(slice_t *currSlice)
 {
   //VideoParameters *p_Vid = currSlice->p_Vid;
 
@@ -155,11 +155,11 @@ void init_lists_i_slice_mvc(Slice *currSlice)
 /*!
 ************************************************************************
 * \brief
-*    Initialize reference lists for a P Slice
+*    Initialize reference lists for a P slice_t
 *
 ************************************************************************
 */
-void init_lists_p_slice_mvc(Slice *currSlice)
+void init_lists_p_slice_mvc(slice_t *currSlice)
 {
   VideoParameters *p_Vid = currSlice->p_Vid;
   dpb_t *p_Dpb = currSlice->p_Dpb;
@@ -293,11 +293,11 @@ void init_lists_p_slice_mvc(Slice *currSlice)
 /*!
  ************************************************************************
  * \brief
- *    Initialize reference lists for a B Slice
+ *    Initialize reference lists for a B slice_t
  *
  ************************************************************************
  */
-void init_lists_b_slice_mvc(Slice *currSlice)
+void init_lists_b_slice_mvc(slice_t *currSlice)
 {
   VideoParameters *p_Vid = currSlice->p_Vid;
   dpb_t *p_Dpb = currSlice->p_Dpb;
@@ -320,7 +320,7 @@ void init_lists_b_slice_mvc(Slice *currSlice)
   currSlice->listinterviewidx1 = 0;
 
   {
-    // B-Slice
+    // B-slice_t
     if (!currSlice->field_pic_flag)
     {
       for (i=0; i<p_Dpb->ref_frames_in_buffer; i++)
@@ -478,7 +478,7 @@ void init_lists_b_slice_mvc(Slice *currSlice)
   if (currSlice->svc_extension_flag == 0)
   {
     int curr_view_id = currSlice->view_id;
-    // B-Slice
+    // B-slice_t
     currSlice->fs_listinterview0 = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
     if (NULL==currSlice->fs_listinterview0)
       no_mem_exit("init_lists: fs_listinterview0");
@@ -543,7 +543,7 @@ void init_lists_b_slice_mvc(Slice *currSlice)
  *
  ************************************************************************
  */
-static void reorder_interview(VideoParameters *p_Vid, Slice *currSlice, StorablePicture **RefPicListX, int num_ref_idx_lX_active_minus1, int *refIdxLX, int targetViewID, int currPOC, int listidx)
+static void reorder_interview(VideoParameters *p_Vid, slice_t *currSlice, StorablePicture **RefPicListX, int num_ref_idx_lX_active_minus1, int *refIdxLX, int targetViewID, int currPOC, int listidx)
 {
   int cIdx, nIdx;
   StorablePicture *picLX;
@@ -574,7 +574,7 @@ static void reorder_interview(VideoParameters *p_Vid, Slice *currSlice, Storable
  *
  ************************************************************************
  */
-void reorder_ref_pic_list_mvc(Slice *currSlice, int cur_list, int **anchor_ref, int **non_anchor_ref, int view_id, int anchor_pic_flag, int currPOC, int listidx)
+void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, int **anchor_ref, int **non_anchor_ref, int view_id, int anchor_pic_flag, int currPOC, int listidx)
 {
   VideoParameters *p_Vid = currSlice->p_Vid;
   uint8_t  *modification_of_pic_nums_idc = currSlice->modification_of_pic_nums_idc[cur_list];
@@ -676,7 +676,7 @@ void reorder_ref_pic_list_mvc(Slice *currSlice, int cur_list, int **anchor_ref, 
   currSlice->listXsize[cur_list] = (char) (num_ref_idx_lX_active_minus1 + 1);
 }
 
-void reorder_lists_mvc(Slice * currSlice, int currPOC)
+void reorder_lists_mvc(slice_t * currSlice, int currPOC)
 {
   VideoParameters *p_Vid = currSlice->p_Vid;
 

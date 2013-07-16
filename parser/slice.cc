@@ -4,7 +4,7 @@
  * \file header.c
  *
  * \brief
- *    H.264 Slice headers
+ *    H.264 slice_t headers
  *
  *************************************************************************************
  */
@@ -21,7 +21,7 @@
 
 
 
-void slice_header(Slice *currSlice)
+void slice_header(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
@@ -229,7 +229,7 @@ void slice_header(Slice *currSlice)
     currSlice->MapUnitsInSliceGroup0 = imin(currSlice->slice_group_change_cycle * pps->SliceGroupChangeRate, sps->PicSizeInMapUnits);
 }
 
-void ref_pic_list_modification(Slice *currSlice)
+void ref_pic_list_modification(slice_t *currSlice)
 {
     byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
     DataPartition *partition = &currSlice->partArr[dP_nr];
@@ -269,7 +269,7 @@ void ref_pic_list_modification(Slice *currSlice)
 }
 
 #if (MVC_EXTENSION_ENABLE)
-void ref_pic_list_mvc_modification(Slice *currSlice)
+void ref_pic_list_mvc_modification(slice_t *currSlice)
 {
     byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
     DataPartition *partition = &(currSlice->partArr[dP_nr]);
@@ -315,7 +315,7 @@ void ref_pic_list_mvc_modification(Slice *currSlice)
 }
 #endif
 
-void pred_weight_table(Slice *currSlice)
+void pred_weight_table(slice_t *currSlice)
 {
     byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
     DataPartition *partition = &(currSlice->partArr[dP_nr]);
@@ -421,7 +421,7 @@ void pred_weight_table(Slice *currSlice)
     }
 }
 
-void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *s, Slice *currSlice)
+void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *s, slice_t *currSlice)
 {
     //byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
     //DataPartition *partition = &currSlice->partArr[dP_nr];
@@ -494,7 +494,7 @@ void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *s, Slice *currSlice)
  *    none
  ************************************************************************
  */
-void decode_poc(VideoParameters *p_Vid, Slice *pSlice)
+void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
 {
     sps_t *sps = p_Vid->active_sps;
     uint32_t absFrameNum;

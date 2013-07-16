@@ -19,7 +19,7 @@ extern "C" {
 
 struct motion_info_context_t;
 struct texture_info_context_t;
-struct macroblock_dec;
+struct macroblock_t;
 
 
 enum {
@@ -42,7 +42,7 @@ typedef struct DecRefPicMarking_s
   struct DecRefPicMarking_s *Next;
 } DecRefPicMarking_t;
 
-//! Slice
+//! slice_t
 typedef struct slice_t {
     struct video_par         *p_Vid;
     struct inp_par           *p_Inp;
@@ -235,22 +235,25 @@ typedef struct slice_t {
     int                       max_mb_vmv_r; //!< maximum vertical motion vector range in luma quarter pixel units for the current level_idc
 
     int                       erc_mvperMB;
-    struct macroblock_dec     *mb_data;
+    struct macroblock_t     *mb_data;
     struct storable_picture  *dec_picture;
     char                     *intra_block;
     char                      chroma_vector_adjustment[6][32];
-} Slice;
+
+    bool        init();
+    void        decode();
+} slice_t;
 
 
-void slice_header(Slice *currSlice);
-void ref_pic_list_modification(Slice *currSlice);
-void ref_pic_list_mvc_modification(Slice *currSlice);
-void pred_weight_table(Slice *currSlice);
-//void dec_ref_pic_marking(Slice *currSlice);
+void slice_header(slice_t *currSlice);
+void ref_pic_list_modification(slice_t *currSlice);
+void ref_pic_list_mvc_modification(slice_t *currSlice);
+void pred_weight_table(slice_t *currSlice);
+//void dec_ref_pic_marking(slice_t *currSlice);
 
-void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *currStream, Slice *pSlice);
+void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *currStream, slice_t *pSlice);
 
-void decode_poc(VideoParameters *p_Vid, Slice *pSlice);
+void decode_poc(VideoParameters *p_Vid, slice_t *pSlice);
 
 #ifdef __cplusplus
 }

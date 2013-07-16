@@ -43,10 +43,10 @@ static inline int RSHIFT_RND_SF(int x, int a)
 
 static void mc_prediction(imgpel *mb_pred,
                           imgpel *block, int block_size_y, int block_size_x,
-                          Macroblock *currMB, ColorPlane pl, short l0_refframe, int pred_dir)
+                          mb_t *currMB, ColorPlane pl, short l0_refframe, int pred_dir)
 {
     int weight, offset, denom, color_clip;
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     pps_t *pps = currSlice->active_pps;
     if (currSlice->weighted_pred_flag) {
@@ -77,14 +77,14 @@ static void mc_prediction(imgpel *mb_pred,
 
 static void bi_prediction(imgpel *mb_pred, 
                           imgpel *block_l0, imgpel *block_l1, int block_size_y, int block_size_x,
-                          Macroblock *currMB, ColorPlane pl, short l0_refframe, short l1_refframe)
+                          mb_t *currMB, ColorPlane pl, short l0_refframe, short l1_refframe)
 {
     int weight0, weight1, offset, denom, color_clip;
     VideoParameters *p_Vid = currMB->p_Vid;
     sps_t *sps = p_Vid->active_sps;
     int weighted_bipred_idc = p_Vid->active_pps->weighted_bipred_idc;
     if (weighted_bipred_idc) {
-        Slice *currSlice = currMB->p_Slice;
+        slice_t *currSlice = currMB->p_Slice;
 
         int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
                           currMB->mbAddrX % 2 ? 4 : 2 : 0;
@@ -310,9 +310,9 @@ static void get_luma_31(imgpel **block, imgpel **cur_imgY, int block_size_y, int
  */ 
 void get_block_luma(StorablePicture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
                     imgpel **block, int shift_x, int maxold_x, int maxold_y,
-                    ColorPlane pl, Macroblock *currMB)
+                    ColorPlane pl, mb_t *currMB)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     int **tmp_res = currSlice->tmp_res;
     int max_imgpel_value = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
@@ -439,7 +439,7 @@ static void get_block_chroma(StorablePicture *curr_ref, int x_pos, int y_pos,
 }
 
 
-static void check_motion_vector_range(const MotionVector *mv, Slice *pSlice)
+static void check_motion_vector_range(const MotionVector *mv, slice_t *pSlice)
 {  
     if (mv->mv_x > 8191 || mv->mv_x < -8192)
         fprintf(stderr,"WARNING! Horizontal motion vector %d is out of allowed range {-8192, 8191} in picture %d, macroblock %d\n", mv->mv_x, pSlice->p_Vid->number, pSlice->current_mb_nr);
@@ -447,7 +447,7 @@ static void check_motion_vector_range(const MotionVector *mv, Slice *pSlice)
         fprintf(stderr,"WARNING! Vertical motion vector %d is out of allowed range {%d, %d} in picture %d, macroblock %d\n", mv->mv_y, (-pSlice->max_mb_vmv_r), (pSlice->max_mb_vmv_r - 1), pSlice->p_Vid->number, pSlice->current_mb_nr);
 }
 
-static int CheckVertMV(Macroblock *currMB, int vec_y, int block_size_y)
+static int CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
 {
     StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
     int y_pos = vec_y >> 2;
@@ -463,14 +463,14 @@ static int CheckVertMV(Macroblock *currMB, int vec_y, int block_size_y)
         return 0;
 }
 
-void perform_mc(Macroblock *currMB, ColorPlane pl, StorablePicture *dec_picture, int pred_dir, int i, int j, int block_size_x, int block_size_y)
+void perform_mc(mb_t *currMB, ColorPlane pl, StorablePicture *dec_picture, int pred_dir, int i, int j, int block_size_x, int block_size_y)
 {
     assert (pred_dir <= 2);
 
     static const int mv_mul = 16;
     int vec1_x, vec1_y, vec2_x, vec2_y;
     VideoParameters *p_Vid = currMB->p_Vid;    
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
 
     int i4 = currMB->block_x + i;

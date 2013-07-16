@@ -16,7 +16,6 @@
 #include "neighbour.h"
 #include "memalloc.h"
 #include "macroblock.h"
-#include "mb.h"
 #include "mb_read.h"
 
 #include "intra_prediction.h"
@@ -27,8 +26,6 @@
 #include "erc_api.h"
 #include "dpb.h"
 
-
-#include "dec_slice.h"
 
 #define MAX_QP          51
 
@@ -69,12 +66,12 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
     // allocate memory in structure p_Vid
     if (sps->separate_colour_plane_flag) {
         for (i = 0; i < MAX_PLANE; i++) {
-            if (((cps->mb_data_JV[i]) = (Macroblock *) calloc(FrameSizeInMbs, sizeof(Macroblock))) == NULL)
+            if (((cps->mb_data_JV[i]) = (mb_t *) calloc(FrameSizeInMbs, sizeof(mb_t))) == NULL)
                 no_mem_exit("init_global_buffers: cps->mb_data_JV");
         }
         cps->mb_data = NULL;
     } else {
-        if (((cps->mb_data) = (Macroblock *) calloc(FrameSizeInMbs, sizeof(Macroblock))) == NULL)
+        if (((cps->mb_data) = (mb_t *) calloc(FrameSizeInMbs, sizeof(mb_t))) == NULL)
             no_mem_exit("init_global_buffers: cps->mb_data");
     }
 
@@ -167,7 +164,7 @@ void activate_sps(VideoParameters *p_Vid, sps_t *sps)
 #if (DISABLE_ERC == 0)
         ercInit(p_Vid, sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16, 1);
         if (p_Vid->dec_picture) {
-            Slice *currSlice = p_Vid->ppSliceList[0];
+            slice_t *currSlice = p_Vid->ppSliceList[0];
             ercReset(p_Vid->erc_errorVar, currSlice->PicSizeInMbs, currSlice->PicSizeInMbs, p_Vid->dec_picture->size_x);
             p_Vid->erc_mvperMB = 0;
         }
@@ -189,7 +186,7 @@ void activate_pps(VideoParameters *p_Vid, pps_t *pps)
 
 
 
-void UseParameterSet (Slice *currSlice)
+void UseParameterSet (slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     int PicParsetId = currSlice->pic_parameter_set_id;  
@@ -245,7 +242,7 @@ void UseParameterSet (Slice *currSlice)
 
 static void init_picture_decoding(VideoParameters *p_Vid)
 {
-    Slice *pSlice = p_Vid->ppSliceList[0];
+    slice_t *pSlice = p_Vid->ppSliceList[0];
 
     if (p_Vid->iSliceNumOfCurrPic >= MAX_NUM_SLICES)
         error ("Maximum number of supported slices exceeded. \nPlease recompile with increased value for MAX_NUM_SLICES", 200);
@@ -280,7 +277,7 @@ static void init_picture_decoding(VideoParameters *p_Vid)
 
 void decode_picture(VideoParameters *p_Vid)
 {
-    Slice **ppSliceList = p_Vid->ppSliceList;
+    slice_t **ppSliceList = p_Vid->ppSliceList;
     int iSliceNo;
 
     p_Vid->num_dec_mb = 0;
@@ -288,14 +285,14 @@ void decode_picture(VideoParameters *p_Vid)
     init_picture_decoding(p_Vid);
 
     for (iSliceNo = 0; iSliceNo < p_Vid->iSliceNumOfCurrPic; iSliceNo++) {
-        Slice *currSlice = ppSliceList[iSliceNo];
+        slice_t *currSlice = ppSliceList[iSliceNo];
 
         assert(currSlice->current_header != EOS);
         assert(currSlice->current_slice_nr == iSliceNo);
 
-        if (!init_slice(currSlice))
+        if (!currSlice->init())
             continue;
-        decode_one_slice(currSlice);
+        currSlice->decode();
 
         p_Vid->num_dec_mb  += currSlice->num_dec_mb;
         p_Vid->erc_mvperMB += currSlice->erc_mvperMB;
@@ -509,7 +506,7 @@ static void status_picture(VideoParameters *p_Vid, StorablePicture **dec_picture
 void exit_picture(VideoParameters *p_Vid, StorablePicture **dec_picture)
 {
     sps_t *sps = p_Vid->active_sps;
-    Slice *currSlice = p_Vid->ppSliceList[0];
+    slice_t *currSlice = p_Vid->ppSliceList[0];
     int PicSizeInMbs = sps->PicWidthInMbs * (sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag));
 
     // return if the last picture has already been finished

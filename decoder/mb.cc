@@ -6,13 +6,13 @@
 #include "transform.h"
 #include "intra_prediction.h"
 #include "inter_prediction.h"
-#include "mb.h"
 
 
 // number of intra prediction modes
 #define NO_INTRA_PMODE  9
 
 
+intra_prediction_t intra_prediction;
 
 //! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
 static const int BLOCK_STEP[8][2] = {
@@ -20,9 +20,9 @@ static const int BLOCK_STEP[8][2] = {
     {2, 2}, {2, 1}, {1, 2}, {1, 1}
 };
 
-static void mb_pred_skip(Macroblock *currMB, ColorPlane curr_plane)
+static void mb_pred_skip(mb_t *currMB, ColorPlane curr_plane)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     StorablePicture *dec_picture = currSlice->dec_picture;
 
     perform_mc(currMB, curr_plane, dec_picture, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
@@ -30,9 +30,9 @@ static void mb_pred_skip(Macroblock *currMB, ColorPlane curr_plane)
     iTransform(currMB, curr_plane, currSlice->slice_type == SP_slice);
 }
 
-static void mb_pred_p_inter(Macroblock *currMB, ColorPlane curr_plane)
+static void mb_pred_p_inter(mb_t *currMB, ColorPlane curr_plane)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     StorablePicture *dec_picture = currSlice->dec_picture;
 
     int partmode = (currMB->mb_type == P8x8 ? 4 : currMB->mb_type);
@@ -59,9 +59,9 @@ static void mb_pred_p_inter(Macroblock *currMB, ColorPlane curr_plane)
         currSlice->is_reset_coeff = FALSE;
 }
 
-static void mb_pred_b_direct(Macroblock *currMB, ColorPlane curr_plane)
+static void mb_pred_b_direct(mb_t *currMB, ColorPlane curr_plane)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     StorablePicture *dec_picture = currSlice->dec_picture;
 
@@ -107,9 +107,9 @@ static void mb_pred_b_direct(Macroblock *currMB, ColorPlane curr_plane)
         currSlice->is_reset_coeff = FALSE;
 }
 
-static void mb_pred_b_inter8x8(Macroblock *currMB, ColorPlane curr_plane)
+static void mb_pred_b_inter8x8(mb_t *currMB, ColorPlane curr_plane)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     StorablePicture *dec_picture = currSlice->dec_picture;
 
@@ -151,10 +151,10 @@ static void mb_pred_b_inter8x8(Macroblock *currMB, ColorPlane curr_plane)
 }
 
 
-static void mb_pred_ipcm(Macroblock *currMB)
+static void mb_pred_ipcm(mb_t *currMB)
 {
     int i, j, k;
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     StorablePicture *dec_picture = currSlice->dec_picture;
@@ -174,7 +174,7 @@ static void mb_pred_ipcm(Macroblock *currMB)
     }
 
     // for deblocking filter
-    update_qp(currMB, 0);
+    currMB->update_qp(0);
 
     // for CAVLC: Set the nz_coeff to 16.
     // These parameters are to be used in CAVLC decoding of neighbour blocks  
@@ -192,9 +192,9 @@ static void mb_pred_ipcm(Macroblock *currMB)
     currSlice->is_reset_coeff_cr = FALSE;
 }
 
-static void mb_pred_intra(Macroblock *currMB, ColorPlane curr_plane)
+static void mb_pred_intra(mb_t *currMB, ColorPlane curr_plane)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     StorablePicture *dec_picture = currSlice->dec_picture;
     imgpel **currImg = curr_plane == PLANE_Y ? dec_picture->imgY : dec_picture->imgUV[curr_plane-1];
@@ -207,11 +207,11 @@ static void mb_pred_intra(Macroblock *currMB, ColorPlane curr_plane)
         int joff = ((block4x4 / 4) / 2) * 8 + ((block4x4 % 4) / 2) * 4;
 
         if (currMB->mb_type == I4MB)
-            intra_pred_4x4(currMB, curr_plane, ioff, joff);
+            intra_prediction.intra_pred_4x4(currMB, curr_plane, ioff, joff);
         else if (currMB->mb_type == I8MB)
-            intra_pred_8x8(currMB, curr_plane, ioff, joff);
+            intra_prediction.intra_pred_8x8(currMB, curr_plane, ioff, joff);
         else if (currMB->mb_type == I16MB)
-            intra_pred_16x16(currMB, curr_plane, ioff, joff);
+            intra_prediction.intra_pred_16x16(currMB, curr_plane, ioff, joff);
 
         if (currMB->TransformBypassModeFlag) {
             if (currMB->mb_type == I4MB)
@@ -241,7 +241,7 @@ static void mb_pred_intra(Macroblock *currMB, ColorPlane curr_plane)
         currSlice->is_reset_coeff = FALSE;
 
     if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
-        intra_pred_chroma(currMB);
+        intra_prediction.intra_pred_chroma(currMB);
 
         for (int uv = 0; uv < 2; uv++) {
             imgpel **curUV = dec_picture->imgUV[uv];
@@ -265,9 +265,9 @@ static void mb_pred_intra(Macroblock *currMB, ColorPlane curr_plane)
 }
 
 
-static void set_chroma_vector(Macroblock *currMB)
+static void set_chroma_vector(mb_t *currMB)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     VideoParameters *p_Vid = currMB->p_Vid;
 
     if (!currSlice->MbaffFrameFlag) {
@@ -340,9 +340,9 @@ static void set_chroma_vector(Macroblock *currMB)
     currSlice->max_mb_vmv_r = currSlice->field_pic_flag || currMB->mb_field_decoding_flag ? max_vmv_r >> 1 : max_vmv_r;
 }
 
-static void decode_one_component(Macroblock *currMB, ColorPlane curr_plane)
+static void decode_one_component(mb_t *currMB, ColorPlane curr_plane)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currSlice->p_Vid;
 
@@ -391,20 +391,20 @@ static void decode_one_component(Macroblock *currMB, ColorPlane curr_plane)
     mb_pred_b_inter8x8(currMB, curr_plane);
 }
 
-void decode_one_macroblock(Macroblock *currMB)
+void macroblock_t::decode()
 {
-    Slice *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
+    slice_t *slice = this->p_Slice;
+    sps_t *sps = slice->active_sps;
 
-    set_chroma_vector(currMB);
+    set_chroma_vector(this);
 
-    decode_one_component(currMB, PLANE_Y);
+    decode_one_component(this, PLANE_Y);
 
     if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag) {
-        decode_one_component(currMB, PLANE_U);
-        decode_one_component(currMB, PLANE_V);
+        decode_one_component(this, PLANE_U);
+        decode_one_component(this, PLANE_V);
 
-        currSlice->is_reset_coeff    = FALSE;
-        currSlice->is_reset_coeff_cr = FALSE;
+        slice->is_reset_coeff    = FALSE;
+        slice->is_reset_coeff_cr = FALSE;
     }
 }

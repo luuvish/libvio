@@ -5,7 +5,7 @@
  * \file fmo.c
  *
  * \brief
- *    Support for Flexible Macroblock Ordering (FMO)
+ *    Support for Flexible mb_t Ordering (FMO)
  *
  * \author
  *    Main contributors (see contributors.h for copyright, address and affiliation details)
@@ -69,7 +69,7 @@ static void FmoGenerateType2MapUnitMap(VideoParameters *p_Vid)
     }
 }
 
-static void FmoGenerateType3MapUnitMap(VideoParameters *p_Vid, Slice *currSlice)
+static void FmoGenerateType3MapUnitMap(VideoParameters *p_Vid, slice_t *currSlice)
 {
     sps_t *sps = p_Vid->active_sps;
     pps_t *pps = p_Vid->active_pps;
@@ -123,7 +123,7 @@ static void FmoGenerateType3MapUnitMap(VideoParameters *p_Vid, Slice *currSlice)
     }
 }
 
-static void FmoGenerateType4MapUnitMap(VideoParameters *p_Vid, Slice *currSlice)
+static void FmoGenerateType4MapUnitMap(VideoParameters *p_Vid, slice_t *currSlice)
 {
     sps_t *sps = p_Vid->active_sps;
     pps_t *pps = p_Vid->active_pps;
@@ -142,7 +142,7 @@ static void FmoGenerateType4MapUnitMap(VideoParameters *p_Vid, Slice *currSlice)
     }
 }
 
-static void FmoGenerateType5MapUnitMap(VideoParameters *p_Vid, Slice *currSlice)
+static void FmoGenerateType5MapUnitMap(VideoParameters *p_Vid, slice_t *currSlice)
 {
     sps_t *sps = p_Vid->active_sps;
     pps_t *pps = p_Vid->active_pps;
@@ -173,7 +173,7 @@ static void FmoGenerateType6MapUnitMap(VideoParameters *p_Vid)
         p_Vid->MapUnitToSliceGroupMap[i] = pps->slice_group_id[i];
 }
 
-static int FmoGenerateMapUnitToSliceGroupMap(VideoParameters *p_Vid, Slice *currSlice)
+static int FmoGenerateMapUnitToSliceGroupMap(VideoParameters *p_Vid, slice_t *currSlice)
 {
     sps_t *sps = p_Vid->active_sps;
     pps_t *pps = p_Vid->active_pps;
@@ -225,7 +225,7 @@ static int FmoGenerateMapUnitToSliceGroupMap(VideoParameters *p_Vid, Slice *curr
     return 0;
 }
 
-static int FmoGenerateMbToSliceGroupMap(VideoParameters *p_Vid, Slice *pSlice)
+static int FmoGenerateMbToSliceGroupMap(VideoParameters *p_Vid, slice_t *pSlice)
 {
     sps_t *sps = p_Vid->active_sps;
     int i;
@@ -255,7 +255,7 @@ static int FmoGenerateMbToSliceGroupMap(VideoParameters *p_Vid, Slice *pSlice)
 }
 
 
-int fmo_init(VideoParameters *p_Vid, Slice *pSlice)
+int fmo_init(VideoParameters *p_Vid, slice_t *pSlice)
 {
     FmoGenerateMapUnitToSliceGroupMap(p_Vid, pSlice);
     FmoGenerateMbToSliceGroupMap(p_Vid, pSlice);
@@ -277,7 +277,7 @@ int FmoFinit(VideoParameters *p_Vid)
 
 int FmoGetNextMBNr(VideoParameters *p_Vid, int n)
 {
-    Slice *currSlice = p_Vid->ppSliceList[0];
+    slice_t *currSlice = p_Vid->ppSliceList[0];
     int SliceGroup, i;
 
     assert(n < currSlice->PicSizeInMbs);

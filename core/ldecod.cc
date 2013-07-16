@@ -373,7 +373,7 @@ static void alloc_video_params(VideoParameters **p_Vid)
         no_mem_exit("alloc_video_params: (*p_Vid)->seiToneMapping");  
 #endif
 
-    if (((*p_Vid)->ppSliceList = (Slice **)calloc(MAX_NUM_DECSLICES, sizeof(Slice *))) == NULL)
+    if (((*p_Vid)->ppSliceList = (slice_t **)calloc(MAX_NUM_DECSLICES, sizeof(slice_t *))) == NULL)
         no_mem_exit("alloc_video_params: p_Vid->ppSliceList");
 
     (*p_Vid)->iNumOfSlicesAllocated = MAX_NUM_DECSLICES;
@@ -589,7 +589,7 @@ static void FreeDecPicList(DecodedPicList *pDecPicList)
     }
 }
 
-static void free_slice(Slice *currSlice)
+static void free_slice(slice_t *currSlice)
 {
     free_mem2Dint(currSlice->tmp_res);
     free_mem2Dpel(currSlice->tmp_block_l0);

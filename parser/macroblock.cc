@@ -3,7 +3,7 @@
  * \file macroblock.c
  *
  * \brief
- *     Decode a Macroblock
+ *     Decode a mb_t
  *
  * \author
  *    Main contributors (see contributors.h for copyright, address and affiliation details)
@@ -39,121 +39,88 @@
 #include "inter_prediction.h"
 #include "intra_prediction.h"
 
-#include "mb.h"
-
 #define MB_PIXELS            256 // MB_BLOCK_SIZE * MB_BLOCK_SIZE
 #define MB_BLOCK_SHIFT         4
 #define MB_BLOCK_PARTITIONS   16 // (BLOCK_MULTIPLE * BLOCK_MULTIPLE)
 
 
-/*!
-************************************************************************
-* \brief
-*    updates chroma QP according to luma QP and bit depth
-************************************************************************
-*/
-void update_qp(Macroblock *currMB, int qp)
+
+void macroblock_t::init(slice_t *slice)
 {
-    VideoParameters *p_Vid = currMB->p_Vid;
-    sps_t *sps = p_Vid->active_sps;
-    StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
-    currMB->qp = qp;
-    currMB->qp_scaled[0] = qp + sps->QpBdOffsetY;
+    this->p_Slice = slice;
+    this->p_Vid   = slice->p_Vid;
+    this->mbAddrX = slice->current_mb_nr;
 
-    for (int i = 0; i < 2; i++) {
-        currMB->qpc[i] = iClip3 (-(sps->QpBdOffsetC), 51, currMB->qp + dec_picture->chroma_qp_offset[i]);
-        currMB->qpc[i] = currMB->qpc[i] < 0 ? currMB->qpc[i] : QP_SCALE_CR[currMB->qpc[i]];
-        currMB->qp_scaled[i + 1] = currMB->qpc[i] + sps->QpBdOffsetC;
-    }
-
-    currMB->TransformBypassModeFlag = (currMB->qp_scaled[0] == 0 && sps->qpprime_y_zero_transform_bypass_flag);
-}
-
-/*!
- ************************************************************************
- * \brief
- *    initializes the current macroblock
- ************************************************************************
- */
-void start_macroblock(Macroblock *currMB)
-{
-    Slice *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
+    sps_t *sps = slice->active_sps;
     int mb_cr_size = sps->MbWidthC * sps->MbHeightC;
 
     /* Update coordinates of the current macroblock */
-    if (currSlice->MbaffFrameFlag) {
-        currMB->mb.x = (currMB->mbAddrX / 2) % sps->PicWidthInMbs;
-        currMB->mb.y = (currMB->mbAddrX / 2) / sps->PicWidthInMbs * 2 + (currMB->mbAddrX % 2);
+    if (slice->MbaffFrameFlag) {
+        this->mb.x = (this->mbAddrX / 2) % sps->PicWidthInMbs;
+        this->mb.y = (this->mbAddrX / 2) / sps->PicWidthInMbs * 2 + (this->mbAddrX % 2);
     } else {
-        currMB->mb.x = currMB->mbAddrX % sps->PicWidthInMbs;
-        currMB->mb.y = currMB->mbAddrX / sps->PicWidthInMbs;
+        this->mb.x = this->mbAddrX % sps->PicWidthInMbs;
+        this->mb.y = this->mbAddrX / sps->PicWidthInMbs;
     }
 
     /* Define pixel/block positions */
-    int mb_x = currMB->mb.x;
-    int mb_y = currMB->mb.y;
-    currMB->block_x     = mb_x << BLOCK_SHIFT;    /* horizontal block position */
-    currMB->block_y     = mb_y << BLOCK_SHIFT;    /* vertical block position */
-    currMB->pix_x       = mb_x * 16;              /* horizontal luma pixel position */
-    currMB->pix_y       = mb_y * 16;              /* vertical luma pixel position */
-    currMB->pix_c_x     = mb_x * sps->MbWidthC;   /* horizontal chroma pixel position */
-    currMB->pix_c_y     = mb_y * sps->MbHeightC;  /* vertical chroma pixel position */
+    int mb_x = this->mb.x;
+    int mb_y = this->mb.y;
+    this->block_x     = mb_x << BLOCK_SHIFT;    /* horizontal block position */
+    this->block_y     = mb_y << BLOCK_SHIFT;    /* vertical block position */
+    this->pix_x       = mb_x * 16;              /* horizontal luma pixel position */
+    this->pix_y       = mb_y * 16;              /* vertical luma pixel position */
+    this->pix_c_x     = mb_x * sps->MbWidthC;   /* horizontal chroma pixel position */
+    this->pix_c_y     = mb_y * sps->MbHeightC;  /* vertical chroma pixel position */
 
     // reset intra mode
-    currMB->is_intra_block = 0;
+    this->is_intra_block = 0;
     // reset mode info
-    currMB->mb_type        = 0;
-    currMB->delta_quant    = 0;
-    currMB->cbp            = 0;    
-    currMB->intra_chroma_pred_mode = Intra_Chroma_DC;
+    this->mb_type        = 0;
+    this->delta_quant    = 0;
+    this->cbp            = 0;    
+    this->intra_chroma_pred_mode = Intra_Chroma_DC;
 
     // Save the slice number of this macroblock. When the macroblock below
     // is coded it will use this to decide if prediction for above is possible
-    currMB->slice_nr = (short) currSlice->current_slice_nr;
+    this->slice_nr = (short) slice->current_slice_nr;
 
-    CheckAvailabilityOfNeighbors(currMB);
+    CheckAvailabilityOfNeighbors(this);
 
     // Reset syntax element entries in MB struct
-    if (currSlice->slice_type != I_SLICE) {
-        if (currSlice->slice_type != B_SLICE)
-            memset(currMB->mvd[0][0][0], 0, MB_BLOCK_PARTITIONS * 2 * sizeof(short));
+    if (slice->slice_type != I_SLICE) {
+        if (slice->slice_type != B_SLICE)
+            memset(this->mvd[0][0][0], 0, MB_BLOCK_PARTITIONS * 2 * sizeof(short));
         else
-            memset(currMB->mvd[0][0][0], 0, 2 * MB_BLOCK_PARTITIONS * 2 * sizeof(short));
+            memset(this->mvd[0][0][0], 0, 2 * MB_BLOCK_PARTITIONS * 2 * sizeof(short));
     }
 
-    memset(currMB->s_cbp, 0, 3 * sizeof(CBPStructure));
+    memset(this->s_cbp, 0, 3 * sizeof(CBPStructure));
 
-    // initialize currSlice->mb_rres
-    if (currSlice->is_reset_coeff == FALSE) {
-        memset( currSlice->mb_rres[0][0], 0, MB_PIXELS * sizeof(int));
-        memset( currSlice->mb_rres[1][0], 0, mb_cr_size * sizeof(int));
-        memset( currSlice->mb_rres[2][0], 0, mb_cr_size * sizeof(int));
-        if (currSlice->is_reset_coeff_cr == FALSE) {
-            memset( currSlice->cof[0][0], 0, 3 * MB_PIXELS * sizeof(int));
-            currSlice->is_reset_coeff_cr = TRUE;
+    // initialize slice->mb_rres
+    if (!slice->is_reset_coeff) {
+        memset(slice->mb_rres[0][0], 0, MB_PIXELS * sizeof(int));
+        memset(slice->mb_rres[1][0], 0, mb_cr_size * sizeof(int));
+        memset(slice->mb_rres[2][0], 0, mb_cr_size * sizeof(int));
+        if (!slice->is_reset_coeff_cr) {
+            memset(slice->cof[0][0], 0, 3 * MB_PIXELS * sizeof(int));
+            slice->is_reset_coeff_cr = 1;
         } else
-            memset( currSlice->cof[0][0], 0, MB_PIXELS * sizeof(int));
+            memset(slice->cof[0][0], 0, MB_PIXELS * sizeof(int));
 
-        currSlice->is_reset_coeff = TRUE;
+        slice->is_reset_coeff = 1;
     }
 
     // store filtering parameters for this MB
-    currMB->DFDisableIdc      = currSlice->disable_deblocking_filter_idc;
-    currMB->DFAlphaC0Offset   = currSlice->FilterOffsetA;
-    currMB->DFBetaOffset      = currSlice->FilterOffsetB;
-    currMB->mixedModeEdgeFlag = 0;
+    this->DFDisableIdc      = slice->disable_deblocking_filter_idc;
+    this->DFAlphaC0Offset   = slice->FilterOffsetA;
+    this->DFBetaOffset      = slice->FilterOffsetB;
+    this->mixedModeEdgeFlag = 0;
 }
 
-/*!
- ************************************************************************
- * \brief
- *    set coordinates of the next macroblock
- *    check end_of_slice condition
- ************************************************************************
- */
-bool exit_macroblock(Slice *currSlice)
+bool macroblock_t::close(slice_t *slice)
 {
+    slice_t *currSlice = slice;
     VideoParameters *p_Vid = currSlice->p_Vid;
     int eos_bit = (!currSlice->MbaffFrameFlag || currSlice->current_mb_nr % 2);
     int startcode_follows;
@@ -177,7 +144,7 @@ bool exit_macroblock(Slice *currSlice)
     else
         startcode_follows = uvlc_startcode_follows(currSlice, eos_bit);
 
-    if (currSlice->current_mb_nr == -1) { // End of Slice group, MUST be end of slice
+    if (currSlice->current_mb_nr == -1) { // End of slice_t group, MUST be end of slice
         assert(startcode_follows);
         return 1;
     }
@@ -201,7 +168,7 @@ bool exit_macroblock(Slice *currSlice)
  *    Interpret the mb mode for P-Frames
  ************************************************************************
  */
-static void interpret_mb_mode_P(Macroblock *currMB)
+static void interpret_mb_mode_P(mb_t *currMB)
 {
     static const short ICBPTAB[6] = {0,16,32,15,31,47};
     short  mbmode = currMB->mb_type;
@@ -242,7 +209,7 @@ static void interpret_mb_mode_P(Macroblock *currMB)
  *    Interpret the mb mode for I-Frames
  ************************************************************************
  */
-static void interpret_mb_mode_I(Macroblock *currMB)
+static void interpret_mb_mode_I(mb_t *currMB)
 {
     static const short ICBPTAB[6] = {0,16,32,15,31,47};
     short mbmode = currMB->mb_type;
@@ -276,7 +243,7 @@ static void interpret_mb_mode_I(Macroblock *currMB)
  *    Interpret the mb mode for B-Frames
  ************************************************************************
  */
-static void interpret_mb_mode_B(Macroblock *currMB)
+static void interpret_mb_mode_B(mb_t *currMB)
 {
     static const char offset2pdir16x16[12]   = {0, 0, 1, 2, 0,0,0,0,0,0,0,0};
     static const char offset2pdir16x8[22][2] = {{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{1,1},{0,0},{0,1},{0,0},{1,0},
@@ -341,7 +308,7 @@ static void interpret_mb_mode_B(Macroblock *currMB)
  *    Interpret the mb mode for SI-Frames
  ************************************************************************
  */
-static void interpret_mb_mode_SI(Macroblock *currMB)
+static void interpret_mb_mode_SI(mb_t *currMB)
 {
     //VideoParameters *p_Vid = currMB->p_Vid;
     const int ICBPTAB[6] = {0,16,32,15,31,47};
@@ -374,25 +341,42 @@ static void interpret_mb_mode_SI(Macroblock *currMB)
     }
 }
 
-void interpret_mb_mode(Macroblock *currMB)
+void macroblock_t::interpret_mb_mode()
 {
-    Slice *currSlice = currMB->p_Slice;
-    switch (currSlice->slice_type) {
+    slice_t *slice = this->p_Slice;
+    switch (slice->slice_type) {
     case P_SLICE: 
     case SP_SLICE:
-        interpret_mb_mode_P(currMB);
+        interpret_mb_mode_P(this);
         break;
     case B_SLICE:
-        interpret_mb_mode_B(currMB);
+        interpret_mb_mode_B(this);
         break;
     case I_SLICE: 
-        interpret_mb_mode_I(currMB);
+        interpret_mb_mode_I(this);
         break;
     case SI_SLICE: 
-        interpret_mb_mode_SI(currMB);
+        interpret_mb_mode_SI(this);
         break;
     default:
         printf("Unsupported slice type\n");
         break;
     }
+}
+
+void macroblock_t::update_qp(int qp)
+{
+    VideoParameters *p_Vid = this->p_Vid;
+    sps_t *sps = p_Vid->active_sps;
+    StorablePicture *dec_picture = this->p_Slice->dec_picture;
+    this->qp = qp;
+    this->qp_scaled[0] = qp + sps->QpBdOffsetY;
+
+    for (int i = 0; i < 2; i++) {
+        this->qpc[i] = iClip3 (-(sps->QpBdOffsetC), 51, this->qp + dec_picture->chroma_qp_offset[i]);
+        this->qpc[i] = this->qpc[i] < 0 ? this->qpc[i] : QP_SCALE_CR[this->qpc[i]];
+        this->qp_scaled[i + 1] = this->qpc[i] + sps->QpBdOffsetC;
+    }
+
+    this->TransformBypassModeFlag = (this->qp_scaled[0] == 0 && sps->qpprime_y_zero_transform_bypass_flag);
 }

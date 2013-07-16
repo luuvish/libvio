@@ -453,12 +453,12 @@ static int readSyntaxElement_Run(SyntaxElement *sym, Bitstream *currStream)
 }
 
 
-static void read_coeff_4x4_CAVLC(Macroblock *currMB,
+static void read_coeff_4x4_CAVLC(mb_t *currMB,
                                  int block_type,
                                  int i, int j, int levarr[16], int runarr[16],
                                  int *number_coefficients)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     int mb_nr = currMB->mbAddrX;
@@ -665,9 +665,9 @@ static void read_coeff_4x4_CAVLC(Macroblock *currMB,
 }
 
 
-static void read_comp_coeff_4x4_CAVLC(Macroblock *currMB, ColorPlane pl, int (*InvLevelScale4x4)[4], int qp_per, int cbp, byte **nzcoeff)
+static void read_comp_coeff_4x4_CAVLC(mb_t *currMB, ColorPlane pl, int (*InvLevelScale4x4)[4], int qp_per, int cbp, byte **nzcoeff)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     const byte (*pos_scan4x4)[2] = (!currSlice->field_pic_flag && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN : FIELD_SCAN;
     int start_scan = IS_I16MB(currMB) ? 1 : 0;
     int64 *cur_cbp = &currMB->s_cbp[pl].blk;
@@ -727,9 +727,9 @@ static void read_comp_coeff_4x4_CAVLC(Macroblock *currMB, ColorPlane pl, int (*I
     }
 }
 
-static void read_comp_coeff_8x8_CAVLC(Macroblock *currMB, ColorPlane pl, int (*InvLevelScale8x8)[8], int qp_per, int cbp, byte **nzcoeff)
+static void read_comp_coeff_8x8_CAVLC(mb_t *currMB, ColorPlane pl, int (*InvLevelScale8x8)[8], int qp_per, int cbp, byte **nzcoeff)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     const byte (*pos_scan8x8)[2] = (!currSlice->field_pic_flag && (!currMB->mb_field_decoding_flag)) ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
     int start_scan = IS_I16MB(currMB) ? 1 : 0;
     int64 *cur_cbp = &currMB->s_cbp[pl].blk;
@@ -777,9 +777,9 @@ static void read_comp_coeff_8x8_CAVLC(Macroblock *currMB, ColorPlane pl, int (*I
                                 int j0 = pos_scan8x8[b4][1];
 
                                 if (!currMB->TransformBypassModeFlag)
-                                    currSlice->mb_rres[pl][block_y*4 +j0][block_x*4 +i0] = rshift_rnd_sf((levarr[k] * InvLevelScale8x8[j0][i0]) << qp_per, 6); // dequantization
+                                    currSlice->cof[pl][block_y*4 +j0][block_x*4 +i0] = rshift_rnd_sf((levarr[k] * InvLevelScale8x8[j0][i0]) << qp_per, 6); // dequantization
                                 else
-                                    currSlice->mb_rres[pl][block_y*4 +j0][block_x*4 +i0] = levarr[k];
+                                    currSlice->cof[pl][block_y*4 +j0][block_x*4 +i0] = levarr[k];
                             }
                         }
                     }
@@ -795,10 +795,10 @@ static void read_comp_coeff_8x8_CAVLC(Macroblock *currMB, ColorPlane pl, int (*I
 }
 
 
-static void read_tc_luma(Macroblock *currMB)
+static void read_tc_luma(mb_t *currMB)
 {
     VideoParameters *p_Vid = currMB->p_Vid;
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     int mb_nr = currMB->mbAddrX;
 
     // select scan type
@@ -848,10 +848,10 @@ static void read_tc_luma(Macroblock *currMB)
         memset(p_Vid->nz_coeff[mb_nr][0][0], 0, BLOCK_PIXELS * sizeof(byte));
 }
 
-static void read_tc_chroma_420(Macroblock *currMB)
+static void read_tc_chroma_420(mb_t *currMB)
 {
     VideoParameters *p_Vid = currMB->p_Vid;
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     int mb_nr = currMB->mbAddrX;
 
@@ -965,10 +965,10 @@ static void read_tc_chroma_420(Macroblock *currMB)
     }
 }
 
-static void read_tc_chroma_422(Macroblock *currMB)
+static void read_tc_chroma_422(mb_t *currMB)
 {
     VideoParameters *p_Vid = currMB->p_Vid;
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     int mb_nr = currMB->mbAddrX;
 
@@ -1111,10 +1111,10 @@ static void read_tc_chroma_422(Macroblock *currMB)
     }
 }
 
-static void read_tc_chroma_444(Macroblock *currMB)
+static void read_tc_chroma_444(mb_t *currMB)
 {
     VideoParameters *p_Vid = currMB->p_Vid;
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     int mb_nr = currMB->mbAddrX;
 
     // select scan type
@@ -1167,9 +1167,10 @@ static void read_tc_chroma_444(Macroblock *currMB)
 }
 
 
-void read_CBP_and_coeffs_from_NAL_CAVLC(Macroblock *currMB)
+void macroblock_t::read_CBP_and_coeffs_from_NAL_CAVLC()
 {
-    Slice *currSlice = currMB->p_Slice;
+    mb_t *currMB = this;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     pps_t *pps = currSlice->active_pps;
     DataPartition *dP = NULL;
@@ -1215,7 +1216,7 @@ void read_CBP_and_coeffs_from_NAL_CAVLC(Macroblock *currMB)
     //----------------------
     // Delta quant only if nonzero coeffs
     if (IS_I16MB(currMB) || currMB->cbp != 0) {
-        read_delta_quant(&currSE, dP, currMB, partMap,
+        currMB->read_delta_quant(&currSE, dP, partMap,
             !currMB->is_intra_block ? SE_DELTA_QUANT_INTER : SE_DELTA_QUANT_INTRA);
 
         if (currSlice->dp_mode) {
@@ -1231,7 +1232,7 @@ void read_CBP_and_coeffs_from_NAL_CAVLC(Macroblock *currMB)
         }
     }
 
-    update_qp(currMB, currSlice->SliceQpY);
+    currMB->update_qp(currSlice->SliceQpY);
 
     read_tc_luma(currMB);
 

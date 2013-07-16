@@ -45,13 +45,13 @@ static const char chroma_edge[2][4][4] = //[dir][edge][yuv_format]
 // likely already set - see testing via asserts
 static void init_neighbors(VideoParameters *p_Vid)
 {
-    Slice *currSlice = p_Vid->ppSliceList[0];
+    slice_t *currSlice = p_Vid->ppSliceList[0];
     sps_t *sps = p_Vid->active_sps;
     int i, j;
     int width  = sps->PicWidthInMbs;
     int height = sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag);
     int size   = width * height;
-    Macroblock *currMB = &p_Vid->mb_data[0];
+    mb_t *currMB = &p_Vid->mb_data[0];
     // do the top left corner
     currMB->mbup = NULL;
     currMB->mbleft = NULL;
@@ -90,7 +90,7 @@ static void init_neighbors(VideoParameters *p_Vid)
 
 static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
 {
-    Macroblock *MbQ = &(p_Vid->mb_data[MbQAddr]) ; // current Mb
+    mb_t *MbQ = &(p_Vid->mb_data[MbQAddr]) ; // current Mb
 
     // return, if filter is disabled
     if (MbQ->DFDisableIdc == 1) 
@@ -109,7 +109,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
 
         imgpel     **imgY = p->imgY;
         imgpel   ***imgUV = p->imgUV;
-        Slice  *currSlice = MbQ->p_Slice;
+        slice_t  *currSlice = MbQ->p_Slice;
         int       mvlimit = (currSlice->field_pic_flag || (p->mb_aff_frame_flag && MbQ->mb_field_decoding_flag)) ? 2 : 4;
 
         int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
@@ -326,7 +326,7 @@ void init_Deblock(VideoParameters *p_Vid, int mb_aff_frame_flag)
         set_loop_filter_functions_normal(p_Vid);
 }
 
-void change_plane_JV(VideoParameters *p_Vid, int nplane, Slice *pSlice)
+void change_plane_JV(VideoParameters *p_Vid, int nplane, slice_t *pSlice)
 {
     p_Vid->mb_data     = p_Vid->mb_data_JV    [nplane];
     p_Vid->dec_picture = p_Vid->dec_picture_JV[nplane];

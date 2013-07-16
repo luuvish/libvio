@@ -644,7 +644,7 @@ void interpret_recovery_point_info( byte* payload, int size, VideoParameters *p_
  *
  ************************************************************************
  */
-void interpret_dec_ref_pic_marking_repetition_info( byte* payload, int size, VideoParameters *p_Vid, Slice *pSlice )
+void interpret_dec_ref_pic_marking_repetition_info( byte* payload, int size, VideoParameters *p_Vid, slice_t *pSlice )
 {
   int original_idr_flag, original_frame_num;
   int original_field_pic_flag, original_bottom_field_flag;
@@ -1595,7 +1595,7 @@ void interpret_post_filter_hints_info( byte* payload, int size, VideoParameters 
  *
  ************************************************************************
  */
-void parse_sei(byte *msg, int size, VideoParameters *p_Vid, Slice *pSlice)
+void parse_sei(byte *msg, int size, VideoParameters *p_Vid, slice_t *pSlice)
 {
     int payload_type = 0;
     int payload_size = 0;

@@ -111,9 +111,9 @@ static void linfo_levrun_c2x2(int len, int info, int *level, int *irun)
 }
 
 
-static void read_comp_coeff_4x4_smb_CABAC(Macroblock *currMB, SyntaxElement *currSE, ColorPlane pl, int block_y, int block_x, int start_scan, int64 *cbp_blk)
+static void read_comp_coeff_4x4_smb_CABAC(mb_t *currMB, SyntaxElement *currSE, ColorPlane pl, int block_y, int block_x, int start_scan, int64 *cbp_blk)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
     DataPartition *dP;
 
@@ -182,9 +182,9 @@ static void read_comp_coeff_4x4_smb_CABAC(Macroblock *currMB, SyntaxElement *cur
     }
 }
 
-static void read_comp_coeff_4x4_CABAC(Macroblock *currMB, SyntaxElement *currSE, ColorPlane pl, int (*InvLevelScale4x4)[4], int qp_per, int cbp)
+static void read_comp_coeff_4x4_CABAC(mb_t *currMB, SyntaxElement *currSE, ColorPlane pl, int (*InvLevelScale4x4)[4], int qp_per, int cbp)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     int start_scan = IS_I16MB (currMB)? 1 : 0; 
     int64 *cbp_blk = &currMB->s_cbp[pl].blk;
@@ -248,11 +248,11 @@ static void read_comp_coeff_4x4_CABAC(Macroblock *currMB, SyntaxElement *currSE,
     }
 }
 
-static void read_comp_coeff_8x8_CABAC(Macroblock *currMB, SyntaxElement *currSE, ColorPlane pl)
+static void read_comp_coeff_8x8_CABAC(mb_t *currMB, SyntaxElement *currSE, ColorPlane pl)
 {
     for (int b8 = 0; b8 < 4; b8++) {
         if (currMB->cbp & (1 << b8)) { // are there any coefficients in the current block
-            Slice *currSlice = currMB->p_Slice;
+            slice_t *currSlice = currMB->p_Slice;
             sps_t *sps = currSlice->active_sps;
             const byte *partMap = assignSE2partition[currSlice->dp_mode];
             DataPartition *dP;
@@ -273,7 +273,7 @@ static void read_comp_coeff_8x8_CABAC(Macroblock *currMB, SyntaxElement *currSE,
             // === set offset in current macroblock ===
             int boff_x = (b8&0x01) << 3;
             int boff_y = (b8 >> 1) << 3;
-            int **tcoeffs = &currSlice->mb_rres[pl][boff_y];
+            int **tcoeffs = &currSlice->cof[pl][boff_y];
 
             currMB->subblock_x = boff_x; // position for coeff_count ctx
             currMB->subblock_y = boff_y; // position for coeff_count ctx
@@ -322,9 +322,9 @@ static void read_comp_coeff_8x8_CABAC(Macroblock *currMB, SyntaxElement *currSE,
 }
 
 
-static void read_tc_luma(Macroblock *currMB)
+static void read_tc_luma(mb_t *currMB)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     DataPartition *dP = NULL;
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
     SyntaxElement currSE;
@@ -386,9 +386,9 @@ static void read_tc_luma(Macroblock *currMB)
     }
 }
 
-static void read_tc_chroma_420(Macroblock *currMB)
+static void read_tc_chroma_420(mb_t *currMB)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     DataPartition *dP = NULL;
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
@@ -550,9 +550,9 @@ static void read_tc_chroma_420(Macroblock *currMB)
     }
 }
 
-static void read_tc_chroma_422(Macroblock *currMB)
+static void read_tc_chroma_422(mb_t *currMB)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     DataPartition *dP = NULL;
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
@@ -726,9 +726,9 @@ static void read_tc_chroma_422(Macroblock *currMB)
     }
 }
 
-static void read_tc_chroma_444(Macroblock *currMB)
+static void read_tc_chroma_444(mb_t *currMB)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     DataPartition *dP = NULL;
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
@@ -793,9 +793,10 @@ static void read_tc_chroma_444(Macroblock *currMB)
 }
 
 
-void read_CBP_and_coeffs_from_NAL_CABAC(Macroblock *currMB)
+void macroblock_t::read_CBP_and_coeffs_from_NAL_CABAC()
 {
-    Slice *currSlice = currMB->p_Slice;
+    mb_t *currMB = this;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     pps_t *pps = currSlice->active_pps;
     DataPartition *dP = NULL;
@@ -848,7 +849,7 @@ void read_CBP_and_coeffs_from_NAL_CABAC(Macroblock *currMB)
     //----------------------
     // Delta quant only if nonzero coeffs
     if (IS_I16MB(currMB) || currMB->cbp != 0) {
-        read_delta_quant(&currSE, dP, currMB, partMap,
+        currMB->read_delta_quant(&currSE, dP, partMap,
             !currMB->is_intra_block ? SE_DELTA_QUANT_INTER : SE_DELTA_QUANT_INTRA);
 
         if (currSlice->dp_mode) {
@@ -864,7 +865,7 @@ void read_CBP_and_coeffs_from_NAL_CABAC(Macroblock *currMB)
         }
     }
 
-    update_qp(currMB, currSlice->SliceQpY);
+    currMB->update_qp(currSlice->SliceQpY);
 
     read_tc_luma(currMB);
 

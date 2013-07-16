@@ -559,7 +559,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   int vec1_x=0,vec1_y=0;
   int ioff,joff;
   imgpel *pMB = predMB;
-  Slice *currSlice;// = p_Vid->currentSlice;
+  slice_t *currSlice;// = p_Vid->currentSlice;
   StorablePicture *dec_picture = p_Vid->dec_picture;
   int ii0,jj0,ii1,jj1,if1,jf1,if0,jf0;
   int mv_mul;
@@ -574,7 +574,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   int mb_nr = y/16*(sps->PicWidthInMbs)+x/16; ///currSlice->current_mb_nr;
   int **tmp_res = NULL;
   
-  Macroblock *currMB = &p_Vid->mb_data[mb_nr];   // intialization code deleted, see below, StW  
+  mb_t *currMB = &p_Vid->mb_data[mb_nr];   // intialization code deleted, see below, StW  
   currSlice = currMB->p_Slice;
   tmp_res = currSlice->tmp_res;
 
@@ -897,8 +897,8 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
   int ref_frame = mv[2];
   int mb_nr = current_mb_nr;
   
-  Macroblock *currMB = &p_Vid->mb_data[mb_nr];   // intialization code deleted, see below, StW  
-  Slice *currSlice = currMB->p_Slice;
+  mb_t *currMB = &p_Vid->mb_data[mb_nr];   // intialization code deleted, see below, StW  
+  slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
 
     int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
@@ -1237,7 +1237,7 @@ copy_prev_pic_to_concealed_pic(StorablePicture *picture, dpb_t *p_Dpb)
 ************************************************************************
 */
 
-void conceal_lost_frames(dpb_t *p_Dpb, Slice *pSlice)
+void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   sps_t *sps = p_Vid->active_sps;

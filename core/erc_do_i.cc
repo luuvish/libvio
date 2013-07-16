@@ -121,7 +121,7 @@ void ercPixConcealIMB(VideoParameters *p_Vid, imgpel *currFrame, int row, int co
 /*!
  ************************************************************************
  * \brief
- *      This function checks the neighbors of a Macroblock for usability in
+ *      This function checks the neighbors of a mb_t for usability in
  *      concealment. First the OK macroblocks are marked, and if there is not
  *      enough of them, then the CONCEALED ones as well.
  *      A "1" in the the output array means reliable, a "0" non reliable MB.

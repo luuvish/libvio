@@ -33,7 +33,7 @@
  *    detect if current slice is "first VCL NAL unit of a picture"
  ************************************************************************
  */
-static int is_new_picture(StorablePicture *dec_picture, Slice *currSlice, OldSliceParams *p_old_slice)
+static int is_new_picture(StorablePicture *dec_picture, slice_t *currSlice, OldSliceParams *p_old_slice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
 
@@ -77,7 +77,7 @@ static int is_new_picture(StorablePicture *dec_picture, Slice *currSlice, OldSli
 }
 
 
-static int parse_idr(Slice *currSlice)
+static int parse_idr(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     InputParameters *p_Inp = currSlice->p_Inp;
@@ -141,7 +141,7 @@ static int parse_idr(Slice *currSlice)
     currSlice->layer_id = currSlice->view_id = GetVOIdx( p_Vid, currSlice->view_id );
 #endif
 
-    // Some syntax of the Slice Header depends on the parameter set, which depends on
+    // Some syntax of the slice_t Header depends on the parameter set, which depends on
     // the parameter set ID of the SLice header.  Hence, read the pic_parameter_set_id
     // of the slice header first, then setup the active parameter sets, and then read
     // the rest of the slice header
@@ -183,7 +183,7 @@ static int parse_idr(Slice *currSlice)
     return current_header;
 }
 
-static int parse_dpa(Slice *currSlice)
+static int parse_dpa(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     InputParameters *p_Inp = currSlice->p_Inp;
@@ -310,7 +310,7 @@ static int parse_dpa(Slice *currSlice)
  *    Reads new slice from bit_stream_dec
  ************************************************************************
  */
-int read_new_slice(Slice *currSlice)
+int read_new_slice(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     InputParameters *p_Inp = currSlice->p_Inp;

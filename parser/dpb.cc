@@ -1575,7 +1575,7 @@ void dpb_combine_field(VideoParameters *p_Vid, FrameStore *fs)
  *
  ************************************************************************
  */
-void fill_frame_num_gap(VideoParameters *p_Vid, Slice *currSlice)
+void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
 {
   sps_t *sps = p_Vid->active_sps;
   

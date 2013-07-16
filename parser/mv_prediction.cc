@@ -57,7 +57,7 @@ static inline int imedian(int a,int b,int c)
  *    Get motion vector predictor
  ************************************************************************
  */
-static void GetMotionVectorPredictorMBAFF (Macroblock *currMB, 
+static void GetMotionVectorPredictorMBAFF (mb_t *currMB, 
                                     PixelPos *block,        // <--> block neighbors
                                     MotionVector *pmv,
                                     short  ref_frame,
@@ -205,7 +205,7 @@ static void GetMotionVectorPredictorMBAFF (Macroblock *currMB,
  *    Get motion vector predictor
  ************************************************************************
  */
-static void GetMotionVectorPredictorNormal (Macroblock *currMB, 
+static void GetMotionVectorPredictorNormal (mb_t *currMB, 
                                             PixelPos *block,      // <--> block neighbors
                                             MotionVector *pmv,
                                             short  ref_frame,
@@ -290,11 +290,11 @@ static void GetMotionVectorPredictorNormal (Macroblock *currMB,
     }
 }
 
-void GetMVPredictor(Macroblock *currMB, PixelPos *block, MotionVector *pmv,
+void GetMVPredictor(mb_t *currMB, PixelPos *block, MotionVector *pmv,
                     short ref_frame, PicMotionParams **mv_info,
                     int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
 
     if (currSlice->MbaffFrameFlag)
         GetMotionVectorPredictorMBAFF(currMB, block, pmv, ref_frame, mv_info,

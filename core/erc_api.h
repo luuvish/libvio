@@ -125,7 +125,7 @@ typedef struct ercVariables_s
   /*  Array for conditions of V blocks */
   char     *vCondition;
 
-  /* Array for Slice level information */
+  /* Array for slice_t level information */
   ercSegment_t *segments;
   int     currSegment;
 
@@ -188,9 +188,9 @@ extern void write_lost_ref_after_idr     (dpb_t *p_Dpb, int pos);
 
 extern int comp(const void *, const void *);
 
-struct macroblock_dec;
+struct macroblock_t;
 void erc_picture(VideoParameters *p_Vid, StorablePicture **dec_picture);
-void ercWriteMBMODEandMV(struct macroblock_dec *currMB);
+void ercWriteMBMODEandMV(struct macroblock_t *currMB);
 
 #ifdef __cplusplus
 }

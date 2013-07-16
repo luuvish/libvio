@@ -36,9 +36,9 @@ static inline int Clip3(int low, int high, int x)
 }
 
 
-static void neighbouring_samples_4x4(imgpel *pred, bool *available, Macroblock *currMB, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_4x4(imgpel *pred, bool *available, mb_t *currMB, ColorPlane pl, int xO, int yO)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
@@ -116,9 +116,9 @@ static void neighbouring_samples_4x4(imgpel *pred, bool *available, Macroblock *
 #undef p
 }
 
-static void neighbouring_samples_8x8(imgpel *pred, bool *available, Macroblock *currMB, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_8x8(imgpel *pred, bool *available, mb_t *currMB, ColorPlane pl, int xO, int yO)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
@@ -229,9 +229,9 @@ static void neighbouring_samples_8x8(imgpel *pred, bool *available, Macroblock *
 #undef plf
 }
 
-static void neighbouring_samples_16x16(imgpel *pred, bool *available, Macroblock *currMB, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_16x16(imgpel *pred, bool *available, mb_t *currMB, ColorPlane pl, int xO, int yO)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
@@ -302,9 +302,9 @@ static void neighbouring_samples_16x16(imgpel *pred, bool *available, Macroblock
 #undef p
 }
 
-static void neighbouring_samples_chroma(imgpel *pred, bool *available, Macroblock *currMB, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_chroma(imgpel *pred, bool *available, mb_t *currMB, ColorPlane pl, int xO, int yO)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
@@ -899,7 +899,7 @@ static void intrapred_chroma_plane(imgpel *pred[2], imgpel pix[2][17*17], bool *
  *    SEARCH_SYNC   search next sync element as errors while decoding occured
  ***********************************************************************
  */
-void intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+void intra_prediction_t::intra_pred_4x4(mb_t *currMB, ColorPlane pl, int ioff, int joff)
 {
     int block_pos[4][4] = {
         {  0,  1,  4,  5 },
@@ -910,7 +910,7 @@ void intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
     uint8_t predmode = currMB->Intra4x4PredMode[block_pos[joff/4][ioff/4]];
     currMB->ipmode_DPCM = predmode; //For residual DPCM
 
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     int BitDepth = pl ? sps->BitDepthC : sps->BitDepthY;
     imgpel *pred = &currSlice->mb_pred[pl][joff][ioff];
@@ -1003,12 +1003,12 @@ void intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
  *
  ************************************************************************
  */
-void intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+void intra_prediction_t::intra_pred_8x8(mb_t *currMB, ColorPlane pl, int ioff, int joff)
 {
     uint8_t predmode = currMB->Intra8x8PredMode[joff/8 * 2 + ioff/8];
     currMB->ipmode_DPCM = predmode;  //For residual DPCM
 
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     int BitDepth = pl ? sps->BitDepthC : sps->BitDepthY;
     imgpel *pred = &currSlice->mb_pred[pl][joff][ioff];
@@ -1097,11 +1097,11 @@ void intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
  *    SEARCH_SYNC   search next sync element as errors while decoding occured
  ***********************************************************************
  */
-void intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
+void intra_prediction_t::intra_pred_16x16(mb_t *currMB, ColorPlane pl, int ioff, int joff)
 {
     currMB->ipmode_DPCM = currMB->Intra16x16PredMode;
 
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     int BitDepth = pl ? sps->BitDepthC : sps->BitDepthY;
     imgpel *pred = &currSlice->mb_pred[pl][0][0];
@@ -1152,15 +1152,10 @@ void intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int ioff, int joff)
  *    outside since they are repeated for both components for no reason.
  ************************************************************************
  */
-void intra_pred_chroma(Macroblock *currMB)
+void intra_prediction_t::intra_pred_chroma(mb_t *currMB)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
     int BitDepth = sps->BitDepthC;
     imgpel *pred[2];
@@ -1169,8 +1164,8 @@ void intra_pred_chroma(Macroblock *currMB)
     bool available[2][4];
     pred[0] = &currSlice->mb_pred[1][0][0];
     pred[1] = &currSlice->mb_pred[2][0][0];
-    size[0] = mb_cr_size_x;
-    size[1] = mb_cr_size_y;
+    size[0] = sps->MbWidthC;
+    size[1] = sps->MbHeightC;
     neighbouring_samples_chroma(pix[0], available[0], currMB, PLANE_U, 0, 0);
     neighbouring_samples_chroma(pix[1], available[1], currMB, PLANE_V, 0, 0);
 

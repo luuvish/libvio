@@ -191,11 +191,11 @@ void delete_contexts_TextureInfo(TextureInfoContexts *deco_ctx)
 
 
 
-void read_skip_flag_CABAC(Macroblock *currMB, 
+void read_skip_flag_CABAC(mb_t *currMB, 
                           SyntaxElement *se,
                           DecodingEnvironment *dep_dp)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     MotionInfoContexts *ctx  = currSlice->mot_ctx;
     int tabIdx = currSlice->slice_type == B_SLICE ? 2 : 1;
     int ctxIdx = currSlice->slice_type == B_SLICE ? 7 : 0;
@@ -209,11 +209,11 @@ void read_skip_flag_CABAC(Macroblock *currMB,
         currMB->p_Slice->last_dquant = 0;
 }
 
-void readFieldModeInfo_CABAC(Macroblock *currMB,  
+void readFieldModeInfo_CABAC(mb_t *currMB,  
                              SyntaxElement *se,
                              DecodingEnvironment *dep_dp)
 {  
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     MotionInfoContexts *ctx  = currSlice->mot_ctx;
     int a = currMB->mbAvailA ? currSlice->mb_data[currMB->mbAddrA].mb_field_decoding_flag : 0;
     int b = currMB->mbAvailB ? currSlice->mb_data[currMB->mbAddrB].mb_field_decoding_flag : 0;
@@ -223,7 +223,7 @@ void readFieldModeInfo_CABAC(Macroblock *currMB,
 }
 
 
-int check_next_mb_and_get_field_mode_CABAC(Slice *currSlice,
+int check_next_mb_and_get_field_mode_CABAC(slice_t *currSlice,
                                            SyntaxElement *se,                                           
                                            DataPartition  *act_dp)
 {
@@ -240,7 +240,7 @@ int check_next_mb_and_get_field_mode_CABAC(Slice *currSlice,
   int field  = 0;
   int i;
 
-  Macroblock *currMB;
+  mb_t *currMB;
 
   //get next MB
   ++currSlice->current_mb_nr;
@@ -309,11 +309,11 @@ int check_next_mb_and_get_field_mode_CABAC(Slice *currSlice,
 ***************************************************************************
 */
 
-void readMB_transform_size_flag_CABAC( Macroblock *currMB, 
+void readMB_transform_size_flag_CABAC( mb_t *currMB, 
                                       SyntaxElement *se,
                                       DecodingEnvironment *dep_dp)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   TextureInfoContexts*ctx = currSlice->tex_ctx;
 
   int b = (currMB->mb_up   == NULL) ? 0 : currMB->mb_up->transform_size_8x8_flag;
@@ -331,14 +331,14 @@ void readMB_transform_size_flag_CABAC( Macroblock *currMB,
  *    parameter of a given MB.
  ************************************************************************
  */
-void readRefFrame_CABAC(Macroblock *currMB, 
+void readRefFrame_CABAC(mb_t *currMB, 
                         SyntaxElement *se,
                         DecodingEnvironment *dep_dp)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   StorablePicture *dec_picture = currSlice->dec_picture;
   MotionInfoContexts *ctx = currSlice->mot_ctx;
-  Macroblock *neighborMB = NULL;
+  mb_t *neighborMB = NULL;
 
   int   addctx  = 0;
   int   a = 0, b = 0;
@@ -400,12 +400,12 @@ void readRefFrame_CABAC(Macroblock *currMB,
  *    vector data of a B-frame MB.
  ************************************************************************
  */
-void read_MVD_CABAC( Macroblock *currMB, 
+void read_MVD_CABAC( mb_t *currMB, 
                     SyntaxElement *se,
                     DecodingEnvironment *dep_dp)
 {  
   int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   MotionInfoContexts *ctx = currSlice->mot_ctx;
   int i = currMB->subblock_x;
   int j = currMB->subblock_y;
@@ -459,11 +459,11 @@ void read_MVD_CABAC( Macroblock *currMB,
  *    vector data of a B-frame MB.
  ************************************************************************
  */
-void read_mvd_CABAC_mbaff( Macroblock *currMB, 
+void read_mvd_CABAC_mbaff( mb_t *currMB, 
                     SyntaxElement *se,
                     DecodingEnvironment *dep_dp)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   MotionInfoContexts *ctx = currSlice->mot_ctx;
   int i = currMB->subblock_x;
   int j = currMB->subblock_y;
@@ -535,11 +535,11 @@ void read_mvd_CABAC_mbaff( Macroblock *currMB,
  *     of a given MB.
  ************************************************************************
  */
-void read_dQuant_CABAC( Macroblock *currMB, 
+void read_dQuant_CABAC( mb_t *currMB, 
                        SyntaxElement *se,                       
                        DecodingEnvironment *dep_dp)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   MotionInfoContexts *ctx = currSlice->mot_ctx;
   int *dquant = &se->value1;
   int act_ctx = ((currSlice->last_dquant != 0) ? 1 : 0);
@@ -566,14 +566,14 @@ void read_dQuant_CABAC( Macroblock *currMB,
  *    block pattern of a given MB.
  ************************************************************************
  */
-void read_CBP_CABAC(Macroblock *currMB, 
+void read_CBP_CABAC(mb_t *currMB, 
                     SyntaxElement *se,
                     DecodingEnvironment *dep_dp)
 {
   StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   TextureInfoContexts *ctx = currSlice->tex_ctx;  
-  Macroblock *neighborMB = NULL;
+  mb_t *neighborMB = NULL;
 
   int mb_x, mb_y;
   int a = 0, b = 0;
@@ -696,16 +696,16 @@ void read_CBP_CABAC(Macroblock *currMB,
  *    intra prediction mode of a given MB.
  ************************************************************************
  */
-void readCIPredMode_CABAC(Macroblock *currMB, 
+void readCIPredMode_CABAC(mb_t *currMB, 
                           SyntaxElement *se,
                           DecodingEnvironment *dep_dp)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   TextureInfoContexts *ctx = currSlice->tex_ctx;
   int                 *act_sym  = &se->value1;
 
-  Macroblock          *MbUp   = currMB->mb_up;
-  Macroblock          *MbLeft = currMB->mb_left;
+  mb_t          *MbUp   = currMB->mb_up;
+  mb_t          *MbLeft = currMB->mb_left;
 
   int b = (MbUp != NULL)   ? (((MbUp->intra_chroma_pred_mode   != 0) && (MbUp->mb_type != IPCM)) ? 1 : 0) : 0;
   int a = (MbLeft != NULL) ? (((MbLeft->intra_chroma_pred_mode != 0) && (MbLeft->mb_type != IPCM)) ? 1 : 0) : 0;
@@ -724,16 +724,16 @@ void readCIPredMode_CABAC(Macroblock *currMB,
  *    Read CBP4-BIT
  ************************************************************************
 */
-static int read_and_store_CBP_block_bit_444 (Macroblock          *currMB,
+static int read_and_store_CBP_block_bit_444 (mb_t          *currMB,
                                              DecodingEnvironment *dep_dp,
                                              int                  type)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   sps_t *sps = currSlice->active_sps;
   VideoParameters *p_Vid = currMB->p_Vid;
   StorablePicture *dec_picture = currSlice->dec_picture;
   TextureInfoContexts *tex_ctx = currSlice->tex_ctx;
-  Macroblock *mb_data = currSlice->mb_data;
+  mb_t *mb_data = currSlice->mb_data;
   int y_ac        = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_8x4 || type==LUMA_4x8 || type==LUMA_4x4
                     || type==CB_16AC || type==CB_8x8 || type==CB_8x4 || type==CB_4x8 || type==CB_4x4
                     || type==CR_16AC || type==CR_8x8 || type==CR_8x4 || type==CR_4x8 || type==CR_4x4);
@@ -971,7 +971,7 @@ static int read_and_store_CBP_block_bit_444 (Macroblock          *currMB,
 }
 
 
-static inline int set_cbp_bit(Macroblock *neighbor_mb)
+static inline int set_cbp_bit(mb_t *neighbor_mb)
 {
   if(neighbor_mb->mb_type == IPCM)
     return 1;
@@ -979,7 +979,7 @@ static inline int set_cbp_bit(Macroblock *neighbor_mb)
     return (int) (neighbor_mb->s_cbp[0].bits & 0x01);
 }
 
-static inline int set_cbp_bit_ac(Macroblock *neighbor_mb, PixelPos *block)
+static inline int set_cbp_bit_ac(mb_t *neighbor_mb, PixelPos *block)
 {
   if (neighbor_mb->mb_type == IPCM)
     return 1;
@@ -996,15 +996,15 @@ static inline int set_cbp_bit_ac(Macroblock *neighbor_mb, PixelPos *block)
  *    Read CBP4-BIT
  ************************************************************************
  */
-static int read_and_store_CBP_block_bit_normal (Macroblock          *currMB,
+static int read_and_store_CBP_block_bit_normal (mb_t          *currMB,
                                                 DecodingEnvironment *dep_dp,
                                                 int                  type)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   sps_t *sps = currSlice->active_sps;
   TextureInfoContexts *tex_ctx = currSlice->tex_ctx;
   int cbp_bit     = 1;  // always one for 8x8 mode
-  Macroblock *mb_data = currSlice->mb_data;
+  mb_t *mb_data = currSlice->mb_data;
 
     int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
                        sps->chroma_format_idc == YUV444 ? 16 : 8;
@@ -1305,7 +1305,7 @@ static int read_and_store_CBP_block_bit_normal (Macroblock          *currMB,
 }
 
 
-int read_and_store_CBP_block_bit(Macroblock *currMB, DecodingEnvironment *dep_dp, int type)
+int read_and_store_CBP_block_bit(mb_t *currMB, DecodingEnvironment *dep_dp, int type)
 {
     if (currMB->p_Slice->active_sps->chroma_format_idc == YUV444)
         return read_and_store_CBP_block_bit_444(currMB, dep_dp, type);
@@ -1379,12 +1379,12 @@ static const byte* pos2ctx_last    [] = {pos2ctx_last4x4, pos2ctx_last4x4, pos2c
  *    Read Significance MAP
  ************************************************************************
  */
-static int read_significance_map (Macroblock          *currMB,
+static int read_significance_map (mb_t          *currMB,
                                   DecodingEnvironment *dep_dp,
                                   int                  type,
                                   int                  coeff[])
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   int               fld    = (currSlice->field_pic_flag || currMB->mb_field_decoding_flag);
   const byte *pos2ctx_Map = (fld) ? pos2ctx_map_int[type] : pos2ctx_map[type];
   const byte *pos2ctx_Last = pos2ctx_last[type];
@@ -1487,11 +1487,11 @@ static void read_significant_coefficients (DecodingEnvironment *dep_dp,
  *    Read Block-Transform Coefficients
  ************************************************************************
  */
-void readRunLevel_CABAC (Macroblock *currMB, 
+void readRunLevel_CABAC (mb_t *currMB, 
                          SyntaxElement  *se,
                          DecodingEnvironment *dep_dp)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   int  *coeff_ctr = &currSlice->coeff_ctr;
   int  *coeff = currSlice->coeff;
 
@@ -1532,7 +1532,7 @@ void readRunLevel_CABAC (Macroblock *currMB,
  *    arithmetic decoding
  ************************************************************************
  */
-int readSyntaxElement_CABAC(Macroblock *currMB, SyntaxElement *se, DataPartition *this_dataPart)
+int readSyntaxElement_CABAC(mb_t *currMB, SyntaxElement *se, DataPartition *this_dataPart)
 {
   DecodingEnvironment *dep_dp = &this_dataPart->bitstream->de_cabac;
   int curr_len = arideco_bits_read(dep_dp);
@@ -1624,7 +1624,7 @@ static unsigned int unary_bin_decode(DecodingEnvironment *dep_dp,
  * StW, 8.7.02
  ************************************************************************
  */
-int cabac_startcode_follows(Slice *currSlice, int eos_bit)
+int cabac_startcode_follows(slice_t *currSlice, int eos_bit)
 {
   unsigned int  bit;
 
@@ -1650,7 +1650,7 @@ int cabac_startcode_follows(Slice *currSlice, int eos_bit)
  *    Check if there are symbols for the next MB
  ************************************************************************
  */
-int uvlc_startcode_follows(Slice *currSlice, int dummy)
+int uvlc_startcode_follows(slice_t *currSlice, int dummy)
 {
   byte            dp_Nr = assignSE2partition[currSlice->dp_mode][SE_MBTYPE];
   DataPartition     *dP = &(currSlice->partArr[dp_Nr]);

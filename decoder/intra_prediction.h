@@ -52,10 +52,13 @@ enum {
     Intra_Chroma_Plane
 };
 
-void intra_pred_4x4(Macroblock *currMB, ColorPlane pl, int ioff, int joff);
-void intra_pred_8x8(Macroblock *currMB, ColorPlane pl, int ioff, int joff);
-void intra_pred_16x16(Macroblock *currMB, ColorPlane pl, int ioff, int joff);
-void intra_pred_chroma(Macroblock *currMB);
+struct intra_prediction_t {
+    void intra_pred_4x4(mb_t *currMB, ColorPlane pl, int ioff, int joff);
+    void intra_pred_8x8(mb_t *currMB, ColorPlane pl, int ioff, int joff);
+    void intra_pred_16x16(mb_t *currMB, ColorPlane pl, int ioff, int joff);
+    void intra_pred_chroma(mb_t *currMB);
+};
+
 
 #ifdef __cplusplus
 }

@@ -128,8 +128,8 @@ typedef struct cbp_s {
     int64 bits_8x8;
 } CBPStructure;
 
-//! Macroblock
-typedef struct macroblock_dec {
+//! mb_t
+typedef struct macroblock_t {
     struct slice_t        *p_Slice;                    //!< pointer to the current slice
     struct video_par      *p_Vid;                      //!< pointer to VideoParameters
     struct inp_par        *p_Inp;
@@ -159,11 +159,11 @@ typedef struct macroblock_dec {
     char                   dpl_flag;            //!< error indicator flag that signals a missing data partition
     short                  delta_quant;         //!< for rate control
 
-    struct macroblock_dec *mb_up;   //!< pointer to neighboring MB (CABAC)
-    struct macroblock_dec *mb_left; //!< pointer to neighboring MB (CABAC)
+    struct macroblock_t *mb_up;   //!< pointer to neighboring MB (CABAC)
+    struct macroblock_t *mb_left; //!< pointer to neighboring MB (CABAC)
 
-    struct macroblock_dec *mbup;   // neighbors for loopfilter
-    struct macroblock_dec *mbleft; // neighbors for loopfilter
+    struct macroblock_t *mbup;   // neighbors for loopfilter
+    struct macroblock_t *mbleft; // neighbors for loopfilter
 
     // some storage of macroblock syntax elements for global access
     bool        mb_skip_flag;
@@ -226,13 +226,39 @@ typedef struct macroblock_dec {
     byte        strength_hor[4][16]; // bS
 
     bool        NoMbPartLessThan8x8Flag;
-} Macroblock;
 
-void interpret_mb_mode(Macroblock *currMB);
+    void        create(slice_t *slice);
+    void        init(slice_t *slice);
+    void        parse();
+    void        decode();
+    bool        close(slice_t *slice);
 
-void start_macroblock(Macroblock *currMB);
-bool exit_macroblock (struct slice_t *currSlice);
-void update_qp       (Macroblock *currMB, int qp);
+
+    void        parse_i_slice();
+    void        parse_pb_slice();
+    void        parse_skip();
+    void        parse_intra();
+    void        parse_inter();
+    void        parse_i_pcm();
+
+    void        parse_ipred_modes();
+    void        parse_ipred_4x4_modes();
+    void        parse_ipred_8x8_modes();
+
+    void        parse_motion_info();
+    void        parse_ref_pic_idx(int list);
+    void        parse_motion_vectors(int list);
+    void        parse_motion_vector(int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx);
+
+
+    void        interpret_mb_mode();
+    void        update_qp(int qp);
+
+    void        read_delta_quant(SyntaxElement *currSE, DataPartition *dP, const byte *partMap, int type);
+
+    void        read_CBP_and_coeffs_from_NAL_CAVLC();
+    void        read_CBP_and_coeffs_from_NAL_CABAC();
+} mb_t;
 
 
 #ifdef __cplusplus

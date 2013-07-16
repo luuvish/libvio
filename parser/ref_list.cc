@@ -136,7 +136,7 @@ void update_ltref_list(dpb_t *p_Dpb)
 }
 
 
-void update_pic_num(Slice *currSlice)
+void update_pic_num(slice_t *currSlice)
 {
     dpb_t *dpb = currSlice->p_Dpb;
     sps_t *sps = currSlice->active_sps;
@@ -251,7 +251,7 @@ void gen_pic_list_from_frame_list(bool bottom_field_flag, FrameStore **fs_list, 
   	}
 }
 
-void init_lists_i_slice(Slice *currSlice)
+void init_lists_i_slice(slice_t *currSlice)
 {
 #if (MVC_EXTENSION_ENABLE)
     currSlice->listinterviewidx0 = 0;
@@ -261,7 +261,7 @@ void init_lists_i_slice(Slice *currSlice)
     currSlice->listXsize[1] = 0;
 }
 
-void init_lists_p_slice(Slice *currSlice)
+void init_lists_p_slice(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     dpb_t *p_Dpb = currSlice->p_Dpb;
@@ -341,7 +341,7 @@ void init_lists_p_slice(Slice *currSlice)
         currSlice->listX[1][i] = p_Vid->no_reference_picture;
 }
 
-void init_lists_b_slice(Slice *currSlice)
+void init_lists_b_slice(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     dpb_t *p_Dpb = currSlice->p_Dpb;
@@ -360,7 +360,7 @@ void init_lists_b_slice(Slice *currSlice)
     currSlice->listinterviewidx1 = 0;
 #endif
 
-    // B-Slice
+    // B-slice_t
     if (!currSlice->field_pic_flag) {
         for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
             if (p_Dpb->fs_ref[i]->is_used == 3) {
@@ -484,7 +484,7 @@ void init_lists_b_slice(Slice *currSlice)
         currSlice->listX[1][i] = p_Vid->no_reference_picture;
 }
 
-void init_lists(Slice *currSlice)
+void init_lists(slice_t *currSlice)
 {
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->view_id) {
@@ -527,7 +527,7 @@ void init_lists(Slice *currSlice)
 }
 
 
-static StorablePicture *get_short_term_pic(Slice *currSlice, dpb_t *p_Dpb, int picNum)
+static StorablePicture *get_short_term_pic(slice_t *currSlice, dpb_t *p_Dpb, int picNum)
 {
   	unsigned i;
 
@@ -549,7 +549,7 @@ static StorablePicture *get_short_term_pic(Slice *currSlice, dpb_t *p_Dpb, int p
   	return currSlice->p_Vid->no_reference_picture;
 }
 
-static StorablePicture *get_long_term_pic(Slice *currSlice, dpb_t *p_Dpb, int LongtermPicNum)
+static StorablePicture *get_long_term_pic(slice_t *currSlice, dpb_t *p_Dpb, int LongtermPicNum)
 {
   	uint32_t i;
 
@@ -572,7 +572,7 @@ static StorablePicture *get_long_term_pic(Slice *currSlice, dpb_t *p_Dpb, int Lo
 }
 
 #if (MVC_EXTENSION_ENABLE)
-void reorder_short_term(Slice *currSlice, int cur_list, int num_ref_idx_lX_active_minus1, int picNumLX, int *refIdxLX, int currViewID)
+void reorder_short_term(slice_t *currSlice, int cur_list, int num_ref_idx_lX_active_minus1, int picNumLX, int *refIdxLX, int currViewID)
 {
     StorablePicture **RefPicListX = currSlice->listX[cur_list]; 
     int cIdx, nIdx;
@@ -591,7 +591,7 @@ void reorder_short_term(Slice *currSlice, int cur_list, int num_ref_idx_lX_activ
     }
 }
 
-void reorder_long_term(Slice *currSlice, StorablePicture **RefPicListX, int num_ref_idx_lX_active_minus1, int LongTermPicNum, int *refIdxLX, int currViewID)
+void reorder_long_term(slice_t *currSlice, StorablePicture **RefPicListX, int num_ref_idx_lX_active_minus1, int LongTermPicNum, int *refIdxLX, int currViewID)
 {
     int cIdx, nIdx;
 
@@ -610,7 +610,7 @@ void reorder_long_term(Slice *currSlice, StorablePicture **RefPicListX, int num_
 }
 #endif
 
-void reorder_ref_pic_list(Slice *currSlice, int cur_list)
+void reorder_ref_pic_list(slice_t *currSlice, int cur_list)
 {
     uint8_t  *modification_of_pic_nums_idc = currSlice->modification_of_pic_nums_idc[cur_list];
     uint32_t *abs_diff_pic_num_minus1      = currSlice->abs_diff_pic_num_minus1     [cur_list];
@@ -662,7 +662,7 @@ void reorder_ref_pic_list(Slice *currSlice, int cur_list)
     currSlice->listXsize[cur_list] = num_ref_idx_lX_active_minus1 + 1;
 }
 
-void reorder_lists(Slice *currSlice)
+void reorder_lists(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
 
@@ -704,7 +704,7 @@ void reorder_lists(Slice *currSlice)
  *
  ************************************************************************
  */
-void init_mbaff_lists(VideoParameters *p_Vid, Slice *currSlice)
+void init_mbaff_lists(VideoParameters *p_Vid, slice_t *currSlice)
 {
     unsigned j;
     int i;

@@ -24,9 +24,9 @@
  *    returns 1 if the macroblock at the given address is available
  ************************************************************************
  */
-Boolean mb_is_available(int mbAddr, Macroblock *currMB)
+Boolean mb_is_available(int mbAddr, mb_t *currMB)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   if ((mbAddr < 0) || (mbAddr > ((int)currSlice->dec_picture->PicSizeInMbs - 1)))
     return FALSE;
 
@@ -48,9 +48,9 @@ Boolean mb_is_available(int mbAddr, Macroblock *currMB)
  *    the current macroblock for prediction and context determination;
  ************************************************************************
  */
-void CheckAvailabilityOfNeighbors(Macroblock *currMB)
+void CheckAvailabilityOfNeighbors(mb_t *currMB)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   StorablePicture *dec_picture = currSlice->dec_picture; //p_Vid->dec_picture;
   const int mb_nr = currMB->mbAddrX;
   BlockPos *PicPos = currMB->p_Vid->PicPos;
@@ -94,9 +94,9 @@ void CheckAvailabilityOfNeighbors(Macroblock *currMB)
  *    the current macroblock for prediction and context determination;
  ************************************************************************
  */
-void CheckAvailabilityOfNeighborsNormal(Macroblock *currMB)
+void CheckAvailabilityOfNeighborsNormal(mb_t *currMB)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   StorablePicture *dec_picture = currSlice->dec_picture; //p_Vid->dec_picture;
   const int mb_nr = currMB->mbAddrX;
   BlockPos *PicPos = currMB->p_Vid->PicPos;
@@ -125,9 +125,9 @@ void CheckAvailabilityOfNeighborsNormal(Macroblock *currMB)
  *    the current macroblock for prediction and context determination;
  ************************************************************************
  */
-void CheckAvailabilityOfNeighborsMBAFF(Macroblock *currMB)
+void CheckAvailabilityOfNeighborsMBAFF(mb_t *currMB)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   StorablePicture *dec_picture = currSlice->dec_picture; //p_Vid->dec_picture;
   const int mb_nr = currMB->mbAddrX;
   BlockPos *PicPos = currMB->p_Vid->PicPos;
@@ -147,7 +147,7 @@ void CheckAvailabilityOfNeighborsMBAFF(Macroblock *currMB)
   currMB->mb_up   = (currMB->mbAvailB) ? &(currSlice->mb_data[currMB->mbAddrB]) : NULL;
 }
 
-void CheckAvailabilityOfNeighborsCABAC(Macroblock *currMB)
+void CheckAvailabilityOfNeighborsCABAC(mb_t *currMB)
 {
   VideoParameters *p_Vid = currMB->p_Vid;
   PixelPos up, left;
@@ -221,12 +221,12 @@ void get_mb_pos (VideoParameters *p_Vid, int mb_addr, int mb_size[2], short *x, 
  * \param yN
  *    input y position
  * \param mb_size
- *    Macroblock size in pixel (according to luma or chroma MB access)
+ *    mb_t size in pixel (according to luma or chroma MB access)
  * \param pix
  *    returns position informations
  ************************************************************************
  */
-void getNonAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPos *pix)
+void getNonAffNeighbour(mb_t *currMB, int xN, int yN, int mb_size[2], PixelPos *pix)
 {
     int maxW = mb_size[0], maxH = mb_size[1];
 
@@ -274,12 +274,12 @@ void getNonAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], Pixe
  * \param yN
  *    input y position
  * \param mb_size
- *    Macroblock size in pixel (according to luma or chroma MB access)
+ *    mb_t size in pixel (according to luma or chroma MB access)
  * \param pix
  *    returns position informations
  ************************************************************************
  */
-void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPos *pix)
+void getAffNeighbour(mb_t *currMB, int xN, int yN, int mb_size[2], PixelPos *pix)
 {
     VideoParameters *p_Vid = currMB->p_Vid;
     int maxW, maxH;
@@ -494,12 +494,12 @@ void getAffNeighbour(Macroblock *currMB, int xN, int yN, int mb_size[2], PixelPo
  * \param block_y
  *    input y block position
  * \param mb_size
- *    Macroblock size in pixel (according to luma or chroma MB access)
+ *    mb_t size in pixel (according to luma or chroma MB access)
  * \param pix
  *    returns position informations
  ************************************************************************
  */
-void get4x4Neighbour (Macroblock *currMB, int block_x, int block_y, int mb_size[2], PixelPos *pix)
+void get4x4Neighbour (mb_t *currMB, int block_x, int block_y, int mb_size[2], PixelPos *pix)
 {
   currMB->p_Vid->getNeighbour(currMB, block_x, block_y, mb_size, pix);
 
@@ -523,12 +523,12 @@ void get4x4Neighbour (Macroblock *currMB, int block_x, int block_y, int mb_size[
  * \param block_y
  *    input y block position
  * \param mb_size
- *    Macroblock size in pixel (according to luma or chroma MB access)
+ *    mb_t size in pixel (according to luma or chroma MB access)
  * \param pix
  *    returns position informations
  ************************************************************************
  */
-void get4x4NeighbourBase (Macroblock *currMB, int block_x, int block_y, int mb_size[2], PixelPos *pix)
+void get4x4NeighbourBase (mb_t *currMB, int block_x, int block_y, int mb_size[2], PixelPos *pix)
 {
   currMB->p_Vid->getNeighbour(currMB, block_x, block_y, mb_size, pix);
 
@@ -546,7 +546,7 @@ void get4x4NeighbourBase (Macroblock *currMB, int block_x, int block_y, int mb_s
  *    Get current block spatial neighbors
  ************************************************************************
  */
-void get_neighbors(Macroblock *currMB,       // <--  current Macroblock
+void get_neighbors(mb_t *currMB,       // <--  current mb_t
                    PixelPos   *block,     // <--> neighbor blocks
                    int         mb_x,         // <--  block x position
                    int         mb_y,         // <--  block y position
@@ -595,7 +595,7 @@ void get_neighbors(Macroblock *currMB,       // <--  current Macroblock
  *    is missing.
  ************************************************************************
  */
-void check_dp_neighbors (Macroblock *currMB)
+void check_dp_neighbors (mb_t *currMB)
 {
   VideoParameters *p_Vid = currMB->p_Vid;
   sps_t *sps = p_Vid->active_sps;
@@ -632,10 +632,10 @@ void check_dp_neighbors (Macroblock *currMB)
  *    Luma Blocks
  ************************************************************************
  */
-int predict_nnz(Macroblock *currMB, int block_type, int i,int j)
+int predict_nnz(mb_t *currMB, int block_type, int i,int j)
 {
   VideoParameters *p_Vid = currMB->p_Vid;
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
 
   PixelPos pix;
 
@@ -726,7 +726,7 @@ int predict_nnz(Macroblock *currMB, int block_type, int i,int j)
  *    Chroma Blocks
  ************************************************************************
  */
-int predict_nnz_chroma(Macroblock *currMB, int i,int j)
+int predict_nnz_chroma(mb_t *currMB, int i,int j)
 {
   StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
 
@@ -741,7 +741,7 @@ int predict_nnz_chroma(Macroblock *currMB, int i,int j)
   if (dec_picture->chroma_format_idc != YUV444)
   {
     VideoParameters *p_Vid = currMB->p_Vid;    
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     PixelPos pix;
     int pred_nnz = 0;
     int cnt      = 0;

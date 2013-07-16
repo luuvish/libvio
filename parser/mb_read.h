@@ -19,8 +19,6 @@ extern "C" {
 #endif
 
 #include "global.h"
-#include "dpb.h"
-#include "transform.h"
 
 //! single scan pattern
 static const byte SNGL_SCAN[16][2] = {
@@ -140,17 +138,10 @@ static const unsigned char cofuv_blk_y[3][8][4] = {
 
 struct slice_t;
 
-void read_one_macroblock(Macroblock *currMB);
-
 void linfo_cbp_intra_normal(int len, int info, int *cbp, int *dummy);
 void linfo_cbp_intra_other(int len, int info, int *cbp, int *dummy);
 void linfo_cbp_inter_normal(int len, int info, int *cbp, int *dummy);
 void linfo_cbp_inter_other(int len, int info, int *cbp, int *dummy);
-
-void read_delta_quant(SyntaxElement *currSE, DataPartition *dP, Macroblock *currMB, const byte *partMap, int type);
-
-void read_CBP_and_coeffs_from_NAL_CAVLC(Macroblock *currMB);
-void read_CBP_and_coeffs_from_NAL_CABAC(Macroblock *currMB);
 
 
 #ifdef __cplusplus

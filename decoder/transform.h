@@ -25,7 +25,7 @@ extern "C" {
 #include "global.h"
 #include "transform.h"
 
-struct macroblock_dec;
+struct macroblock_t;
 
 static const byte QP_SCALE_CR[52]=
 {
@@ -115,18 +115,18 @@ void copy_image_data_16x16(imgpel **imgBuf1, imgpel **imgBuf2, int off1, int off
 
 void ihadamard2x2(int block[4], int tblock[4]);
 
-struct macroblock_dec;
+struct macroblock_t;
 
-void Inv_Residual_trans_4x4   (struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
-void Inv_Residual_trans_8x8   (struct macroblock_dec *currMB, ColorPlane pl, int ioff,int joff);
-void Inv_Residual_trans_16x16 (struct macroblock_dec *currMB, ColorPlane pl, int ioff,int joff);
-void Inv_Residual_trans_Chroma(struct macroblock_dec *currMB, int uv);
+void Inv_Residual_trans_4x4   (struct macroblock_t *currMB, ColorPlane pl, int ioff, int joff);
+void Inv_Residual_trans_8x8   (struct macroblock_t *currMB, ColorPlane pl, int ioff,int joff);
+void Inv_Residual_trans_16x16 (struct macroblock_t *currMB, ColorPlane pl, int ioff,int joff);
+void Inv_Residual_trans_Chroma(struct macroblock_t *currMB, int uv);
 
-void itrans4x4   (struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
-void itrans8x8   (struct macroblock_dec *currMB, ColorPlane pl, int ioff, int joff);
-void itrans16x16 (struct macroblock_dec *currMB, ColorPlane pl);
-void itrans_2    (struct macroblock_dec *currMB, ColorPlane pl);
-void iTransform  (struct macroblock_dec *currMB, ColorPlane pl, int smb);
+void itrans4x4   (struct macroblock_t *currMB, ColorPlane pl, int ioff, int joff);
+void itrans8x8   (struct macroblock_t *currMB, ColorPlane pl, int ioff, int joff);
+void itrans16x16 (struct macroblock_t *currMB, ColorPlane pl);
+void itrans_2    (struct macroblock_t *currMB, ColorPlane pl);
+void iTransform  (struct macroblock_t *currMB, ColorPlane pl, int smb);
 
 
 #ifdef __cplusplus

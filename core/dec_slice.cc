@@ -16,7 +16,6 @@
 #include "neighbour.h"
 #include "memalloc.h"
 #include "macroblock.h"
-#include "mb.h"
 #include "mb_read.h"
 
 #include "intra_prediction.h"
@@ -29,11 +28,7 @@
 
 
 
-#include "dec_slice.h"
-
-
-
-static void fill_wp_params(Slice *currSlice)
+static void fill_wp_params(slice_t *currSlice)
 {
     if (currSlice->slice_type == B_SLICE) {
         int i, j, k;
@@ -133,7 +128,7 @@ static void fill_wp_params(Slice *currSlice)
     }
 }
 
-static void compute_colocated(Slice *currSlice, StorablePicture **listX[6])
+static void compute_colocated(slice_t *currSlice, StorablePicture **listX[6])
 {
     int i, j;
 
@@ -165,7 +160,7 @@ static void compute_colocated(Slice *currSlice, StorablePicture **listX[6])
 
 // this is intended to make get_block_luma faster by doing this at a more appropriate level
 // i.e. per slice rather than per MB
-static void init_cur_imgy(Slice *currSlice, VideoParameters *p_Vid)
+static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
 {
     int i, j;
     if (currSlice->active_sps->separate_colour_plane_flag != 0) {
@@ -203,8 +198,9 @@ static void init_cur_imgy(Slice *currSlice, VideoParameters *p_Vid)
 }
 
 
-bool init_slice(Slice *currSlice)
+bool slice_t::init()
 {
+    slice_t *currSlice = this;
     int i;
 
     VideoParameters *p_Vid = currSlice->p_Vid;
@@ -273,22 +269,20 @@ bool init_slice(Slice *currSlice)
     return true;
 }
 
-void decode_one_slice(Slice *currSlice)
+void slice_t::decode()
 {
+    slice_t *currSlice = this;
+
     bool end_of_slice = 0;
 
     while (!end_of_slice) { // loop over macroblocks
-        int mb_nr = currSlice->current_mb_nr;
-        Macroblock *currMB = &currSlice->mb_data[mb_nr]; 
-        currMB->p_Slice = currSlice;
-        currMB->p_Vid   = currSlice->p_Vid;
-        currMB->mbAddrX = mb_nr;
+        mb_t *currMB = &currSlice->mb_data[currSlice->current_mb_nr]; 
 
         // Initializes the current macroblock
-        start_macroblock(currMB);
+        currMB->init(currSlice);
         // Get the syntax elements from the NAL
-        read_one_macroblock(currMB);
-        decode_one_macroblock(currMB);
+        currMB->parse();
+        currMB->decode();
 
         if (currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag) {
             currSlice->num_ref_idx_l0_active_minus1 = ((currSlice->num_ref_idx_l0_active_minus1 + 1) >> 1) - 1;
@@ -299,6 +293,6 @@ void decode_one_slice(Slice *currSlice)
         ercWriteMBMODEandMV(currMB);
 #endif
 
-        end_of_slice = exit_macroblock(currSlice);
+        end_of_slice = currMB->close(currSlice);
     }
 }

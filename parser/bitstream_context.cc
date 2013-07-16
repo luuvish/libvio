@@ -1026,7 +1026,7 @@ static const char INIT_FLD_LAST_P[3][8][15][2] =
   } \
 }
 
-void init_contexts(Slice *currSlice)
+void init_contexts(slice_t *currSlice)
 {
     MotionInfoContexts*  mc = currSlice->mot_ctx;
     TextureInfoContexts* tc = currSlice->tex_ctx;

@@ -43,7 +43,7 @@ static inline int compare_mvs(const MotionVector *mv0, const MotionVector *mv1, 
 }
 
 
-static Macroblock* get_non_aff_neighbor_luma(Macroblock *mb, int xN, int yN)
+static mb_t* get_non_aff_neighbor_luma(mb_t *mb, int xN, int yN)
 {
     if (xN < 0)
         return mb->mbleft;
@@ -60,16 +60,16 @@ static Macroblock* get_non_aff_neighbor_luma(Macroblock *mb, int xN, int yN)
  *    returns a buffer of 16 Strength values for one stripe in a mb (for different Frame or Field types)
  *********************************************************************************************
  */
-void get_strength_ver(Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p)
+void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
 {
     byte *Strength = MbQ->strength_ver[edge];
-    Slice *currSlice = MbQ->p_Slice;
+    slice_t *currSlice = MbQ->p_Slice;
     int     StrValue;
     BlockPos *PicPos = MbQ->p_Vid->PicPos;
 
     int xQ = (edge << 2) - 1;
-    Macroblock *neighbor = get_non_aff_neighbor_luma(MbQ, xQ, 0);
-    Macroblock *MbP = (edge) ? MbQ : neighbor;
+    mb_t *neighbor = get_non_aff_neighbor_luma(MbQ, xQ, 0);
+    mb_t *MbP = (edge) ? MbQ : neighbor;
 
 /*
     mixedModeEdgeFlag = MbaffFrameFlag == 1 && p->field != q->field
@@ -199,16 +199,16 @@ void get_strength_ver(Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p
  *    returns a buffer of 16 Strength values for one stripe in a mb (for different Frame or Field types)
  *********************************************************************************************
  */
-void get_strength_hor(Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p)
+void get_strength_hor(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
 {  
     byte  *Strength = MbQ->strength_hor[edge];
     int    StrValue;
-    Slice *currSlice = MbQ->p_Slice;
+    slice_t *currSlice = MbQ->p_Slice;
     BlockPos *PicPos = MbQ->p_Vid->PicPos;
 
     int yQ = (edge < BLOCK_SIZE ? (edge << 2) - 1: 0);
-    Macroblock *neighbor = get_non_aff_neighbor_luma(MbQ, 0, yQ);
-    Macroblock *MbP = (edge) ? MbQ : neighbor;
+    mb_t *neighbor = get_non_aff_neighbor_luma(MbQ, 0, yQ);
+    mb_t *MbP = (edge) ? MbQ : neighbor;
 
     if (currSlice->slice_type == SP_SLICE || currSlice->slice_type == SI_SLICE ||
         MbQ->is_intra_block || (MbP->is_intra_block && edge == 0)) {
@@ -295,7 +295,7 @@ void get_strength_hor(Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p
  *    returns a buffer of 16 Strength values for one stripe in a mb (for MBAFF)
  *********************************************************************************************
  */
-void get_strength_ver_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p)
+void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
 {
   //byte *Strength = MbQ->strength_ver[edge];
     short  blkP, blkQ, idx;
@@ -303,11 +303,11 @@ void get_strength_ver_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
     int    StrValue;
     short  mb_x, mb_y;
 
-    Macroblock *MbP;
+    mb_t *MbP;
 
     PixelPos pixP;
     VideoParameters *p_Vid = MbQ->p_Vid;
-    Slice *currSlice = MbQ->p_Slice;
+    slice_t *currSlice = MbQ->p_Slice;
     BlockPos *PicPos = p_Vid->PicPos;
 
     int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
@@ -461,7 +461,7 @@ void get_strength_ver_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
  *    returns a buffer of 16 Strength values for one stripe in a mb (for MBAFF)
  *********************************************************************************************
  */
-void get_strength_hor_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlimit, StorablePicture *p)
+void get_strength_hor_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
 {
     short  blkP, blkQ, idx;
     short  blk_x, blk_x2, blk_y, blk_y2 ;
@@ -470,7 +470,7 @@ void get_strength_hor_MBAff(byte *Strength, Macroblock *MbQ, int edge, int mvlim
     int    xQ, yQ = (edge < MB_BLOCK_SIZE ? edge : 1);
     short  mb_x, mb_y;
 
-    Macroblock *MbP;
+    mb_t *MbP;
 
     PixelPos pixP;
     VideoParameters *p_Vid = MbQ->p_Vid;

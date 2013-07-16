@@ -15,11 +15,11 @@
  *    type info of a given MB.
  ************************************************************************
  */
-static void readMB_typeInfo_CABAC_i_slice(Macroblock *currMB,  
+static void readMB_typeInfo_CABAC_i_slice(mb_t *currMB,  
                                           SyntaxElement *se,
                                           DecodingEnvironment *dep_dp)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     MotionInfoContexts *ctx = currSlice->mot_ctx;
 
     int a = 0, b = 0;
@@ -136,11 +136,11 @@ static void readMB_typeInfo_CABAC_i_slice(Macroblock *currMB,
  *    type info of a given MB.
  ************************************************************************
  */
-static void readMB_typeInfo_CABAC_p_slice(Macroblock *currMB,  
+static void readMB_typeInfo_CABAC_p_slice(mb_t *currMB,  
                            SyntaxElement *se,
                            DecodingEnvironment *dep_dp)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   MotionInfoContexts *ctx = currSlice->mot_ctx;
 
   int act_ctx;
@@ -223,11 +223,11 @@ static void readMB_typeInfo_CABAC_p_slice(Macroblock *currMB,
  *    type info of a given MB.
  ************************************************************************
  */
-static void readMB_typeInfo_CABAC_b_slice(Macroblock *currMB,  
+static void readMB_typeInfo_CABAC_b_slice(mb_t *currMB,  
                            SyntaxElement *se,
                            DecodingEnvironment *dep_dp)
 {
-  Slice *currSlice = currMB->p_Slice;
+  slice_t *currSlice = currMB->p_Slice;
   MotionInfoContexts *ctx = currSlice->mot_ctx;
 
   int a = 0, b = 0;
@@ -339,9 +339,9 @@ static void readMB_typeInfo_CABAC_b_slice(Macroblock *currMB,
 }
 
 
-int getSE(Macroblock *currMB, int type)
+int getSE(mb_t *currMB, int type)
 {
-    Slice *currSlice = currMB->p_Slice;  
+    slice_t *currSlice = currMB->p_Slice;  
     const byte *partMap = assignSE2partition[currSlice->dp_mode];
     bool isCabac = currSlice->p_Vid->active_pps->entropy_coding_mode_flag;
 

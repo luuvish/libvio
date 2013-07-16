@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-void GetMVPredictor(Macroblock *currMB, PixelPos *block, MotionVector *pmv,
+void GetMVPredictor(mb_t *currMB, PixelPos *block, MotionVector *pmv,
                     short ref_frame, PicMotionParams **mv_info,
                     int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
 

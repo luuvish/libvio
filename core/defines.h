@@ -115,7 +115,7 @@ typedef enum {
 enum {
   EOS = 1,    //!< End Of Sequence
   SOP = 2,    //!< Start Of Picture
-  SOS = 3,     //!< Start Of Slice
+  SOS = 3,     //!< Start Of slice_t
   SOS_CONT = 4
 };
 

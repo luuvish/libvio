@@ -23,13 +23,13 @@
 
   The interface between every NAL (including the RTP NAL) and the VCL is
   based on Slices.  The slice data structure on which the VCL is working
-  is defined in the type Slice (in defines.h).  This type contains the
+  is defined in the type slice_t (in defines.h).  This type contains the
   various fields of the slice header and a partition array, which itself
   contains the data partitions the slice consists of.  When data
   partitioning is not used, then the whole slice bit string is stored
   in partition #0.  When individual partitions are missing, this is
   indicated by the size of the bit strings in the partition array.
-  A complete missing slice (e.g. if a Full Slice packet was lost) is
+  A complete missing slice (e.g. if a Full slice_t packet was lost) is
   indicated in a similar way.
 
   part of the slice structure is the error indication (ei-flag).  The
@@ -37,19 +37,19 @@
   is damaged or missing.When data partitioning is used, it can happen that
   one partition does not contain any symbols but the ei_flag is cleared,
   which indicates the intentional missing of symbols of that partition.
-  A typical example for this behaviour is the Intra Slice, which does not
+  A typical example for this behaviour is the Intra slice_t, which does not
   have symnbols in its type C partition.
 
   The VCL requests new data to work on through the call of readSliceRTP().
   This function calls the main state machine of this module in ReadRTPpaacket().
 
   ReadRTPpacket assumes, when called, that in an error free environment
-  a complete slice, consisting of one Full Slice RTP packet, or three Partition
+  a complete slice, consisting of one Full slice_t RTP packet, or three Partition
   packets of types A, B, C with consecutive sequence numbers, can be read.
   It first interprets any trailing SUPP and Parameter Update (Header) packets.
   Then it reads one video data packet.  Two cases have to be distinguished:
 
-  1. Type A, or Full Slice packet
+  1. Type A, or Full slice_t packet
   In this case, the PictureID and the macroblock mumbers are used to
   identify the potential loss of a slice.  A slice is lost, when the
   StartMB of the newly read slice header is not equal to the current
@@ -60,10 +60,10 @@
       call of the NAL, the same packet is read again, but this time no packet
       loss is detected by the above algorithm,
     1.2. No loss
-      In this case it is checked whether a Full Slice packet or a type A data
+      In this case it is checked whether a Full slice_t packet or a type A data
       partition was read
-        1.2.1 Full Slice
-          The Full Slice packet is conveyed to the NAL
+        1.2.1 Full slice_t
+          The Full slice_t packet is conveyed to the NAL
         1.2.2 Type A Partition
           The function RTPReadDataPartitionedSlice() is called, which collects
           the remaining type B, C partitions and handles them appropriately.
@@ -72,7 +72,7 @@
   and are interpreted by a simple parser in the function
   RTPInterpretParameterSetPacket()
 
-  Each Slice header contaions the information on which parameter set to be used.
+  Each slice_t header contaions the information on which parameter set to be used.
   The function RTPSetImgInp() copies the information of the relevant parameter
   set in the VCL's global variables p_Vid-> and p_Inp->  IMPORTANT: any changes
   in the semantics of the p_Vid-> and p_Inp-> structure members must be represented

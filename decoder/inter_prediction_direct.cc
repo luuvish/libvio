@@ -39,9 +39,9 @@ static const int BLOCK_STEP[8][2] = {
     {2, 2}, {2, 1}, {1, 2}, {1, 1}
 };
 
-static void update_direct_mv_info_temporal(Macroblock *currMB)
+static void update_direct_mv_info_temporal(mb_t *currMB)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     int partmode = currMB->mb_type == P8x8 ? 4 : currMB->mb_type;
     int step_h0  = BLOCK_STEP [partmode][0];
@@ -282,7 +282,7 @@ static inline void update_neighbor_mvs(PicMotionParams **motion, const PicMotion
 }
 
 
-static int get_colocated_info_4x4(Macroblock *currMB, StorablePicture *list1, int i, int j)
+static int get_colocated_info_4x4(mb_t *currMB, StorablePicture *list1, int i, int j)
 {
     if (list1->is_long_term)
         return 1;
@@ -297,12 +297,12 @@ static int get_colocated_info_4x4(Macroblock *currMB, StorablePicture *list1, in
     return moving;  
 }
 
-static int get_colocated_info_8x8(Macroblock *currMB, StorablePicture *list1, int i, int j)
+static int get_colocated_info_8x8(mb_t *currMB, StorablePicture *list1, int i, int j)
 {
     if (list1->is_long_term)
         return 1;
 
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
 
     int jj = RSD(j);
@@ -338,14 +338,14 @@ static int get_colocated_info_8x8(Macroblock *currMB, StorablePicture *list1, in
 }
 
 
-static void update_direct_mv_info_spatial_8x8(Macroblock *currMB)
+static void update_direct_mv_info_spatial_8x8(mb_t *currMB)
 {
     bool has_direct = (currMB->b8mode[0] == 0) | (currMB->b8mode[1] == 0) |
                       (currMB->b8mode[2] == 0) | (currMB->b8mode[3] == 0);
     if (!has_direct)
         return;
 
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     StorablePicture *dec_picture = currSlice->dec_picture;
 
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
@@ -401,14 +401,14 @@ static void update_direct_mv_info_spatial_8x8(Macroblock *currMB)
     }
 }
 
-static void update_direct_mv_info_spatial_4x4(Macroblock *currMB)
+static void update_direct_mv_info_spatial_4x4(mb_t *currMB)
 {
     bool has_direct = (currMB->b8mode[0] == 0) | (currMB->b8mode[1] == 0) |
                       (currMB->b8mode[2] == 0) | (currMB->b8mode[3] == 0);
     if (!has_direct)
         return;
 
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     StorablePicture *dec_picture = currMB->p_Vid->dec_picture;
 
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
@@ -463,9 +463,9 @@ static void update_direct_mv_info_spatial_4x4(Macroblock *currMB)
 }
 
 
-void update_direct_mv_info(Macroblock *currMB)
+void update_direct_mv_info(mb_t *currMB)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     if (!currSlice->direct_spatial_mv_pred_flag)
         update_direct_mv_info_temporal(currMB);
@@ -476,9 +476,9 @@ void update_direct_mv_info(Macroblock *currMB)
 }
 
 
-void get_direct8x8temporal(Macroblock *currMB, StorablePicture *dec_picture, int block8x8)
+void get_direct8x8temporal(mb_t *currMB, StorablePicture *dec_picture, int block8x8)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
   
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
@@ -610,9 +610,9 @@ void get_direct8x8temporal(Macroblock *currMB, StorablePicture *dec_picture, int
     }
 }
 
-void get_direct4x4temporal(Macroblock *currMB, StorablePicture *dec_picture, int block8x8)
+void get_direct4x4temporal(mb_t *currMB, StorablePicture *dec_picture, int block8x8)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
   
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
@@ -683,9 +683,9 @@ void get_direct4x4temporal(Macroblock *currMB, StorablePicture *dec_picture, int
     }
 }
 
-void get_direct8x8spatial(Macroblock *currMB, StorablePicture *dec_picture)
+void get_direct8x8spatial(mb_t *currMB, StorablePicture *dec_picture)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
 
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
@@ -748,9 +748,9 @@ void get_direct8x8spatial(Macroblock *currMB, StorablePicture *dec_picture)
     }
 }
 
-void get_direct4x4spatial(Macroblock *currMB, StorablePicture *dec_picture)
+void get_direct4x4spatial(mb_t *currMB, StorablePicture *dec_picture)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
 
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
@@ -808,9 +808,9 @@ void get_direct4x4spatial(Macroblock *currMB, StorablePicture *dec_picture)
     }
 }
 
-int get_inter8x8(Macroblock *currMB, StorablePicture *dec_picture, int block8x8)
+int get_inter8x8(mb_t *currMB, StorablePicture *dec_picture, int block8x8)
 {
-    Slice *currSlice = currMB->p_Slice;
+    slice_t *currSlice = currMB->p_Slice;
 
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
@@ -848,10 +848,10 @@ int get_inter8x8(Macroblock *currMB, StorablePicture *dec_picture, int block8x8)
 }
 
 
-static inline void set_direct_references(Macroblock *currMB, const PixelPos *mb, char *l0_rFrame, char *l1_rFrame, PicMotionParams **mv_info)
+static inline void set_direct_references(mb_t *currMB, const PixelPos *mb, char *l0_rFrame, char *l1_rFrame, PicMotionParams **mv_info)
 {
-    Slice *currSlice = currMB->p_Slice;
-    Macroblock *mb_data = currMB->p_Vid->mb_data;
+    slice_t *currSlice = currMB->p_Slice;
+    mb_t *mb_data = currMB->p_Vid->mb_data;
 
     if (!mb->available) {
         *l0_rFrame = -1;
@@ -873,7 +873,7 @@ static inline void set_direct_references(Macroblock *currMB, const PixelPos *mb,
     }
 }
 
-void prepare_direct_params(Macroblock *currMB, StorablePicture *dec_picture, MotionVector *pmvl0, MotionVector *pmvl1, char *l0_rFrame, char *l1_rFrame)
+void prepare_direct_params(mb_t *currMB, StorablePicture *dec_picture, MotionVector *pmvl0, MotionVector *pmvl1, char *l0_rFrame, char *l1_rFrame)
 {
     PixelPos mb[4];
     get_neighbors(currMB, mb, 0, 0, 16);

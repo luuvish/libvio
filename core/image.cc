@@ -4,7 +4,7 @@
  * \file image.c
  *
  * \brief
- *    Decode a Slice
+ *    Decode a slice_t
  *
  * \author
  *    Main contributors (see contributors.h for copyright, address and affiliation details)
@@ -43,7 +43,6 @@
 #include "neighbour.h"
 #include "memalloc.h"
 #include "macroblock.h"
-#include "mb.h"
 
 #include "intra_prediction.h"
 #include "deblock.h"
@@ -64,7 +63,7 @@ static inline int iabs2(int x)
   return (x) * (x);
 }
 
-static inline void reset_mbs(Macroblock *currMB)
+static inline void reset_mbs(mb_t *currMB)
 {
   currMB->slice_nr = -1; 
   currMB->ei_flag  =  1;
@@ -101,7 +100,7 @@ static void setup_buffers(VideoParameters *p_Vid, int layer_id)
 }
 
 #if MVC_EXTENSION_ENABLE
-static void init_mvc_picture(Slice *currSlice)
+static void init_mvc_picture(slice_t *currSlice)
 {
   int i;
   VideoParameters *p_Vid = currSlice->p_Vid;
@@ -220,7 +219,7 @@ static void copy_dec_picture_JV( VideoParameters *p_Vid, StorablePicture *dst, S
  *    Initializes the parameters for a new picture
  ************************************************************************
  */
-void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_Inp)
+void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p_Inp)
 {
   int i;
   int nplane;
@@ -358,12 +357,12 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   }
 
   // Set the slice_nr member of each MB to -1, to ensure correct when packet loss occurs
-  // TO set Macroblock Map (mark all MBs as 'have to be concealed')
+  // TO set mb_t Map (mark all MBs as 'have to be concealed')
   if(sps->separate_colour_plane_flag)
   {
     for( nplane=0; nplane<MAX_PLANE; ++nplane )
     {      
-      Macroblock *currMB = p_Vid->mb_data_JV[nplane];
+      mb_t *currMB = p_Vid->mb_data_JV[nplane];
       char *intra_block = p_Vid->intra_block_JV[nplane];
       for(i=0; i < PicSizeInMbs; ++i)
       {
@@ -380,7 +379,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
   }
   else
   {
-    Macroblock *currMB = p_Vid->mb_data;
+    mb_t *currMB = p_Vid->mb_data;
     for(i=0; i<PicSizeInMbs; ++i)
       reset_mbs(currMB++);
     if(pps->constrained_intra_pred_flag)
@@ -463,7 +462,7 @@ void init_picture(VideoParameters *p_Vid, Slice *currSlice, InputParameters *p_I
 }
 
 
-static void Error_tracking(VideoParameters *p_Vid, Slice *currSlice)
+static void Error_tracking(VideoParameters *p_Vid, slice_t *currSlice)
 {
     if (currSlice->redundant_pic_cnt == 0)
         p_Vid->Is_primary_correct = p_Vid->Is_redundant_correct = 1;
@@ -480,14 +479,14 @@ static void Error_tracking(VideoParameters *p_Vid, Slice *currSlice)
     }
 }
 
-static Slice *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
+static slice_t *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
 {
     int i, j, memory_size = 0;
-    Slice *currSlice;
+    slice_t *currSlice;
 
-    currSlice = (Slice *)calloc(1, sizeof(Slice));
+    currSlice = (slice_t *)calloc(1, sizeof(slice_t));
     if (!currSlice) {
-        snprintf(errortext, ET_SIZE, "Memory allocation for Slice datastruct in NAL-mode %d failed", p_Inp->FileFormat);
+        snprintf(errortext, ET_SIZE, "Memory allocation for slice_t datastruct in NAL-mode %d failed", p_Inp->FileFormat);
         error(errortext,100);
     }
 
@@ -535,7 +534,7 @@ static Slice *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
     return currSlice;
 }
 
-static void copy_slice_info(Slice *currSlice, OldSliceParams *p_old_slice)
+static void copy_slice_info(slice_t *currSlice, OldSliceParams *p_old_slice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
 
@@ -581,8 +580,8 @@ int decode_one_frame(DecoderParams *pDecoder)
     VideoParameters *p_Vid = pDecoder->p_Vid;
     InputParameters *p_Inp = p_Vid->p_Inp;
     int current_header, iRet;
-    Slice *currSlice;
-    Slice **ppSliceList = p_Vid->ppSliceList;
+    slice_t *currSlice;
+    slice_t **ppSliceList = p_Vid->ppSliceList;
     //read one picture first;
     current_header = 0; 
     p_Vid->iSliceNumOfCurrPic = 0;
@@ -643,16 +642,16 @@ int decode_one_frame(DecoderParams *pDecoder)
             }
             p_Vid->iSliceNumOfCurrPic++;
             if (p_Vid->iSliceNumOfCurrPic >= p_Vid->iNumOfSlicesAllocated) {
-                Slice **tmpSliceList = (Slice **)realloc(p_Vid->ppSliceList, (p_Vid->iNumOfSlicesAllocated+MAX_NUM_DECSLICES)*sizeof(Slice*));
+                slice_t **tmpSliceList = (slice_t **)realloc(p_Vid->ppSliceList, (p_Vid->iNumOfSlicesAllocated+MAX_NUM_DECSLICES)*sizeof(slice_t*));
                 if (!tmpSliceList) {
-                    tmpSliceList = (Slice **)calloc((p_Vid->iNumOfSlicesAllocated+MAX_NUM_DECSLICES), sizeof(Slice*));
-                    memcpy(tmpSliceList, p_Vid->ppSliceList, p_Vid->iSliceNumOfCurrPic*sizeof(Slice*));
+                    tmpSliceList = (slice_t **)calloc((p_Vid->iNumOfSlicesAllocated+MAX_NUM_DECSLICES), sizeof(slice_t*));
+                    memcpy(tmpSliceList, p_Vid->ppSliceList, p_Vid->iSliceNumOfCurrPic*sizeof(slice_t*));
                     //free;
                     free(p_Vid->ppSliceList);
                     ppSliceList = p_Vid->ppSliceList = tmpSliceList;
                 } else {
                     ppSliceList = p_Vid->ppSliceList = tmpSliceList;
-                    memset(p_Vid->ppSliceList+p_Vid->iSliceNumOfCurrPic, 0, sizeof(Slice*)*MAX_NUM_DECSLICES);
+                    memset(p_Vid->ppSliceList+p_Vid->iSliceNumOfCurrPic, 0, sizeof(slice_t*)*MAX_NUM_DECSLICES);
                 }
                 p_Vid->iNumOfSlicesAllocated += MAX_NUM_DECSLICES;
             }

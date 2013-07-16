@@ -69,7 +69,7 @@ typedef enum {
 
 struct annex_b_struct;
 struct nalu_t;
-struct macroblock_dec;
+struct macroblock_t;
 struct syntaxelement_dec;
 struct datapartition_dec;
 struct syntaxelement_dec;
@@ -160,14 +160,14 @@ typedef struct syntaxelement_dec {
     //! for mapping of CAVLC to syntaxElement
     void (*mapping)(int len, int info, int *value1, int *value2);
     //! used for CABAC: refers to actual coding method of each individual syntax element type
-    void (*reading)(struct macroblock_dec *currMB, struct syntaxelement_dec *, DecodingEnvironment *);
+    void (*reading)(struct macroblock_t *currMB, struct syntaxelement_dec *, DecodingEnvironment *);
 } SyntaxElement;
 
 //! DataPartition
 typedef struct datapartition_dec {
     Bitstream *bitstream;
 
-    int (*readSyntaxElement)(struct macroblock_dec *currMB, struct syntaxelement_dec *, struct datapartition_dec *);
+    int (*readSyntaxElement)(struct macroblock_t *currMB, struct syntaxelement_dec *, struct datapartition_dec *);
           /*!< virtual function;
                actual method depends on chosen data partition and
                entropy coding method  */
@@ -192,7 +192,7 @@ void linfo_ue(int len, int info, int *value1, int *dummy);
 void linfo_se(int len, int info, int *value1, int *dummy);
 
 int  readSyntaxElement_VLC (struct syntaxelement_dec *sym, Bitstream *currStream);
-int  readSyntaxElement_UVLC(struct macroblock_dec *currMB, struct syntaxelement_dec *sym, struct datapartition_dec *dp);
+int  readSyntaxElement_UVLC(struct macroblock_t *currMB, struct syntaxelement_dec *sym, struct datapartition_dec *dp);
 int  GetBits  (byte buffer[],int totbitoffset,int *info, int bitcount, int numbits);
 int  ShowBits (byte buffer[],int totbitoffset,int bitcount, int numbits);
 

@@ -261,7 +261,7 @@ int readSyntaxElement_VLC(SyntaxElement *sym, Bitstream *currStream)
  *    map it to the corresponding syntax element
  ************************************************************************
  */
-int readSyntaxElement_UVLC(Macroblock *currMB, SyntaxElement *sym, struct datapartition_dec *dP)
+int readSyntaxElement_UVLC(mb_t *currMB, SyntaxElement *sym, struct datapartition_dec *dP)
 {
     return readSyntaxElement_VLC(sym, dP->bitstream);
 }

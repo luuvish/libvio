@@ -36,7 +36,7 @@ enum {
 };
 
 
-int getSE(Macroblock *currMB, int type);
+int getSE(mb_t *currMB, int type);
 
 
 #ifdef __cplusplus

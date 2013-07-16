@@ -5,7 +5,7 @@
  * \file fmo.h
  *
  * \brief
- *    Support for Flexilble Macroblock Ordering (FMO)
+ *    Support for Flexilble mb_t Ordering (FMO)
  *
  * \date
  *    19 June, 2002
