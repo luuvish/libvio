@@ -242,7 +242,6 @@ typedef struct slice_t {
 
     void (*linfo_cbp_intra      )(int len, int info, int *cbp, int *dummy);
     void (*linfo_cbp_inter      )(int len, int info, int *cbp, int *dummy);    
-    void (*read_coeff_4x4_CAVLC )(struct macroblock_dec *currMB, int block_type, int i, int j, int levarr[16], int runarr[16], int *number_coefficients);
     void (*read_CBP_and_coeffs_from_NAL)(struct macroblock_dec *currMB);
 } Slice;
 

@@ -684,7 +684,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
                 }
             }
 
-            if (currMB->is_lossless == FALSE)
+            if (currMB->TransformBypassModeFlag == FALSE)
                 itrans_2(currMB, (ColorPlane)currSlice->colour_plane_id); // transform new intra DC
         }
     }
@@ -764,7 +764,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
                 }
             }
 
-            if (smb || currMB->is_lossless == TRUE) { // check to see if MB type is SPred or SIntra4x4
+            if (smb || currMB->TransformBypassModeFlag == TRUE) { // check to see if MB type is SPred or SIntra4x4
                 currSlice->cof[uv + 1][0][0] = cofu[0];
                 currSlice->cof[uv + 1][0][4] = cofu[1];
                 currSlice->cof[uv + 1][4][0] = cofu[2];
@@ -804,7 +804,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
         for (b8 = 0; b8 < num_blk8x8_uv; ++b8) {
             currMB->is_v_block = uv = b8 > (num_uv_blocks - 1);
             cof = currSlice->cof[uv + 1];
-            if (currMB->is_lossless == FALSE)
+            if (currMB->TransformBypassModeFlag == FALSE)
                 InvLevelScale4x4 = intra ? currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]]
                                          : currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
 
@@ -829,7 +829,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_420(Macroblock *currMB)
                         i0 = *pos_scan_4x4++;
                         j0 = *pos_scan_4x4++;
 
-                        if (currMB->is_lossless == FALSE)
+                        if (currMB->TransformBypassModeFlag == FALSE)
                             cof[(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0])<<qp_per_uv[uv], 4);
                         else
                             cof[(j<<2) + j0][(i<<2) + i0] = level;
@@ -1011,7 +1011,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_400(Macroblock *currMB)
         }
       }
 
-      if(currMB->is_lossless == FALSE)
+      if(currMB->TransformBypassModeFlag == FALSE)
         itrans_2(currMB, (ColorPlane) currSlice->colour_plane_id);// transform new intra DC
     }
   }
@@ -1223,7 +1223,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
         }
       }
 
-      if(currMB->is_lossless == FALSE)
+      if(currMB->TransformBypassModeFlag == FALSE)
         itrans_2(currMB, (ColorPlane) currSlice->colour_plane_id);// transform new intra DC
     }
   }
@@ -1303,7 +1303,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_444(Macroblock *currMB)
         } //k loop
       } // else CAVLC
 
-      if(currMB->is_lossless == FALSE)
+      if(currMB->TransformBypassModeFlag == FALSE)
       {
         itrans_2(currMB, (ColorPlane) (uv + 1)); // transform new intra DC
       }
@@ -1547,7 +1547,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
         }
       }
 
-      if(currMB->is_lossless == FALSE)
+      if(currMB->TransformBypassModeFlag == FALSE)
         itrans_2(currMB, (ColorPlane) currSlice->colour_plane_id);// transform new intra DC
     }
   }
@@ -1641,7 +1641,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
         }
         // inverse CHROMA DC YUV422 transform
         // horizontal
-        if(currMB->is_lossless == FALSE)
+        if(currMB->TransformBypassModeFlag == FALSE)
         {
           m4[0][0] = m3[0][0] + m3[1][0];
           m4[0][1] = m3[0][1] + m3[1][1];
@@ -1708,7 +1708,7 @@ static void read_CBP_and_coeffs_from_NAL_CABAC_422(Macroblock *currMB)
       else
         currSE.reading = readRunLevel_CABAC;
 
-      if(currMB->is_lossless == FALSE)
+      if(currMB->TransformBypassModeFlag == FALSE)
       {          
         CBPStructure  *s_cbp = &currMB->s_cbp[0];
         for (b8=0; b8 < num_blk8x8_uv; ++b8)
@@ -1822,7 +1822,7 @@ void set_read_CBP_and_coeffs_cabac(Slice *currSlice)
 
 void set_read_comp_coeff_cabac(Macroblock *currMB)
 {
-    if (currMB->is_lossless == FALSE) {
+    if (currMB->TransformBypassModeFlag == FALSE) {
         currMB->read_comp_coeff_4x4_CABAC = read_comp_coeff_4x4_CABAC;
         currMB->read_comp_coeff_8x8_CABAC = read_comp_coeff_8x8_MB_CABAC;
     } else {

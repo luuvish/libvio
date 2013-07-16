@@ -66,7 +66,7 @@ void update_qp(Macroblock *currMB, int qp)
         currMB->qp_scaled[i + 1] = currMB->qpc[i] + sps->QpBdOffsetC;
     }
 
-    currMB->is_lossless = (currMB->qp_scaled[0] == 0 && sps->qpprime_y_zero_transform_bypass_flag);
+    currMB->TransformBypassModeFlag = (currMB->qp_scaled[0] == 0 && sps->qpprime_y_zero_transform_bypass_flag);
     set_read_comp_coeff_cavlc(currMB);
     set_read_comp_coeff_cabac(currMB);
 }
