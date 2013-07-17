@@ -21,6 +21,9 @@
 #include "neighbour.h"
 #include "transform.h"
 
+#include "mb_read_syntax.h"
+
+
 #define IS_I16MB(MB)    ((MB)->mb_type==I16MB  || (MB)->mb_type==IPCM)
 #define IS_DIRECT(MB)   ((MB)->mb_type==0     && (currSlice->slice_type == B_SLICE ))
 
@@ -831,26 +834,15 @@ void macroblock_t::read_CBP_and_coeffs_from_NAL_CABAC()
             (currMB->mb_type != I8MB) && (currMB->mb_type != I4MB) &&
             (currMB->cbp & 15) && pps->transform_8x8_mode_flag;
 
-        if (need_transform_size_flag) {
-            currSE.type    = SE_HEADER;
-            currSE.reading = readMB_transform_size_flag_CABAC;
-            dP = &(currSlice->partArr[partMap[SE_HEADER]]);
-            // read CAVLC transform_size_8x8_flag
-            if (dP->bitstream->ei_flag)
-                currSE.value1 = dP->bitstream->f(1);
-            else
-                dP->readSyntaxElement(currMB, &currSE, dP);
-
-            currMB->transform_size_8x8_flag = currSE.value1;
-        }
+        if (need_transform_size_flag)
+            currMB->transform_size_8x8_flag = parse_transform_size_8x8_flag(this);
     }
 
     //=====   DQUANT   =====
     //----------------------
     // Delta quant only if nonzero coeffs
     if (IS_I16MB(currMB) || currMB->cbp != 0) {
-        currMB->read_delta_quant(&currSE, dP, partMap,
-            !currMB->is_intra_block ? SE_DELTA_QUANT_INTER : SE_DELTA_QUANT_INTRA);
+        currMB->parse_mb_qp();
 
         if (currSlice->dp_mode) {
             if (!currMB->is_intra_block && currSlice->dpC_NotPresent)

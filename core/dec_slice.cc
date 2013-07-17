@@ -200,99 +200,98 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
 
 bool slice_t::init()
 {
-    slice_t *currSlice = this;
     int i;
 
-    VideoParameters *p_Vid = currSlice->p_Vid;
-    p_Vid->active_sps = currSlice->active_sps;
-    p_Vid->active_pps = currSlice->active_pps;
-    int current_header = currSlice->current_header;
+    VideoParameters *p_Vid = this->p_Vid;
+    p_Vid->active_sps = this->active_sps;
+    p_Vid->active_pps = this->active_pps;
+    int current_header = this->current_header;
 
-    currSlice->cod_counter = -1;
+    this->mb_skip_run = -1;
 
-    init_lists(currSlice);
+    this->PrevQpY = this->SliceQpY;
+
+    init_lists(this);
 
 #if (MVC_EXTENSION_ENABLE)
-    if (currSlice->svc_extension_flag == 0 || currSlice->svc_extension_flag == 1)
-        reorder_lists_mvc(currSlice, currSlice->ThisPOC);
+    if (this->svc_extension_flag == 0 || this->svc_extension_flag == 1)
+        reorder_lists_mvc(this, this->ThisPOC);
     else
-        reorder_lists(currSlice);
+        reorder_lists(this);
 
-    if (currSlice->fs_listinterview0) {
-        free(currSlice->fs_listinterview0);
-        currSlice->fs_listinterview0 = NULL;
+    if (this->fs_listinterview0) {
+        free(this->fs_listinterview0);
+        this->fs_listinterview0 = NULL;
     }
-    if (currSlice->fs_listinterview1) {
-        free(currSlice->fs_listinterview1);
-        currSlice->fs_listinterview1 = NULL;
+    if (this->fs_listinterview1) {
+        free(this->fs_listinterview1);
+        this->fs_listinterview1 = NULL;
     }
 #endif
 
-    if (!currSlice->field_pic_flag)
-        init_mbaff_lists(p_Vid, currSlice);
+    if (!this->field_pic_flag)
+        init_mbaff_lists(p_Vid, this);
 
     // update reference flags and set current p_Vid->ref_flag
-    if (!(currSlice->redundant_pic_cnt != 0 && p_Vid->previous_frame_num == currSlice->frame_num)) {
+    if (!(this->redundant_pic_cnt != 0 && p_Vid->previous_frame_num == this->frame_num)) {
         for (i = 16; i > 0; i--)
-            currSlice->ref_flag[i] = currSlice->ref_flag[i-1];
+            this->ref_flag[i] = this->ref_flag[i-1];
     }
-    currSlice->ref_flag[0] = currSlice->redundant_pic_cnt == 0 ? p_Vid->Is_primary_correct
+    this->ref_flag[0] = this->redundant_pic_cnt == 0 ? p_Vid->Is_primary_correct
                                                                : p_Vid->Is_redundant_correct;
 
-    if (currSlice->active_pps->entropy_coding_mode_flag) {
-        init_contexts(currSlice);
-        currSlice->last_dquant = 0;
+    if (this->active_pps->entropy_coding_mode_flag) {
+        init_contexts(this);
+        this->last_dquant = 0;
     }
 
-    if ((currSlice->active_pps->weighted_bipred_idc > 0 && currSlice->slice_type == B_SLICE) ||
-        (currSlice->active_pps->weighted_pred_flag && currSlice->slice_type != I_SLICE))
-        fill_wp_params(currSlice);
+    if ((this->active_pps->weighted_bipred_idc > 0 && this->slice_type == B_SLICE) ||
+        (this->active_pps->weighted_pred_flag && this->slice_type != I_SLICE))
+        fill_wp_params(this);
 
 
-    if ((current_header != SOP && current_header != SOS) || currSlice->ei_flag != 0)
+    if ((current_header != SOP && current_header != SOS) || this->ei_flag != 0)
         return false;
 
-    if (currSlice->active_sps->separate_colour_plane_flag != 0)
-        change_plane_JV(p_Vid, currSlice->colour_plane_id, currSlice);
+    if (this->active_sps->separate_colour_plane_flag != 0)
+        change_plane_JV(p_Vid, this->colour_plane_id, this);
     else {
-        currSlice->mb_data     = p_Vid->mb_data;
-        currSlice->dec_picture = p_Vid->dec_picture;
-        currSlice->intra_block = p_Vid->intra_block;
+        this->mb_data     = p_Vid->mb_data;
+        this->dec_picture = p_Vid->dec_picture;
+        this->intra_block = p_Vid->intra_block;
     }
 
-    if (currSlice->slice_type == B_SLICE)
-        compute_colocated(currSlice, currSlice->listX);
+    if (this->slice_type == B_SLICE)
+        compute_colocated(this, this->listX);
 
-    if (currSlice->slice_type != I_SLICE && currSlice->slice_type != SI_SLICE)
-        init_cur_imgy(currSlice, p_Vid);
+    if (this->slice_type != I_SLICE && this->slice_type != SI_SLICE)
+        init_cur_imgy(this, p_Vid);
 
     return true;
 }
 
 void slice_t::decode()
 {
-    slice_t *currSlice = this;
-
     bool end_of_slice = 0;
 
     while (!end_of_slice) { // loop over macroblocks
-        mb_t *currMB = &currSlice->mb_data[currSlice->current_mb_nr]; 
+        mb_t *currMB = &this->mb_data[this->current_mb_nr]; 
 
         // Initializes the current macroblock
-        currMB->init(currSlice);
+        currMB->init(this);
         // Get the syntax elements from the NAL
         currMB->parse();
         currMB->decode();
 
-        if (currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag) {
-            currSlice->num_ref_idx_l0_active_minus1 = ((currSlice->num_ref_idx_l0_active_minus1 + 1) >> 1) - 1;
-            currSlice->num_ref_idx_l1_active_minus1 = ((currSlice->num_ref_idx_l1_active_minus1 + 1) >> 1) - 1;
+        if (this->MbaffFrameFlag && currMB->mb_field_decoding_flag) {
+            this->num_ref_idx_l0_active_minus1 = ((this->num_ref_idx_l0_active_minus1 + 1) >> 1) - 1;
+            this->num_ref_idx_l1_active_minus1 = ((this->num_ref_idx_l1_active_minus1 + 1) >> 1) - 1;
         }
 
 #if (DISABLE_ERC == 0)
         ercWriteMBMODEandMV(currMB);
 #endif
 
-        end_of_slice = currMB->close(currSlice);
+        end_of_slice = currMB->close(this);
     }
 }

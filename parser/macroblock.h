@@ -157,7 +157,6 @@ typedef struct macroblock_t {
     short                  slice_nr;
     char                   ei_flag;             //!< error indicator flag that enables concealment
     char                   dpl_flag;            //!< error indicator flag that signals a missing data partition
-    short                  delta_quant;         //!< for rate control
 
     struct macroblock_t *mb_up;   //!< pointer to neighboring MB (CABAC)
     struct macroblock_t *mb_left; //!< pointer to neighboring MB (CABAC)
@@ -199,7 +198,7 @@ typedef struct macroblock_t {
     uint8_t     SubMbPredMode  [4];
     uint8_t     SubMbPartWidth [4];
     uint8_t     SubMbPartHeight[4];
-    uint8_t     QPy;
+    uint8_t     QpY;
     bool        TransformBypassModeFlag;
 
 
@@ -233,13 +232,10 @@ typedef struct macroblock_t {
     void        decode();
     bool        close(slice_t *slice);
 
-
-    void        parse_i_slice();
-    void        parse_pb_slice();
+    void        parse_i_pcm();
     void        parse_skip();
     void        parse_intra();
     void        parse_inter();
-    void        parse_i_pcm();
 
     void        parse_ipred_modes();
     void        parse_ipred_4x4_modes();
@@ -250,11 +246,11 @@ typedef struct macroblock_t {
     void        parse_motion_vectors(int list);
     void        parse_motion_vector(int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx);
 
+    void        parse_mb_qp();
+
 
     void        interpret_mb_mode();
     void        update_qp(int qp);
-
-    void        read_delta_quant(SyntaxElement *currSE, DataPartition *dP, const byte *partMap, int type);
 
     void        read_CBP_and_coeffs_from_NAL_CAVLC();
     void        read_CBP_and_coeffs_from_NAL_CABAC();

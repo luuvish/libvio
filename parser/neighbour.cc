@@ -128,7 +128,7 @@ void CheckAvailabilityOfNeighborsNormal(mb_t *currMB)
 void CheckAvailabilityOfNeighborsMBAFF(mb_t *currMB)
 {
   slice_t *currSlice = currMB->p_Slice;
-  StorablePicture *dec_picture = currSlice->dec_picture; //p_Vid->dec_picture;
+  StorablePicture *dec_picture = currSlice->dec_picture;
   const int mb_nr = currMB->mbAddrX;
   BlockPos *PicPos = currMB->p_Vid->PicPos;
 
@@ -157,12 +157,12 @@ void CheckAvailabilityOfNeighborsCABAC(mb_t *currMB)
   p_Vid->getNeighbour(currMB,  0, -1, mb_size, &up);
 
   if (up.available)
-    currMB->mb_up = &currMB->p_Slice->mb_data[up.mb_addr]; //&p_Vid->mb_data[up.mb_addr];
+    currMB->mb_up = &currMB->p_Slice->mb_data[up.mb_addr];
   else
     currMB->mb_up = NULL;
 
   if (left.available)
-    currMB->mb_left = &currMB->p_Slice->mb_data[left.mb_addr]; //&p_Vid->mb_data[left.mb_addr];
+    currMB->mb_left = &currMB->p_Slice->mb_data[left.mb_addr];
   else
     currMB->mb_left = NULL;
 }

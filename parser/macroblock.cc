@@ -73,11 +73,12 @@ void macroblock_t::init(slice_t *slice)
     this->pix_c_x     = mb_x * sps->MbWidthC;   /* horizontal chroma pixel position */
     this->pix_c_y     = mb_y * sps->MbHeightC;  /* vertical chroma pixel position */
 
+    this->mb_qp_delta = 0;
     // reset intra mode
     this->is_intra_block = 0;
     // reset mode info
+    this->mb_skip_flag   = 0;
     this->mb_type        = 0;
-    this->delta_quant    = 0;
     this->cbp            = 0;    
     this->intra_chroma_pred_mode = Intra_Chroma_DC;
 
@@ -116,6 +117,27 @@ void macroblock_t::init(slice_t *slice)
     this->DFAlphaC0Offset   = slice->FilterOffsetA;
     this->DFBetaOffset      = slice->FilterOffsetB;
     this->mixedModeEdgeFlag = 0;
+
+    pps_t *pps = slice->active_pps;
+    int CurrMbAddr = this->mbAddrX;
+
+    this->update_qp(slice->SliceQpY);
+
+    this->mb_field_decoding_flag = 0;
+    if (slice->MbaffFrameFlag) {
+        bool prevMbSkipped = (CurrMbAddr % 2 == 1) ?
+            slice->mb_data[CurrMbAddr - 1].mb_skip_flag : 0;
+        if (CurrMbAddr % 2 == 0 || prevMbSkipped) {
+            if (this->mbAvailA)
+                this->mb_field_decoding_flag = slice->mb_data[this->mbAddrA].mb_field_decoding_flag;
+            else if (this->mbAvailB)
+                this->mb_field_decoding_flag = slice->mb_data[this->mbAddrB].mb_field_decoding_flag;
+        } else
+            this->mb_field_decoding_flag = slice->mb_data[CurrMbAddr - 1].mb_field_decoding_flag;
+    }
+
+    if (pps->entropy_coding_mode_flag)
+        CheckAvailabilityOfNeighborsCABAC(this);
 }
 
 bool macroblock_t::close(slice_t *slice)
@@ -156,7 +178,7 @@ bool macroblock_t::close(slice_t *slice)
         return 1;
     if (p_Vid->active_pps->entropy_coding_mode_flag)
         return 1;
-    if (currSlice->cod_counter <= 0)
+    if (currSlice->mb_skip_run <= 0)
         return 1;
 
     return 0;
@@ -362,21 +384,4 @@ void macroblock_t::interpret_mb_mode()
         printf("Unsupported slice type\n");
         break;
     }
-}
-
-void macroblock_t::update_qp(int qp)
-{
-    VideoParameters *p_Vid = this->p_Vid;
-    sps_t *sps = p_Vid->active_sps;
-    StorablePicture *dec_picture = this->p_Slice->dec_picture;
-    this->qp = qp;
-    this->qp_scaled[0] = qp + sps->QpBdOffsetY;
-
-    for (int i = 0; i < 2; i++) {
-        this->qpc[i] = iClip3 (-(sps->QpBdOffsetC), 51, this->qp + dec_picture->chroma_qp_offset[i]);
-        this->qpc[i] = this->qpc[i] < 0 ? this->qpc[i] : QP_SCALE_CR[this->qpc[i]];
-        this->qp_scaled[i + 1] = this->qpc[i] + sps->QpBdOffsetC;
-    }
-
-    this->TransformBypassModeFlag = (this->qp_scaled[0] == 0 && sps->qpprime_y_zero_transform_bypass_flag);
 }

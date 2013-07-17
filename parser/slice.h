@@ -142,6 +142,7 @@ typedef struct slice_t {
     int         ThisPOC;
     int         framepoc;
 
+    int8_t      PrevQpY;
 
     //weighted prediction
     unsigned short            weighted_pred_flag;
@@ -158,7 +159,7 @@ typedef struct slice_t {
     unsigned int              current_mb_nr; // bitstream order
     unsigned int              num_dec_mb;
     short                     current_slice_nr;
-    int                       cod_counter;                   //!< Current count of number of skipped macroblocks in a row
+    int                       mb_skip_run;                   //!< Current count of number of skipped macroblocks in a row
     int                       allrefzero;
     //end;
 
