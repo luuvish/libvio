@@ -252,6 +252,21 @@ typedef struct macroblock_t {
     void        interpret_mb_mode();
     void        update_qp(int qp);
 
+    void        residual       (uint8_t startIdx, uint8_t endIdx);
+    void        residual_luma  (uint8_t i16x16DClevel, uint8_t i16x16AClevel,
+                                uint8_t level4x4, uint8_t level8x8,
+                                uint8_t startIdx, uint8_t endIdx);
+    void        residual_chroma(uint8_t i16x16DClevel, uint8_t i16x16AClevel,
+                                uint8_t level4x4, uint8_t level8x8,
+                                uint8_t startIdx, uint8_t endIdx);
+
+    void        residual_block      (int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
+                                     uint8_t maxNumCoeff);
+    void        residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
+                                     uint8_t maxNumCoeff, ColorPlane pl, int bx, int by);
+    void        residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
+                                     uint8_t maxNumCoeff, ColorPlane pl, int bx, int by);
+
     void        read_CBP_and_coeffs_from_NAL_CAVLC();
     void        read_CBP_and_coeffs_from_NAL_CABAC();
 } mb_t;

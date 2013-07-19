@@ -560,10 +560,7 @@ void macroblock_t::parse_skip()
                 reset_coeffs(this);
         } else {
             this->parse_cbp_qp();
-            if (pps->entropy_coding_mode_flag)
-                this->read_CBP_and_coeffs_from_NAL_CABAC();
-            else
-                this->read_CBP_and_coeffs_from_NAL_CAVLC();
+            this->residual(0, 15);
         }
     } else {
         //--- init macroblock data ---
@@ -596,10 +593,7 @@ void macroblock_t::parse_intra()
     this->parse_ipred_modes();
     this->parse_cbp_qp();
 
-    if (pps->entropy_coding_mode_flag)
-        this->read_CBP_and_coeffs_from_NAL_CABAC();
-    else
-        this->read_CBP_and_coeffs_from_NAL_CAVLC();
+    this->residual(0, 15);
 }
 
 void macroblock_t::parse_inter()
@@ -649,10 +643,7 @@ void macroblock_t::parse_inter()
     this->parse_motion_info();
     this->parse_cbp_qp();
 
-    if (pps->entropy_coding_mode_flag)
-        this->read_CBP_and_coeffs_from_NAL_CABAC();
-    else
-        this->read_CBP_and_coeffs_from_NAL_CAVLC();
+    this->residual(0, 15);
 }
 
 
@@ -993,4 +984,28 @@ void macroblock_t::update_qp(int qp)
     }
 
     this->TransformBypassModeFlag = (this->qp_scaled[0] == 0 && sps->qpprime_y_zero_transform_bypass_flag);
+}
+
+
+void macroblock_t::residual(uint8_t startIdx, uint8_t endIdx)
+{
+    pps_t *pps = this->p_Slice->active_pps;
+
+    if (!pps->entropy_coding_mode_flag)
+        this->read_CBP_and_coeffs_from_NAL_CAVLC();
+    else
+        this->read_CBP_and_coeffs_from_NAL_CABAC();
+}
+
+void macroblock_t::residual_luma(uint8_t i16x16DClevel, uint8_t i16x16AClevel,
+                                 uint8_t level4x4, uint8_t level8x8,
+                                 uint8_t startIdx, uint8_t endIdx)
+{
+
+}
+
+void macroblock_t::residual_block(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
+                                  uint8_t maxNumCoeff)
+{
+
 }

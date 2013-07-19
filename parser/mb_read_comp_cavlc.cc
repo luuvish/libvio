@@ -30,94 +30,130 @@
 #define RUNBEFORE_NUM_M1  6
 
 
-static int readSyntaxElement_Level_VLC0(Bitstream *currStream)
+static int readSyntaxElement_Level_VLCN(Bitstream *currStream, int suffixLength)
 {
-    int level, sign;
-    int len = 1;
+    int leadingZeroBits = -1;
+    for (int b = 0; !b; leadingZeroBits++)
+        b = currStream->read_bits(1);
+    int level_prefix = leadingZeroBits;
 
-    while (currStream->read_bits(1) == 0)
-        len++;
+//    int level, sign;
+//
+//    if (suffixLength == 0) {
+//        if (level_prefix < 14) {
+//            sign  = level_prefix & 1;
+//            level = (level_prefix >> 1) + 1;
+//        } else if (level_prefix == 14) {
+//            // escape
+//            int level_suffix = currStream->u(4);
+//            sign  = (level_suffix & 1);
+//            level = (level_suffix >> 1) + 8;
+//        } else {
+//            // escape
+//            int level_suffix = currStream->u(level_prefix - 3);
+//            sign  = (level_suffix & 1);
+//            level = (level_suffix >> 1) + (1 << (level_prefix - 4)) - 2047 + 15;
+//        }
+//    } else {
+//        if (level_prefix < 15) {
+//            int level_suffix = currStream->u(suffixLength);
+//            sign  = (level_suffix & 1);
+//            level = (level_suffix >> 1) + (level_prefix << (suffixLength - 1)) + 1;
+//        } else { // escape
+//            int level_suffix = currStream->u(level_prefix - 3);
+//            sign  = (level_suffix & 1);
+//            level = (level_suffix >> 1) + (1 << (level_prefix - 4)) - 2047 + (15 << (suffixLength - 1));
+//        }
+//    }
+//
+//    return sign ? -level : level;
 
-    if (len < 15) {
-        sign  = (len - 1) & 1;
-        level = ((len - 1) >> 1) + 1;
-    } else if (len == 15) {
-        // escape code
-        int code = 16 + currStream->read_bits(4);
-        sign  = (code & 0x01);
-        level = ((code >> 1) & 0x07) + 8;
-        len  += 4;
-    } else {
-        // escape code
-        int code = currStream->read_bits(len - 4);
-        sign  = (code & 0x01);
-        level = (code >> 1) + (2048 << (len - 16)) - 2032;
-        len  += (len - 4);
-    }
+    int levelSuffixSize = 0;
+    if (level_prefix == 14 && suffixLength == 0)
+        levelSuffixSize = 4;
+    else if (level_prefix >= 15)
+        levelSuffixSize = level_prefix - 3;
+    else
+        levelSuffixSize = suffixLength;
 
-    return sign ? -level : level;
+    int level_suffix = 0;
+    if (levelSuffixSize > 0)
+        level_suffix = currStream->u(levelSuffixSize);
+
+    int levelCode = (imin(15, level_prefix) << suffixLength) + level_suffix;
+    if (level_prefix >= 15 && suffixLength == 0)
+        levelCode += 15;
+    if (level_prefix >= 16)
+        levelCode += (1 << (level_prefix - 3)) - 4096;
+
+//    if ((levelCode % 2) == 0)
+//        levelVal[i] = (levelCode + 2) >> 1;
+//    else
+//        levelVal[i] = (-levelCode - 1) >> 1;
+
+    return (levelCode % 2 == 0) ? (levelCode + 2) >> 1 : (-levelCode - 1) >> 1;
 }
 
-static int readSyntaxElement_Level_VLCN(Bitstream *currStream, int vlc)
+
+static int readSyntaxElement_NumCoeffTrailingOnes(Bitstream *currStream, int *coeff, int *ones, int nC)
 {
-    int level, sign;
-    int len = 1;
-
-    while (currStream->read_bits(1) == 0)
-        len++;
-
-    if (len < 16) {
-        level = ((len - 1) << (vlc - 1)) + 1;
-        // read (vlc-1) bits -> suffix
-        if (vlc - 1 > 0)
-            level += currStream->read_bits(vlc - 1);
-        sign   = currStream->read_bits(1);
-        len   += vlc;
-    } else { // escape
-        level  = (1 << (len - 5)) + (15 << (vlc - 1)) - 2047;
-        level += currStream->read_bits(len - 5);
-        sign   = currStream->read_bits(1);
-        len   += (len - 4);
-    }
-
-    return sign ? -level : level;
-}
-
-static int readSyntaxElement_NumCoeffTrailingOnes(Bitstream *currStream, int *coeff, int *ones, int tab)
-{
-    static const byte lentab[3][4][17] = {
+    static const byte lentab[5][4][17] = {
+        // 0 <= nC < 2
         {{ 1, 6, 8, 9,10,11,13,13,13,14,14,15,15,16,16,16,16},
          { 0, 2, 6, 8, 9,10,11,13,13,14,14,15,15,15,16,16,16},
          { 0, 0, 3, 7, 8, 9,10,11,13,13,14,14,15,15,16,16,16},
          { 0, 0, 0, 5, 6, 7, 8, 9,10,11,13,14,14,15,15,16,16}},
+        // 2 <= nC < 4
         {{ 2, 6, 6, 7, 8, 8, 9,11,11,12,12,12,13,13,13,14,14},
          { 0, 2, 5, 6, 6, 7, 8, 9,11,11,12,12,13,13,14,14,14},
          { 0, 0, 3, 6, 6, 7, 8, 9,11,11,12,12,13,13,13,14,14},
          { 0, 0, 0, 4, 4, 5, 6, 6, 7, 9,11,11,12,13,13,13,14}},
+        // 4 <= nC < 8
         {{ 4, 6, 6, 6, 7, 7, 7, 7, 8, 8, 9, 9, 9,10,10,10,10},
          { 0, 4, 5, 5, 5, 5, 6, 6, 7, 8, 8, 9, 9, 9,10,10,10},
          { 0, 0, 4, 5, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9,10,10,10},
-         { 0, 0, 0, 4, 4, 4, 4, 4, 5, 6, 7, 8, 8, 9,10,10,10}}
+         { 0, 0, 0, 4, 4, 4, 4, 4, 5, 6, 7, 8, 8, 9,10,10,10}},
+        // nC == -1
+        {{ 2, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 1, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 0, 3, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 0, 0, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        // nC == -2
+        {{ 1, 7, 7, 9, 9,10,11,12,13, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 2, 7, 7, 9,10,11,12,12, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 0, 3, 7, 7, 9,10,11,12, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 0, 0, 5, 6, 7, 7,10,11, 0, 0, 0, 0, 0, 0, 0, 0}},
     };
 
-    static const byte codtab[3][4][17] = {
-        {{ 1, 5, 7, 7, 7, 7,15,11, 8,15,11,15,11,15,11, 7,4},
-         { 0, 1, 4, 6, 6, 6, 6,14,10,14,10,14,10, 1,14,10,6},
-         { 0, 0, 1, 5, 5, 5, 5, 5,13, 9,13, 9,13, 9,13, 9,5},
-         { 0, 0, 0, 3, 3, 4, 4, 4, 4, 4,12,12, 8,12, 8,12,8}},
-        {{ 3,11, 7, 7, 7, 4, 7,15,11,15,11, 8,15,11, 7, 9,7},
-         { 0, 2, 7,10, 6, 6, 6, 6,14,10,14,10,14,10,11, 8,6},
-         { 0, 0, 3, 9, 5, 5, 5, 5,13, 9,13, 9,13, 9, 6,10,5},
-         { 0, 0, 0, 5, 4, 6, 8, 4, 4, 4,12, 8,12,12, 8, 1,4}},
-        {{15,15,11, 8,15,11, 9, 8,15,11,15,11, 8,13, 9, 5,1},
-         { 0,14,15,12,10, 8,14,10,14,14,10,14,10, 7,12, 8,4},
-         { 0, 0,13,14,11, 9,13, 9,13,10,13, 9,13, 9,11, 7,3},
-         { 0, 0, 0,12,11,10, 9, 8,13,12,12,12, 8,12,10, 6,2}}
+    static const byte codtab[5][4][17] = {
+        // 0 <= nC < 2
+        {{ 1, 5, 7, 7, 7, 7,15,11, 8,15,11,15,11,15,11, 7, 4},
+         { 0, 1, 4, 6, 6, 6, 6,14,10,14,10,14,10, 1,14,10, 6},
+         { 0, 0, 1, 5, 5, 5, 5, 5,13, 9,13, 9,13, 9,13, 9, 5},
+         { 0, 0, 0, 3, 3, 4, 4, 4, 4, 4,12,12, 8,12, 8,12, 8}},
+        // 2 <= nC < 4
+        {{ 3,11, 7, 7, 7, 4, 7,15,11,15,11, 8,15,11, 7, 9, 7},
+         { 0, 2, 7,10, 6, 6, 6, 6,14,10,14,10,14,10,11, 8, 6},
+         { 0, 0, 3, 9, 5, 5, 5, 5,13, 9,13, 9,13, 9, 6,10, 5},
+         { 0, 0, 0, 5, 4, 6, 8, 4, 4, 4,12, 8,12,12, 8, 1, 4}},
+        // 4 <= nC < 8
+        {{15,15,11, 8,15,11, 9, 8,15,11,15,11, 8,13, 9, 5, 1},
+         { 0,14,15,12,10, 8,14,10,14,14,10,14,10, 7,12, 8, 4},
+         { 0, 0,13,14,11, 9,13, 9,13,10,13, 9,13, 9,11, 7, 3},
+         { 0, 0, 0,12,11,10, 9, 8,13,12,12,12, 8,12,10, 6, 2}},
+        // nC == -1
+        {{ 1, 7, 4, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 1, 6, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        // nC == -2
+        {{ 1,15,14, 7, 6, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 1,13,12, 5, 6, 6, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 0, 1,11,10, 4, 5, 5, 4, 0, 0, 0, 0, 0, 0, 0, 0},
+         { 0, 0, 0, 1, 1, 9, 8, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0}},
     };
 
-    // tab is the index of Table used to code coeff_token
-    // tab==3 means (8<=nC) which uses 6bit FLC
-    if (tab == 3) {
+    if (nC >= 8) {
         int code = currStream->read_bits(6);
         *coeff = (code >> 2);
         *ones  = (code & 3);
@@ -129,6 +165,7 @@ static int readSyntaxElement_NumCoeffTrailingOnes(Bitstream *currStream, int *co
         return 0;
     }
 
+    int tab = (nC == -2) ? 4 : (nC == -1) ? 3 : (nC < 2) ? 0 : (nC < 4) ? 1 : (nC < 8) ? 2 : 5;
     for (int j = 0; j < 4; j++) {
         for (int i = 0; i < 17; i++) {
             int len = lentab[tab][j][i];
@@ -143,62 +180,6 @@ static int readSyntaxElement_NumCoeffTrailingOnes(Bitstream *currStream, int *co
     }
 
     printf("ERROR: failed to find NumCoeff/TrailingOnes\n");
-    exit(-1);
-    return -1;
-}
-
-static int readSyntaxElement_NumCoeffTrailingOnesChromaDC(Bitstream *currStream, int *coeff, int *ones, int yuv)
-{
-    static const byte lentab[3][4][17] = {
-        //YUV420
-        {{ 2, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 1, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 3, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 0, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-        //YUV422
-        {{ 1, 7, 7, 9, 9,10,11,12,13, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 2, 7, 7, 9,10,11,12,12, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 3, 7, 7, 9,10,11,12, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 0, 5, 6, 7, 7,10,11, 0, 0, 0, 0, 0, 0, 0, 0}},
-        //YUV444
-        {{ 1, 6, 8, 9,10,11,13,13,13,14,14,15,15,16,16,16,16},
-         { 0, 2, 6, 8, 9,10,11,13,13,14,14,15,15,15,16,16,16},
-         { 0, 0, 3, 7, 8, 9,10,11,13,13,14,14,15,15,16,16,16},
-         { 0, 0, 0, 5, 6, 7, 8, 9,10,11,13,14,14,15,15,16,16}}
-    };
-
-    static const byte codtab[3][4][17] = {
-        //YUV420
-        {{ 1, 7, 4, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 1, 6, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-        //YUV422
-        {{ 1,15,14, 7, 6, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 1,13,12, 5, 6, 6, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 1,11,10, 4, 5, 5, 4, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 0, 1, 1, 9, 8, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0}},
-        //YUV444
-        {{ 1, 5, 7, 7, 7, 7,15,11, 8,15,11,15,11,15,11, 7, 4},
-         { 0, 1, 4, 6, 6, 6, 6,14,10,14,10,14,10, 1,14,10, 6},
-         { 0, 0, 1, 5, 5, 5, 5, 5,13, 9,13, 9,13, 9,13, 9, 5},
-         { 0, 0, 0, 3, 3, 4, 4, 4, 4, 4,12,12, 8,12, 8,12, 8}}
-    };
-
-    for (int j = 0; j < 4; j++) {
-        for (int i = 0; i < 17; i++) {
-            int len = lentab[yuv][j][i];
-            int cod = codtab[yuv][j][i];
-            if (len > 0 && currStream->next_bits(len) == cod) {
-                *coeff = i;
-                *ones  = j;
-                currStream->read_bits(len);
-                return 0;
-            }
-        }
-    }
-
-    printf("ERROR: failed to find NumCoeff/TrailingOnes ChromaDC\n");
     exit(-1);
     return -1;
 }
@@ -374,20 +355,16 @@ static int readSyntaxElement_Run(Bitstream *currStream, int *coeff, int tab)
 
 
 static void read_coeff_4x4_CAVLC(mb_t *currMB, int block_type, int i, int j,
-                                 int levarr[16], int runarr[16], int *number_coefficients)
+                                 int levelVal[16], int runVal[16], int *number_coefficients)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currMB->p_Vid;
     int mb_nr = currMB->mbAddrX;
 
-    int k, code, vlcnum;
-    int numcoeff = 0, numtrailingones;
-    int level_two_or_higher;
-    int numones, totzeros, abslevel, cdc=0, cac=0;
-    int zerosleft, ntr, dptype = 0;
-    int max_coeff_num = 0, nnz;
-    static const int incVlc[] = {0, 3, 6, 12, 24, 48, 32768};    // maximum vlc = 6
+    int cdc=0, cac=0;
+    int dptype = 0;
+    int max_coeff_num = 0;
 
     int num_cdc_coeff;
     if (sps->chroma_format_idc != YUV400)
@@ -442,99 +419,88 @@ static void read_coeff_4x4_CAVLC(mb_t *currMB, int block_type, int i, int j,
     DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
     Bitstream *currStream = dP->bitstream;
 
+    int nC = 0;
     if (!cdc) {
         // luma or chroma AC    
         if (block_type == LUMA ||
             block_type == LUMA_INTRA16x16DC || block_type == LUMA_INTRA16x16AC ||
             block_type == CHROMA_AC) {
-            nnz = (!cac) ? predict_nnz(currMB, LUMA, i<<2, j<<2) :
+            nC = (!cac) ? predict_nnz(currMB, LUMA, i<<2, j<<2) :
                            predict_nnz_chroma(currMB, i, ((j-4)<<2));
         } else if (block_type == CB || block_type == CB_INTRA16x16DC || block_type == CB_INTRA16x16AC)
-            nnz = predict_nnz(currMB, CB, i<<2, j<<2);
+            nC = predict_nnz(currMB, CB, i<<2, j<<2);
         else
-            nnz = predict_nnz(currMB, CR, i<<2, j<<2);
+            nC = predict_nnz(currMB, CR, i<<2, j<<2);
+    } else {
+        nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
+    }
 
-        int tab = (nnz < 2) ? 0 : ((nnz < 4) ? 1 : ((nnz < 8) ? 2 : 3));
-        readSyntaxElement_NumCoeffTrailingOnes(currStream, &numcoeff, &numtrailingones, tab);
+    int TotalCoeff = 0;
+    int TrailingOnes;
+    readSyntaxElement_NumCoeffTrailingOnes(currStream, &TotalCoeff, &TrailingOnes, nC);
 
+    if (!cdc) {
         if (block_type == LUMA ||
             block_type == LUMA_INTRA16x16DC || block_type == LUMA_INTRA16x16AC ||
             block_type == CHROMA_AC)
-            p_Vid->nz_coeff[mb_nr][0][j][i] = (byte) numcoeff;
+            p_Vid->nz_coeff[mb_nr][0][j][i] = (byte) TotalCoeff;
         else if (block_type == CB || block_type == CB_INTRA16x16DC || block_type == CB_INTRA16x16AC)
-            p_Vid->nz_coeff[mb_nr][1][j][i] = (byte) numcoeff;
+            p_Vid->nz_coeff[mb_nr][1][j][i] = (byte) TotalCoeff;
         else
-            p_Vid->nz_coeff[mb_nr][2][j][i] = (byte) numcoeff;
-    } else {
-        // chroma DC
-        int yuv = p_Vid->active_sps->chroma_format_idc - 1;
-        readSyntaxElement_NumCoeffTrailingOnesChromaDC(currStream, &numcoeff, &numtrailingones, yuv);
+            p_Vid->nz_coeff[mb_nr][2][j][i] = (byte) TotalCoeff;
     }
 
-    memset(levarr, 0, max_coeff_num * sizeof(int));
-    memset(runarr, 0, max_coeff_num * sizeof(int));
+    memset(levelVal, 0, max_coeff_num * sizeof(int));
+    memset(runVal, 0, max_coeff_num * sizeof(int));
 
-    numones = numtrailingones;
-    *number_coefficients = numcoeff;
+    *number_coefficients = TotalCoeff;
 
-    if (numcoeff) {
-        if (numtrailingones) {
-            code = currStream->f(numtrailingones);
-            ntr = numtrailingones;
-            for (k = numcoeff - 1; k > numcoeff - 1 - numtrailingones; k--) {
-                ntr--;
-                levarr[k] = (code>>ntr)&1 ? -1 : 1;
+    if (TotalCoeff > 0) {
+        int suffixLength = (TotalCoeff > 10 && TrailingOnes < 3 ? 1 : 0);
+
+        if (TrailingOnes) {
+            int code = currStream->f(TrailingOnes);
+            int ntr = TrailingOnes;
+            for (int i = TotalCoeff - 1; i > TotalCoeff - 1 - TrailingOnes; i--) {
+                int trailing_ones_sign_flag = (code >> (--ntr)) & 1;
+                levelVal[i] = 1 - 2 * trailing_ones_sign_flag;
             }
         }
 
-        // decode levels
-        level_two_or_higher = (numcoeff > 3 && numtrailingones == 3 ? 0 : 1);
-        vlcnum              = (numcoeff > 10 && numtrailingones < 3 ? 1 : 0);
+        for (int i = TotalCoeff - 1 - TrailingOnes; i >= 0; i--) {
+            levelVal[i] = readSyntaxElement_Level_VLCN(currStream, suffixLength);
 
-        for (k = numcoeff - 1 - numtrailingones; k >= 0; k--) {
-            if (vlcnum == 0)
-                levarr[k] = readSyntaxElement_Level_VLC0(currStream);
-            else
-                levarr[k] = readSyntaxElement_Level_VLCN(currStream, vlcnum);
+            if (i == TotalCoeff - 1 - TrailingOnes && TrailingOnes < 3)
+                levelVal[i] += (levelVal[i] > 0 ? 1 : -1);
 
-            if (level_two_or_higher) {
-                levarr[k] += (levarr[k] > 0 ? 1 : -1);
-                level_two_or_higher = 0;
-            }
-
-            abslevel = iabs(levarr[k]);
-            if (abslevel == 1)
-                ++numones;
-
-            // update VLC table
-            if (abslevel > incVlc[vlcnum])
-                ++vlcnum;
-
-            if (k == numcoeff - 1 - numtrailingones && abslevel > 3)
-                vlcnum = 2;      
+            if (suffixLength == 0)
+                suffixLength = 1;
+            if (iabs(levelVal[i]) > (3 << (suffixLength - 1)) && suffixLength < 6)
+                suffixLength++;
         }
 
-        if (numcoeff < max_coeff_num) {
-            // decode total run
-            vlcnum = numcoeff - 1;
+        int zerosLeft;
+        if (TotalCoeff < max_coeff_num) {
             int yuv = p_Vid->active_sps->chroma_format_idc - 1;
             if (cdc)
-                readSyntaxElement_TotalZerosChromaDC(currStream, &totzeros, yuv, vlcnum);
+                readSyntaxElement_TotalZerosChromaDC(currStream, &zerosLeft, yuv, TotalCoeff - 1);
             else
-                readSyntaxElement_TotalZeros(currStream, &totzeros, vlcnum);
+                readSyntaxElement_TotalZeros(currStream, &zerosLeft, TotalCoeff - 1);
         } else
-            totzeros = 0;
+            zerosLeft = 0;
 
-        zerosleft = totzeros;
-        i = numcoeff - 1;
-
-        while (zerosleft > 0 && i > 0) {
-            vlcnum = imin(zerosleft - 1, RUNBEFORE_NUM_M1);
-            readSyntaxElement_Run(currStream, &runarr[i], vlcnum);
-            zerosleft -= runarr[i];
-            i--;
+        for (i = TotalCoeff - 1; i > 0; i--) {
+//        for (i = 0; i < TotalCoeff - 1; i++) {
+            if (zerosLeft > 0) {
+                int run_before;
+                readSyntaxElement_Run(currStream, &run_before, imin(zerosLeft - 1, RUNBEFORE_NUM_M1));
+                runVal[i] = run_before;
+            } else
+                runVal[i] = 0;
+            zerosLeft -= runVal[i];
         }
-        runarr[i] = zerosleft;    
+        runVal[i] = zerosLeft;
+//        runVal[TotalCoeff - 1] = zerosLeft;
     }
 }
 
@@ -548,25 +514,8 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
     const byte (*pos_scan8x8)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
 
     if (IS_I16MB(currMB) && !currMB->dpl_flag) {
-        int block_type = pl == PLANE_Y ? LUMA_INTRA16x16DC :
-                         pl == PLANE_U ? CB_INTRA16x16DC : CR_INTRA16x16DC;
-        int levarr[16], runarr[16], numcoeff;
-        read_coeff_4x4_CAVLC(currMB, block_type, 0, 0, levarr, runarr, &numcoeff);
-
-        int coef_ctr = -1;
-        for (int k = 0; k < numcoeff; ++k) {
-            if (levarr[k] != 0) {
-                coef_ctr += runarr[k] + 1;
-                int i0 = pos_scan4x4[coef_ctr][0];
-                int j0 = pos_scan4x4[coef_ctr][1];
-                currSlice->cof[pl][j0 << 2][i0 << 2] = levarr[k];
-            }
-        }
-
-        if (!currMB->TransformBypassModeFlag) {
-            int transform_pl = sps->separate_colour_plane_flag ? currSlice->colour_plane_id : pl;
-            itrans_2(currMB, (ColorPlane)transform_pl);
-        }
+        int16_t i16x16DClevel[16];
+        currMB->residual_block_cavlc(i16x16DClevel, 0, 15, 16, pl, 0, 0);
     }
 
     int qp_per = currMB->qp_scaled[pl] / 6;
@@ -599,54 +548,53 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
             cur_context = CR;
     }
 
-    for (int block_y = 0; block_y < 4; block_y += 2) {
-        for (int block_x = 0; block_x < 4; block_x += 2) {
-            int b8 = 2*(block_y>>1) + (block_x>>1);
+    for (int i8x8 = 0; i8x8 < 4; i8x8++) {
+        int block_x = (i8x8 % 2) * 2;
+        int block_y = (i8x8 / 2) * 2;
 
-            if (currMB->cbp & (1 << b8)) {
-                for (int j = block_y; j < block_y+2; ++j) {
-                    for (int i = block_x; i < block_x+2; ++i) {
-                        int levarr[16] = {0}, runarr[16] = {0}, numcoeff;
-                        read_coeff_4x4_CAVLC(currMB, cur_context, i, j, levarr, runarr, &numcoeff);
+        for (int i4x4 = 0; i4x4 < 4; i4x4++) {
+            if (currMB->cbp & (1 << i8x8)) {
+                int i = block_x + (i4x4 % 2);
+                int j = block_y + (i4x4 / 2);
 
-                        int coef_ctr = start_scan - 1;
+                int levarr[16] = {0}, runarr[16] = {0}, numcoeff;
+                read_coeff_4x4_CAVLC(currMB, cur_context, i, j, levarr, runarr, &numcoeff);
 
-                        for (int k = 0; k < numcoeff; ++k) {
-                            if (levarr[k] != 0) {
-                                coef_ctr += runarr[k]+1;
+                int coef_ctr = start_scan - 1;
 
-                                if (!currMB->transform_size_8x8_flag) {
-                                    currMB->s_cbp[pl].blk |= i64_power2((j<<2) + i);
-                                    int i0 = pos_scan4x4[coef_ctr][0];
-                                    int j0 = pos_scan4x4[coef_ctr][1];
+                for (int k = 0; k < numcoeff; ++k) {
+                //for (int k = numcoeff - 1; k >= 0; k--) {
+                    if (levarr[k] != 0) {
+                        coef_ctr += runarr[k] + 1;
 
-                                    if (!currMB->TransformBypassModeFlag)
-                                        currSlice->cof[pl][(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0]) << qp_per, 4);
-                                    else
-                                        currSlice->cof[pl][(j<<2) + j0][(i<<2) + i0] = levarr[k];
-                                } else {
-                                    // do same as CABAC for deblocking: any coeff in the 8x8 marks all the 4x4s
-                                    //as containing coefficients
-                                    currMB->s_cbp[pl].blk |= 51 << ((block_y << 2) + block_x);
-                                    int b4 = 4 * coef_ctr + 2 * (j - block_y) + (i - block_x);
-                                    int i0 = pos_scan8x8[b4][0];
-                                    int j0 = pos_scan8x8[b4][1];
+                        if (!currMB->transform_size_8x8_flag) {
+                            currMB->s_cbp[pl].blk |= (int64)(0x01 << (j * 4 + i));
+                            int i0 = pos_scan4x4[coef_ctr][0];
+                            int j0 = pos_scan4x4[coef_ctr][1];
 
-                                    if (!currMB->TransformBypassModeFlag)
-                                        currSlice->cof[pl][block_y*4 +j0][block_x*4 +i0] = rshift_rnd_sf((levarr[k] * InvLevelScale8x8[j0][i0]) << qp_per, 6);
-                                    else
-                                        currSlice->cof[pl][block_y*4 +j0][block_x*4 +i0] = levarr[k];
-                                }
-                            }
+                            if (!currMB->TransformBypassModeFlag)
+                                currSlice->cof[pl][j * 4 + j0][i * 4 + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0]) << qp_per, 4);
+                            else
+                                currSlice->cof[pl][j * 4 + j0][i * 4 + i0] = levarr[k];
+                        } else {
+                            currMB->s_cbp[pl].blk |= (int64)(0x33 << (block_y * 4 + block_x));
+                            int i0 = pos_scan8x8[coef_ctr * 4 + i4x4][0];
+                            int j0 = pos_scan8x8[coef_ctr * 4 + i4x4][1];
+
+                            if (!currMB->TransformBypassModeFlag)
+                                currSlice->cof[pl][block_y * 4 + j0][block_x * 4 + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale8x8[j0][i0]) << qp_per, 6);
+                            else
+                                currSlice->cof[pl][block_y * 4 + j0][block_x * 4 + i0] = levarr[k];
                         }
                     }
                 }
-            } else {
-                nzcoeff[block_y    ][block_x    ] = 0;
-                nzcoeff[block_y    ][block_x + 1] = 0;
-                nzcoeff[block_y + 1][block_x    ] = 0;
-                nzcoeff[block_y + 1][block_x + 1] = 0;
             }
+        }
+        if (!(currMB->cbp & (1 << i8x8))) {
+            nzcoeff[block_y    ][block_x    ] = 0;
+            nzcoeff[block_y    ][block_x + 1] = 0;
+            nzcoeff[block_y + 1][block_x    ] = 0;
+            nzcoeff[block_y + 1][block_x + 1] = 0;
         }
     }
 }
@@ -667,83 +615,79 @@ static void read_tc_chroma_420(mb_t *currMB)
         qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
     }
 
-    int num_blk8x8_uv = 0;
-    if (sps->chroma_format_idc != YUV400)
-        num_blk8x8_uv = (1 << sps->chroma_format_idc) & (~(0x1));
-    int num_uv_blocks = num_blk8x8_uv >> 1;
-
     if (currMB->cbp > 15) {
-        for (int ll = 0; ll < 3; ll += 2) {
-            int uv = ll >> 1;
-
+        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
             int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
-                currSlice->InvLevelScale4x4_Intra[PLANE_U + uv][qp_rem_uv[uv]] :
-                currSlice->InvLevelScale4x4_Inter[PLANE_U + uv][qp_rem_uv[uv]];
+                currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv[iCbCr]] :
+                currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv[iCbCr]];
 
-            int levarr[16], runarr[16], numcoeff;
-            read_coeff_4x4_CAVLC(currMB, CHROMA_DC, 0, 0, levarr, runarr, &numcoeff);
+            int levelVal[16], runVal[16], numcoeff;
+            read_coeff_4x4_CAVLC(currMB, CHROMA_DC, 0, 0, levelVal, runVal, &numcoeff);
 
             int cofu[4] = { 0 };
 
-            int coef_ctr = -1;
+            int coeffNum = -1;
             for (int k = 0; k < numcoeff; ++k) {
-                if (levarr[k] != 0) {
-                    currMB->s_cbp[0].blk |= 0xf0000 << (ll << 1);
-                    coef_ctr += runarr[k] + 1;
-                    cofu[coef_ctr] = levarr[k];
+            //for (int k = numcoeff - 1; k >= 0; k--) {
+                if (levelVal[k] != 0) {
+                    currMB->s_cbp[0].blk |= (int64)(0xf << (iCbCr * 4 + 16));
+                    coeffNum += runVal[k] + 1;
+                    cofu[coeffNum] = levelVal[k];
                 }
             }
 
             int smb = (currSlice->slice_type == SP_SLICE && !currMB->is_intra_block) ||
                       (currSlice->slice_type == SI_SLICE && currMB->mb_type == SI4MB);
             if (smb || currMB->TransformBypassModeFlag) {
-                currSlice->cof[PLANE_U + uv][0][0] = cofu[0];
-                currSlice->cof[PLANE_U + uv][0][4] = cofu[1];
-                currSlice->cof[PLANE_U + uv][4][0] = cofu[2];
-                currSlice->cof[PLANE_U + uv][4][4] = cofu[3];
+                currSlice->cof[iCbCr + 1][0][0] = cofu[0];
+                currSlice->cof[iCbCr + 1][0][4] = cofu[1];
+                currSlice->cof[iCbCr + 1][4][0] = cofu[2];
+                currSlice->cof[iCbCr + 1][4][4] = cofu[3];
             } else {
                 int temp[4];
                 ihadamard2x2(cofu, temp);
 
-                currSlice->cof[PLANE_U + uv][0][0] = ((temp[0] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;
-                currSlice->cof[PLANE_U + uv][0][4] = ((temp[1] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;
-                currSlice->cof[PLANE_U + uv][4][0] = ((temp[2] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;
-                currSlice->cof[PLANE_U + uv][4][4] = ((temp[3] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;
+                currSlice->cof[iCbCr + 1][0][0] = ((temp[0] * InvLevelScale4x4[0][0]) << qp_per_uv[iCbCr]) >> 5;
+                currSlice->cof[iCbCr + 1][0][4] = ((temp[1] * InvLevelScale4x4[0][0]) << qp_per_uv[iCbCr]) >> 5;
+                currSlice->cof[iCbCr + 1][4][0] = ((temp[2] * InvLevelScale4x4[0][0]) << qp_per_uv[iCbCr]) >> 5;
+                currSlice->cof[iCbCr + 1][4][4] = ((temp[3] * InvLevelScale4x4[0][0]) << qp_per_uv[iCbCr]) >> 5;
             }
         }
     }
 
     if (currMB->cbp > 31) {
-        for (int b8 = 0; b8 < num_blk8x8_uv; ++b8) {
-            int uv = b8 > (num_uv_blocks - 1);
-            currMB->is_v_block = uv;
+        int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
+        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
+            for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
+                currMB->is_v_block = iCbCr;
 
-            int (*InvLevelScale4x4)[4] = NULL;
-            if (!currMB->TransformBypassModeFlag)
-                InvLevelScale4x4 = currMB->is_intra_block ?
-                    currSlice->InvLevelScale4x4_Intra[PLANE_U + uv][qp_rem_uv[uv]] :
-                    currSlice->InvLevelScale4x4_Inter[PLANE_U + uv][qp_rem_uv[uv]];
+                int (*InvLevelScale4x4)[4] = NULL;
+                if (!currMB->TransformBypassModeFlag)
+                    InvLevelScale4x4 = currMB->is_intra_block ?
+                        currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv[iCbCr]] :
+                        currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv[iCbCr]];
 
-            for (int b4 = 0; b4 < 4; ++b4) {
-                int i = cofuv_blk_x[0][b8][b4];
-                int j = cofuv_blk_y[0][b8][b4];
+                for (int i4x4 = 0; i4x4 < 4; i4x4++) {
+                    int i = (i8x8 % 2) * 2 + (i4x4 % 2);
+                    int j = (i8x8 / 2) * 2 + (i4x4 / 2);
 
-                int levarr[16], runarr[16], numcoeff;
-                read_coeff_4x4_CAVLC(currMB, CHROMA_AC, i + 2*uv, j + 4, levarr, runarr, &numcoeff);
+                    int levarr[16], runarr[16], numcoeff;
+                    read_coeff_4x4_CAVLC(currMB, CHROMA_AC, iCbCr * 2 + i, j + 4, levarr, runarr, &numcoeff);
 
-                int coef_ctr = 0;
-                for (int k = 0; k < numcoeff; ++k) {
-                    if (levarr[k] != 0) {
-                        currMB->s_cbp[0].blk |= i64_power2(cbp_blk_chroma[b8][b4]);
-                        coef_ctr += runarr[k] + 1;
+                    int coef_ctr = 0;
+                    //for (int k = numcoeff - 1; k >= 0; k--) {
+                    for (int k = 0; k < numcoeff; ++k) {
+                        if (levarr[k] != 0) {
+                            currMB->s_cbp[0].blk |= (int64)(0x1 << (i8x8 * 4 + i4x4 + 16));
+                            coef_ctr += runarr[k] + 1;
+                            int i0 = pos_scan4x4[coef_ctr][0];
+                            int j0 = pos_scan4x4[coef_ctr][1];
 
-                        int i0 = pos_scan4x4[coef_ctr][0];
-                        int j0 = pos_scan4x4[coef_ctr][1];
-
-                        if (!currMB->TransformBypassModeFlag)
-                            currSlice->cof[PLANE_U + uv][(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0])<<qp_per_uv[uv], 4);
-                        else
-                            currSlice->cof[PLANE_U + uv][(j<<2) + j0][(i<<2) + i0] = levarr[k];
+                            if (!currMB->TransformBypassModeFlag)
+                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0]) << qp_per_uv[iCbCr], 4);
+                            else
+                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = levarr[k];
+                        }
                     }
                 }
             }
@@ -768,34 +712,28 @@ static void read_tc_chroma_422(mb_t *currMB)
         qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
     }
 
-    int num_blk8x8_uv = 0;
-    if (sps->chroma_format_idc != YUV400)
-        num_blk8x8_uv = (1 << sps->chroma_format_idc) & (~(0x1));
-    int num_uv_blocks = num_blk8x8_uv >> 1;
-
     if (currMB->cbp > 15) {
-        for (int ll = 0; ll < 3; ll += 2) {
-            int uv = ll >> 1;
-
-            int qp_per_uv_dc = (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) / 6;       //for YUV422 only
-            int qp_rem_uv_dc = (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) % 6;       //for YUV422 only
+        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
+            int qp_per_uv_dc = (currMB->qpc[iCbCr] + 3 + sps->QpBdOffsetC) / 6;       //for YUV422 only
+            int qp_rem_uv_dc = (currMB->qpc[iCbCr] + 3 + sps->QpBdOffsetC) % 6;       //for YUV422 only
             int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
-                currSlice->InvLevelScale4x4_Intra[PLANE_U + uv][qp_rem_uv_dc] :
-                currSlice->InvLevelScale4x4_Inter[PLANE_U + uv][qp_rem_uv_dc];
+                currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv_dc] :
+                currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv_dc];
 
-            int levarr[16], runarr[16], numcoeff;
-            read_coeff_4x4_CAVLC(currMB, CHROMA_DC, 0, 0, levarr, runarr, &numcoeff);
+            int levelVal[16], runVal[16], numcoeff;
+            read_coeff_4x4_CAVLC(currMB, CHROMA_DC, 0, 0, levelVal, runVal, &numcoeff);
 
             int m3[2][4] = { { 0 }, { 0 } };
 
-            int coef_ctr = -1;
+            int coeffNum = -1;
+            //for (int k = numcoeff - 1; k >= 0; k--) {
             for (int k = 0; k < numcoeff; ++k) {
-                if (levarr[k] != 0) {
-                    currMB->s_cbp[0].blk |= ((int64)0xff0000) << (ll<<2);
-                    coef_ctr += runarr[k] + 1;
-                    int i0 = SCAN_YUV422[coef_ctr][0];
-                    int j0 = SCAN_YUV422[coef_ctr][1];
-                    m3[i0][j0] = levarr[k];
+                if (levelVal[k] != 0) {
+                    currMB->s_cbp[0].blk |= (int64)(0xff << (iCbCr * 8 + 16));
+                    coeffNum += runVal[k] + 1;
+                    int i0 = SCAN_YUV422[coeffNum][0];
+                    int j0 = SCAN_YUV422[coeffNum][1];
+                    m3[i0][j0] = levelVal[k];
                 }
             }
 
@@ -829,47 +767,50 @@ static void read_tc_chroma_422(mb_t *currMB)
 
                 for (int j = 0; j < sps->MbHeightC; j += BLOCK_SIZE) {
                     for (int i = 0; i < sps->MbWidthC; i += BLOCK_SIZE)
-                        currSlice->cof[PLANE_U + uv][j][i] = rshift_rnd_sf((temp[i / 4][j / 4] * InvLevelScale4x4[0][0]) << qp_per_uv_dc, 6);
+                        currSlice->cof[iCbCr + 1][j][i] = rshift_rnd_sf((temp[i / 4][j / 4] * InvLevelScale4x4[0][0]) << qp_per_uv_dc, 6);
                 }
             } else {
                 for (int j = 0; j < sps->MbHeightC; j += BLOCK_SIZE) {
                     for (int i = 0; i < sps->MbWidthC; i += BLOCK_SIZE)
-                        currSlice->cof[PLANE_U + uv][j][i] = m3[i / 4][j / 4];
+                        currSlice->cof[iCbCr + 1][j][i] = m3[i / 4][j / 4];
                 }
             }
         }
     }
 
     if (currMB->cbp > 31) {
-        for (int b8 = 0; b8 < num_blk8x8_uv; ++b8) {
-            int uv = b8 > (num_uv_blocks - 1);
-            currMB->is_v_block = uv;
+        int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
+        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
+            for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
+                currMB->is_v_block = iCbCr;
 
-            int (*InvLevelScale4x4)[4] = NULL;
-            if (!currMB->TransformBypassModeFlag)
-                InvLevelScale4x4 = currMB->is_intra_block ?
-                    currSlice->InvLevelScale4x4_Intra[PLANE_U + uv][qp_rem_uv[uv]] :
-                    currSlice->InvLevelScale4x4_Inter[PLANE_U + uv][qp_rem_uv[uv]];
+                int (*InvLevelScale4x4)[4] = NULL;
+                if (!currMB->TransformBypassModeFlag)
+                    InvLevelScale4x4 = currMB->is_intra_block ?
+                        currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv[iCbCr]] :
+                        currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv[iCbCr]];
 
-            for (int b4 = 0; b4 < 4; ++b4) {
-                int i = cofuv_blk_x[1][b8][b4];
-                int j = cofuv_blk_y[1][b8][b4];
+                for (int i4x4 = 0; i4x4 < 4; i4x4++) {
+                    int i = (i8x8 % 2) * 2 + (i4x4 % 2);
+                    int j = (i8x8 / 2) * 2 + (i4x4 / 2);
 
-                int levarr[16], runarr[16], numcoeff;
-                read_coeff_4x4_CAVLC(currMB, CHROMA_AC, i + 2*uv, j + 4, levarr, runarr, &numcoeff);
+                    int levarr[16], runarr[16], numcoeff;
+                    read_coeff_4x4_CAVLC(currMB, CHROMA_AC, iCbCr * 2 + i, j + 4, levarr, runarr, &numcoeff);
 
-                int coef_ctr = 0;
-                for (int k = 0; k < numcoeff; ++k) {
-                    if (levarr[k] != 0) {
-                        currMB->s_cbp[0].blk |= i64_power2(cbp_blk_chroma[b8][b4]);
-                        coef_ctr += runarr[k] + 1;
-                        int i0 = pos_scan4x4[coef_ctr][0];
-                        int j0 = pos_scan4x4[coef_ctr][1];
+                    int coef_ctr = 0;
+                    //for (int k = numcoeff - 1; k >= 0; k--) {
+                    for (int k = 0; k < numcoeff; ++k) {
+                        if (levarr[k] != 0) {
+                            currMB->s_cbp[0].blk |= (int64)(0x1 << (i8x8 * 4 + i4x4 + 16));
+                            coef_ctr += runarr[k] + 1;
+                            int i0 = pos_scan4x4[coef_ctr][0];
+                            int j0 = pos_scan4x4[coef_ctr][1];
 
-                        if (!currMB->TransformBypassModeFlag)
-                            currSlice->cof[PLANE_U + uv][(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0])<<qp_per_uv[uv], 4);
-                        else
-                            currSlice->cof[PLANE_U + uv][(j<<2) + j0][(i<<2) + i0] = levarr[k];
+                            if (!currMB->TransformBypassModeFlag)
+                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0]) << qp_per_uv[iCbCr], 4);
+                            else
+                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = levarr[k];
+                        }
                     }
                 }
             }
@@ -893,5 +834,36 @@ void macroblock_t::read_CBP_and_coeffs_from_NAL_CAVLC()
     if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag) {
         read_tc_luma(this, PLANE_U);
         read_tc_luma(this, PLANE_V);
+    }
+}
+
+void macroblock_t::residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
+                                        uint8_t maxNumCoeff, ColorPlane pl, int bx, int by)
+{
+    slice_t *slice = this->p_Slice;
+    sps_t *sps = slice->active_sps;
+
+    const byte (*pos_scan4x4)[2] = !slice->field_pic_flag && !this->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
+
+    int block_type = pl == PLANE_Y ? LUMA_INTRA16x16DC :
+                     pl == PLANE_U ? CB_INTRA16x16DC : CR_INTRA16x16DC;
+    int levelVal[16], runVal[16], numcoeff;
+    read_coeff_4x4_CAVLC(this, block_type, bx, by, levelVal, runVal, &numcoeff);
+
+    int coeffNum = -1;
+//    for (int k = numcoeff - 1; k >= 0; k--) {
+    for (int k = 0; k < numcoeff; ++k) {
+        if (levelVal[k] != 0) {
+            coeffNum += runVal[k] + 1;
+            coeffLevel[startIdx + coeffNum] = levelVal[k];
+            int i0 = pos_scan4x4[coeffNum][0];
+            int j0 = pos_scan4x4[coeffNum][1];
+            slice->cof[pl][j0 << 2][i0 << 2] = levelVal[k];
+        }
+    }
+
+    if (!this->TransformBypassModeFlag) {
+        int transform_pl = sps->separate_colour_plane_flag ? slice->colour_plane_id : pl;
+        itrans_2(this, (ColorPlane)transform_pl);
     }
 }
