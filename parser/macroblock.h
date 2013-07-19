@@ -246,7 +246,7 @@ typedef struct macroblock_t {
     void        parse_motion_vectors(int list);
     void        parse_motion_vector(int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx);
 
-    void        parse_mb_qp();
+    void        parse_cbp_qp();
 
 
     void        interpret_mb_mode();

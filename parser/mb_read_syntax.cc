@@ -12,7 +12,6 @@
 #include "fmo.h"
 #include "image.h"
 #include "neighbour.h"
-#include "biaridecod.h"
 #include "transform.h"
 #include "mv_prediction.h"
 #include "intra_prediction.h"
@@ -672,6 +671,169 @@ static void read_mvd_CABAC_mbaff(mb_t *currMB, SyntaxElement *se, DecodingEnviro
     se->value1 = act_sym;
 }
 
+//! gives CBP value from codeword number, both for intra and inter
+static const byte NCBP[2][48][2] = {
+      // 0      1        2       3       4       5       6       7       8       9      10      11
+    {{15, 0},{ 0, 1},{ 7, 2},{11, 4},{13, 8},{14, 3},{ 3, 5},{ 5,10},{10,12},{12,15},{ 1, 7},{ 2,11},
+     { 4,13},{ 8,14},{ 6, 6},{ 9, 9},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
+     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
+     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0}},
+    {{47, 0},{31,16},{15, 1},{ 0, 2},{23, 4},{27, 8},{29,32},{30, 3},{ 7, 5},{11,10},{13,12},{14,15},
+     {39,47},{43, 7},{45,11},{46,13},{16,14},{ 3, 6},{ 5, 9},{10,31},{12,35},{19,37},{21,42},{26,44},
+     {28,33},{35,34},{37,36},{42,40},{44,39},{ 1,43},{ 2,45},{ 4,46},{ 8,17},{17,18},{18,20},{20,24},
+     {24,19},{ 6,21},{ 9,26},{22,28},{25,23},{32,27},{33,29},{34,30},{36,22},{40,25},{38,38},{41,41}}
+};
+
+static void linfo_cbp_intra_normal(int len, int info, int *cbp, int *dummy)
+{
+    int cbp_idx;
+    linfo_ue(len, info, &cbp_idx, dummy);
+    *cbp = NCBP[1][cbp_idx][0];
+}
+
+static void linfo_cbp_intra_other(int len, int info, int *cbp, int *dummy)
+{
+    int cbp_idx;
+    linfo_ue(len, info, &cbp_idx, dummy);
+    *cbp = NCBP[0][cbp_idx][0];
+}
+
+static void linfo_cbp_inter_normal(int len, int info, int *cbp, int *dummy)
+{
+    int cbp_idx;
+    linfo_ue(len, info, &cbp_idx, dummy);
+    *cbp = NCBP[1][cbp_idx][1];
+}
+
+static void linfo_cbp_inter_other(int len, int info, int *cbp, int *dummy)
+{
+    int cbp_idx;
+    linfo_ue(len, info, &cbp_idx, dummy);
+    *cbp = NCBP[0][cbp_idx][1];
+}
+
+static void read_CBP_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp)
+{
+    StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
+    slice_t *currSlice = currMB->p_Slice;
+    TextureInfoContexts *ctx = currSlice->tex_ctx;  
+    mb_t *neighborMB = NULL;
+
+    int mb_x, mb_y;
+    int a = 0, b = 0;
+    int curr_cbp_ctx;
+    int cbp = 0;
+    int cbp_bit;
+    int mask;
+    PixelPos block_a;
+
+    int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+
+    //  coding of luma part (bit by bit)
+    for (mb_y = 0; mb_y < 4; mb_y += 2) {
+        if (mb_y == 0) {
+            neighborMB = currMB->mb_up;
+            b = 0;
+        }
+
+        for (mb_x = 0; mb_x < 4; mb_x += 2) {
+            if (mb_y == 0) {
+                if (neighborMB != NULL) {
+                    if (neighborMB->mb_type!=IPCM)
+                        b = (( (neighborMB->cbp & (1<<(2 + (mb_x>>1)))) == 0) ? 2 : 0);
+                }
+            } else
+                b = ( ((cbp & (1<<(mb_x/2))) == 0) ? 2: 0);
+
+            if (mb_x == 0) {
+                get4x4Neighbour(currMB, (mb_x<<2) - 1, (mb_y << 2), mb_size, &block_a);
+                if (block_a.available) {
+                    if (currSlice->mb_data[block_a.mb_addr].mb_type==IPCM)
+                        a = 0;
+                    else
+                        a = (( (currSlice->mb_data[block_a.mb_addr].cbp & (1<<(2*(block_a.y/2)+1))) == 0) ? 1 : 0);
+                } else
+                    a = 0;
+            } else
+                a = ( ((cbp & (1<<mb_y)) == 0) ? 1: 0);
+
+            curr_cbp_ctx = a + b;
+            mask = (1 << (mb_y + (mb_x >> 1)));
+            cbp_bit = biari_decode_symbol(dep_dp, ctx->cbp_contexts[0] + curr_cbp_ctx );
+            if (cbp_bit) 
+                cbp += mask;
+        }
+    }
+
+    if ((dec_picture->chroma_format_idc != YUV400) && (dec_picture->chroma_format_idc != YUV444)) {
+        // coding of chroma part
+        // CABAC decoding for BinIdx 0
+        b = 0;
+        neighborMB = currMB->mb_up;
+        if (neighborMB != NULL) {
+            if (neighborMB->mb_type==IPCM || (neighborMB->cbp > 15))
+                b = 2;
+        }
+
+        a = 0;
+        neighborMB = currMB->mb_left;
+        if (neighborMB != NULL) {
+            if (neighborMB->mb_type==IPCM || (neighborMB->cbp > 15))
+                a = 1;
+        }
+
+        curr_cbp_ctx = a + b;
+        cbp_bit = biari_decode_symbol(dep_dp, ctx->cbp_contexts[1] + curr_cbp_ctx );
+
+        // CABAC decoding for BinIdx 1
+        if (cbp_bit) { // set the chroma bits
+            b = 0;
+            neighborMB = currMB->mb_up;
+            if (neighborMB != NULL) {
+                if ((neighborMB->mb_type == IPCM) || ((neighborMB->cbp >> 4) == 2))
+                    b = 2;
+            }
+
+            a = 0;
+            neighborMB = currMB->mb_left;
+            if (neighborMB != NULL) {
+                if ((neighborMB->mb_type == IPCM) || ((neighborMB->cbp >> 4) == 2))
+                    a = 1;
+            }
+
+            curr_cbp_ctx = a + b;
+            cbp_bit = biari_decode_symbol(dep_dp, ctx->cbp_contexts[2] + curr_cbp_ctx );
+            cbp += (cbp_bit == 1) ? 32 : 16;
+        }
+    }
+
+    se->value1 = cbp;
+
+    if (!cbp)
+        currSlice->last_dquant = 0;
+}
+
+static void read_dQuant_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp)
+{
+    slice_t *currSlice = currMB->p_Slice;
+    MotionInfoContexts *ctx = currSlice->mot_ctx;
+    int *dquant = &se->value1;
+    int act_ctx = ((currSlice->last_dquant != 0) ? 1 : 0);
+    int act_sym = biari_decode_symbol(dep_dp,ctx->delta_qp_contexts + act_ctx );
+
+    if (act_sym != 0) {
+        act_ctx = 2;
+        act_sym = unary_bin_decode(dep_dp,ctx->delta_qp_contexts + act_ctx,1);
+        ++act_sym;
+        *dquant = (act_sym + 1) >> 1;
+        if ((act_sym & 0x01)==0)                           // lsb is signed bit
+            *dquant = -*dquant;
+    } else
+        *dquant = 0;
+
+    currSlice->last_dquant = *dquant;
+}
+
 
 int check_next_mb_and_get_field_mode_CABAC(slice_t *slice)
 {
@@ -977,6 +1139,49 @@ int16_t parse_mvd(mb_t *mb, uint8_t xy, uint8_t list)
         currSE.reading = slice->MbaffFrameFlag ? read_mvd_CABAC_mbaff : read_MVD_CABAC;
 
     currSE.value2 = xy * 2 + list;
+    dP->readSyntaxElement(mb, &currSE, dP);
+
+    return currSE.value1;
+}
+
+uint8_t parse_coded_block_pattern(mb_t *mb)
+{
+    slice_t *slice = mb->p_Slice;
+    sps_t *sps = slice->active_sps;
+    pps_t *pps = slice->active_pps;
+
+    SyntaxElement currSE;
+    currSE.type = (mb->mb_type == I4MB || mb->mb_type == SI4MB || mb->mb_type == I8MB) ?
+                  SE_CBP_INTRA : SE_CBP_INTER;
+    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
+    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)
+        currSE.mapping =
+            (mb->mb_type == I4MB || mb->mb_type == SI4MB || mb->mb_type == I8MB) ?
+            (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ?
+             linfo_cbp_intra_other : linfo_cbp_intra_normal) :
+            (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ?
+             linfo_cbp_inter_other : linfo_cbp_inter_normal);
+    else
+        currSE.reading = read_CBP_CABAC;
+
+    dP->readSyntaxElement(mb, &currSE, dP);
+
+    return currSE.value1;
+}
+
+int8_t parse_mb_qp_delta(mb_t *mb)
+{
+    slice_t *slice = mb->p_Slice;
+    pps_t *pps = slice->active_pps;
+
+    SyntaxElement currSE;
+    currSE.type = !mb->is_intra_block ? SE_DELTA_QUANT_INTER : SE_DELTA_QUANT_INTRA;
+    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
+    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)
+        currSE.mapping = linfo_se;
+    else
+        currSE.reading = read_dQuant_CABAC;
+
     dP->readSyntaxElement(mb, &currSE, dP);
 
     return currSE.value1;

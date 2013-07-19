@@ -16,7 +16,6 @@
 #include "global.h"
 #include "slice.h"
 #include "bitstream_cabac.h"
-#include "biaridecod.h"
 
 
 #define CTX_UNUSED          {0,64}

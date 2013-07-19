@@ -194,7 +194,6 @@ void linfo_se(int len, int info, int *value1, int *dummy);
 int  readSyntaxElement_VLC (struct syntaxelement_dec *sym, Bitstream *currStream);
 int  readSyntaxElement_UVLC(struct macroblock_t *currMB, struct syntaxelement_dec *sym, struct datapartition_dec *dp);
 int  GetBits  (byte buffer[],int totbitoffset,int *info, int bitcount, int numbits);
-int  ShowBits (byte buffer[],int totbitoffset,int bitcount, int numbits);
 
 
 

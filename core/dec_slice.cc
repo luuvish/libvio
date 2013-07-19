@@ -21,8 +21,6 @@
 #include "intra_prediction.h"
 #include "deblock.h"
 
-#include "biaridecod.h"
-
 #include "erc_api.h"
 #include "dpb.h"
 

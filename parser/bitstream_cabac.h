@@ -95,22 +95,24 @@ struct syntaxelement_dec;
 struct slice_t;
 struct macroblock_t;
 
+void arideco_start_decoding(DecodingEnvironment *eep, unsigned char *code_buffer, int firstbyte, int *code_len);
+int  arideco_bits_read(DecodingEnvironment *dep);
+void arideco_done_decoding(DecodingEnvironment *dep);
+void biari_init_context (int qp, BiContextTypePtr ctx, const char* ini);
+unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct );
+unsigned int biari_decode_symbol_eq_prob(DecodingEnvironment *dep);
+unsigned int biari_decode_final(DecodingEnvironment *dep);
+
+
 MotionInfoContexts*  create_contexts_MotionInfo(void);
 TextureInfoContexts* create_contexts_TextureInfo(void);
 void delete_contexts_MotionInfo(MotionInfoContexts *enco_ctx);
 void delete_contexts_TextureInfo(TextureInfoContexts *enco_ctx);
 
-void read_CBP_CABAC                  (struct macroblock_t *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
-void readRunLevel_CABAC              (struct macroblock_t *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
-void read_dQuant_CABAC               (struct macroblock_t *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp);
-
-
 int  cabac_startcode_follows(struct slice_t *currSlice, int eos_bit);
 int  uvlc_startcode_follows(struct slice_t *currSlice, int dummy);
 
 int  readSyntaxElement_CABAC         (struct macroblock_t *currMB, SyntaxElement *se, DataPartition *this_dataPart);
-
-int  read_and_store_CBP_block_bit(struct macroblock_t *currMB, DecodingEnvironment *dep_dp, int type);
 
 
 void  init_contexts(struct slice_t *currslice);

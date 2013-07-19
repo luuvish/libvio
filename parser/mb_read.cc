@@ -33,13 +33,15 @@
 #include "fmo.h"
 #include "image.h"
 #include "neighbour.h"
-#include "biaridecod.h"
 #include "transform.h"
 #include "mv_prediction.h"
 #include "intra_prediction.h"
 #include "inter_prediction.h"
 
 #include "mb_read_syntax.h"
+
+#define IS_I16MB(MB)    ((MB)->mb_type==I16MB  || (MB)->mb_type==IPCM)
+#define IS_DIRECT(MB)   ((MB)->mb_type==0     && (slice->slice_type == B_SLICE ))
 
 
 // Table 7-11 mb_t types for I slices
@@ -557,6 +559,7 @@ void macroblock_t::parse_skip()
             } else
                 reset_coeffs(this);
         } else {
+            this->parse_cbp_qp();
             if (pps->entropy_coding_mode_flag)
                 this->read_CBP_and_coeffs_from_NAL_CABAC();
             else
@@ -591,6 +594,7 @@ void macroblock_t::parse_intra()
 
     init_macroblock(this);
     this->parse_ipred_modes();
+    this->parse_cbp_qp();
 
     if (pps->entropy_coding_mode_flag)
         this->read_CBP_and_coeffs_from_NAL_CABAC();
@@ -643,6 +647,7 @@ void macroblock_t::parse_inter()
 
     init_macroblock(this);
     this->parse_motion_info();
+    this->parse_cbp_qp();
 
     if (pps->entropy_coding_mode_flag)
         this->read_CBP_and_coeffs_from_NAL_CABAC();
@@ -920,32 +925,58 @@ void macroblock_t::parse_motion_vector(int list, int step_h4, int step_v4, int i
     }
 }
 
-
-void macroblock_t::parse_mb_qp()
+void macroblock_t::parse_cbp_qp()
 {
     slice_t *slice = this->p_Slice;
     sps_t *sps = slice->active_sps;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
-    currSE.type = !this->is_intra_block ? SE_DELTA_QUANT_INTER : SE_DELTA_QUANT_INTRA;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)
-        currSE.mapping = linfo_se;
-    else
-        currSE.reading = read_dQuant_CABAC;
+    // read CBP if not new intra mode
+    if (!IS_I16MB(this)) {
+        this->cbp = parse_coded_block_pattern(this);
 
-    dP->readSyntaxElement(this, &currSE, dP);
-    this->mb_qp_delta = currSE.value1;
+        //============= Transform size flag for INTER MBs =============
+        //-------------------------------------------------------------
+        int need_transform_size_flag =
+            ((this->mb_type >= 1 && this->mb_type <= 3) ||
+             (IS_DIRECT(this) && sps->direct_8x8_inference_flag) ||
+             this->NoMbPartLessThan8x8Flag) &&
+            (this->mb_type != I8MB) && (this->mb_type != I4MB) &&
+            (this->cbp & 15) && pps->transform_8x8_mode_flag;
 
-    assert(this->mb_qp_delta >= -(26 + sps->QpBdOffsetY / 2) &&
-           this->mb_qp_delta <=  (25 + sps->QpBdOffsetY / 2));
+        if (need_transform_size_flag)
+            this->transform_size_8x8_flag = parse_transform_size_8x8_flag(this);
+    }
 
-    slice->SliceQpY =
-        ((slice->SliceQpY + this->mb_qp_delta + 52 + 2 * sps->QpBdOffsetY)
-            % (52 + sps->QpBdOffsetY)) - sps->QpBdOffsetY;
+    //=====   DQUANT   =====
+    //----------------------
+    // Delta quant only if nonzero coeffs
+    if (IS_I16MB(this) || this->cbp != 0) {
+        this->mb_qp_delta = parse_mb_qp_delta(this);
+
+        assert(this->mb_qp_delta >= -(26 + sps->QpBdOffsetY / 2) &&
+               this->mb_qp_delta <=  (25 + sps->QpBdOffsetY / 2));
+
+        slice->SliceQpY =
+            ((slice->SliceQpY + this->mb_qp_delta + 52 + 2 * sps->QpBdOffsetY)
+                % (52 + sps->QpBdOffsetY)) - sps->QpBdOffsetY;
+
+        if (slice->dp_mode) {
+            if (!this->is_intra_block && slice->dpC_NotPresent)
+                this->dpl_flag = 1;
+            if (this->is_intra_block && slice->dpB_NotPresent) {
+                this->ei_flag  = 1;
+                this->dpl_flag = 1;
+            }
+            check_dp_neighbors(this);
+            if (this->dpl_flag)
+                this->cbp = 0;
+        }
+    }
+
     this->update_qp(slice->SliceQpY);
 }
+
 
 void macroblock_t::update_qp(int qp)
 {
@@ -962,46 +993,4 @@ void macroblock_t::update_qp(int qp)
     }
 
     this->TransformBypassModeFlag = (this->qp_scaled[0] == 0 && sps->qpprime_y_zero_transform_bypass_flag);
-}
-
-
-//! gives CBP value from codeword number, both for intra and inter
-static const byte NCBP[2][48][2] = {
-      // 0      1        2       3       4       5       6       7       8       9      10      11
-    {{15, 0},{ 0, 1},{ 7, 2},{11, 4},{13, 8},{14, 3},{ 3, 5},{ 5,10},{10,12},{12,15},{ 1, 7},{ 2,11},
-     { 4,13},{ 8,14},{ 6, 6},{ 9, 9},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
-     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
-     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0}},
-    {{47, 0},{31,16},{15, 1},{ 0, 2},{23, 4},{27, 8},{29,32},{30, 3},{ 7, 5},{11,10},{13,12},{14,15},
-     {39,47},{43, 7},{45,11},{46,13},{16,14},{ 3, 6},{ 5, 9},{10,31},{12,35},{19,37},{21,42},{26,44},
-     {28,33},{35,34},{37,36},{42,40},{44,39},{ 1,43},{ 2,45},{ 4,46},{ 8,17},{17,18},{18,20},{20,24},
-     {24,19},{ 6,21},{ 9,26},{22,28},{25,23},{32,27},{33,29},{34,30},{36,22},{40,25},{38,38},{41,41}}
-};
-
-void linfo_cbp_intra_normal(int len, int info, int *cbp, int *dummy)
-{
-    int cbp_idx;
-    linfo_ue(len, info, &cbp_idx, dummy);
-    *cbp = NCBP[1][cbp_idx][0];
-}
-
-void linfo_cbp_intra_other(int len, int info, int *cbp, int *dummy)
-{
-    int cbp_idx;
-    linfo_ue(len, info, &cbp_idx, dummy);
-    *cbp = NCBP[0][cbp_idx][0];
-}
-
-void linfo_cbp_inter_normal(int len, int info, int *cbp, int *dummy)
-{
-    int cbp_idx;
-    linfo_ue(len, info, &cbp_idx, dummy);
-    *cbp = NCBP[1][cbp_idx][1];
-}
-
-void linfo_cbp_inter_other(int len, int info, int *cbp, int *dummy)
-{
-    int cbp_idx;
-    linfo_ue(len, info, &cbp_idx, dummy);
-    *cbp = NCBP[0][cbp_idx][1];
 }

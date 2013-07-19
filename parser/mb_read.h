@@ -136,13 +136,6 @@ static const unsigned char cofuv_blk_y[3][8][4] = {
     { 2, 2, 3, 3}}
 };
 
-struct slice_t;
-
-void linfo_cbp_intra_normal(int len, int info, int *cbp, int *dummy);
-void linfo_cbp_intra_other(int len, int info, int *cbp, int *dummy);
-void linfo_cbp_inter_normal(int len, int info, int *cbp, int *dummy);
-void linfo_cbp_inter_other(int len, int info, int *cbp, int *dummy);
-
 
 #ifdef __cplusplus
 }

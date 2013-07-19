@@ -20,93 +20,330 @@
 
 #include "memalloc.h"
 #include "image.h"
-#include "biaridecod.h"
 #include "neighbour.h"
 
-static inline int get_bit(int64 x,int n)
-{
-  return (int)(((x >> n) & 1));
-}
+
+/* Range table for  LPS */
+static const byte rLPS_table_64x4[64][4] = {
+    { 128, 176, 208, 240},
+    { 128, 167, 197, 227},
+    { 128, 158, 187, 216},
+    { 123, 150, 178, 205},
+    { 116, 142, 169, 195},
+    { 111, 135, 160, 185},
+    { 105, 128, 152, 175},
+    { 100, 122, 144, 166},
+    {  95, 116, 137, 158},
+    {  90, 110, 130, 150},
+    {  85, 104, 123, 142},
+    {  81,  99, 117, 135},
+    {  77,  94, 111, 128},
+    {  73,  89, 105, 122},
+    {  69,  85, 100, 116},
+    {  66,  80,  95, 110},
+    {  62,  76,  90, 104},
+    {  59,  72,  86,  99},
+    {  56,  69,  81,  94},
+    {  53,  65,  77,  89},
+    {  51,  62,  73,  85},
+    {  48,  59,  69,  80},
+    {  46,  56,  66,  76},
+    {  43,  53,  63,  72},
+    {  41,  50,  59,  69},
+    {  39,  48,  56,  65},
+    {  37,  45,  54,  62},
+    {  35,  43,  51,  59},
+    {  33,  41,  48,  56},
+    {  32,  39,  46,  53},
+    {  30,  37,  43,  50},
+    {  29,  35,  41,  48},
+    {  27,  33,  39,  45},
+    {  26,  31,  37,  43},
+    {  24,  30,  35,  41},
+    {  23,  28,  33,  39},
+    {  22,  27,  32,  37},
+    {  21,  26,  30,  35},
+    {  20,  24,  29,  33},
+    {  19,  23,  27,  31},
+    {  18,  22,  26,  30},
+    {  17,  21,  25,  28},
+    {  16,  20,  23,  27},
+    {  15,  19,  22,  25},
+    {  14,  18,  21,  24},
+    {  14,  17,  20,  23},
+    {  13,  16,  19,  22},
+    {  12,  15,  18,  21},
+    {  12,  14,  17,  20},
+    {  11,  14,  16,  19},
+    {  11,  13,  15,  18},
+    {  10,  12,  15,  17},
+    {  10,  12,  14,  16},
+    {   9,  11,  13,  15},
+    {   9,  11,  12,  14},
+    {   8,  10,  12,  14},
+    {   8,   9,  11,  13},
+    {   7,   9,  11,  12},
+    {   7,   9,  10,  12},
+    {   7,   8,  10,  11},
+    {   6,   8,   9,  11},
+    {   6,   7,   9,  10},
+    {   6,   7,   8,   9},
+    {   2,   2,   2,   2}
+};
+
+static const byte AC_next_state_MPS_64[64] = {
+     1,  2,  3,  4,  5,  6,  7,  8,
+     9, 10, 11, 12, 13, 14, 15, 16,
+    17, 18, 19, 20, 21, 22, 23, 24,
+    25, 26, 27, 28, 29, 30, 31, 32,
+    33, 34, 35, 36, 37, 38, 39, 40,
+    41, 42, 43, 44, 45, 46, 47, 48,
+    49, 50, 51, 52, 53, 54, 55, 56,
+    57, 58, 59, 60, 61, 62, 62, 63
+};
+
+static const byte AC_next_state_LPS_64[64] = {
+     0,  0,  1,  2,  2,  4,  4,  5,
+     6,  7,  8,  9,  9, 11, 11, 12,
+    13, 13, 15, 15, 16, 16, 18, 18,
+    19, 19, 21, 21, 22, 22, 23, 24,
+    24, 25, 26, 26, 27, 27, 28, 29,
+    29, 30, 30, 30, 31, 32, 32, 33,
+    33, 33, 34, 34, 35, 35, 35, 36,
+    36, 36, 37, 37, 37, 38, 38, 63
+};
+
+static const byte renorm_table_32[32] = {
+    6, 5, 4, 4, 3, 3, 3, 3,
+    2, 2, 2, 2, 2, 2, 2, 2,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1
+};
 
 
-static const short maxpos       [] = {15, 14, 63, 31, 31, 15,  3, 14,  7, 15, 15, 14, 63, 31, 31, 15, 15, 14, 63, 31, 31, 15};
-static const short c1isdc       [] = { 1,  0,  1,  1,  1,  1,  1,  0,  1,  1,  1,  0,  1,  1,  1,  1,  1,  0,  1,  1,  1,  1};
-static const short type2ctx_bcbp[] = { 0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10, 11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20};
-static const short type2ctx_map [] = { 0,  1,  2,  3,  4,  5,  6,  7,  6,  6, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}; // 8
-static const short type2ctx_last[] = { 0,  1,  2,  3,  4,  5,  6,  7,  6,  6, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}; // 8
-static const short type2ctx_one [] = { 0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10, 11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20}; // 7
-static const short type2ctx_abs [] = { 0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10, 11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20}; // 7
-static const short max_c2       [] = { 4,  4,  4,  4,  4,  4,  3,  4,  3,  3,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4}; // 9
 
-/***********************************************************************
- * L O C A L L Y   D E F I N E D   F U N C T I O N   P R O T O T Y P E S
- ***********************************************************************
- */
-static unsigned int unary_bin_decode             ( DecodingEnvironment *dep_dp, BiContextTypePtr ctx, int ctx_offset);
-static unsigned int unary_exp_golomb_level_decode( DecodingEnvironment *dep_dp, BiContextTypePtr ctx);
+#define B_BITS    10      // Number of bits to represent the whole coding interval
+#define HALF      0x01FE  //(1 << (B_BITS-1)) - 2
+#define QUARTER   0x0100  //(1 << (B_BITS-2))
+
 
 /*!
  ************************************************************************
  * \brief
- *    Exp Golomb binarization and decoding of a symbol
- *    with prob. of 0.5
+ *    finalize arithetic decoding():
  ************************************************************************
  */
-static unsigned int exp_golomb_decode_eq_prob( DecodingEnvironment *dep_dp,
-                                              int k)
+void arideco_done_decoding(DecodingEnvironment *dep)
 {
-  unsigned int l;
-  int symbol = 0;
-  int binary_symbol = 0;
+  (*dep->Dcodestrm_len)++;
+}
 
-  do
-  {
-    l = biari_decode_symbol_eq_prob(dep_dp);
-    if (l == 1)
-    {
-      symbol += (1<<k);
-      ++k;
+/*!
+ ************************************************************************
+ * \brief
+ *    read one byte from the bitstream
+ ************************************************************************
+ */
+static inline unsigned int getbyte(DecodingEnvironment *dep)
+{     
+  return dep->Dcodestrm[(*dep->Dcodestrm_len)++];
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    read two bytes from the bitstream
+ ************************************************************************
+ */
+static inline unsigned int getword(DecodingEnvironment *dep)
+{
+  int *len = dep->Dcodestrm_len;
+  byte *p_code_strm = &dep->Dcodestrm[*len];
+  *len += 2;
+  return ((*p_code_strm<<8) | *(p_code_strm + 1));
+}
+/*!
+ ************************************************************************
+ * \brief
+ *    Initializes the DecodingEnvironment for the arithmetic coder
+ ************************************************************************
+ */
+void arideco_start_decoding(DecodingEnvironment *dep, unsigned char *code_buffer,
+                            int firstbyte, int *code_len)
+{
+    dep->Dcodestrm      = code_buffer;
+    dep->Dcodestrm_len  = code_len;
+    *dep->Dcodestrm_len = firstbyte;
+
+    dep->Dvalue = getbyte(dep);
+    dep->Dvalue = (dep->Dvalue << 16) | getword(dep); // lookahead of 2 bytes: always make sure that bitstream buffer
+                                        // contains 2 more bytes than actual bitstream
+    dep->DbitsLeft = 15;
+    dep->Drange = HALF;
+}
+
+
+/*!
+ ************************************************************************
+ * \brief
+ *    arideco_bits_read
+ ************************************************************************
+ */
+int arideco_bits_read(DecodingEnvironment *dep)
+{ 
+ return (((*dep->Dcodestrm_len) << 3) - dep->DbitsLeft);
+}
+
+
+/*!
+************************************************************************
+* \brief
+*    biari_decode_symbol():
+* \return
+*    the decoded symbol
+************************************************************************
+*/
+unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct)
+{  
+    unsigned int bit    = bi_ct->MPS;
+    unsigned int *value = &dep->Dvalue;
+    unsigned int *range = &dep->Drange;  
+    uint16       *state = &bi_ct->state;
+    unsigned int rLPS   = rLPS_table_64x4[*state][(*range>>6) & 0x03];
+    int *DbitsLeft = &dep->DbitsLeft;
+
+    *range -= rLPS;
+
+    if (*value < (*range << *DbitsLeft)) { //MPS
+        *state = AC_next_state_MPS_64[*state]; // next state 
+        if (*range >= QUARTER)
+            return bit;
+        else {
+            *range <<= 1;
+            (*DbitsLeft)--;
+        }
+    } else {       // LPS 
+        int renorm = renorm_table_32[(rLPS>>3) & 0x1F];
+        *value -= (*range << *DbitsLeft);
+
+        *range = (rLPS << renorm);
+        (*DbitsLeft) -= renorm;
+
+        bit ^= 0x01;
+        if (!(*state))          // switch meaning of MPS if necessary 
+            bi_ct->MPS ^= 0x01; 
+
+        *state = AC_next_state_LPS_64[*state]; // next state 
     }
-  }
-  while (l!=0);
 
-  while (k--)                             //next binary part
-    if (biari_decode_symbol_eq_prob(dep_dp)==1)
-      binary_symbol |= (1<<k);
+    if (*DbitsLeft > 0)
+        return bit;
+    else {
+        *value <<= 16;
+        *value |= getword(dep);    // lookahead of 2 bytes: always make sure that bitstream buffer
+        // contains 2 more bytes than actual bitstream
+        (*DbitsLeft) += 16;
 
-  return (unsigned int) (symbol + binary_symbol);
+        return bit;
+    }
 }
+
 
 /*!
  ************************************************************************
  * \brief
- *    Exp-Golomb decoding for LEVELS
- ***********************************************************************
+ *    biari_decode_symbol_eq_prob():
+ * \return
+ *    the decoded symbol
+ ************************************************************************
  */
-static unsigned int unary_exp_golomb_level_decode( DecodingEnvironment *dep_dp,
-                                                  BiContextTypePtr ctx)
+unsigned int biari_decode_symbol_eq_prob(DecodingEnvironment *dep)
 {
-  unsigned int symbol = biari_decode_symbol(dep_dp, ctx );
+   int tmp_value;
+   unsigned int *value = &dep->Dvalue;
+   int *DbitsLeft = &dep->DbitsLeft;
 
-  if (symbol==0)
+  if(--(*DbitsLeft) == 0)  
+  {
+    *value = (*value << 16) | getword( dep );  // lookahead of 2 bytes: always make sure that bitstream buffer
+                                             // contains 2 more bytes than actual bitstream
+    *DbitsLeft = 16;
+  }
+  tmp_value  = *value - (dep->Drange << *DbitsLeft);
+
+  if (tmp_value < 0)
+  {
     return 0;
+  }
   else
   {
-    unsigned int l, k = 1;
-    unsigned int exp_start = 13;
+    *value = tmp_value;
+    return 1;
+  }
+}
 
-    symbol = 0;
+/*!
+ ************************************************************************
+ * \brief
+ *    biari_decode_symbol_final():
+ * \return
+ *    the decoded symbol
+ ************************************************************************
+ */
+unsigned int biari_decode_final(DecodingEnvironment *dep)
+{
+  unsigned int range  = dep->Drange - 2;
+  int value  = dep->Dvalue;
+  value -= (range << dep->DbitsLeft);
 
-    do
+  if (value < 0) 
+  {
+    if( range >= QUARTER )
     {
-      l=biari_decode_symbol(dep_dp, ctx);
-      ++symbol;
-      ++k;
+      dep->Drange = range;
+      return 0;
     }
-    while((l != 0) && (k != exp_start));
-    if (l!=0)
-      symbol += exp_golomb_decode_eq_prob(dep_dp,0)+1;
-    return symbol;
+    else 
+    {   
+      dep->Drange = (range << 1);
+      if( --(dep->DbitsLeft) > 0 )
+        return 0;
+      else
+      {
+        dep->Dvalue = (dep->Dvalue << 16) | getword( dep ); // lookahead of 2 bytes: always make sure that bitstream buffer
+                                                            // contains 2 more bytes than actual bitstream
+        dep->DbitsLeft = 16;
+        return 0;
+      }
+    }
+  }
+  else
+  {
+    return 1;
+  }
+}
+
+/*!
+ ************************************************************************
+ * \brief
+ *    Initializes a given context with some pre-defined probability state
+ ************************************************************************
+ */
+void biari_init_context (int qp, BiContextTypePtr ctx, const char* ini)
+{
+  int pstate = ((ini[0]* qp )>>4) + ini[1];
+
+  if ( pstate >= 64 )
+  {
+    pstate = imin(126, pstate);
+    ctx->state = (uint16) (pstate - 64);
+    ctx->MPS   = 1;
+  }
+  else
+  {
+    pstate = imax(1, pstate);
+    ctx->state = (uint16) (63 - pstate);
+    ctx->MPS   = 0;
   }
 }
 
@@ -114,1111 +351,76 @@ static unsigned int unary_exp_golomb_level_decode( DecodingEnvironment *dep_dp,
 
 MotionInfoContexts* create_contexts_MotionInfo(void)
 {
-  MotionInfoContexts *deco_ctx;
+    MotionInfoContexts *deco_ctx;
 
-  deco_ctx = (MotionInfoContexts*) calloc(1, sizeof(MotionInfoContexts) );
-  if( deco_ctx == NULL )
-    no_mem_exit("create_contexts_MotionInfo: deco_ctx");
+    deco_ctx = (MotionInfoContexts*) calloc(1, sizeof(MotionInfoContexts) );
+    if (deco_ctx == NULL)
+        no_mem_exit("create_contexts_MotionInfo: deco_ctx");
 
-  return deco_ctx;
+    return deco_ctx;
 }
 
 TextureInfoContexts* create_contexts_TextureInfo(void)
 {
-  TextureInfoContexts *deco_ctx;
+    TextureInfoContexts *deco_ctx;
 
-  deco_ctx = (TextureInfoContexts*) calloc(1, sizeof(TextureInfoContexts) );
-  if( deco_ctx == NULL )
-    no_mem_exit("create_contexts_TextureInfo: deco_ctx");
+    deco_ctx = (TextureInfoContexts*) calloc(1, sizeof(TextureInfoContexts) );
+    if (deco_ctx == NULL)
+        no_mem_exit("create_contexts_TextureInfo: deco_ctx");
 
-  return deco_ctx;
+    return deco_ctx;
 }
 
 void delete_contexts_MotionInfo(MotionInfoContexts *deco_ctx)
 {
-  if( deco_ctx == NULL )
-    return;
+    if (deco_ctx == NULL)
+        return;
 
-  free( deco_ctx );
+    free(deco_ctx);
 }
 
 void delete_contexts_TextureInfo(TextureInfoContexts *deco_ctx)
 {
-  if( deco_ctx == NULL )
-    return;
+    if (deco_ctx == NULL)
+        return;
 
-  free( deco_ctx );
+    free(deco_ctx);
 }
 
-
-
-
-
-
-/*!
- ************************************************************************
- * \brief
- *    This function is used to arithmetically decode the delta qp
- *     of a given MB.
- ************************************************************************
- */
-void read_dQuant_CABAC( mb_t *currMB, 
-                       SyntaxElement *se,                       
-                       DecodingEnvironment *dep_dp)
-{
-  slice_t *currSlice = currMB->p_Slice;
-  MotionInfoContexts *ctx = currSlice->mot_ctx;
-  int *dquant = &se->value1;
-  int act_ctx = ((currSlice->last_dquant != 0) ? 1 : 0);
-  int act_sym = biari_decode_symbol(dep_dp,ctx->delta_qp_contexts + act_ctx );
-
-  if (act_sym != 0)
-  {
-    act_ctx = 2;
-    act_sym = unary_bin_decode(dep_dp,ctx->delta_qp_contexts + act_ctx,1);
-    ++act_sym;
-    *dquant = (act_sym + 1) >> 1;
-    if((act_sym & 0x01)==0)                           // lsb is signed bit
-      *dquant = -*dquant;
-  }
-  else
-    *dquant = 0;
-
-  currSlice->last_dquant = *dquant;
-}
-/*!
- ************************************************************************
- * \brief
- *    This function is used to arithmetically decode the coded
- *    block pattern of a given MB.
- ************************************************************************
- */
-void read_CBP_CABAC(mb_t *currMB, 
-                    SyntaxElement *se,
-                    DecodingEnvironment *dep_dp)
-{
-  StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
-  slice_t *currSlice = currMB->p_Slice;
-  TextureInfoContexts *ctx = currSlice->tex_ctx;  
-  mb_t *neighborMB = NULL;
-
-  int mb_x, mb_y;
-  int a = 0, b = 0;
-  int curr_cbp_ctx;
-  int cbp = 0;
-  int cbp_bit;
-  int mask;
-  PixelPos block_a;
-
-  int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-
-  //  coding of luma part (bit by bit)
-  for (mb_y=0; mb_y < 4; mb_y += 2)
-  {
-    if (mb_y == 0)
-    {
-      neighborMB = currMB->mb_up;
-      b = 0;
-    }
-
-    for (mb_x=0; mb_x < 4; mb_x += 2)
-    {
-      if (mb_y == 0)
-      {
-        if (neighborMB != NULL)
-        {
-          if(neighborMB->mb_type!=IPCM)
-            b = (( (neighborMB->cbp & (1<<(2 + (mb_x>>1)))) == 0) ? 2 : 0);
-        }
-      }
-      else
-        b = ( ((cbp & (1<<(mb_x/2))) == 0) ? 2: 0);
-
-      if (mb_x == 0)
-      {
-        get4x4Neighbour(currMB, (mb_x<<2) - 1, (mb_y << 2), mb_size, &block_a);
-        if (block_a.available)
-        {
-          if(currSlice->mb_data[block_a.mb_addr].mb_type==IPCM)
-            a = 0;
-          else
-            a = (( (currSlice->mb_data[block_a.mb_addr].cbp & (1<<(2*(block_a.y/2)+1))) == 0) ? 1 : 0);
-        }
-        else
-          a=0;
-      }
-      else
-        a = ( ((cbp & (1<<mb_y)) == 0) ? 1: 0);
-
-      curr_cbp_ctx = a + b;
-      mask = (1 << (mb_y + (mb_x >> 1)));
-      cbp_bit = biari_decode_symbol(dep_dp, ctx->cbp_contexts[0] + curr_cbp_ctx );
-      if (cbp_bit) 
-        cbp += mask;
-    }
-  }
-
-  if ((dec_picture->chroma_format_idc != YUV400) && (dec_picture->chroma_format_idc != YUV444)) 
-  {
-    // coding of chroma part
-    // CABAC decoding for BinIdx 0
-    b = 0;
-    neighborMB = currMB->mb_up;
-    if (neighborMB != NULL)
-    {
-      if (neighborMB->mb_type==IPCM || (neighborMB->cbp > 15))
-        b = 2;
-    }
-
-    a = 0;
-    neighborMB = currMB->mb_left;
-    if (neighborMB != NULL)
-    {
-      if (neighborMB->mb_type==IPCM || (neighborMB->cbp > 15))
-        a = 1;
-    }
-
-    curr_cbp_ctx = a + b;
-    cbp_bit = biari_decode_symbol(dep_dp, ctx->cbp_contexts[1] + curr_cbp_ctx );
-
-    // CABAC decoding for BinIdx 1
-    if (cbp_bit) // set the chroma bits
-    {
-      b = 0;
-      neighborMB = currMB->mb_up;
-      if (neighborMB != NULL)
-      {
-        //if ((neighborMB->mb_type == IPCM) || ((neighborMB->cbp > 15) && ((neighborMB->cbp >> 4) == 2)))
-        if ((neighborMB->mb_type == IPCM) || ((neighborMB->cbp >> 4) == 2))
-          b = 2;
-      }
-
-
-      a = 0;
-      neighborMB = currMB->mb_left;
-      if (neighborMB != NULL)
-      {
-        if ((neighborMB->mb_type == IPCM) || ((neighborMB->cbp >> 4) == 2))
-          a = 1;
-      }
-
-      curr_cbp_ctx = a + b;
-      cbp_bit = biari_decode_symbol(dep_dp, ctx->cbp_contexts[2] + curr_cbp_ctx );
-      cbp += (cbp_bit == 1) ? 32 : 16;
-    }
-  }
-
-  se->value1 = cbp;
-
-  if (!cbp)
-  {
-    currSlice->last_dquant = 0;
-  }
-}
-
-
-
-/*!
- ************************************************************************
- * \brief
- *    Read CBP4-BIT
- ************************************************************************
-*/
-static int read_and_store_CBP_block_bit_444 (mb_t          *currMB,
-                                             DecodingEnvironment *dep_dp,
-                                             int                  type)
-{
-  slice_t *currSlice = currMB->p_Slice;
-  sps_t *sps = currSlice->active_sps;
-  VideoParameters *p_Vid = currMB->p_Vid;
-  StorablePicture *dec_picture = currSlice->dec_picture;
-  TextureInfoContexts *tex_ctx = currSlice->tex_ctx;
-  mb_t *mb_data = currSlice->mb_data;
-  int y_ac        = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_8x4 || type==LUMA_4x8 || type==LUMA_4x4
-                    || type==CB_16AC || type==CB_8x8 || type==CB_8x4 || type==CB_4x8 || type==CB_4x4
-                    || type==CR_16AC || type==CR_8x8 || type==CR_8x4 || type==CR_4x8 || type==CR_4x4);
-  int y_dc        = (type==LUMA_16DC || type==CB_16DC || type==CR_16DC); 
-  int u_ac        = (type==CHROMA_AC && !currMB->is_v_block);
-  int v_ac        = (type==CHROMA_AC &&  currMB->is_v_block);
-  int chroma_dc   = (type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4);
-  int u_dc        = (chroma_dc && !currMB->is_v_block);
-  int v_dc        = (chroma_dc &&  currMB->is_v_block);
-  int j           = (y_ac || u_ac || v_ac ? currMB->subblock_y : 0);
-  int i           = (y_ac || u_ac || v_ac ? currMB->subblock_x : 0);
-  int bit         = (y_dc ? 0 : y_ac ? 1 : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 : 35);
-  int default_bit = (currMB->is_intra_block ? 1 : 0);
-  int upper_bit   = default_bit;
-  int left_bit    = default_bit;
-  int cbp_bit     = 1;  // always one for 8x8 mode
-  int ctx;
-  int bit_pos_a   = 0;
-  int bit_pos_b   = 0;
-
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-    int mb_size[2][2] = {
-      { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
-      { mb_cr_size_x, mb_cr_size_y }
-    };
-
-  PixelPos block_a, block_b;
-  if (y_ac)
-  {
-    get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-    get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-    if (block_a.available)
-        bit_pos_a = 4*block_a.y + block_a.x;
-      if (block_b.available)
-        bit_pos_b = 4*block_b.y + block_b.x;
-  }
-  else if (y_dc)
-  {
-    get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-    get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-  }
-  else if (u_ac||v_ac)
-  {
-    get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
-    get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);
-    if (block_a.available)
-      bit_pos_a = 4*block_a.y + block_a.x;
-    if (block_b.available)
-      bit_pos_b = 4*block_b.y + block_b.x;
-  }
-  else
-  {
-    get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
-    get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);
-  }
-  
-  if (dec_picture->chroma_format_idc!=YUV444)
-  {
-    if (type!=LUMA_8x8)
-    {
-      //--- get bits from neighboring blocks ---
-      if (block_b.available)
-      {
-        if(mb_data[block_b.mb_addr].mb_type==IPCM)
-          upper_bit=1;
-        else
-          upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits, bit + bit_pos_b);
-      }
-            
-      if (block_a.available)
-      {
-        if(mb_data[block_a.mb_addr].mb_type==IPCM)
-          left_bit=1;
-        else
-          left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits, bit + bit_pos_a);
-      }
-      
-      
-      ctx = 2 * upper_bit + left_bit;     
-      //===== encode symbol =====
-      cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-    }
-  }
-  else if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
-  {
-    if (type!=LUMA_8x8)
-    {
-      //--- get bits from neighbouring blocks ---
-      if (block_b.available)
-      {
-        if(mb_data[block_b.mb_addr].mb_type==IPCM)
-          upper_bit = 1;
-        else
-          upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits,bit+bit_pos_b);
-      }
-      
-      
-      if (block_a.available)
-      {
-        if(mb_data[block_a.mb_addr].mb_type==IPCM)
-          left_bit = 1;
-        else
-          left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits,bit+bit_pos_a);
-      }
-      
-      
-      ctx = 2 * upper_bit + left_bit;     
-      //===== encode symbol =====
-      cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-    }
-  }
-  else 
-  {
-    if (block_b.available)
-    {
-      if((type==LUMA_8x8 || type==CB_8x8 || type==CR_8x8) &&
-         !mb_data[block_b.mb_addr].transform_size_8x8_flag)
-      {}
-      else if(mb_data[block_b.mb_addr].mb_type==IPCM)
-        upper_bit=1;
-      else
-      {
-        if(type==LUMA_8x8)
-          upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits_8x8, bit + bit_pos_b);
-        else if (type==CB_8x8)
-          upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[1].bits_8x8, bit + bit_pos_b);
-        else if (type==CR_8x8)
-          upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[2].bits_8x8, bit + bit_pos_b);
-        else if ((type==CB_4x4)||(type==CB_4x8)||(type==CB_8x4)||(type==CB_16AC)||(type==CB_16DC))
-          upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[1].bits,bit+bit_pos_b);
-        else if ((type==CR_4x4)||(type==CR_4x8)||(type==CR_8x4)||(type==CR_16AC)||(type==CR_16DC))
-          upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[2].bits,bit+bit_pos_b);
-        else
-          upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits,bit+bit_pos_b);
-      }
-    }
-    
-    
-    if (block_a.available)
-    {
-      if((type==LUMA_8x8 || type==CB_8x8 || type==CR_8x8) &&
-         !mb_data[block_a.mb_addr].transform_size_8x8_flag)
-      {}
-      else if(mb_data[block_a.mb_addr].mb_type==IPCM)
-        left_bit=1;
-      else
-      {
-        if(type==LUMA_8x8)
-          left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits_8x8,bit+bit_pos_a);
-        else if (type==CB_8x8)
-          left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[1].bits_8x8,bit+bit_pos_a);
-        else if (type==CR_8x8)
-          left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[2].bits_8x8,bit+bit_pos_a);
-        else if ((type==CB_4x4)||(type==CB_4x8)||(type==CB_8x4)||(type==CB_16AC)||(type==CB_16DC))
-          left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[1].bits,bit+bit_pos_a);
-        else if ((type==CR_4x4)||(type==CR_4x8)||(type==CR_8x4)||(type==CR_16AC)||(type==CR_16DC))
-          left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[2].bits,bit+bit_pos_a);
-        else
-          left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits,bit+bit_pos_a);
-      }
-    }
-    
-    ctx = 2 * upper_bit + left_bit;
-    //===== encode symbol =====
-    cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-  }
- 
-  //--- set bits for current block ---
-  bit = (y_dc ? 0 : y_ac ? 1 + j + (i >> 2) : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 + j + (i >> 2) : 35 + j + (i >> 2)); 
-
-  if (cbp_bit)
-  {  
-    CBPStructure  *s_cbp = currMB->s_cbp;
-    if (type==LUMA_8x8) 
-    {      
-      s_cbp[0].bits |= ((int64) 0x33 << bit   );
-      
-      if (dec_picture->chroma_format_idc==YUV444)
-      {
-        s_cbp[0].bits_8x8   |= ((int64) 0x33 << bit   );
-      }
-    }
-    else if (type==CB_8x8)
-    {
-      s_cbp[1].bits_8x8   |= ((int64) 0x33 << bit   );      
-      s_cbp[1].bits   |= ((int64) 0x33 << bit   );
-    }
-    else if (type==CR_8x8)
-    {
-      s_cbp[2].bits_8x8   |= ((int64) 0x33 << bit   );      
-      s_cbp[2].bits   |= ((int64) 0x33 << bit   );
-    }
-    else if (type==LUMA_8x4)
-    {
-      s_cbp[0].bits   |= ((int64) 0x03 << bit   );
-    }
-    else if (type==CB_8x4)
-    {
-      s_cbp[1].bits   |= ((int64) 0x03 << bit   );
-    }
-    else if (type==CR_8x4)
-    {
-      s_cbp[2].bits   |= ((int64) 0x03 << bit   );
-    }
-    else if (type==LUMA_4x8)
-    {
-      s_cbp[0].bits   |= ((int64) 0x11<< bit   );
-    }
-    else if (type==CB_4x8)
-    {
-      s_cbp[1].bits   |= ((int64)0x11<< bit   );
-    }
-    else if (type==CR_4x8)
-    {
-      s_cbp[2].bits   |= ((int64)0x11<< bit   );
-    }
-    else if ((type==CB_4x4)||(type==CB_16AC)||(type==CB_16DC))
-    {
-      s_cbp[1].bits   |= i64_power2(bit);
-    }
-    else if ((type==CR_4x4)||(type==CR_16AC)||(type==CR_16DC))
-    {
-      s_cbp[2].bits   |= i64_power2(bit);
-    }
-    else
-    {
-      s_cbp[0].bits   |= i64_power2(bit);
-    }
-  }
-  return cbp_bit;
-}
-
-
-static inline int set_cbp_bit(mb_t *neighbor_mb)
-{
-  if(neighbor_mb->mb_type == IPCM)
-    return 1;
-  else
-    return (int) (neighbor_mb->s_cbp[0].bits & 0x01);
-}
-
-static inline int set_cbp_bit_ac(mb_t *neighbor_mb, PixelPos *block)
-{
-  if (neighbor_mb->mb_type == IPCM)
-    return 1;
-  else
-  {
-    int bit_pos = 1 + (block->y << 2) + block->x;
-    return get_bit(neighbor_mb->s_cbp[0].bits, bit_pos);
-  }
-}
-
-/*!
- ************************************************************************
- * \brief
- *    Read CBP4-BIT
- ************************************************************************
- */
-static int read_and_store_CBP_block_bit_normal (mb_t          *currMB,
-                                                DecodingEnvironment *dep_dp,
-                                                int                  type)
-{
-  slice_t *currSlice = currMB->p_Slice;
-  sps_t *sps = currSlice->active_sps;
-  TextureInfoContexts *tex_ctx = currSlice->tex_ctx;
-  int cbp_bit     = 1;  // always one for 8x8 mode
-  mb_t *mb_data = currSlice->mb_data;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-    int mb_size[2][2] = {
-      { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
-      { mb_cr_size_x, mb_cr_size_y }
-    };
-
-  if (type==LUMA_16DC)
-  {
-    int upper_bit   = 1;
-    int left_bit    = 1;
-    int ctx;
-
-    PixelPos block_a, block_b;
-
-    get4x4NeighbourBase(currMB, -1,  0, mb_size[IS_LUMA], &block_a);
-    get4x4NeighbourBase(currMB,  0, -1, mb_size[IS_LUMA], &block_b);
-
-    //--- get bits from neighboring blocks ---
-    if (block_b.available)
-    {
-      upper_bit = set_cbp_bit(&mb_data[block_b.mb_addr]);
-    }
-
-    if (block_a.available)
-    {
-      left_bit = set_cbp_bit(&mb_data[block_a.mb_addr]);
-    }
-
-    ctx = 2 * upper_bit + left_bit;     
-    //===== encode symbol =====
-    cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-    //--- set bits for current block ---
-
-    if (cbp_bit)
-    {  
-      currMB->s_cbp[0].bits |= 1;
-    }
-  }
-  else if (type==LUMA_16AC)
-  {
-    int j           = currMB->subblock_y;
-    int i           = currMB->subblock_x;
-    int bit         = 1;
-    int default_bit = (currMB->is_intra_block ? 1 : 0);
-    int upper_bit   = default_bit;
-    int left_bit    = default_bit;
-    int ctx;
-
-    PixelPos block_a, block_b;
-
-    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-
-    //--- get bits from neighboring blocks ---
-    if (block_b.available)
-    {
-      upper_bit = set_cbp_bit_ac(&mb_data[block_b.mb_addr], &block_b);
-    }
-
-    if (block_a.available)
-    {
-      left_bit = set_cbp_bit_ac(&mb_data[block_a.mb_addr], &block_a);
-    }
-
-    ctx = 2 * upper_bit + left_bit;     
-    //===== encode symbol =====
-    cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-    if (cbp_bit)
-    {
-      //--- set bits for current block ---
-      bit = 1 + j + (i >> 2); 
-      currMB->s_cbp[0].bits   |= i64_power2(bit);
-    }
-  }
-  else if (type==LUMA_8x4)
-  {
-    int j           = currMB->subblock_y;
-    int i           = currMB->subblock_x;
-    int bit         = 1;
-    int default_bit = (currMB->is_intra_block ? 1 : 0);
-    int upper_bit   = default_bit;
-    int left_bit    = default_bit;
-    int ctx;
-
-    PixelPos block_a, block_b;
-
-    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-
-    //--- get bits from neighboring blocks ---
-    if (block_b.available)
-    {      
-      upper_bit = set_cbp_bit_ac(&mb_data[block_b.mb_addr], &block_b);
-    }
-
-    if (block_a.available)
-    {      
-      left_bit = set_cbp_bit_ac(&mb_data[block_a.mb_addr], &block_a);
-    }
-
-    ctx = 2 * upper_bit + left_bit;     
-    //===== encode symbol =====
-    cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-    if (cbp_bit)
-    {  
-      //--- set bits for current block ---
-      bit = 1 + j + (i >> 2); 
-      currMB->s_cbp[0].bits   |= ((int64) 0x03 << bit   );
-    }
-  }
-  else if (type==LUMA_4x8)
-  {
-    int j           = currMB->subblock_y;
-    int i           = currMB->subblock_x;
-    int bit         = 1;
-    int default_bit = (currMB->is_intra_block ? 1 : 0);
-    int upper_bit   = default_bit;
-    int left_bit    = default_bit;
-    int ctx;
-
-    PixelPos block_a, block_b;
-
-    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-
-    //--- get bits from neighboring blocks ---
-    if (block_b.available)
-    {      
-      upper_bit = set_cbp_bit_ac(&mb_data[block_b.mb_addr], &block_b);
-    }
-
-    if (block_a.available)
-    {      
-      left_bit = set_cbp_bit_ac(&mb_data[block_a.mb_addr], &block_a);
-    }
-
-    ctx = 2 * upper_bit + left_bit;     
-    //===== encode symbol =====
-    cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-    if (cbp_bit)
-    { 
-      //--- set bits for current block ---
-      bit = 1 + j + (i >> 2); 
-
-      currMB->s_cbp[0].bits   |= ((int64) 0x11 << bit   );
-    }
-  }
-  else if (type==LUMA_4x4)
-  {
-    int j           = currMB->subblock_y;
-    int i           = currMB->subblock_x;
-    int bit         = 1;
-    int default_bit = (currMB->is_intra_block ? 1 : 0);
-    int upper_bit   = default_bit;
-    int left_bit    = default_bit;
-    int ctx;
-
-    PixelPos block_a, block_b;
-
-    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-
-    //--- get bits from neighboring blocks ---
-    if (block_b.available)
-    {      
-      upper_bit = set_cbp_bit_ac(&mb_data[block_b.mb_addr], &block_b);
-    }
-
-    if (block_a.available)
-    {      
-      left_bit = set_cbp_bit_ac(&mb_data[block_a.mb_addr], &block_a);
-    }
-
-    ctx = 2 * upper_bit + left_bit;     
-    //===== encode symbol =====
-    cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-    if (cbp_bit)
-    { 
-      //--- set bits for current block ---
-      bit = 1 + j + (i >> 2); 
-
-      currMB->s_cbp[0].bits   |= i64_power2(bit);
-    }
-  }
-  else if (type == LUMA_8x8)
-  {
-    int j           = currMB->subblock_y;
-    int i           = currMB->subblock_x;
-    //--- set bits for current block ---
-    int bit         = 1 + j + (i >> 2);
-
-    currMB->s_cbp[0].bits |= ((int64) 0x33 << bit   );      
-  }
-  else if (type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4)
-  {
-    int u_dc        = (!currMB->is_v_block);
-    int j           = 0;
-    int i           = 0;
-    int bit         = (u_dc ? 17 : 18);
-    int default_bit = (currMB->is_intra_block ? 1 : 0);
-    int upper_bit   = default_bit;
-    int left_bit    = default_bit;
-    int ctx;
-
-    PixelPos block_a, block_b;
-
-    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);    
-
-    //--- get bits from neighboring blocks ---
-    if (block_b.available)
-    {
-      if(mb_data[block_b.mb_addr].mb_type==IPCM)
-        upper_bit = 1;
-      else
-        upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits, bit);
-    }
-
-    if (block_a.available)
-    {
-      if(mb_data[block_a.mb_addr].mb_type==IPCM)
-        left_bit = 1;
-      else
-        left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits, bit);
-    }
-
-    ctx = 2 * upper_bit + left_bit;     
-    //===== encode symbol =====
-    cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-    if (cbp_bit)
-    {
-      //--- set bits for current block ---
-      bit = (u_dc ? 17 : 18); 
-      currMB->s_cbp[0].bits   |= i64_power2(bit);
-    }
-  }
-  else
-  {
-    int u_ac        = (!currMB->is_v_block);
-    int j           = currMB->subblock_y;
-    int i           = currMB->subblock_x;
-    int bit         = (u_ac ? 19 : 35);
-    int default_bit = (currMB->is_intra_block ? 1 : 0);
-    int upper_bit   = default_bit;
-    int left_bit    = default_bit;
-    int ctx;
-
-    PixelPos block_a, block_b;
-
-    get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
-    get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);    
-
-    //--- get bits from neighboring blocks ---
-    if (block_b.available)
-    {
-      if(mb_data[block_b.mb_addr].mb_type==IPCM)
-        upper_bit=1;
-      else
-      {
-        int bit_pos_b = 4*block_b.y + block_b.x;
-        upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits, bit + bit_pos_b);
-      }
-    }
-
-    if (block_a.available)
-    {
-      if(mb_data[block_a.mb_addr].mb_type==IPCM)
-        left_bit=1;
-      else
-      {
-        int bit_pos_a = 4*block_a.y + block_a.x;
-        left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits,bit + bit_pos_a);
-      }
-    }
-
-    ctx = 2 * upper_bit + left_bit;     
-    //===== encode symbol =====
-    cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-    if (cbp_bit)
-    {
-      //--- set bits for current block ---
-      bit = (u_ac ? 19 + j + (i >> 2) : 35 + j + (i >> 2)); 
-      currMB->s_cbp[0].bits   |= i64_power2(bit);
-    }
-  }
-  return cbp_bit;
-}
-
-
-int read_and_store_CBP_block_bit(mb_t *currMB, DecodingEnvironment *dep_dp, int type)
-{
-    if (currMB->p_Slice->active_sps->chroma_format_idc == YUV444)
-        return read_and_store_CBP_block_bit_444(currMB, dep_dp, type);
-    else
-        return read_and_store_CBP_block_bit_normal(currMB, dep_dp, type);
-}
-
-
-
-
-//===== position -> ctx for MAP =====
-//--- zig-zag scan ----
-static const byte  pos2ctx_map8x8 [] = { 0,  1,  2,  3,  4,  5,  5,  4,  4,  3,  3,  4,  4,  4,  5,  5,
-                                         4,  4,  4,  4,  3,  3,  6,  7,  7,  7,  8,  9, 10,  9,  8,  7,
-                                         7,  6, 11, 12, 13, 11,  6,  7,  8,  9, 14, 10,  9,  8,  6, 11,
-                                        12, 13, 11,  6,  9, 14, 10,  9, 11, 12, 13, 11 ,14, 10, 12, 14}; // 15 CTX
-static const byte  pos2ctx_map8x4 [] = { 0,  1,  2,  3,  4,  5,  7,  8,  9, 10, 11,  9,  8,  6,  7,  8,
-                                         9, 10, 11,  9,  8,  6, 12,  8,  9, 10, 11,  9, 13, 13, 14, 14}; // 15 CTX
-static const byte  pos2ctx_map4x4 [] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 14}; // 15 CTX
-static const byte  pos2ctx_map2x4c[] = { 0,  0,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2}; // 15 CTX
-static const byte  pos2ctx_map4x4c[] = { 0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2}; // 15 CTX
-static const byte* pos2ctx_map    [] = {pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8, pos2ctx_map8x4,
-                                        pos2ctx_map8x4, pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map4x4,
-                                        pos2ctx_map2x4c, pos2ctx_map4x4c, 
-                                        pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8,pos2ctx_map8x4,
-                                        pos2ctx_map8x4, pos2ctx_map4x4,
-                                        pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8,pos2ctx_map8x4,
-                                        pos2ctx_map8x4,pos2ctx_map4x4};
-//--- interlace scan ----
-//taken from ABT
-static const byte  pos2ctx_map8x8i[] = { 0,  1,  1,  2,  2,  3,  3,  4,  5,  6,  7,  7,  7,  8,  4,  5,
-                                         6,  9, 10, 10,  8, 11, 12, 11,  9,  9, 10, 10,  8, 11, 12, 11,
-                                         9,  9, 10, 10,  8, 11, 12, 11,  9,  9, 10, 10,  8, 13, 13,  9,
-                                         9, 10, 10,  8, 13, 13,  9,  9, 10, 10, 14, 14, 14, 14, 14, 14}; // 15 CTX
-static const byte  pos2ctx_map8x4i[] = { 0,  1,  2,  3,  4,  5,  6,  3,  4,  5,  6,  3,  4,  7,  6,  8,
-                                         9,  7,  6,  8,  9, 10, 11, 12, 12, 10, 11, 13, 13, 14, 14, 14}; // 15 CTX
-static const byte  pos2ctx_map4x8i[] = { 0,  1,  1,  1,  2,  3,  3,  4,  4,  4,  5,  6,  2,  7,  7,  8,
-                                         8,  8,  5,  6,  9, 10, 10, 11, 11, 11, 12, 13, 13, 14, 14, 14}; // 15 CTX
-static const byte* pos2ctx_map_int[] = {pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8i,pos2ctx_map8x4i,
-                                        pos2ctx_map4x8i,pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map4x4,
-                                        pos2ctx_map2x4c, pos2ctx_map4x4c,
-                                        pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8i,pos2ctx_map8x4i,
-                                        pos2ctx_map8x4i,pos2ctx_map4x4,
-                                        pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8i,pos2ctx_map8x4i,
-                                        pos2ctx_map8x4i,pos2ctx_map4x4};
-
-//===== position -> ctx for LAST =====
-static const byte  pos2ctx_last8x8 [] = { 0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-                                          2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
-                                          3,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  4,  4,  4,
-                                          5,  5,  5,  5,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  8}; //  9 CTX
-static const byte  pos2ctx_last8x4 [] = { 0,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,
-                                          3,  3,  3,  3,  4,  4,  4,  4,  5,  5,  6,  6,  7,  7,  8,  8}; //  9 CTX
-
-static const byte  pos2ctx_last4x4 [] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15}; // 15 CTX
-static const byte  pos2ctx_last2x4c[] = { 0,  0,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2}; // 15 CTX
-static const byte  pos2ctx_last4x4c[] = { 0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2}; // 15 CTX
-static const byte* pos2ctx_last    [] = {pos2ctx_last4x4, pos2ctx_last4x4, pos2ctx_last8x8, pos2ctx_last8x4,
-                                         pos2ctx_last8x4, pos2ctx_last4x4, pos2ctx_last4x4, pos2ctx_last4x4,
-                                         pos2ctx_last2x4c, pos2ctx_last4x4c,
-                                         pos2ctx_last4x4, pos2ctx_last4x4, pos2ctx_last8x8,pos2ctx_last8x4,
-                                         pos2ctx_last8x4, pos2ctx_last4x4,
-                                         pos2ctx_last4x4, pos2ctx_last4x4, pos2ctx_last8x8,pos2ctx_last8x4,
-                                         pos2ctx_last8x4, pos2ctx_last4x4};
-
-
-
-/*!
- ************************************************************************
- * \brief
- *    Read Significance MAP
- ************************************************************************
- */
-static int read_significance_map (mb_t          *currMB,
-                                  DecodingEnvironment *dep_dp,
-                                  int                  type,
-                                  int                  coeff[])
-{
-  slice_t *currSlice = currMB->p_Slice;
-  int               fld    = (currSlice->field_pic_flag || currMB->mb_field_decoding_flag);
-  const byte *pos2ctx_Map = (fld) ? pos2ctx_map_int[type] : pos2ctx_map[type];
-  const byte *pos2ctx_Last = pos2ctx_last[type];
-
-  BiContextTypePtr  map_ctx  = currSlice->tex_ctx->map_contexts [fld][type2ctx_map [type]];
-  BiContextTypePtr  last_ctx = currSlice->tex_ctx->last_contexts[fld][type2ctx_last[type]];
-
-  int   i;
-  int   coeff_ctr = 0;
-  int   i0        = 0;
-  int   i1        = maxpos[type];
-
-
-  if (!c1isdc[type])
-  {
-    ++i0; 
-    ++i1; 
-  }
-
-  for (i=i0; i < i1; ++i) // if last coeff is reached, it has to be significant
-  {
-    //--- read significance symbol ---
-    if (biari_decode_symbol   (dep_dp, map_ctx + pos2ctx_Map[i]))
-    {
-      *(coeff++) = 1;
-      ++coeff_ctr;
-      //--- read last coefficient symbol ---
-      if (biari_decode_symbol (dep_dp, last_ctx + pos2ctx_Last[i]))
-      {
-        memset(coeff, 0, (i1 - i) * sizeof(int));
-        return coeff_ctr;
-      }
-    }
-    else
-    {
-      *(coeff++) = 0;
-    }
-  }
-  //--- last coefficient must be significant if no last symbol was received ---
-  if (i < i1 + 1)
-  {
-    *coeff = 1;
-    ++coeff_ctr;
-  }
-
-  return coeff_ctr;
-}
-
-
-
-/*!
- ************************************************************************
- * \brief
- *    Read Levels
- ************************************************************************
- */
-static void read_significant_coefficients (DecodingEnvironment *dep_dp,
-                                           TextureInfoContexts *tex_ctx,
-                                           int                  type,
-                                           int                 *coeff)
-{
-  BiContextType *one_contexts = tex_ctx->one_contexts[type2ctx_one[type]];
-  BiContextType *abs_contexts = tex_ctx->abs_contexts[type2ctx_abs[type]];
-  const short max_type = max_c2[type];
-  int i = maxpos[type];
-  int *cof = coeff + i;
-  int   c1 = 1;
-  int   c2 = 0;
-
-  for (; i>=0; i--)
-  {
-    if (*cof != 0)
-    {
-      *cof += biari_decode_symbol (dep_dp, one_contexts + c1);
-
-      if (*cof == 2)
-      {        
-        *cof += unary_exp_golomb_level_decode (dep_dp, abs_contexts + c2);
-        c2 = imin (++c2, max_type);
-        c1 = 0;
-      }
-      else if (c1)
-      {
-        c1 = imin (++c1, 4);
-      }
-
-      if (biari_decode_symbol_eq_prob(dep_dp))
-      {
-        *cof = - *cof;
-      }
-    }
-    cof--;
-  }
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    Read Block-Transform Coefficients
- ************************************************************************
- */
-void readRunLevel_CABAC (mb_t *currMB, 
-                         SyntaxElement  *se,
-                         DecodingEnvironment *dep_dp)
-{
-  slice_t *currSlice = currMB->p_Slice;
-  int  *coeff_ctr = &currSlice->coeff_ctr;
-  int  *coeff = currSlice->coeff;
-
-  //--- read coefficients for whole block ---
-  if (*coeff_ctr < 0)
-  {
-    //===== decode CBP-BIT =====
-    if ((*coeff_ctr = read_and_store_CBP_block_bit(currMB, dep_dp, se->context) ) != 0)
-    {
-      //===== decode significance map =====
-      *coeff_ctr = read_significance_map (currMB, dep_dp, se->context, coeff);
-
-      //===== decode significant coefficients =====
-      read_significant_coefficients    (dep_dp, currSlice->tex_ctx, se->context, coeff);
-    }
-  }
-
-  //--- set run and level ---
-  if (*coeff_ctr)
-  {
-    //--- set run and level (coefficient) ---
-    for (se->value2 = 0; coeff[currSlice->pos] == 0; ++currSlice->pos, ++se->value2);
-    se->value1 = coeff[currSlice->pos++];
-  }
-  else
-  {
-    //--- set run and level (EOB) ---
-    se->value1 = se->value2 = 0;
-  }
-  //--- decrement coefficient counter and re-set position ---
-  if ((*coeff_ctr)-- == 0) 
-    currSlice->pos = 0;
-}
-
-/*!
- ************************************************************************
- * \brief
- *    arithmetic decoding
- ************************************************************************
- */
 int readSyntaxElement_CABAC(mb_t *currMB, SyntaxElement *se, DataPartition *this_dataPart)
 {
-  DecodingEnvironment *dep_dp = &this_dataPart->bitstream->de_cabac;
-  int curr_len = arideco_bits_read(dep_dp);
+    DecodingEnvironment *dep_dp = &this_dataPart->bitstream->de_cabac;
+    int curr_len = arideco_bits_read(dep_dp);
 
-  // perform the actual decoding by calling the appropriate method
-  se->reading(currMB, se, dep_dp);
-  //read again and minus curr_len = arideco_bits_read(dep_dp); from above
-  se->len = (arideco_bits_read(dep_dp) - curr_len);
+    // perform the actual decoding by calling the appropriate method
+    se->reading(currMB, se, dep_dp);
+    //read again and minus curr_len = arideco_bits_read(dep_dp); from above
+    se->len = (arideco_bits_read(dep_dp) - curr_len);
 
-  return (se->len); 
+    return (se->len); 
 }
 
-
-/*!
- ************************************************************************
- * \brief
- *    decoding of unary binarization using one or 2 distinct
- *    models for the first and all remaining bins
- ***********************************************************************
- */
-static unsigned int unary_bin_decode(DecodingEnvironment *dep_dp,
-                                     BiContextTypePtr ctx,
-                                     int ctx_offset)
-{
-  unsigned int symbol = biari_decode_symbol(dep_dp, ctx );
-
-  if (symbol == 0)
-    return 0;
-  else
-  {
-    unsigned int l;
-    ctx += ctx_offset;;
-    symbol = 0;
-    do
-    {
-      l = biari_decode_symbol(dep_dp, ctx);
-      ++symbol;
-    }
-    while( l != 0 );
-    return symbol;
-  }
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    finding end of a slice in case this is not the end of a frame
- *
- * Unsure whether the "correction" below actually solves an off-by-one
- * problem or whether it introduces one in some cases :-(  Anyway,
- * with this change the bit stream format works with CABAC again.
- * StW, 8.7.02
- ************************************************************************
- */
 int cabac_startcode_follows(slice_t *currSlice, int eos_bit)
 {
-  unsigned int  bit;
+    unsigned int  bit;
 
-  if( eos_bit )
-  {
-    const byte   *partMap    = assignSE2partition[currSlice->dp_mode];
-    DataPartition *dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);  
-    DecodingEnvironment *dep_dp = &dP->bitstream->de_cabac;
+    if (eos_bit) {
+        const byte   *partMap    = assignSE2partition[currSlice->dp_mode];
+        DataPartition *dP = &(currSlice->partArr[partMap[SE_MBTYPE]]);  
+        DecodingEnvironment *dep_dp = &dP->bitstream->de_cabac;
 
-    bit = biari_decode_final (dep_dp); //GB
-  }
-  else
-  {
-    bit = 0;
-  }
+        bit = biari_decode_final (dep_dp); //GB
+    } else
+        bit = 0;
 
-  return (bit == 1 ? 1 : 0);
+    return (bit == 1 ? 1 : 0);
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Check if there are symbols for the next MB
- ************************************************************************
- */
 int uvlc_startcode_follows(slice_t *currSlice, int dummy)
 {
-  byte            dp_Nr = assignSE2partition[currSlice->dp_mode][SE_MBTYPE];
-  DataPartition     *dP = &(currSlice->partArr[dp_Nr]);
-  Bitstream *currStream = dP->bitstream;
+    byte            dp_Nr = assignSE2partition[currSlice->dp_mode][SE_MBTYPE];
+    DataPartition     *dP = &(currSlice->partArr[dp_Nr]);
+    Bitstream *currStream = dP->bitstream;
 
-  return !currStream->more_rbsp_data();
+    return !currStream->more_rbsp_data();
 }

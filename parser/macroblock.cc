@@ -33,7 +33,6 @@
 #include "fmo.h"
 #include "image.h"
 #include "neighbour.h"
-#include "biaridecod.h"
 #include "transform.h"
 #include "mv_prediction.h"
 #include "inter_prediction.h"
