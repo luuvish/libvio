@@ -328,7 +328,7 @@ static inline void reset_coeffs(mb_t *currMB)
 {
     VideoParameters *p_Vid = currMB->p_Vid;
     if (!p_Vid->active_pps->entropy_coding_mode_flag)
-        memset(p_Vid->nz_coeff[currMB->mbAddrX][0][0], 0, 3 * BLOCK_PIXELS * sizeof(byte));
+        memset(currMB->nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
 }
 
 

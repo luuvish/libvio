@@ -39,7 +39,7 @@ void get_mb_block_pos_mbaff  (BlockPos *PicPos, int mb_addr, short *x, short *y)
 void get_neighbors(struct macroblock_t *currMB, PixelPos *block, int mb_x, int mb_y, int blockshape_x);
 void check_dp_neighbors(struct macroblock_t *currMB);
 
-int predict_nnz(struct macroblock_t *currMB, int block_type, int i,int j);
+int predict_nnz(struct macroblock_t *currMB, int pl, int i,int j);
 int predict_nnz_chroma(struct macroblock_t *currMB, int i,int j);
 
 #ifdef __cplusplus

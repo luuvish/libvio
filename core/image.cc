@@ -91,7 +91,6 @@ static void setup_buffers(VideoParameters *p_Vid, int layer_id)
       p_Vid->intra_block = cps->intra_block;
     }
     p_Vid->PicPos = cps->PicPos;
-    p_Vid->nz_coeff = cps->nz_coeff;
     p_Vid->img2buf = cps->img2buf;
     p_Vid->last_dec_layer_id = layer_id;
   }
@@ -346,12 +345,6 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
   if (p_Vid->type > SI_SLICE)
   {
     p_Vid->type = P_SLICE;  // concealed element
-  }
-
-  // CAVLC init
-  if (!pps->entropy_coding_mode_flag)
-  {
-    memset(p_Vid->nz_coeff[0][0][0], -1, PicSizeInMbs * 48 *sizeof(byte)); // 3 * 4 * 4
   }
 
   // Set the slice_nr member of each MB to -1, to ensure correct when packet loss occurs

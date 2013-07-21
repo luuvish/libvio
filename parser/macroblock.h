@@ -201,6 +201,9 @@ typedef struct macroblock_t {
     uint8_t     QpY;
     bool        TransformBypassModeFlag;
 
+    uint8_t     nz_coeff[3][4][4];
+    //int         cof[3][16][16];
+
 
     short        mvd[2][BLOCK_MULTIPLE][BLOCK_MULTIPLE][2]; //!< indices correspond to [forw,backw][block_y][block_x][x,y]
     int          cbp;

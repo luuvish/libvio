@@ -281,13 +281,6 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
   if(!p_Vid->global_init_done[layer_id])
     return;
 
-  // CAVLC free mem
-  if (cps->nz_coeff)
-  {
-    free_mem4D(cps->nz_coeff);
-    cps->nz_coeff = NULL;
-  }
-
   // free mem, allocated for structure p_Vid
   if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
   {

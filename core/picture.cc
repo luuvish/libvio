@@ -92,9 +92,6 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
         PicPos[i].y = (short) (i / sps->PicWidthInMbs);
     }
 
-    // CAVLC mem
-    memory_size += get_mem4D(&cps->nz_coeff, FrameSizeInMbs, 3, BLOCK_SIZE, BLOCK_SIZE);
-
     int pic_unit_bitsize_on_disk = imax(sps->BitDepthY, sps->BitDepthC) > 8 ? 16 : 8;
     if (layer_id == 0)
         init_output(cps, (pic_unit_bitsize_on_disk + 7) >> 3);

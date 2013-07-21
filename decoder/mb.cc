@@ -156,7 +156,6 @@ static void mb_pred_ipcm(mb_t *currMB)
     int i, j, k;
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    VideoParameters *p_Vid = currMB->p_Vid;
     StorablePicture *dec_picture = currSlice->dec_picture;
 
     for (i = 0; i < 16; ++i) {
@@ -176,9 +175,7 @@ static void mb_pred_ipcm(mb_t *currMB)
     // for deblocking filter
     currMB->update_qp(0);
 
-    // for CAVLC: Set the nz_coeff to 16.
-    // These parameters are to be used in CAVLC decoding of neighbour blocks  
-    memset(p_Vid->nz_coeff[currMB->mbAddrX][0][0], 16, 3 * BLOCK_PIXELS * sizeof(byte));
+    memset(currMB->nz_coeff, 16, 3 * BLOCK_PIXELS * sizeof(byte));
 
     // for CABAC decoding of MB skip flag
     currMB->mb_skip_flag = 0;

@@ -27,329 +27,252 @@
 #define IS_DIRECT(MB)   ((MB)->mb_type == 0 && (currSlice->slice_type == B_SLICE))
 
 #define TOTRUN_NUM       15
-#define RUNBEFORE_NUM_M1  6
 
 
-static int readSyntaxElement_Level_VLCN(Bitstream *currStream, int suffixLength)
+// Table 9-5 coeff_token mapping to TotalCoeff(coeff_token) and TrailingOnes(coeff_token)
+
+static const uint8_t coeff_token_length[5][4][17] = {
+    //  0 <= nC < 2
+    { {  1,  6,  8,  9, 10, 11, 13, 13, 13, 14, 14, 15, 15, 16, 16, 16, 16 },
+      {  0,  2,  6,  8,  9, 10, 11, 13, 13, 14, 14, 15, 15, 15, 16, 16, 16 },
+      {  0,  0,  3,  7,  8,  9, 10, 11, 13, 13, 14, 14, 15, 15, 16, 16, 16 },
+      {  0,  0,  0,  5,  6,  7,  8,  9, 10, 11, 13, 14, 14, 15, 15, 16, 16 } },
+    // 2 <= nC < 4
+    { {  2,  6,  6,  7,  8,  8,  9, 11, 11, 12, 12, 12, 13, 13, 13, 14, 14 },
+      {  0,  2,  5,  6,  6,  7,  8,  9, 11, 11, 12, 12, 13, 13, 14, 14, 14 },
+      {  0,  0,  3,  6,  6,  7,  8,  9, 11, 11, 12, 12, 13, 13, 13, 14, 14 },
+      {  0,  0,  0,  4,  4,  5,  6,  6,  7,  9, 11, 11, 12, 13, 13, 13, 14 } },
+    // 4 <= nC < 8
+    { {  4,  6,  6,  6,  7,  7,  7,  7,  8,  8,  9,  9,  9, 10, 10, 10, 10 },
+      {  0,  4,  5,  5,  5,  5,  6,  6,  7,  8,  8,  9,  9,  9, 10, 10, 10 },
+      {  0,  0,  4,  5,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9, 10, 10, 10 },
+      {  0,  0,  0,  4,  4,  4,  4,  4,  5,  6,  7,  8,  8,  9, 10, 10, 10 } },
+    // nC == -1 
+    { {  2,  6,  6,  6,  6,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  1,  6,  7,  8,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  0,  3,  7,  8,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  0,  0,  6,  7,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 } },
+    // nC == -2 
+    { {  1,  7,  7,  9,  9, 10, 11, 12, 13,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  2,  7,  7,  9, 10, 11, 12, 12,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  0,  3,  7,  7,  9, 10, 11, 12,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  0,  0,  5,  6,  7,  7, 10, 11,  0,  0,  0,  0,  0,  0,  0,  0 } }
+};
+
+static const uint8_t coeff_token_code[5][4][17] = {
+    // 0 <= nC < 2
+    { {  1,  5,  7,  7,  7,  7, 15, 11,  8, 15, 11, 15, 11, 15, 11,  7,  4 },
+      {  0,  1,  4,  6,  6,  6,  6, 14, 10, 14, 10, 14, 10,  1, 14, 10,  6 },
+      {  0,  0,  1,  5,  5,  5,  5,  5, 13,  9, 13,  9, 13,  9, 13,  9,  5 },
+      {  0,  0,  0,  3,  3,  4,  4,  4,  4,  4, 12, 12,  8, 12,  8, 12,  8 } },
+    // 2 <= nC < 4
+    { {  3, 11,  7,  7,  7,  4,  7, 15, 11, 15, 11,  8, 15, 11,  7,  9,  7 },
+      {  0,  2,  7, 10,  6,  6,  6,  6, 14, 10, 14, 10, 14, 10, 11,  8,  6 },
+      {  0,  0,  3,  9,  5,  5,  5,  5, 13,  9, 13,  9, 13,  9,  6, 10,  5 },
+      {  0,  0,  0,  5,  4,  6,  8,  4,  4,  4, 12,  8, 12, 12,  8,  1,  4 } },
+    // 4 <= nC < 8
+    { { 15, 15, 11,  8, 15, 11,  9,  8, 15, 11, 15, 11,  8, 13,  9,  5,  1 },
+      {  0, 14, 15, 12, 10,  8, 14, 10, 14, 14, 10, 14, 10,  7, 12,  8,  4 },
+      {  0,  0, 13, 14, 11,  9, 13,  9, 13, 10, 13,  9, 13,  9, 11,  7,  3 },
+      {  0,  0,  0, 12, 11, 10,  9,  8, 13, 12, 12, 12,  8, 12, 10,  6,  2 } },
+    // nC == -1
+    { {  1,  7,  4,  3,  2,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  1,  6,  3,  3,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  0,  1,  2,  2,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  0,  0,  5,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 } },
+    // nC == -2
+    { {  1, 15, 14,  7,  6,  7,  7,  7,  7,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  1, 13, 12,  5,  6,  6,  6,  5,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  0,  1, 11, 10,  4,  5,  5,  4,  0,  0,  0,  0,  0,  0,  0,  0 },
+      {  0,  0,  0,  1,  1,  9,  8,  4,  4,  0,  0,  0,  0,  0,  0,  0,  0 } }
+};
+
+// Table 9-7 total_zeros tables for 4x4 blocks with tzVlcIndex 1 to 7
+// Table 9-8 total_zeros tables for 4x4 blocks with tzVlcIndex 8 to 15
+// Table 9-9 total_zeros tables for chroma DC 2x2 and 2x4 blocks
+
+static const uint8_t total_zeros_length[3][TOTRUN_NUM][16] = {
+    // YUV420
+    { { 1, 2, 3, 3 },
+      { 1, 2, 2 },
+      { 1, 1 } },
+    // YUV422
+    { { 1, 3, 3, 4, 4, 4, 5, 5 },
+      { 3, 2, 3, 3, 3, 3, 3 },
+      { 3, 3, 2, 2, 3, 3 },
+      { 3, 2, 2, 2, 3 },
+      { 2, 2, 2, 2 },
+      { 2, 2, 1 },
+      { 1, 1 } },
+    // YUV444
+    { { 1, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 9 },
+      { 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 6, 6, 6, 6 },
+      { 4, 3, 3, 3, 4, 4, 3, 3, 4, 5, 5, 6, 5, 6 },
+      { 5, 3, 4, 4, 3, 3, 3, 4, 3, 4, 5, 5, 5 },
+      { 4, 4, 4, 3, 3, 3, 3, 3, 4, 5, 4, 5 },
+      { 6, 5, 3, 3, 3, 3, 3, 3, 4, 3, 6 },
+      { 6, 5, 3, 3, 3, 2, 3, 4, 3, 6 },
+      { 6, 4, 5, 3, 2, 2, 3, 3, 6 },
+      { 6, 6, 4, 2, 2, 3, 2, 5 },
+      { 5, 5, 3, 2, 2, 2, 4 },
+      { 4, 4, 3, 3, 1, 3 },
+      { 4, 4, 2, 1, 3 },
+      { 3, 3, 1, 2 },
+      { 2, 2, 1 },
+      { 1, 1 } }
+};
+
+static const uint8_t total_zeros_code[3][TOTRUN_NUM][16] = {
+    // YUV420
+    { { 1, 1 , 1 , 0 },
+      { 1, 1 , 0 },
+      { 1, 0 } },
+    // YUV422
+    { { 1, 2, 3, 2, 3, 1, 1, 0 },
+      { 0, 1, 1, 4, 5, 6, 7 },
+      { 0, 1, 1, 2, 6, 7 },
+      { 6, 0, 1, 2, 7 },
+      { 0, 1, 2, 3 },
+      { 0, 1, 1 },
+      { 0, 1 } },
+    // YUV444
+    { { 1, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 1 },
+      { 7, 6, 5, 4, 3, 5, 4, 3, 2, 3, 2, 3, 2, 1, 0 },
+      { 5, 7, 6, 5, 4, 3, 4, 3, 2, 3, 2, 1, 1, 0 },
+      { 3, 7, 5, 4, 6, 5, 4, 3, 3, 2, 2, 1, 0 },
+      { 5, 4, 3, 7, 6, 5, 4, 3, 2, 1, 1, 0 },
+      { 1, 1, 7, 6, 5, 4, 3, 2, 1, 1, 0 },
+      { 1, 1, 5, 4, 3, 3, 2, 1, 1, 0 },
+      { 1, 1, 1, 3, 3, 2, 2, 1, 0 },
+      { 1, 0, 1, 3, 2, 1, 1, 1 },
+      { 1, 0, 1, 3, 2, 1, 1 },
+      { 0, 1, 1, 2, 1, 3 },
+      { 0, 1, 1, 1, 1 },
+      { 0, 1, 1, 1 },
+      { 0, 1, 1 },
+      { 0, 1 } }
+};
+
+// Table 9-10 Tables for run_before
+
+static const uint8_t run_before_length[TOTRUN_NUM][16] = {
+    { 1, 1 },
+    { 1, 2, 2 },
+    { 2, 2, 2, 2 },
+    { 2, 2, 2, 3, 3 },
+    { 2, 2, 3, 3, 3, 3 },
+    { 2, 3, 3, 3, 3, 3, 3 },
+    { 3, 3, 3, 3, 3, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11 }
+};
+
+static const uint8_t run_before_code[TOTRUN_NUM][16] = {
+    { 1, 0 },
+    { 1, 1, 0 },
+    { 3, 2, 1, 0 },
+    { 3, 2, 1, 1, 0 },
+    { 3, 2, 3, 2, 1, 0 },
+    { 3, 0, 1, 3, 2, 5, 4 },
+    { 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1 }
+};
+
+
+static uint8_t parse_coeff_token(Bitstream *currStream, int nC)
 {
-    int leadingZeroBits = -1;
-    for (int b = 0; !b; leadingZeroBits++)
-        b = currStream->read_bits(1);
-    int level_prefix = leadingZeroBits;
-
-//    int level, sign;
-//
-//    if (suffixLength == 0) {
-//        if (level_prefix < 14) {
-//            sign  = level_prefix & 1;
-//            level = (level_prefix >> 1) + 1;
-//        } else if (level_prefix == 14) {
-//            // escape
-//            int level_suffix = currStream->u(4);
-//            sign  = (level_suffix & 1);
-//            level = (level_suffix >> 1) + 8;
-//        } else {
-//            // escape
-//            int level_suffix = currStream->u(level_prefix - 3);
-//            sign  = (level_suffix & 1);
-//            level = (level_suffix >> 1) + (1 << (level_prefix - 4)) - 2047 + 15;
-//        }
-//    } else {
-//        if (level_prefix < 15) {
-//            int level_suffix = currStream->u(suffixLength);
-//            sign  = (level_suffix & 1);
-//            level = (level_suffix >> 1) + (level_prefix << (suffixLength - 1)) + 1;
-//        } else { // escape
-//            int level_suffix = currStream->u(level_prefix - 3);
-//            sign  = (level_suffix & 1);
-//            level = (level_suffix >> 1) + (1 << (level_prefix - 4)) - 2047 + (15 << (suffixLength - 1));
-//        }
-//    }
-//
-//    return sign ? -level : level;
-
-    int levelSuffixSize = 0;
-    if (level_prefix == 14 && suffixLength == 0)
-        levelSuffixSize = 4;
-    else if (level_prefix >= 15)
-        levelSuffixSize = level_prefix - 3;
-    else
-        levelSuffixSize = suffixLength;
-
-    int level_suffix = 0;
-    if (levelSuffixSize > 0)
-        level_suffix = currStream->u(levelSuffixSize);
-
-    int levelCode = (imin(15, level_prefix) << suffixLength) + level_suffix;
-    if (level_prefix >= 15 && suffixLength == 0)
-        levelCode += 15;
-    if (level_prefix >= 16)
-        levelCode += (1 << (level_prefix - 3)) - 4096;
-
-//    if ((levelCode % 2) == 0)
-//        levelVal[i] = (levelCode + 2) >> 1;
-//    else
-//        levelVal[i] = (-levelCode - 1) >> 1;
-
-    return (levelCode % 2 == 0) ? (levelCode + 2) >> 1 : (-levelCode - 1) >> 1;
-}
-
-
-static int readSyntaxElement_NumCoeffTrailingOnes(Bitstream *currStream, int *coeff, int *ones, int nC)
-{
-    static const byte lentab[5][4][17] = {
-        // 0 <= nC < 2
-        {{ 1, 6, 8, 9,10,11,13,13,13,14,14,15,15,16,16,16,16},
-         { 0, 2, 6, 8, 9,10,11,13,13,14,14,15,15,15,16,16,16},
-         { 0, 0, 3, 7, 8, 9,10,11,13,13,14,14,15,15,16,16,16},
-         { 0, 0, 0, 5, 6, 7, 8, 9,10,11,13,14,14,15,15,16,16}},
-        // 2 <= nC < 4
-        {{ 2, 6, 6, 7, 8, 8, 9,11,11,12,12,12,13,13,13,14,14},
-         { 0, 2, 5, 6, 6, 7, 8, 9,11,11,12,12,13,13,14,14,14},
-         { 0, 0, 3, 6, 6, 7, 8, 9,11,11,12,12,13,13,13,14,14},
-         { 0, 0, 0, 4, 4, 5, 6, 6, 7, 9,11,11,12,13,13,13,14}},
-        // 4 <= nC < 8
-        {{ 4, 6, 6, 6, 7, 7, 7, 7, 8, 8, 9, 9, 9,10,10,10,10},
-         { 0, 4, 5, 5, 5, 5, 6, 6, 7, 8, 8, 9, 9, 9,10,10,10},
-         { 0, 0, 4, 5, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9,10,10,10},
-         { 0, 0, 0, 4, 4, 4, 4, 4, 5, 6, 7, 8, 8, 9,10,10,10}},
-        // nC == -1
-        {{ 2, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 1, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 3, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 0, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-        // nC == -2
-        {{ 1, 7, 7, 9, 9,10,11,12,13, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 2, 7, 7, 9,10,11,12,12, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 3, 7, 7, 9,10,11,12, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 0, 5, 6, 7, 7,10,11, 0, 0, 0, 0, 0, 0, 0, 0}},
-    };
-
-    static const byte codtab[5][4][17] = {
-        // 0 <= nC < 2
-        {{ 1, 5, 7, 7, 7, 7,15,11, 8,15,11,15,11,15,11, 7, 4},
-         { 0, 1, 4, 6, 6, 6, 6,14,10,14,10,14,10, 1,14,10, 6},
-         { 0, 0, 1, 5, 5, 5, 5, 5,13, 9,13, 9,13, 9,13, 9, 5},
-         { 0, 0, 0, 3, 3, 4, 4, 4, 4, 4,12,12, 8,12, 8,12, 8}},
-        // 2 <= nC < 4
-        {{ 3,11, 7, 7, 7, 4, 7,15,11,15,11, 8,15,11, 7, 9, 7},
-         { 0, 2, 7,10, 6, 6, 6, 6,14,10,14,10,14,10,11, 8, 6},
-         { 0, 0, 3, 9, 5, 5, 5, 5,13, 9,13, 9,13, 9, 6,10, 5},
-         { 0, 0, 0, 5, 4, 6, 8, 4, 4, 4,12, 8,12,12, 8, 1, 4}},
-        // 4 <= nC < 8
-        {{15,15,11, 8,15,11, 9, 8,15,11,15,11, 8,13, 9, 5, 1},
-         { 0,14,15,12,10, 8,14,10,14,14,10,14,10, 7,12, 8, 4},
-         { 0, 0,13,14,11, 9,13, 9,13,10,13, 9,13, 9,11, 7, 3},
-         { 0, 0, 0,12,11,10, 9, 8,13,12,12,12, 8,12,10, 6, 2}},
-        // nC == -1
-        {{ 1, 7, 4, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 1, 6, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-        // nC == -2
-        {{ 1,15,14, 7, 6, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 1,13,12, 5, 6, 6, 6, 5, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 1,11,10, 4, 5, 5, 4, 0, 0, 0, 0, 0, 0, 0, 0},
-         { 0, 0, 0, 1, 1, 9, 8, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0}},
-    };
-
     if (nC >= 8) {
         int code = currStream->read_bits(6);
-        *coeff = (code >> 2);
-        *ones  = (code & 3);
-        if (*coeff == 0 && *ones == 3)
-            // #c = 0, #t1 = 3 =>  #c = 0
-            *ones = 0;
+        int TotalCoeff   = (code >> 2);
+        int TrailingOnes = (code & 3);
+        if (TotalCoeff == 0 && TrailingOnes == 3)
+            TrailingOnes = 0;
         else
-            (*coeff)++;
-        return 0;
+            TotalCoeff++;
+        return (TotalCoeff << 2) | (TrailingOnes);
     }
 
     int tab = (nC == -2) ? 4 : (nC == -1) ? 3 : (nC < 2) ? 0 : (nC < 4) ? 1 : (nC < 8) ? 2 : 5;
-    for (int j = 0; j < 4; j++) {
-        for (int i = 0; i < 17; i++) {
-            int len = lentab[tab][j][i];
-            int cod = codtab[tab][j][i];
-            if (len > 0 && currStream->next_bits(len) == cod) {
-                *coeff = i;
-                *ones  = j;
-                currStream->read_bits(len);
-                return 0;
+
+    for (int TrailingOnes = 0; TrailingOnes < 4; TrailingOnes++) {
+        for (int TotalCoeff = 0; TotalCoeff < 17; TotalCoeff++) {
+            int length = coeff_token_length[tab][TrailingOnes][TotalCoeff];
+            int code   = coeff_token_code  [tab][TrailingOnes][TotalCoeff];
+            if (length > 0 && currStream->next_bits(length) == code) {
+                currStream->read_bits(length);
+                return (TotalCoeff << 2) | (TrailingOnes);
             }
         }
     }
 
-    printf("ERROR: failed to find NumCoeff/TrailingOnes\n");
-    exit(-1);
+    assert(false);
     return -1;
 }
 
-static int readSyntaxElement_TotalZeros(Bitstream *currStream, int *coeff, int tab)
+/*
+static int16_t parse_level(Bitstream *currStream, uint8_t level_prefix, uint8_t suffixLength)
 {
-    static const byte lentab[TOTRUN_NUM][16] = {
-        { 1,3,3,4,4,5,5,6,6,7,7,8,8,9,9,9},
-        { 3,3,3,3,3,4,4,4,4,5,5,6,6,6,6},
-        { 4,3,3,3,4,4,3,3,4,5,5,6,5,6},
-        { 5,3,4,4,3,3,3,4,3,4,5,5,5},
-        { 4,4,4,3,3,3,3,3,4,5,4,5},
-        { 6,5,3,3,3,3,3,3,4,3,6},
-        { 6,5,3,3,3,2,3,4,3,6},
-        { 6,4,5,3,2,2,3,3,6},
-        { 6,6,4,2,2,3,2,5},
-        { 5,5,3,2,2,2,4},
-        { 4,4,3,3,1,3},
-        { 4,4,2,1,3},
-        { 3,3,1,2},
-        { 2,2,1},
-        { 1,1},
-    };
+    int level, sign;
 
-    static const byte codtab[TOTRUN_NUM][16] = {
-        {1,3,2,3,2,3,2,3,2,3,2,3,2,3,2,1},
-        {7,6,5,4,3,5,4,3,2,3,2,3,2,1,0},
-        {5,7,6,5,4,3,4,3,2,3,2,1,1,0},
-        {3,7,5,4,6,5,4,3,3,2,2,1,0},
-        {5,4,3,7,6,5,4,3,2,1,1,0},
-        {1,1,7,6,5,4,3,2,1,1,0},
-        {1,1,5,4,3,3,2,1,1,0},
-        {1,1,1,3,3,2,2,1,0},
-        {1,0,1,3,2,1,1,1,},
-        {1,0,1,3,2,1,1,},
-        {0,1,1,2,1,3},
-        {0,1,1,1,1},
-        {0,1,1,1},
-        {0,1,1},
-        {0,1},
-    };
-
-    for (int i = 0; i < 16; i++) {
-        int len = lentab[tab][i];
-        int cod = codtab[tab][i];
-        if (len > 0 && currStream->next_bits(len) == cod) {
-            *coeff = i;
-            currStream->read_bits(len);
-            return 0;
+    if (suffixLength == 0) {
+        if (level_prefix < 14) {
+            sign  = level_prefix & 1;
+            level = (level_prefix >> 1) + 1;
+        } else if (level_prefix == 14) {
+            // escape
+            int level_suffix = currStream->u(4);
+            sign  = (level_suffix & 1);
+            level = (level_suffix >> 1) + 8;
+        } else {
+            // escape
+            int level_suffix = currStream->u(level_prefix - 3);
+            sign  = (level_suffix & 1);
+            level = (level_suffix >> 1) + (1 << (level_prefix - 4)) - 2047 + 15;
+        }
+    } else {
+        if (level_prefix < 15) {
+            int level_suffix = currStream->u(suffixLength);
+            sign  = (level_suffix & 1);
+            level = (level_suffix >> 1) + (level_prefix << (suffixLength - 1)) + 1;
+        } else { // escape
+            int level_suffix = currStream->u(level_prefix - 3);
+            sign  = (level_suffix & 1);
+            level = (level_suffix >> 1) + (1 << (level_prefix - 4)) - 2047 + (15 << (suffixLength - 1));
         }
     }
 
-    printf("ERROR: failed to find Total Zeros !cdc\n");
-    exit(-1);
+    return sign ? -level : level;
+}
+*/
+
+static uint8_t parse_total_zeros(Bitstream *currStream, int yuv, int tzVlcIndex)
+{
+    int tab = tzVlcIndex - 1;
+
+    for (int total_zeros = 0; total_zeros < 16; total_zeros++) {
+        int length = total_zeros_length[yuv][tab][total_zeros];
+        int code   = total_zeros_code  [yuv][tab][total_zeros];
+        if (length > 0 && currStream->next_bits(length) == code) {
+            currStream->read_bits(length);
+            return total_zeros;
+        }
+    }
+
+    assert(false);
     return -1;
 }
 
-static int readSyntaxElement_TotalZerosChromaDC(Bitstream *currStream, int *coeff, int yuv, int tab)
+static uint8_t parse_run_before(Bitstream *currStream, uint8_t zerosLeft)
 {
-    static const byte lentab[3][TOTRUN_NUM][16] = {
-        //YUV420
-        {{ 1,2,3,3},
-         { 1,2,2},
-         { 1,1}},
-        //YUV422
-        {{ 1,3,3,4,4,4,5,5},
-         { 3,2,3,3,3,3,3},
-         { 3,3,2,2,3,3},
-         { 3,2,2,2,3},
-         { 2,2,2,2},
-         { 2,2,1},
-         { 1,1}},
-        //YUV444
-        {{ 1,3,3,4,4,5,5,6,6,7,7,8,8,9,9,9},
-         { 3,3,3,3,3,4,4,4,4,5,5,6,6,6,6},
-         { 4,3,3,3,4,4,3,3,4,5,5,6,5,6},
-         { 5,3,4,4,3,3,3,4,3,4,5,5,5},
-         { 4,4,4,3,3,3,3,3,4,5,4,5},
-         { 6,5,3,3,3,3,3,3,4,3,6},
-         { 6,5,3,3,3,2,3,4,3,6},
-         { 6,4,5,3,2,2,3,3,6},
-         { 6,6,4,2,2,3,2,5},
-         { 5,5,3,2,2,2,4},
-         { 4,4,3,3,1,3},
-         { 4,4,2,1,3},
-         { 3,3,1,2},
-         { 2,2,1},
-         { 1,1}}
-    };
+    int tab = imin(zerosLeft, 7) - 1;
 
-    static const byte codtab[3][TOTRUN_NUM][16] = {
-        //YUV420
-        {{ 1,1,1,0},
-         { 1,1,0},
-         { 1,0}},
-        //YUV422
-        {{ 1,2,3,2,3,1,1,0},
-         { 0,1,1,4,5,6,7},
-         { 0,1,1,2,6,7},
-         { 6,0,1,2,7},
-         { 0,1,2,3},
-         { 0,1,1},
-         { 0,1}},
-        //YUV444
-        {{1,3,2,3,2,3,2,3,2,3,2,3,2,3,2,1},
-         {7,6,5,4,3,5,4,3,2,3,2,3,2,1,0},
-         {5,7,6,5,4,3,4,3,2,3,2,1,1,0},
-         {3,7,5,4,6,5,4,3,3,2,2,1,0},
-         {5,4,3,7,6,5,4,3,2,1,1,0},
-         {1,1,7,6,5,4,3,2,1,1,0},
-         {1,1,5,4,3,3,2,1,1,0},
-         {1,1,1,3,3,2,2,1,0},
-         {1,0,1,3,2,1,1,1,},
-         {1,0,1,3,2,1,1,},
-         {0,1,1,2,1,3},
-         {0,1,1,1,1},
-         {0,1,1,1},
-         {0,1,1},
-         {0,1}}
-    };
-
-    for (int i = 0; i < 16; i++) {
-        int len = lentab[yuv][tab][i];
-        int cod = codtab[yuv][tab][i];
-        if (len > 0 && currStream->next_bits(len) == cod) {
-            *coeff = i;
-            currStream->read_bits(len);
-            return 0;
+    for (int run_before = 0; run_before < 16; run_before++) {
+        int length = run_before_length[tab][run_before];
+        int code   = run_before_code  [tab][run_before];
+        if (length > 0 && currStream->next_bits(length) == code) {
+            currStream->read_bits(length);
+            return run_before;
         }
     }
 
-    printf("ERROR: failed to find Total Zeros\n");
-    exit(-1);
-    return -1;
-}
-
-static int readSyntaxElement_Run(Bitstream *currStream, int *coeff, int tab)
-{
-    static const byte lentab[TOTRUN_NUM][16] = {
-        {1,1},
-        {1,2,2},
-        {2,2,2,2},
-        {2,2,2,3,3},
-        {2,2,3,3,3,3},
-        {2,3,3,3,3,3,3},
-        {3,3,3,3,3,3,3,4,5,6,7,8,9,10,11},
-    };
-
-    static const byte codtab[TOTRUN_NUM][16] = {
-        {1,0},
-        {1,1,0},
-        {3,2,1,0},
-        {3,2,1,1,0},
-        {3,2,3,2,1,0},
-        {3,0,1,3,2,5,4},
-        {7,6,5,4,3,2,1,1,1,1,1,1,1,1,1},
-    };
-
-    for (int i = 0; i < 16; i++) {
-        int len = lentab[tab][i];
-        int cod = codtab[tab][i];
-        if (len > 0 && currStream->next_bits(len) == cod) {
-            *coeff = i;
-            currStream->read_bits(len);
-            return 0;
-        }
-    }
-
-    printf("ERROR: failed to find Run\n");
-    exit(-1);
+    assert(false);
     return -1;
 }
 
@@ -359,99 +282,79 @@ static void read_coeff_4x4_CAVLC(mb_t *currMB, int block_type, int i, int j,
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    VideoParameters *p_Vid = currMB->p_Vid;
-    int mb_nr = currMB->mbAddrX;
-
-    int cdc=0, cac=0;
-    int dptype = 0;
-    int max_coeff_num = 0;
 
     int num_cdc_coeff;
     if (sps->chroma_format_idc != YUV400)
         num_cdc_coeff = (((1 << sps->chroma_format_idc) & (~0x1)) << 1);
+        //num_cdc_coeff = 4 / (sps->MbWidthC * sps->MbHeightC) * 4;
     else
         num_cdc_coeff = 0;
 
     int pl;
     switch (block_type) {
+    case LUMA:              pl = 0; break;
+    case CB:                pl = 1; break;
+    case CR:                pl = 2; break;
+    case LUMA_INTRA16x16DC: pl = 0; break;
+    case CB_INTRA16x16DC:   pl = 1; break;
+    case CR_INTRA16x16DC:   pl = 2; break;
+    case LUMA_INTRA16x16AC: pl = 0; break;
+    case CB_INTRA16x16AC:   pl = 1; break;
+    case CR_INTRA16x16AC:   pl = 2; break;
+    case CHROMA_DC:         pl = 0; break;
+    case CHROMA_AC:         pl = 0; break;
+    default:                pl = 0; break;
+    }
+
+    currMB->nz_coeff[pl][j][i] = 0;
+
+    int max_coeff_num = 0;
+    switch (block_type) {
     case LUMA:
     case CB:
     case CR:
-        max_coeff_num = 16;
-        dptype = currMB->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
-        pl = block_type == LUMA ? 0 : block_type == CB ? 1 : 2;
-        p_Vid->nz_coeff[mb_nr][pl][j][i] = 0;
-        break;
     case LUMA_INTRA16x16DC:
     case CB_INTRA16x16DC:
     case CR_INTRA16x16DC:
         max_coeff_num = 16;
-        dptype = SE_LUM_DC_INTRA;
-        pl = block_type == LUMA_INTRA16x16DC ? 0 : block_type == CB_INTRA16x16DC ? 1 : 2;
-        p_Vid->nz_coeff[mb_nr][pl][j][i] = 0; 
         break;
     case LUMA_INTRA16x16AC:
     case CB_INTRA16x16AC:
     case CR_INTRA16x16AC:
+    case CHROMA_AC:
         max_coeff_num = 15;
-        dptype = SE_LUM_AC_INTRA;
-        pl = block_type == LUMA_INTRA16x16AC ? 0 : block_type == CB_INTRA16x16AC ? 1 : 2;
-        p_Vid->nz_coeff[mb_nr][pl][j][i] = 0; 
         break;
     case CHROMA_DC:
         max_coeff_num = num_cdc_coeff;
-        cdc = 1;
-        dptype = currMB->is_intra_block ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER;
-        p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
-        break;
-    case CHROMA_AC:
-        max_coeff_num = 15;
-        cac = 1;
-        dptype = currMB->is_intra_block ? SE_CHR_AC_INTRA : SE_CHR_AC_INTER;
-        p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
         break;
     default:
-        error ("read_coeff_4x4_CAVLC: invalid block type", 600);
-        p_Vid->nz_coeff[mb_nr][0][j][i] = 0; 
         break;
-    }
-
-    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
-    Bitstream *currStream = dP->bitstream;
-
-    int nC = 0;
-    if (!cdc) {
-        // luma or chroma AC    
-        if (block_type == LUMA ||
-            block_type == LUMA_INTRA16x16DC || block_type == LUMA_INTRA16x16AC ||
-            block_type == CHROMA_AC) {
-            nC = (!cac) ? predict_nnz(currMB, LUMA, i<<2, j<<2) :
-                           predict_nnz_chroma(currMB, i, ((j-4)<<2));
-        } else if (block_type == CB || block_type == CB_INTRA16x16DC || block_type == CB_INTRA16x16AC)
-            nC = predict_nnz(currMB, CB, i<<2, j<<2);
-        else
-            nC = predict_nnz(currMB, CR, i<<2, j<<2);
-    } else {
-        nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
-    }
-
-    int TotalCoeff = 0;
-    int TrailingOnes;
-    readSyntaxElement_NumCoeffTrailingOnes(currStream, &TotalCoeff, &TrailingOnes, nC);
-
-    if (!cdc) {
-        if (block_type == LUMA ||
-            block_type == LUMA_INTRA16x16DC || block_type == LUMA_INTRA16x16AC ||
-            block_type == CHROMA_AC)
-            p_Vid->nz_coeff[mb_nr][0][j][i] = (byte) TotalCoeff;
-        else if (block_type == CB || block_type == CB_INTRA16x16DC || block_type == CB_INTRA16x16AC)
-            p_Vid->nz_coeff[mb_nr][1][j][i] = (byte) TotalCoeff;
-        else
-            p_Vid->nz_coeff[mb_nr][2][j][i] = (byte) TotalCoeff;
     }
 
     memset(levelVal, 0, max_coeff_num * sizeof(int));
     memset(runVal, 0, max_coeff_num * sizeof(int));
+
+    int cdc = block_type == CHROMA_DC;
+    int cac = block_type == CHROMA_AC;
+
+    int dptype = currMB->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
+    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
+    Bitstream *currStream = dP->bitstream;
+
+    int nC = 0;
+    if (cdc) 
+        nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
+    else if (cac)
+        nC = predict_nnz_chroma(currMB, i, (j - 4) * 4);
+    else
+        nC = predict_nnz(currMB, pl, i * 4, j * 4);
+
+    uint8_t coeff_token  = parse_coeff_token(currStream, nC);
+    uint8_t TotalCoeff   = coeff_token >> 2;
+    uint8_t TrailingOnes = coeff_token % 4;
+
+    if (!cdc)
+        currMB->nz_coeff[pl][j][i] = TotalCoeff;
 
     *number_coefficients = TotalCoeff;
 
@@ -468,10 +371,33 @@ static void read_coeff_4x4_CAVLC(mb_t *currMB, int block_type, int i, int j,
         }
 
         for (int i = TotalCoeff - 1 - TrailingOnes; i >= 0; i--) {
-            levelVal[i] = readSyntaxElement_Level_VLCN(currStream, suffixLength);
+            int level_prefix, level_suffix;
+            int levelSuffixSize, levelCode;
 
+            int leadingZeroBits = -1;
+            for (int b = 0; !b; leadingZeroBits++)
+                b = currStream->read_bits(1);
+            level_prefix = leadingZeroBits;
+
+            levelSuffixSize = (level_prefix == 14 && suffixLength == 0) ? 4 :
+                              (level_prefix >= 15) ? level_prefix - 3 : suffixLength;
+            if (levelSuffixSize > 0)
+                level_suffix = currStream->u(levelSuffixSize);
+            else
+                level_suffix = 0;
+
+            levelCode = (imin(15, level_prefix) << suffixLength) + level_suffix;
+            if (level_prefix >= 15 && suffixLength == 0)
+                levelCode += 15;
+            if (level_prefix >= 16)
+                levelCode += (1 << (level_prefix - 3)) - 4096;
             if (i == TotalCoeff - 1 - TrailingOnes && TrailingOnes < 3)
-                levelVal[i] += (levelVal[i] > 0 ? 1 : -1);
+                levelCode += 2;
+
+            if ((levelCode % 2) == 0)
+                levelVal[i] = (levelCode + 2) >> 1;
+            else
+                levelVal[i] = (-levelCode - 1) >> 1;
 
             if (suffixLength == 0)
                 suffixLength = 1;
@@ -479,23 +405,18 @@ static void read_coeff_4x4_CAVLC(mb_t *currMB, int block_type, int i, int j,
                 suffixLength++;
         }
 
-        int zerosLeft;
+        int zerosLeft = 0;
         if (TotalCoeff < max_coeff_num) {
-            int yuv = p_Vid->active_sps->chroma_format_idc - 1;
-            if (cdc)
-                readSyntaxElement_TotalZerosChromaDC(currStream, &zerosLeft, yuv, TotalCoeff - 1);
-            else
-                readSyntaxElement_TotalZeros(currStream, &zerosLeft, TotalCoeff - 1);
-        } else
-            zerosLeft = 0;
+            //int yuv = maxNumCoeff == 4 ? 0 : maxNumCoeff == 8 ? 1 : 2;
+            int yuv = cdc ? sps->chroma_format_idc - 1 : 2;
+            zerosLeft = parse_total_zeros(currStream, yuv, TotalCoeff);
+        }
 
         for (i = TotalCoeff - 1; i > 0; i--) {
 //        for (i = 0; i < TotalCoeff - 1; i++) {
-            if (zerosLeft > 0) {
-                int run_before;
-                readSyntaxElement_Run(currStream, &run_before, imin(zerosLeft - 1, RUNBEFORE_NUM_M1));
-                runVal[i] = run_before;
-            } else
+            if (zerosLeft > 0)
+                runVal[i] = parse_run_before(currStream, zerosLeft);
+            else
                 runVal[i] = 0;
             zerosLeft -= runVal[i];
         }
@@ -529,7 +450,6 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
         currSlice->InvLevelScale8x8_Inter[transform_pl][qp_rem];
 
     int start_scan = IS_I16MB(currMB) ? 1 : 0;
-    byte **nzcoeff = currSlice->p_Vid->nz_coeff[currMB->mbAddrX][pl];
 
     int cur_context; 
     if (IS_I16MB(currMB)) {
@@ -591,20 +511,18 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
             }
         }
         if (!(currMB->cbp & (1 << i8x8))) {
-            nzcoeff[block_y    ][block_x    ] = 0;
-            nzcoeff[block_y    ][block_x + 1] = 0;
-            nzcoeff[block_y + 1][block_x    ] = 0;
-            nzcoeff[block_y + 1][block_x + 1] = 0;
+            currMB->nz_coeff[pl][block_y + 0][block_x + 0] = 0;
+            currMB->nz_coeff[pl][block_y + 0][block_x + 1] = 0;
+            currMB->nz_coeff[pl][block_y + 1][block_x + 0] = 0;
+            currMB->nz_coeff[pl][block_y + 1][block_x + 1] = 0;
         }
     }
 }
 
 static void read_tc_chroma_420(mb_t *currMB)
 {
-    VideoParameters *p_Vid = currMB->p_Vid;
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    int mb_nr = currMB->mbAddrX;
 
     const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
 
@@ -692,16 +610,15 @@ static void read_tc_chroma_420(mb_t *currMB)
                 }
             }
         }
-    } else
-        memset(p_Vid->nz_coeff[mb_nr][1][0], 0, 2 * BLOCK_PIXELS * sizeof(byte));
+    } else {
+        memset(currMB->nz_coeff[1][0], 0, 2 * 16 * sizeof(uint8_t));
+    }
 }
 
 static void read_tc_chroma_422(mb_t *currMB)
 {
-    VideoParameters *p_Vid = currMB->p_Vid;
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    int mb_nr = currMB->mbAddrX;
 
     const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
 
@@ -815,8 +732,9 @@ static void read_tc_chroma_422(mb_t *currMB)
                 }
             }
         }
-    } else
-        memset(p_Vid->nz_coeff[mb_nr][1][0], 0, 2 * BLOCK_PIXELS * sizeof(byte));
+    } else {
+        memset(currMB->nz_coeff[1][0], 0, 2 * 16 * sizeof(uint8_t));
+    }
 }
 
 

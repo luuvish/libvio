@@ -236,7 +236,6 @@ typedef struct coding_par {
     char  *intra_block;
     char  *intra_block_JV[MAX_PLANE];
     BlockPos *PicPos;  
-    byte ****nz_coeff;
 } CodingParameters;
 
 typedef struct layer_par {
@@ -400,8 +399,6 @@ typedef struct video_par {
     char  *intra_block;
     char  *intra_block_JV[MAX_PLANE];
     BlockPos *PicPos;
-    byte ****nz_coeff;
-
 
 
   // picture error concealment
