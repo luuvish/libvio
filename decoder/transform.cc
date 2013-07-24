@@ -56,6 +56,11 @@ static inline int iClip1(int high, int x)
     return x;
 }
 
+static inline int rshift_rnd_sf(int x, int a)
+{
+    return ((x + (1 << (a-1) )) >> a);
+}
+
 // SP decoding parameter (EQ. 8-425)
 static const int A[4][4] = {
     { 16, 20, 16, 20},
@@ -101,17 +106,54 @@ static void copy_image_data(imgpel  **imgBuf1, imgpel  **imgBuf2, int off1, int 
 }
 
 
-void ihadamard2x2(int tblock[4], int block[4])
+static void ihadamard2x2(int tblock[4], int block[4])
 {
     int t0 = tblock[0] + tblock[1];
     int t1 = tblock[0] - tblock[1];
     int t2 = tblock[2] + tblock[3];
     int t3 = tblock[2] - tblock[3];
 
-    block[0] = (t0 + t2);
-    block[1] = (t1 + t3);
-    block[2] = (t0 - t2);
-    block[3] = (t1 - t3);
+    block[0] = t0 + t2;
+    block[1] = t1 + t3;
+    block[2] = t0 - t2;
+    block[3] = t1 - t3;
+}
+
+static void ihadamard2x4(int **tblock, int **block)
+{
+    int tmp[8];
+    int *pTmp = tmp;
+
+    // Horizontal
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        int *pblock = tblock[i];
+
+        int t0 = *(pblock++);
+        int t1 = *(pblock++);
+
+        *(pTmp++) = t0 + t1;
+        *(pTmp++) = t0 - t1;
+    }
+
+    // Vertical 
+    for (int i = 0; i < 2; i++) {
+        pTmp = tmp + i;
+
+        int t0 = *pTmp;
+        int t1 = *(pTmp += BLOCK_SIZE);
+        int t2 = *(pTmp += BLOCK_SIZE);
+        int t3 = *(pTmp += BLOCK_SIZE);
+
+        int p0 = t0 + t2;
+        int p1 = t0 - t2;
+        int p2 = t1 - t3;
+        int p3 = t1 + t3;
+        
+        block[0][i] = p0 + p3;
+        block[1][i] = p1 + p2;
+        block[2][i] = p1 - p2;
+        block[3][i] = p0 - p3;
+    }
 }
 
 static void ihadamard4x4(int **tblock, int **block)
@@ -669,12 +711,11 @@ void itrans16x16(mb_t *currMB, ColorPlane pl)
 void itrans_2(mb_t *currMB, ColorPlane pl)
 {
     slice_t *currSlice = currMB->p_Slice;
-    VideoParameters *p_Vid = currMB->p_Vid;
+    sps_t *sps = currSlice->active_sps;
 
-    int transform_pl = (p_Vid->active_sps->separate_colour_plane_flag != 0) ? PLANE_Y : pl;
+    int transform_pl = sps->separate_colour_plane_flag ? PLANE_Y : pl;
     int **cof = currSlice->cof[transform_pl];
     int qp_scaled = currMB->qp_scaled[transform_pl];
-
     int qp_per = qp_scaled / 6;
     int qp_rem = qp_scaled % 6;
 
@@ -692,12 +733,69 @@ void itrans_2(mb_t *currMB, ColorPlane pl)
 
     ihadamard4x4(M4, M4);
 
-    // vertical
-    for (int j = 0; j < 4; ++j) {
-        cof[j << 2][ 0] = rshift_rnd((( M4[j][0] * invLevelScale) << qp_per), 6);
-        cof[j << 2][ 4] = rshift_rnd((( M4[j][1] * invLevelScale) << qp_per), 6);
-        cof[j << 2][ 8] = rshift_rnd((( M4[j][2] * invLevelScale) << qp_per), 6);
-        cof[j << 2][12] = rshift_rnd((( M4[j][3] * invLevelScale) << qp_per), 6);
+    for (int j = 0; j < MB_BLOCK_SIZE; j += BLOCK_SIZE) {
+        for (int i = 0; i < MB_BLOCK_SIZE; i += BLOCK_SIZE)
+            cof[j][i] = rshift_rnd(((M4[j / 4][i / 4] * invLevelScale) << qp_per), 6);
+    }
+
+    free_mem2Dint(M4);
+}
+
+void itrans_420(mb_t *currMB, ColorPlane pl)
+{
+    slice_t *currSlice = currMB->p_Slice;
+
+    int **cof = currSlice->cof[pl];
+    int qp_scaled = currMB->qp_scaled[pl];
+    int qp_per = qp_scaled / 6;
+    int qp_rem = qp_scaled % 6;
+
+    int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
+        currSlice->InvLevelScale4x4_Intra[pl][qp_rem] :
+        currSlice->InvLevelScale4x4_Inter[pl][qp_rem];
+    int invLevelScale = InvLevelScale4x4[0][0];
+
+    int M4[4];
+    M4[0] = cof[0][0];
+    M4[1] = cof[0][4];
+    M4[2] = cof[4][0];
+    M4[3] = cof[4][4];
+
+    ihadamard2x2(M4, M4);
+
+    cof[0][0] = ((M4[0] * invLevelScale) << qp_per) >> 5;
+    cof[0][4] = ((M4[1] * invLevelScale) << qp_per) >> 5;
+    cof[4][0] = ((M4[2] * invLevelScale) << qp_per) >> 5;
+    cof[4][4] = ((M4[3] * invLevelScale) << qp_per) >> 5;
+}
+
+void itrans_422(mb_t *currMB, ColorPlane pl)
+{
+    slice_t *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
+
+    int **cof = currSlice->cof[pl];
+    int qp_scaled = currMB->qpc[pl - 1] + 3 + sps->QpBdOffsetC;
+    int qp_per = qp_scaled / 6;
+    int qp_rem = qp_scaled % 6;
+
+    int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
+        currSlice->InvLevelScale4x4_Intra[pl][qp_rem] :
+        currSlice->InvLevelScale4x4_Inter[pl][qp_rem];
+    int invLevelScale = InvLevelScale4x4[0][0];
+    int **M4;
+    get_mem2Dint(&M4, BLOCK_SIZE, 2);
+
+    for (int j = 0; j < 4; j++) {
+        M4[j][0] = cof[j << 2][0];
+        M4[j][1] = cof[j << 2][4];
+    }
+
+    ihadamard2x4(M4, M4);
+
+    for (int j = 0; j < sps->MbHeightC; j += BLOCK_SIZE) {
+        for (int i = 0; i < sps->MbWidthC; i += BLOCK_SIZE)
+            cof[j][i] = rshift_rnd_sf((M4[j / 4][i / 4] * invLevelScale) << qp_per, 6);
     }
 
     free_mem2Dint(M4);

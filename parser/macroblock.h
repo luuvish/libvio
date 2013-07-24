@@ -272,6 +272,13 @@ typedef struct macroblock_t {
 
     void        read_CBP_and_coeffs_from_NAL_CAVLC();
     void        read_CBP_and_coeffs_from_NAL_CABAC();
+
+    uint8_t     parse_coeff_token(int nC);
+    uint8_t     parse_total_zeros(int yuv, int tzVlcIndex);
+    uint8_t     parse_run_before(uint8_t zerosLeft);
+    void        read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
+                                     int levelVal[16], int runVal[16], int *number_coefficients);
+
 } mb_t;
 
 

@@ -27,6 +27,81 @@
 #define IS_I16MB(MB)    ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
 #define IS_DIRECT(MB)   ((MB)->mb_type == 0 && (currSlice->slice_type == B_SLICE))
 
+static inline int rshift_rnd_sf(int x, int a)
+{
+    return ((x + (1 << (a-1) )) >> a);
+}
+
+
+static const unsigned char cbp_blk_chroma[8][4] = {
+    {16, 17, 18, 19},
+    {20, 21, 22, 23},
+    {24, 25, 26, 27},
+    {28, 29, 30, 31},
+    {32, 33, 34, 35},
+    {36, 37, 38, 39},
+    {40, 41, 42, 43},
+    {44, 45, 46, 47} 
+};
+
+static const unsigned char cofuv_blk_x[3][8][4] = {
+  { {0, 1, 0, 1},
+    {0, 1, 0, 1},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0} },
+
+  { {0, 1, 0, 1},
+    {0, 1, 0, 1},
+    {0, 1, 0, 1},
+    {0, 1, 0, 1},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0} },
+
+  { {0, 1, 0, 1},
+    {2, 3, 2, 3},
+    {0, 1, 0, 1},
+    {2, 3, 2, 3},
+    {0, 1, 0, 1},
+    {2, 3, 2, 3},
+    {0, 1, 0, 1},
+    {2, 3, 2, 3} }
+};
+
+static const unsigned char cofuv_blk_y[3][8][4] = {
+  { { 0, 0, 1, 1},
+    { 0, 0, 1, 1},
+    { 0, 0, 0, 0},
+    { 0, 0, 0, 0},
+    { 0, 0, 0, 0},
+    { 0, 0, 0, 0},
+    { 0, 0, 0, 0},
+    { 0, 0, 0, 0} },
+
+  { { 0, 0, 1, 1},
+    { 2, 2, 3, 3},
+    { 0, 0, 1, 1},
+    { 2, 2, 3, 3},
+    { 0, 0, 0, 0},
+    { 0, 0, 0, 0},
+    { 0, 0, 0, 0},
+    { 0, 0, 0, 0} },
+
+  { { 0, 0, 1, 1},
+    { 0, 0, 1, 1},
+    { 2, 2, 3, 3},
+    { 2, 2, 3, 3},
+    { 0, 0, 1, 1},
+    { 0, 0, 1, 1},
+    { 2, 2, 3, 3},
+    { 2, 2, 3, 3}}
+};
+
 
 //! for the linfo_levrun_inter routine
 static const byte NTAB1[4][8][2] = {
@@ -883,10 +958,6 @@ static void read_tc_chroma_420(mb_t *currMB)
             int uv = ll >> 1;
             currMB->is_v_block = ll;
 
-            int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
-                currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]] :
-                currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
-
             SyntaxElement currSE;
             currSE.context = CHROMA_DC;
             currSE.type    = currMB->is_intra_block ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER;
@@ -896,8 +967,6 @@ static void read_tc_chroma_420(mb_t *currMB)
             else
                 currSE.reading = readRunLevel_CABAC;
 
-            int cofu[4] = { 0 };
-
             int coef_ctr = -1;
             int level = 1;
             for (int k = 0; k < num_cdc_coeff + 1 && level != 0; ++k) {
@@ -906,29 +975,18 @@ static void read_tc_chroma_420(mb_t *currMB)
                 if (level != 0) {
                     currMB->s_cbp[0].blk |= 0xf0000 << (ll << 1);
                     coef_ctr += currSE.value2 + 1;
-
+                    int i0 = coef_ctr % 2;
+                    int j0 = coef_ctr / 2;
                     assert(coef_ctr < num_cdc_coeff);
                     if (coef_ctr < 4)
-                        cofu[coef_ctr] = level;
+                        currSlice->cof[uv + 1][j0 << 2][i0 << 2] = level;
                 }
             }
 
             int smb = (currSlice->slice_type == SP_SLICE && !currMB->is_intra_block) ||
                       (currSlice->slice_type == SI_SLICE && currMB->mb_type == SI4MB);
-            if (smb || currMB->TransformBypassModeFlag) {
-                currSlice->cof[uv + 1][0][0] = cofu[0];
-                currSlice->cof[uv + 1][0][4] = cofu[1];
-                currSlice->cof[uv + 1][4][0] = cofu[2];
-                currSlice->cof[uv + 1][4][4] = cofu[3];
-            } else {
-                int temp[4];
-                ihadamard2x2(cofu, temp);
-
-                currSlice->cof[uv + 1][0][0] = ((temp[0] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;
-                currSlice->cof[uv + 1][0][4] = ((temp[1] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;
-                currSlice->cof[uv + 1][4][0] = ((temp[2] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;
-                currSlice->cof[uv + 1][4][4] = ((temp[3] * InvLevelScale4x4[0][0]) << qp_per_uv[uv]) >> 5;
-            }
+            if (!smb && !currMB->TransformBypassModeFlag)
+                itrans_420(currMB, (ColorPlane)(uv + 1));
         }
     }
 
@@ -1037,8 +1095,8 @@ static void read_tc_chroma_422(mb_t *currMB)
                     s_cbp->blk |= ((int64)0xff0000) << (ll<<2);
                     coef_ctr += currSE.value2 + 1;
                     assert(coef_ctr < num_cdc_coeff);
-                    int i0 = SCAN_YUV422[coef_ctr][0];
-                    int j0 = SCAN_YUV422[coef_ctr][1];
+                    int i0 = FIELD_SCAN[coef_ctr][0];
+                    int j0 = FIELD_SCAN[coef_ctr][1];
                     m3[i0][j0] = level;
                 }
             }
@@ -1159,7 +1217,6 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
                                         uint8_t maxNumCoeff, ColorPlane pl, int bx, int by)
 {
     slice_t *slice = this->p_Slice;
-    sps_t *sps = slice->active_sps;
 
     SyntaxElement currSE;
     currSE.type    = SE_LUM_DC_INTRA;
@@ -1185,8 +1242,6 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
         }
     }
 
-    if (!this->TransformBypassModeFlag) {
-        int transform_pl = sps->separate_colour_plane_flag ? slice->colour_plane_id : pl;
-        itrans_2(this, (ColorPlane)transform_pl);
-    }
+    if (!this->TransformBypassModeFlag)
+        itrans_2(this, pl);
 }

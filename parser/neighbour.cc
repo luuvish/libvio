@@ -613,74 +613,55 @@ int predict_nnz(mb_t *currMB, int pl, int i, int j)
 {
     VideoParameters *p_Vid = currMB->p_Vid;
     slice_t *currSlice = currMB->p_Slice;
-    pps_t *pps = currSlice->active_pps;
-
-    PixelPos pixA, pixB;
-    int pred_nnz = 0;
-    int cnt      = 0;
-    int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-
-    get4x4Neighbour(currMB, i - 1, j, mb_size, &pixA);
-    get4x4Neighbour(currMB, i, j - 1, mb_size, &pixB);
-
-    if (pps->constrained_intra_pred_flag && currSlice->dp_mode == PAR_DP_3) {
-        if (currMB->is_intra_block) {
-            pixA.available &= p_Vid->mb_data[pixA.mb_addr].is_intra_block;
-            pixB.available &= p_Vid->mb_data[pixB.mb_addr].is_intra_block;
-            cnt += pixA.available ? 0 : 1;
-            cnt += pixB.available ? 0 : 1;
-        }
-    }
-
-    cnt += pixA.available ? 1 : 0;
-    cnt += pixB.available ? 1 : 0;
-
-    if (pixA.available)
-        pred_nnz += p_Vid->mb_data[pixA.mb_addr].nz_coeff[pl][pixA.y][pixA.x];
-    if (pixB.available)
-        pred_nnz += p_Vid->mb_data[pixB.mb_addr].nz_coeff[pl][pixB.y][pixB.x];
-    if (cnt == 2)
-        pred_nnz = (pred_nnz + 1) >> 1;
-
-    return pred_nnz;
-}
-
-int predict_nnz_chroma(mb_t *currMB, int i, int j)
-{
-    VideoParameters *p_Vid = currMB->p_Vid;
-    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     pps_t *pps = currSlice->active_pps;
 
-    if (sps->chroma_format_idc == YUV444)
-        return 0;
-
     PixelPos pixA, pixB;
-    int pred_nnz = 0;
-    int cnt      = 0;
-    int mb_size[2] = { sps->MbWidthC, sps->MbHeightC };
+    int mb_size[2][2] = {
+        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
+        { sps->MbWidthC, sps->MbHeightC }
+    };
+    int plc = sps->separate_colour_plane_flag || pl == 0 ? 0 : 1;
+    get4x4Neighbour(currMB, i - 1, j, mb_size[plc], &pixA);
+    get4x4Neighbour(currMB, i, j - 1, mb_size[plc], &pixB);
 
-    get4x4Neighbour(currMB, ((i & 0x01) << 2) - 1, j, mb_size, &pixA);
-    get4x4Neighbour(currMB, ((i & 0x01) << 2), j - 1, mb_size, &pixB);
-
+    bool availableFlagA = pixA.available;
+    bool availableFlagB = pixB.available;
     if (pps->constrained_intra_pred_flag && currSlice->dp_mode == PAR_DP_3) {
         if (currMB->is_intra_block) {
-            pixA.available &= p_Vid->mb_data[pixA.mb_addr].is_intra_block;
-            pixB.available &= p_Vid->mb_data[pixB.mb_addr].is_intra_block;
-            cnt += pixA.available ? 0 : 1;
-            cnt += pixB.available ? 0 : 1;
+            availableFlagA &= p_Vid->mb_data[pixA.mb_addr].is_intra_block;
+            availableFlagB &= p_Vid->mb_data[pixB.mb_addr].is_intra_block;
         }
     }
 
-    cnt += pixA.available ? 1 : 0;
-    cnt += pixB.available ? 1 : 0;
+    uint8_t nA = 0;
+    if (availableFlagA) {
+        mb_t *mb = &p_Vid->mb_data[pixA.mb_addr];
+        //if (mb->mb_type == PSKIP || mb->mb_type == BSKIP_DIRECT)
+        //    nA = 0;
+        //else if (mb->mb_type != IPCM && (mb->cbp & 15) == 0)
+        //    nA = 0;
+        //else if (mb->mb_type == IPCM)
+        //    nA = 16;
+        //else
+            nA = mb->nz_coeff[pl][pixA.y][pixA.x];
+    }
 
-    if (pixA.available)
-        pred_nnz += p_Vid->mb_data[pixA.mb_addr].nz_coeff[1][pixA.y][(i >> 1) * 2 + pixA.x];
-    if (pixB.available)
-        pred_nnz += p_Vid->mb_data[pixB.mb_addr].nz_coeff[1][pixB.y][(i >> 1) * 2 + pixB.x];
-    if (cnt == 2)
-        pred_nnz = (pred_nnz + 1) >> 1;
+    uint8_t nB = 0;
+    if (availableFlagB) {
+        mb_t *mb = &p_Vid->mb_data[pixB.mb_addr];
+        //if (mb->mb_type == PSKIP || mb->mb_type == BSKIP_DIRECT)
+        //    nB = 0;
+        //else if (mb->mb_type != IPCM && (mb->cbp & 15) == 0)
+        //    nB = 0;
+        //else if (mb->mb_type == IPCM)
+        //    nB = 16;
+        //else
+            nB = mb->nz_coeff[pl][pixB.y][pixB.x];
+    }
 
-    return pred_nnz;
+    uint8_t nC = nA + nB;
+    if (availableFlagA && availableFlagB)
+        nC = (nC + 1) >> 1;
+    return nC;
 }

@@ -113,8 +113,6 @@ void copy_image_data_4x4  (imgpel **imgBuf1, imgpel **imgBuf2, int off1, int off
 void copy_image_data_8x8  (imgpel **imgBuf1, imgpel **imgBuf2, int off1, int off2);
 void copy_image_data_16x16(imgpel **imgBuf1, imgpel **imgBuf2, int off1, int off2);
 
-void ihadamard2x2(int block[4], int tblock[4]);
-
 struct macroblock_t;
 
 void Inv_Residual_trans_4x4   (struct macroblock_t *currMB, ColorPlane pl, int ioff, int joff);
@@ -126,6 +124,8 @@ void itrans4x4   (struct macroblock_t *currMB, ColorPlane pl, int ioff, int joff
 void itrans8x8   (struct macroblock_t *currMB, ColorPlane pl, int ioff, int joff);
 void itrans16x16 (struct macroblock_t *currMB, ColorPlane pl);
 void itrans_2    (struct macroblock_t *currMB, ColorPlane pl);
+void itrans_420  (struct macroblock_t *currMB, ColorPlane pl);
+void itrans_422  (struct macroblock_t *currMB, ColorPlane pl);
 void iTransform  (struct macroblock_t *currMB, ColorPlane pl, int smb);
 
 

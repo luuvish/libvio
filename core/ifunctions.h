@@ -42,10 +42,6 @@ static inline int iabs(int x)
   return (x ^ y) - y;
 }
 
-static inline int rshift_rnd_sf(int x, int a)
-{
-  return ((x + (1 << (a-1) )) >> a);
-}
 
 
 static inline int iClip3(int low, int high, int x)

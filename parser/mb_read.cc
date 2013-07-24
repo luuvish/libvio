@@ -139,11 +139,6 @@ const uint8_t sub_mb_types_b_slice[14][5] = {
 };
 
 
-
-
-
-
-
 static inline void reset_mv_info(PicMotionParams *mv_info, int slice_no)
 {
     mv_info->ref_pic[LIST_0] = NULL;

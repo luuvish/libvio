@@ -23,14 +23,15 @@
 #include "mb_read_syntax.h"
 
 
-#define IS_I16MB(MB)    ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
-#define IS_DIRECT(MB)   ((MB)->mb_type == 0 && (currSlice->slice_type == B_SLICE))
+#define IS_I16MB(MB) ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
 
-#define TOTRUN_NUM       15
+static inline int rshift_rnd_sf(int x, int a)
+{
+    return ((x + (1 << (a-1) )) >> a);
+}
 
 
 // Table 9-5 coeff_token mapping to TotalCoeff(coeff_token) and TrailingOnes(coeff_token)
-
 static const uint8_t coeff_token_length[5][4][17] = {
     //  0 <= nC < 2
     { {  1,  6,  8,  9, 10, 11, 13, 13, 13, 14, 14, 15, 15, 16, 16, 16, 16 },
@@ -90,8 +91,7 @@ static const uint8_t coeff_token_code[5][4][17] = {
 // Table 9-7 total_zeros tables for 4x4 blocks with tzVlcIndex 1 to 7
 // Table 9-8 total_zeros tables for 4x4 blocks with tzVlcIndex 8 to 15
 // Table 9-9 total_zeros tables for chroma DC 2x2 and 2x4 blocks
-
-static const uint8_t total_zeros_length[3][TOTRUN_NUM][16] = {
+static const uint8_t total_zeros_length[3][15][16] = {
     // YUV420
     { { 1, 2, 3, 3 },
       { 1, 2, 2 },
@@ -122,7 +122,7 @@ static const uint8_t total_zeros_length[3][TOTRUN_NUM][16] = {
       { 1, 1 } }
 };
 
-static const uint8_t total_zeros_code[3][TOTRUN_NUM][16] = {
+static const uint8_t total_zeros_code[3][15][16] = {
     // YUV420
     { { 1, 1 , 1 , 0 },
       { 1, 1 , 0 },
@@ -154,8 +154,7 @@ static const uint8_t total_zeros_code[3][TOTRUN_NUM][16] = {
 };
 
 // Table 9-10 Tables for run_before
-
-static const uint8_t run_before_length[TOTRUN_NUM][16] = {
+static const uint8_t run_before_length[15][16] = {
     { 1, 1 },
     { 1, 2, 2 },
     { 2, 2, 2, 2 },
@@ -165,7 +164,7 @@ static const uint8_t run_before_length[TOTRUN_NUM][16] = {
     { 3, 3, 3, 3, 3, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11 }
 };
 
-static const uint8_t run_before_code[TOTRUN_NUM][16] = {
+static const uint8_t run_before_code[15][16] = {
     { 1, 0 },
     { 1, 1, 0 },
     { 3, 2, 1, 0 },
@@ -176,8 +175,13 @@ static const uint8_t run_before_code[TOTRUN_NUM][16] = {
 };
 
 
-static uint8_t parse_coeff_token(Bitstream *currStream, int nC)
+uint8_t macroblock_t::parse_coeff_token(int nC)
 {
+    slice_t *currSlice = this->p_Slice;
+    int dptype = this->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
+    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
+    Bitstream *currStream = dP->bitstream;
+
     if (nC >= 8) {
         int code = currStream->read_bits(6);
         int TotalCoeff   = (code >> 2);
@@ -242,8 +246,13 @@ static int16_t parse_level(Bitstream *currStream, uint8_t level_prefix, uint8_t 
 }
 */
 
-static uint8_t parse_total_zeros(Bitstream *currStream, int yuv, int tzVlcIndex)
+uint8_t macroblock_t::parse_total_zeros(int yuv, int tzVlcIndex)
 {
+    slice_t *currSlice = this->p_Slice;
+    int dptype = this->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
+    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
+    Bitstream *currStream = dP->bitstream;
+
     int tab = tzVlcIndex - 1;
 
     for (int total_zeros = 0; total_zeros < 16; total_zeros++) {
@@ -259,8 +268,13 @@ static uint8_t parse_total_zeros(Bitstream *currStream, int yuv, int tzVlcIndex)
     return -1;
 }
 
-static uint8_t parse_run_before(Bitstream *currStream, uint8_t zerosLeft)
+uint8_t macroblock_t::parse_run_before(uint8_t zerosLeft)
 {
+    slice_t *currSlice = this->p_Slice;
+    int dptype = this->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
+    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
+    Bitstream *currStream = dP->bitstream;
+
     int tab = imin(zerosLeft, 7) - 1;
 
     for (int run_before = 0; run_before < 16; run_before++) {
@@ -277,86 +291,20 @@ static uint8_t parse_run_before(Bitstream *currStream, uint8_t zerosLeft)
 }
 
 
-static void read_coeff_4x4_CAVLC(mb_t *currMB, int block_type, int i, int j,
-                                 int levelVal[16], int runVal[16], int *number_coefficients)
+void macroblock_t::read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
+                                        int levelVal[16], int runVal[16], int *number_coefficients)
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-
-    int num_cdc_coeff;
-    if (sps->chroma_format_idc != YUV400)
-        num_cdc_coeff = (((1 << sps->chroma_format_idc) & (~0x1)) << 1);
-        //num_cdc_coeff = 4 / (sps->MbWidthC * sps->MbHeightC) * 4;
-    else
-        num_cdc_coeff = 0;
-
-    int pl;
-    switch (block_type) {
-    case LUMA:              pl = 0; break;
-    case CB:                pl = 1; break;
-    case CR:                pl = 2; break;
-    case LUMA_INTRA16x16DC: pl = 0; break;
-    case CB_INTRA16x16DC:   pl = 1; break;
-    case CR_INTRA16x16DC:   pl = 2; break;
-    case LUMA_INTRA16x16AC: pl = 0; break;
-    case CB_INTRA16x16AC:   pl = 1; break;
-    case CR_INTRA16x16AC:   pl = 2; break;
-    case CHROMA_DC:         pl = 0; break;
-    case CHROMA_AC:         pl = 0; break;
-    default:                pl = 0; break;
-    }
-
-    currMB->nz_coeff[pl][j][i] = 0;
-
-    int max_coeff_num = 0;
-    switch (block_type) {
-    case LUMA:
-    case CB:
-    case CR:
-    case LUMA_INTRA16x16DC:
-    case CB_INTRA16x16DC:
-    case CR_INTRA16x16DC:
-        max_coeff_num = 16;
-        break;
-    case LUMA_INTRA16x16AC:
-    case CB_INTRA16x16AC:
-    case CR_INTRA16x16AC:
-    case CHROMA_AC:
-        max_coeff_num = 15;
-        break;
-    case CHROMA_DC:
-        max_coeff_num = num_cdc_coeff;
-        break;
-    default:
-        break;
-    }
-
-    memset(levelVal, 0, max_coeff_num * sizeof(int));
-    memset(runVal, 0, max_coeff_num * sizeof(int));
-
-    int cdc = block_type == CHROMA_DC;
-    int cac = block_type == CHROMA_AC;
-
-    int dptype = currMB->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
+    slice_t *currSlice = this->p_Slice;
+    int dptype = this->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
     DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
     Bitstream *currStream = dP->bitstream;
 
-    int nC = 0;
-    if (cdc) 
-        nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
-    else if (cac)
-        nC = predict_nnz_chroma(currMB, i, (j - 4) * 4);
-    else
-        nC = predict_nnz(currMB, pl, i * 4, j * 4);
+    memset(levelVal, 0, maxNumCoeff * sizeof(int));
+    memset(runVal,   0, maxNumCoeff * sizeof(int));
 
-    uint8_t coeff_token  = parse_coeff_token(currStream, nC);
+    uint8_t coeff_token  = this->parse_coeff_token(nC);
     uint8_t TotalCoeff   = coeff_token >> 2;
     uint8_t TrailingOnes = coeff_token % 4;
-
-    if (!cdc)
-        currMB->nz_coeff[pl][j][i] = TotalCoeff;
-
-    *number_coefficients = TotalCoeff;
 
     if (TotalCoeff > 0) {
         int suffixLength = (TotalCoeff > 10 && TrailingOnes < 3 ? 1 : 0);
@@ -406,23 +354,24 @@ static void read_coeff_4x4_CAVLC(mb_t *currMB, int block_type, int i, int j,
         }
 
         int zerosLeft = 0;
-        if (TotalCoeff < max_coeff_num) {
-            //int yuv = maxNumCoeff == 4 ? 0 : maxNumCoeff == 8 ? 1 : 2;
-            int yuv = cdc ? sps->chroma_format_idc - 1 : 2;
-            zerosLeft = parse_total_zeros(currStream, yuv, TotalCoeff);
+        if (TotalCoeff < maxNumCoeff) {
+            int yuv = maxNumCoeff == 4 ? 0 : maxNumCoeff == 8 ? 1 : 2;
+            zerosLeft = this->parse_total_zeros(yuv, TotalCoeff);
         }
 
-        for (i = TotalCoeff - 1; i > 0; i--) {
+        for (int i = TotalCoeff - 1; i > 0; i--) {
 //        for (i = 0; i < TotalCoeff - 1; i++) {
             if (zerosLeft > 0)
-                runVal[i] = parse_run_before(currStream, zerosLeft);
+                runVal[i] = this->parse_run_before(zerosLeft);
             else
                 runVal[i] = 0;
             zerosLeft -= runVal[i];
         }
-        runVal[i] = zerosLeft;
+        runVal[0] = zerosLeft;
 //        runVal[TotalCoeff - 1] = zerosLeft;
     }
+
+    *number_coefficients = TotalCoeff;
 }
 
 
@@ -435,8 +384,27 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
     const byte (*pos_scan8x8)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
 
     if (IS_I16MB(currMB) && !currMB->dpl_flag) {
-        int16_t i16x16DClevel[16];
-        currMB->residual_block_cavlc(i16x16DClevel, 0, 15, 16, pl, 0, 0);
+        //int16_t i16x16DClevel[16];
+        //currMB->residual_block_cavlc(i16x16DClevel, 0, 15, 16, pl, 0, 0);
+
+        int levelVal[16], runVal[16], numcoeff;
+        int nC = predict_nnz(currMB, pl, 0 * 4, 0 * 4);
+        currMB->read_coeff_4x4_CAVLC(16, nC, levelVal, runVal, &numcoeff);
+
+        int coeffNum = -1;
+    //    for (int k = numcoeff - 1; k >= 0; k--) {
+        for (int k = 0; k < numcoeff; ++k) {
+            if (levelVal[k] != 0) {
+                coeffNum += runVal[k] + 1;
+                //coeffLevel[startIdx + coeffNum] = levelVal[k];
+                int i0 = pos_scan4x4[coeffNum][0];
+                int j0 = pos_scan4x4[coeffNum][1];
+                currSlice->cof[pl][j0 << 2][i0 << 2] = levelVal[k];
+            }
+        }
+
+        if (!currMB->TransformBypassModeFlag)
+            itrans_2(currMB, pl);
     }
 
     int qp_per = currMB->qp_scaled[pl] / 6;
@@ -451,23 +419,6 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
 
     int start_scan = IS_I16MB(currMB) ? 1 : 0;
 
-    int cur_context; 
-    if (IS_I16MB(currMB)) {
-        if (pl == PLANE_Y)
-            cur_context = LUMA_INTRA16x16AC;
-        else if (pl == PLANE_U)
-            cur_context = CB_INTRA16x16AC;
-        else
-            cur_context = CR_INTRA16x16AC;
-    } else {
-        if (pl == PLANE_Y)
-            cur_context = LUMA;
-        else if (pl == PLANE_U)
-            cur_context = CB;
-        else
-            cur_context = CR;
-    }
-
     for (int i8x8 = 0; i8x8 < 4; i8x8++) {
         int block_x = (i8x8 % 2) * 2;
         int block_y = (i8x8 / 2) * 2;
@@ -478,7 +429,9 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                 int j = block_y + (i4x4 / 2);
 
                 int levarr[16] = {0}, runarr[16] = {0}, numcoeff;
-                read_coeff_4x4_CAVLC(currMB, cur_context, i, j, levarr, runarr, &numcoeff);
+                int nC = predict_nnz(currMB, pl, i * 4, j * 4);
+                currMB->read_coeff_4x4_CAVLC(16 - start_scan, nC, levarr, runarr, &numcoeff);
+                currMB->nz_coeff[pl][j][i] = numcoeff;
 
                 int coef_ctr = start_scan - 1;
 
@@ -519,200 +472,72 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
     }
 }
 
-static void read_tc_chroma_420(mb_t *currMB)
+static void read_tc_chroma(mb_t *currMB)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-
-    const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
-
-    int qp_per_uv[2];
-    int qp_rem_uv[2];
-    for (int i = 0; i < 2; ++i) {
-        qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
-        qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
-    }
+    int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
 
     if (currMB->cbp > 15) {
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
-                currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv[iCbCr]] :
-                currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv[iCbCr]];
-
             int levelVal[16], runVal[16], numcoeff;
-            read_coeff_4x4_CAVLC(currMB, CHROMA_DC, 0, 0, levelVal, runVal, &numcoeff);
-
-            int cofu[4] = { 0 };
+            int nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
+            currMB->read_coeff_4x4_CAVLC(NumC8x8 * 4, nC, levelVal, runVal, &numcoeff);
 
             int coeffNum = -1;
             for (int k = 0; k < numcoeff; ++k) {
             //for (int k = numcoeff - 1; k >= 0; k--) {
+                int i0, j0;
                 if (levelVal[k] != 0) {
-                    currMB->s_cbp[0].blk |= (int64)(0xf << (iCbCr * 4 + 16));
                     coeffNum += runVal[k] + 1;
-                    cofu[coeffNum] = levelVal[k];
-                }
-            }
-
-            int smb = (currSlice->slice_type == SP_SLICE && !currMB->is_intra_block) ||
-                      (currSlice->slice_type == SI_SLICE && currMB->mb_type == SI4MB);
-            if (smb || currMB->TransformBypassModeFlag) {
-                currSlice->cof[iCbCr + 1][0][0] = cofu[0];
-                currSlice->cof[iCbCr + 1][0][4] = cofu[1];
-                currSlice->cof[iCbCr + 1][4][0] = cofu[2];
-                currSlice->cof[iCbCr + 1][4][4] = cofu[3];
-            } else {
-                int temp[4];
-                ihadamard2x2(cofu, temp);
-
-                currSlice->cof[iCbCr + 1][0][0] = ((temp[0] * InvLevelScale4x4[0][0]) << qp_per_uv[iCbCr]) >> 5;
-                currSlice->cof[iCbCr + 1][0][4] = ((temp[1] * InvLevelScale4x4[0][0]) << qp_per_uv[iCbCr]) >> 5;
-                currSlice->cof[iCbCr + 1][4][0] = ((temp[2] * InvLevelScale4x4[0][0]) << qp_per_uv[iCbCr]) >> 5;
-                currSlice->cof[iCbCr + 1][4][4] = ((temp[3] * InvLevelScale4x4[0][0]) << qp_per_uv[iCbCr]) >> 5;
-            }
-        }
-    }
-
-    if (currMB->cbp > 31) {
-        int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
-        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
-                currMB->is_v_block = iCbCr;
-
-                int (*InvLevelScale4x4)[4] = NULL;
-                if (!currMB->TransformBypassModeFlag)
-                    InvLevelScale4x4 = currMB->is_intra_block ?
-                        currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv[iCbCr]] :
-                        currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv[iCbCr]];
-
-                for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                    int i = (i8x8 % 2) * 2 + (i4x4 % 2);
-                    int j = (i8x8 / 2) * 2 + (i4x4 / 2);
-
-                    int levarr[16], runarr[16], numcoeff;
-                    read_coeff_4x4_CAVLC(currMB, CHROMA_AC, iCbCr * 2 + i, j + 4, levarr, runarr, &numcoeff);
-
-                    int coef_ctr = 0;
-                    //for (int k = numcoeff - 1; k >= 0; k--) {
-                    for (int k = 0; k < numcoeff; ++k) {
-                        if (levarr[k] != 0) {
-                            currMB->s_cbp[0].blk |= (int64)(0x1 << (i8x8 * 4 + i4x4 + 16));
-                            coef_ctr += runarr[k] + 1;
-                            int i0 = pos_scan4x4[coef_ctr][0];
-                            int j0 = pos_scan4x4[coef_ctr][1];
-
-                            if (!currMB->TransformBypassModeFlag)
-                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0]) << qp_per_uv[iCbCr], 4);
-                            else
-                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = levarr[k];
-                        }
+                    if (sps->ChromaArrayType == 1) {
+                        i0 = coeffNum % 2;
+                        j0 = coeffNum / 2;
+                        currMB->s_cbp[0].blk |= (int64)(0xf << (iCbCr * 4 + 16));
                     }
-                }
-            }
-        }
-    } else {
-        memset(currMB->nz_coeff[1][0], 0, 2 * 16 * sizeof(uint8_t));
-    }
-}
-
-static void read_tc_chroma_422(mb_t *currMB)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-
-    const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
-
-    int qp_per_uv[2];
-    int qp_rem_uv[2];
-    for (int i = 0; i < 2; ++i) {
-        qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
-        qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
-    }
-
-    if (currMB->cbp > 15) {
-        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            int qp_per_uv_dc = (currMB->qpc[iCbCr] + 3 + sps->QpBdOffsetC) / 6;       //for YUV422 only
-            int qp_rem_uv_dc = (currMB->qpc[iCbCr] + 3 + sps->QpBdOffsetC) % 6;       //for YUV422 only
-            int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
-                currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv_dc] :
-                currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv_dc];
-
-            int levelVal[16], runVal[16], numcoeff;
-            read_coeff_4x4_CAVLC(currMB, CHROMA_DC, 0, 0, levelVal, runVal, &numcoeff);
-
-            int m3[2][4] = { { 0 }, { 0 } };
-
-            int coeffNum = -1;
-            //for (int k = numcoeff - 1; k >= 0; k--) {
-            for (int k = 0; k < numcoeff; ++k) {
-                if (levelVal[k] != 0) {
-                    currMB->s_cbp[0].blk |= (int64)(0xff << (iCbCr * 8 + 16));
-                    coeffNum += runVal[k] + 1;
-                    int i0 = SCAN_YUV422[coeffNum][0];
-                    int j0 = SCAN_YUV422[coeffNum][1];
-                    m3[i0][j0] = levelVal[k];
+                    if (sps->ChromaArrayType == 2) {
+                        i0 = FIELD_SCAN[coeffNum][0];
+                        j0 = FIELD_SCAN[coeffNum][1];
+                        currMB->s_cbp[0].blk |= (int64)(0xff << (iCbCr * 8 + 16));
+                    }
+                    currSlice->cof[iCbCr + 1][j0 << 2][i0 << 2] = levelVal[k];
                 }
             }
 
-            if (!currMB->TransformBypassModeFlag) {
-                int m4[2][4];
-
-                m4[0][0] = m3[0][0] + m3[1][0];
-                m4[0][1] = m3[0][1] + m3[1][1];
-                m4[0][2] = m3[0][2] + m3[1][2];
-                m4[0][3] = m3[0][3] + m3[1][3];
-
-                m4[1][0] = m3[0][0] - m3[1][0];
-                m4[1][1] = m3[0][1] - m3[1][1];
-                m4[1][2] = m3[0][2] - m3[1][2];
-                m4[1][3] = m3[0][3] - m3[1][3];
-
-                int temp[2][4];
-                for (int i = 0; i < 2; ++i) {
-                    int m6[4];
-
-                    m6[0] = m4[i][0] + m4[i][2];
-                    m6[1] = m4[i][0] - m4[i][2];
-                    m6[2] = m4[i][1] - m4[i][3];
-                    m6[3] = m4[i][1] + m4[i][3];
-
-                    temp[i][0] = m6[0] + m6[3];
-                    temp[i][1] = m6[1] + m6[2];
-                    temp[i][2] = m6[1] - m6[2];
-                    temp[i][3] = m6[0] - m6[3];
-                }
-
-                for (int j = 0; j < sps->MbHeightC; j += BLOCK_SIZE) {
-                    for (int i = 0; i < sps->MbWidthC; i += BLOCK_SIZE)
-                        currSlice->cof[iCbCr + 1][j][i] = rshift_rnd_sf((temp[i / 4][j / 4] * InvLevelScale4x4[0][0]) << qp_per_uv_dc, 6);
-                }
-            } else {
-                for (int j = 0; j < sps->MbHeightC; j += BLOCK_SIZE) {
-                    for (int i = 0; i < sps->MbWidthC; i += BLOCK_SIZE)
-                        currSlice->cof[iCbCr + 1][j][i] = m3[i / 4][j / 4];
-                }
+            if (sps->ChromaArrayType == 1) {
+                int smb = (currSlice->slice_type == SP_SLICE && !currMB->is_intra_block) ||
+                          (currSlice->slice_type == SI_SLICE && currMB->mb_type == SI4MB);
+                if (!smb && !currMB->TransformBypassModeFlag)
+                    itrans_420(currMB, (ColorPlane)(iCbCr + 1));
+            }
+            if (sps->ChromaArrayType == 2) {
+                if (!currMB->TransformBypassModeFlag)
+                    itrans_422(currMB, (ColorPlane)(iCbCr + 1));
             }
         }
     }
 
     if (currMB->cbp > 31) {
-        int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
-                currMB->is_v_block = iCbCr;
+            const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
+            int qp_per_uv = currMB->qp_scaled[iCbCr + 1] / 6;
+            int qp_rem_uv = currMB->qp_scaled[iCbCr + 1] % 6;
 
+            for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
                 int (*InvLevelScale4x4)[4] = NULL;
                 if (!currMB->TransformBypassModeFlag)
                     InvLevelScale4x4 = currMB->is_intra_block ?
-                        currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv[iCbCr]] :
-                        currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv[iCbCr]];
+                        currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv] :
+                        currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv];
 
                 for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                    int i = (i8x8 % 2) * 2 + (i4x4 % 2);
-                    int j = (i8x8 / 2) * 2 + (i4x4 / 2);
+                    int i = (i4x4 % 2);
+                    int j = (i4x4 / 2) + (i8x8 * 2);
 
                     int levarr[16], runarr[16], numcoeff;
-                    read_coeff_4x4_CAVLC(currMB, CHROMA_AC, iCbCr * 2 + i, j + 4, levarr, runarr, &numcoeff);
+                    int nC = predict_nnz(currMB, iCbCr + 1, i * 4, j * 4);
+                    currMB->read_coeff_4x4_CAVLC(15, nC, levarr, runarr, &numcoeff);
+                    currMB->nz_coeff[iCbCr + 1][j][i] = numcoeff;
 
                     int coef_ctr = 0;
                     //for (int k = numcoeff - 1; k >= 0; k--) {
@@ -724,7 +549,7 @@ static void read_tc_chroma_422(mb_t *currMB)
                             int j0 = pos_scan4x4[coef_ctr][1];
 
                             if (!currMB->TransformBypassModeFlag)
-                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0]) << qp_per_uv[iCbCr], 4);
+                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = rshift_rnd_sf((levarr[k] * InvLevelScale4x4[j0][i0]) << qp_per_uv, 4);
                             else
                                 currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = levarr[k];
                         }
@@ -744,11 +569,8 @@ void macroblock_t::read_CBP_and_coeffs_from_NAL_CAVLC()
     sps_t *sps = slice->active_sps;
 
     read_tc_luma(this, PLANE_Y);
-
-    if (sps->chroma_format_idc == YUV420)
-        read_tc_chroma_420(this);
-    if (sps->chroma_format_idc == YUV422)
-        read_tc_chroma_422(this);
+    if (sps->chroma_format_idc == YUV420 || sps->chroma_format_idc == YUV422)
+        read_tc_chroma(this);
     if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag) {
         read_tc_luma(this, PLANE_U);
         read_tc_luma(this, PLANE_V);
@@ -759,14 +581,14 @@ void macroblock_t::residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx
                                         uint8_t maxNumCoeff, ColorPlane pl, int bx, int by)
 {
     slice_t *slice = this->p_Slice;
-    sps_t *sps = slice->active_sps;
 
     const byte (*pos_scan4x4)[2] = !slice->field_pic_flag && !this->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
 
-    int block_type = pl == PLANE_Y ? LUMA_INTRA16x16DC :
-                     pl == PLANE_U ? CB_INTRA16x16DC : CR_INTRA16x16DC;
     int levelVal[16], runVal[16], numcoeff;
-    read_coeff_4x4_CAVLC(this, block_type, bx, by, levelVal, runVal, &numcoeff);
+    int nC = predict_nnz(this, pl, bx * 4, by * 4);
+    //this->nz_coeff[pl][by][bx] = 0;
+    this->read_coeff_4x4_CAVLC(16, nC, levelVal, runVal, &numcoeff);
+    this->nz_coeff[pl][by][bx] = numcoeff;
 
     int coeffNum = -1;
 //    for (int k = numcoeff - 1; k >= 0; k--) {
@@ -778,10 +600,5 @@ void macroblock_t::residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx
             int j0 = pos_scan4x4[coeffNum][1];
             slice->cof[pl][j0 << 2][i0 << 2] = levelVal[k];
         }
-    }
-
-    if (!this->TransformBypassModeFlag) {
-        int transform_pl = sps->separate_colour_plane_flag ? slice->colour_plane_id : pl;
-        itrans_2(this, (ColorPlane)transform_pl);
     }
 }
