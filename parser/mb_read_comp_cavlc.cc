@@ -500,7 +500,7 @@ static void read_tc_chroma(mb_t *currMB)
                         j0 = FIELD_SCAN[coeffNum][1];
                         currMB->s_cbp[0].blk |= (int64)(0xff << (iCbCr * 8 + 16));
                     }
-                    currSlice->cof[iCbCr + 1][j0 << 2][i0 << 2] = levelVal[k];
+                    currSlice->cof[iCbCr + 1][j0 * 4][i0 * 4] = levelVal[k];
                 }
             }
 

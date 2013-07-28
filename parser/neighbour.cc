@@ -24,7 +24,7 @@
  *    returns 1 if the macroblock at the given address is available
  ************************************************************************
  */
-Boolean mb_is_available(int mbAddr, mb_t *currMB)
+bool mb_is_available(int mbAddr, mb_t *currMB)
 {
   slice_t *currSlice = currMB->p_Slice;
   if ((mbAddr < 0) || (mbAddr > ((int)currSlice->dec_picture->PicSizeInMbs - 1)))

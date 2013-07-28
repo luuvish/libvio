@@ -31,7 +31,7 @@ void getAffNeighbour         (struct macroblock_t *currMB, int xN, int yN, int m
 void getNonAffNeighbour      (struct macroblock_t *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
 void get4x4Neighbour         (struct macroblock_t *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
 void get4x4NeighbourBase     (struct macroblock_t *currMB, int block_x, int block_y, int mb_size[2], PixelPos *pix);
-Boolean mb_is_available      (int mbAddr, struct macroblock_t *currMB);
+bool mb_is_available         (int mbAddr, struct macroblock_t *currMB);
 void get_mb_pos              (VideoParameters *p_Vid, int mb_addr, int mb_size[2], short *x, short *y);
 void get_mb_block_pos_normal (BlockPos *PicPos, int mb_addr, short *x, short *y);
 void get_mb_block_pos_mbaff  (BlockPos *PicPos, int mb_addr, short *x, short *y);

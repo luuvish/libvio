@@ -33,75 +33,6 @@ static inline int rshift_rnd_sf(int x, int a)
 }
 
 
-static const unsigned char cbp_blk_chroma[8][4] = {
-    {16, 17, 18, 19},
-    {20, 21, 22, 23},
-    {24, 25, 26, 27},
-    {28, 29, 30, 31},
-    {32, 33, 34, 35},
-    {36, 37, 38, 39},
-    {40, 41, 42, 43},
-    {44, 45, 46, 47} 
-};
-
-static const unsigned char cofuv_blk_x[3][8][4] = {
-  { {0, 1, 0, 1},
-    {0, 1, 0, 1},
-    {0, 0, 0, 0},
-    {0, 0, 0, 0},
-    {0, 0, 0, 0},
-    {0, 0, 0, 0},
-    {0, 0, 0, 0},
-    {0, 0, 0, 0} },
-
-  { {0, 1, 0, 1},
-    {0, 1, 0, 1},
-    {0, 1, 0, 1},
-    {0, 1, 0, 1},
-    {0, 0, 0, 0},
-    {0, 0, 0, 0},
-    {0, 0, 0, 0},
-    {0, 0, 0, 0} },
-
-  { {0, 1, 0, 1},
-    {2, 3, 2, 3},
-    {0, 1, 0, 1},
-    {2, 3, 2, 3},
-    {0, 1, 0, 1},
-    {2, 3, 2, 3},
-    {0, 1, 0, 1},
-    {2, 3, 2, 3} }
-};
-
-static const unsigned char cofuv_blk_y[3][8][4] = {
-  { { 0, 0, 1, 1},
-    { 0, 0, 1, 1},
-    { 0, 0, 0, 0},
-    { 0, 0, 0, 0},
-    { 0, 0, 0, 0},
-    { 0, 0, 0, 0},
-    { 0, 0, 0, 0},
-    { 0, 0, 0, 0} },
-
-  { { 0, 0, 1, 1},
-    { 2, 2, 3, 3},
-    { 0, 0, 1, 1},
-    { 2, 2, 3, 3},
-    { 0, 0, 0, 0},
-    { 0, 0, 0, 0},
-    { 0, 0, 0, 0},
-    { 0, 0, 0, 0} },
-
-  { { 0, 0, 1, 1},
-    { 0, 0, 1, 1},
-    { 2, 2, 3, 3},
-    { 2, 2, 3, 3},
-    { 0, 0, 1, 1},
-    { 0, 0, 1, 1},
-    { 2, 2, 3, 3},
-    { 2, 2, 3, 3}}
-};
-
 
 //! for the linfo_levrun_inter routine
 static const byte NTAB1[4][8][2] = {
@@ -362,8 +293,113 @@ static int read_and_store_CBP_block_bit_444(mb_t *currMB, DecodingEnvironment *d
     int chroma_dc   = (type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4);
     int u_dc        = (chroma_dc && !currMB->is_v_block);
     int v_dc        = (chroma_dc &&  currMB->is_v_block);
-    int j           = (y_ac || u_ac || v_ac ? currMB->subblock_y : 0);
     int i           = (y_ac || u_ac || v_ac ? currMB->subblock_x : 0);
+    int j           = (y_ac || u_ac || v_ac ? currMB->subblock_y : 0);
+    int bit         = (y_dc ? 0 : y_ac ? 1 : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 : 35);
+    int default_bit = (currMB->is_intra_block ? 1 : 0);
+    int upper_bit   = default_bit;
+    int left_bit    = default_bit;
+    int cbp_bit     = 1;  // always one for 8x8 mode
+    int ctx;
+    int bit_pos_a   = 0;
+    int bit_pos_b   = 0;
+
+    int size_8x8_flag = (type == LUMA_8x8 || type == CB_8x8 || type == CR_8x8);
+    int pl = (type == CB_8x8 || type == CB_4x4 || type == CB_4x8 || type == CB_8x4 || type == CB_16AC || type == CB_16DC) ? 1 :
+             (type == CR_8x8 || type == CR_4x4 || type == CR_4x8 || type == CR_8x4 || type == CR_16AC || type == CR_16DC) ? 2 : 0;
+
+    int mb_size[2][2] = {
+        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
+        { sps->MbWidthC, sps->MbHeightC }
+    };
+
+    PixelPos block_a, block_b;
+    get4x4Neighbour(currMB, i - 1, j, mb_size[y_dc || y_ac ? IS_LUMA : IS_CHROMA], &block_a);
+    get4x4Neighbour(currMB, i, j - 1, mb_size[y_dc || y_ac ? IS_LUMA : IS_CHROMA], &block_b);
+    if (y_ac || u_ac || v_ac) {
+        if (block_a.available)
+            bit_pos_a = 4 * block_a.y + block_a.x;
+        if (block_b.available)
+            bit_pos_b = 4 * block_b.y + block_b.x;
+    }
+
+    if (sps->separate_colour_plane_flag && type != LUMA_8x8) {
+        if (block_b.available) {
+            if (mb_data[block_b.mb_addr].mb_type == IPCM)
+                upper_bit = 1;
+            else
+                upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits, bit + bit_pos_b);
+        }
+        if (block_a.available) {
+            if (mb_data[block_a.mb_addr].mb_type == IPCM)
+                left_bit = 1;
+            else
+                left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits, bit + bit_pos_a);
+        }
+    } else {
+        if (block_b.available) {
+            if (!size_8x8_flag || mb_data[block_b.mb_addr].transform_size_8x8_flag) {
+                if (mb_data[block_b.mb_addr].mb_type == IPCM)
+                    upper_bit = 1;
+                else if (size_8x8_flag)
+                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[pl].bits_8x8, bit + bit_pos_b);
+                else
+                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[pl].bits, bit + bit_pos_b);
+            }
+        }
+        if (block_a.available) {
+            if (!size_8x8_flag || mb_data[block_a.mb_addr].transform_size_8x8_flag) {
+                if (mb_data[block_a.mb_addr].mb_type == IPCM)
+                    left_bit = 1;
+                else if (size_8x8_flag)
+                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[pl].bits_8x8, bit + bit_pos_a);
+                else
+                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[pl].bits, bit + bit_pos_a);
+            }
+        }
+    }
+
+    ctx = 2 * upper_bit + left_bit;
+    cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
+
+    bit = y_dc ?  0 :
+          y_ac ?  1 + j + (i >> 2) :
+          u_dc ? 17 :
+          v_dc ? 18 :
+          u_ac ? 19 + j + (i >> 2) :
+                 35 + j + (i >> 2);
+
+    if (cbp_bit) {
+        if (size_8x8_flag) {
+            currMB->s_cbp[pl].bits     |= (int64)(0x33 << bit);
+            currMB->s_cbp[pl].bits_8x8 |= (int64)(0x33 << bit);
+        } else if (type == LUMA_8x4 || type == CB_8x4 || type == CR_8x4)
+            currMB->s_cbp[pl].bits |= (int64)(0x03 << bit);
+        else if (type == LUMA_4x8 || type == CB_4x8 || type == CR_4x8)
+            currMB->s_cbp[pl].bits |= (int64)(0x11 << bit);
+        else
+            currMB->s_cbp[pl].bits |= (int64)(0x01 << bit);
+    }
+    return cbp_bit;
+}
+
+static int read_and_store_CBP_block_bit_normal(mb_t *currMB, DecodingEnvironment *dep_dp, int type)
+{
+    slice_t *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
+    TextureInfoContexts *tex_ctx = currSlice->tex_ctx;
+    mb_t *mb_data = currSlice->mb_data;
+    int y_ac        = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_8x4 || type==LUMA_4x8 || type==LUMA_4x4
+                      || type==CB_16AC || type==CB_8x8 || type==CB_8x4 || type==CB_4x8 || type==CB_4x4
+                      || type==CR_16AC || type==CR_8x8 || type==CR_8x4 || type==CR_4x8 || type==CR_4x4);
+    int y_dc        = (type==LUMA_16DC || type==CB_16DC || type==CR_16DC); 
+    int u_ac        = (type==CHROMA_AC && !currMB->is_v_block);
+    int v_ac        = (type==CHROMA_AC &&  currMB->is_v_block);
+    int chroma_dc   = (type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4);
+    int u_dc        = (chroma_dc && !currMB->is_v_block);
+    int v_dc        = (chroma_dc &&  currMB->is_v_block);
+    int i           = (y_ac || u_ac || v_ac ? currMB->subblock_x : 0);
+    int j           = (y_ac || u_ac || v_ac ? currMB->subblock_y : 0);
     int bit         = (y_dc ? 0 : y_ac ? 1 : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 : 35);
     int default_bit = (currMB->is_intra_block ? 1 : 0);
     int upper_bit   = default_bit;
@@ -379,97 +415,35 @@ static int read_and_store_CBP_block_bit_444(mb_t *currMB, DecodingEnvironment *d
     };
 
     PixelPos block_a, block_b;
-    if (y_ac) {
-        get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-        get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
+    get4x4Neighbour(currMB, i - 1, j, mb_size[y_dc || y_ac ? IS_LUMA : IS_CHROMA], &block_a);
+    get4x4Neighbour(currMB, i, j - 1, mb_size[y_dc || y_ac ? IS_LUMA : IS_CHROMA], &block_b);
+    if (y_ac || u_ac || v_ac) {
         if (block_a.available)
-            bit_pos_a = 4*block_a.y + block_a.x;
+            bit_pos_a = 4 * block_a.y + block_a.x;
         if (block_b.available)
-            bit_pos_b = 4*block_b.y + block_b.x;
-    } else if (y_dc) {
-        get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-        get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-    } else if (u_ac || v_ac) {
-        get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
-        get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);
-        if (block_a.available)
-            bit_pos_a = 4*block_a.y + block_a.x;
-        if (block_b.available)
-            bit_pos_b = 4*block_b.y + block_b.x;
-    } else {
-        get4x4Neighbour(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
-        get4x4Neighbour(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);
+            bit_pos_b = 4 * block_b.y + block_b.x;
     }
 
-    if (sps->separate_colour_plane_flag != 0) {
-        if (type != LUMA_8x8) {
-            //--- get bits from neighbouring blocks ---
-            if (block_b.available) {
-                if (mb_data[block_b.mb_addr].mb_type == IPCM)
-                    upper_bit = 1;
-                else
-                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits,bit+bit_pos_b);
-            }
-
-            if (block_a.available) {
-                if (mb_data[block_a.mb_addr].mb_type == IPCM)
-                    left_bit = 1;
-                else
-                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits,bit+bit_pos_a);
-            }
-
-            ctx = 2 * upper_bit + left_bit;     
-            //===== encode symbol =====
-            cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-        }
-    } else {
+    if (type != LUMA_8x8) {
         if (block_b.available) {
-            if ((type == LUMA_8x8 || type == CB_8x8 || type == CR_8x8) &&
-                !mb_data[block_b.mb_addr].transform_size_8x8_flag) {
-            } else if (mb_data[block_b.mb_addr].mb_type == IPCM)
+            if (mb_data[block_b.mb_addr].mb_type == IPCM)
                 upper_bit = 1;
-            else {
-                if (type == LUMA_8x8)
-                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits_8x8, bit + bit_pos_b);
-                else if (type == CB_8x8)
-                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[1].bits_8x8, bit + bit_pos_b);
-                else if (type == CR_8x8)
-                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[2].bits_8x8, bit + bit_pos_b);
-                else if (type == CB_4x4 || type == CB_4x8 || type == CB_8x4 || type == CB_16AC || type == CB_16DC)
-                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[1].bits, bit + bit_pos_b);
-                else if (type == CR_4x4 || type == CR_4x8 || type == CR_8x4 || type == CR_16AC || type == CR_16DC)
-                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[2].bits, bit + bit_pos_b);
-                else
-                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits, bit + bit_pos_b);
-            }
+            else
+                upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits, bit + bit_pos_b);
         }
         if (block_a.available) {
-            if ((type == LUMA_8x8 || type == CB_8x8 || type == CR_8x8) &&
-                !mb_data[block_a.mb_addr].transform_size_8x8_flag) {
-            } else if (mb_data[block_a.mb_addr].mb_type == IPCM)
+            if (mb_data[block_a.mb_addr].mb_type == IPCM)
                 left_bit = 1;
-            else {
-                if (type == LUMA_8x8)
-                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits_8x8, bit + bit_pos_a);
-                else if (type == CB_8x8)
-                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[1].bits_8x8, bit + bit_pos_a);
-                else if (type == CR_8x8)
-                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[2].bits_8x8, bit + bit_pos_a);
-                else if (type == CB_4x4 || type == CB_4x8 || type == CB_8x4 || type == CB_16AC || type == CB_16DC)
-                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[1].bits, bit + bit_pos_a);
-                else if (type == CR_4x4 || type == CR_4x8 || type == CR_8x4 || type == CR_16AC || type == CR_16DC)
-                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[2].bits, bit + bit_pos_a);
-                else
-                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits, bit + bit_pos_a);
-            }
+            else
+                left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits, bit + bit_pos_a);
         }
+    }
 
-        ctx = 2 * upper_bit + left_bit;
-        //===== encode symbol =====
+    if (type != LUMA_8x8) {
+        ctx = 2 * upper_bit + left_bit;     
         cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
     }
 
-    //--- set bits for current block ---
     bit = y_dc ?  0 :
           y_ac ?  1 + j + (i >> 2) :
           u_dc ? 17 :
@@ -478,288 +452,14 @@ static int read_and_store_CBP_block_bit_444(mb_t *currMB, DecodingEnvironment *d
                  35 + j + (i >> 2);
 
     if (cbp_bit) {
-        CBPStructure *s_cbp = currMB->s_cbp;
-        if (type == LUMA_8x8) {
-            s_cbp[0].bits     |= (int64)(0x33 << bit);
-            s_cbp[0].bits_8x8 |= (int64)(0x33 << bit);
-        } else if (type == CB_8x8) {
-            s_cbp[1].bits_8x8 |= (int64)(0x33 << bit);
-            s_cbp[1].bits     |= (int64)(0x33 << bit);
-        } else if (type == CR_8x8) {
-            s_cbp[2].bits_8x8 |= (int64)(0x33 << bit);
-            s_cbp[2].bits     |= (int64)(0x33 << bit);
-        } else if (type == LUMA_8x4)
-            s_cbp[0].bits     |= (int64)(0x03 << bit);
-        else if (type == CB_8x4)
-            s_cbp[1].bits     |= (int64)(0x03 << bit);
-        else if (type == CR_8x4)
-            s_cbp[2].bits     |= (int64)(0x03 << bit);
+        if (type == LUMA_8x8)
+            currMB->s_cbp[0].bits |= (int64)(0x33 << bit);
+        else if (type == LUMA_8x4)
+            currMB->s_cbp[0].bits |= (int64)(0x03 << bit);
         else if (type == LUMA_4x8)
-            s_cbp[0].bits     |= (int64)(0x11 << bit);
-        else if (type == CB_4x8)
-            s_cbp[1].bits     |= (int64)(0x11 << bit);
-        else if (type == CR_4x8)
-            s_cbp[2].bits     |= (int64)(0x11 << bit);
-        else if (type == CB_4x4 || type == CB_16AC || type == CB_16DC)
-            s_cbp[1].bits     |= i64_power2(bit);
-        else if (type == CR_4x4 || type == CR_16AC || type == CR_16DC)
-            s_cbp[2].bits     |= i64_power2(bit);
+            currMB->s_cbp[0].bits |= (int64)(0x11 << bit);
         else
-            s_cbp[0].bits     |= i64_power2(bit);
-    }
-    return cbp_bit;
-}
-
-static inline int set_cbp_bit(mb_t *neighbor_mb)
-{
-    if (neighbor_mb->mb_type == IPCM)
-        return 1;
-    else
-        return (int)(neighbor_mb->s_cbp[0].bits & 0x01);
-}
-
-static inline int set_cbp_bit_ac(mb_t *neighbor_mb, PixelPos *block)
-{
-    if (neighbor_mb->mb_type == IPCM)
-        return 1;
-    else {
-        int bit_pos = 1 + (block->y << 2) + block->x;
-        return get_bit(neighbor_mb->s_cbp[0].bits, bit_pos);
-    }
-}
-
-static int read_and_store_CBP_block_bit_normal(mb_t *currMB, DecodingEnvironment *dep_dp, int type)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    TextureInfoContexts *tex_ctx = currSlice->tex_ctx;
-    int cbp_bit     = 1;  // always one for 8x8 mode
-    mb_t *mb_data = currSlice->mb_data;
-
-    int mb_size[2][2] = {
-        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
-        { sps->MbWidthC, sps->MbHeightC }
-    };
-
-    if (type == LUMA_16DC) {
-        int upper_bit = 1;
-        int left_bit  = 1;
-        int ctx;
-
-        PixelPos block_a, block_b;
-        get4x4NeighbourBase(currMB, -1,  0, mb_size[IS_LUMA], &block_a);
-        get4x4NeighbourBase(currMB,  0, -1, mb_size[IS_LUMA], &block_b);
-
-        //--- get bits from neighboring blocks ---
-        if (block_b.available)
-            upper_bit = set_cbp_bit(&mb_data[block_b.mb_addr]);
-        if (block_a.available)
-            left_bit = set_cbp_bit(&mb_data[block_a.mb_addr]);
-
-        ctx = 2 * upper_bit + left_bit;     
-        cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-        if (cbp_bit)
-            currMB->s_cbp[0].bits |= 1;
-    } else if (type == LUMA_16AC) {
-        int j           = currMB->subblock_y;
-        int i           = currMB->subblock_x;
-        int bit         = 1;
-        int default_bit = (currMB->is_intra_block ? 1 : 0);
-        int upper_bit   = default_bit;
-        int left_bit    = default_bit;
-        int ctx;
-
-        PixelPos block_a, block_b;
-        get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-        get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-
-        //--- get bits from neighboring blocks ---
-        if (block_b.available)
-            upper_bit = set_cbp_bit_ac(&mb_data[block_b.mb_addr], &block_b);
-        if (block_a.available)
-            left_bit = set_cbp_bit_ac(&mb_data[block_a.mb_addr], &block_a);
-
-        ctx = 2 * upper_bit + left_bit;     
-        //===== encode symbol =====
-        cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-        if (cbp_bit) {
-            //--- set bits for current block ---
-            bit = 1 + j + (i >> 2); 
-            currMB->s_cbp[0].bits   |= i64_power2(bit);
-        }
-    } else if (type == LUMA_8x4) {
-        int j           = currMB->subblock_y;
-        int i           = currMB->subblock_x;
-        int bit         = 1;
-        int default_bit = (currMB->is_intra_block ? 1 : 0);
-        int upper_bit   = default_bit;
-        int left_bit    = default_bit;
-        int ctx;
-
-        PixelPos block_a, block_b;
-        get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-        get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-
-        //--- get bits from neighboring blocks ---
-        if (block_b.available)
-            upper_bit = set_cbp_bit_ac(&mb_data[block_b.mb_addr], &block_b);
-        if (block_a.available)
-            left_bit = set_cbp_bit_ac(&mb_data[block_a.mb_addr], &block_a);
-
-        ctx = 2 * upper_bit + left_bit;     
-        //===== encode symbol =====
-        cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-        if (cbp_bit) {
-            //--- set bits for current block ---
-            bit = 1 + j + (i >> 2); 
-            currMB->s_cbp[0].bits   |= ((int64) 0x03 << bit   );
-        }
-    } else if (type == LUMA_4x8) {
-        int j           = currMB->subblock_y;
-        int i           = currMB->subblock_x;
-        int bit         = 1;
-        int default_bit = (currMB->is_intra_block ? 1 : 0);
-        int upper_bit   = default_bit;
-        int left_bit    = default_bit;
-        int ctx;
-
-        PixelPos block_a, block_b;
-        get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-        get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-
-        //--- get bits from neighboring blocks ---
-        if (block_b.available)
-            upper_bit = set_cbp_bit_ac(&mb_data[block_b.mb_addr], &block_b);
-        if (block_a.available)
-            left_bit = set_cbp_bit_ac(&mb_data[block_a.mb_addr], &block_a);
-
-        ctx = 2 * upper_bit + left_bit;     
-        //===== encode symbol =====
-        cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-        if (cbp_bit) {
-            //--- set bits for current block ---
-            bit = 1 + j + (i >> 2); 
-            currMB->s_cbp[0].bits |= ((int64) 0x11 << bit);
-        }
-    } else if (type == LUMA_4x4) {
-        int j           = currMB->subblock_y;
-        int i           = currMB->subblock_x;
-        int bit         = 1;
-        int default_bit = (currMB->is_intra_block ? 1 : 0);
-        int upper_bit   = default_bit;
-        int left_bit    = default_bit;
-        int ctx;
-
-        PixelPos block_a, block_b;
-        get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_LUMA], &block_a);
-        get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_LUMA], &block_b);
-
-        //--- get bits from neighboring blocks ---
-        if (block_b.available)
-            upper_bit = set_cbp_bit_ac(&mb_data[block_b.mb_addr], &block_b);
-        if (block_a.available)
-            left_bit = set_cbp_bit_ac(&mb_data[block_a.mb_addr], &block_a);
-
-        ctx = 2 * upper_bit + left_bit;     
-        //===== encode symbol =====
-        cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-        if (cbp_bit) {
-            //--- set bits for current block ---
-            bit = 1 + j + (i >> 2); 
-            currMB->s_cbp[0].bits   |= i64_power2(bit);
-        }
-    } else if (type == LUMA_8x8) {
-        int j           = currMB->subblock_y;
-        int i           = currMB->subblock_x;
-        //--- set bits for current block ---
-        int bit         = 1 + j + (i >> 2);
-
-        currMB->s_cbp[0].bits |= ((int64) 0x33 << bit   );      
-    } else if (type == CHROMA_DC || type == CHROMA_DC_2x4 || type == CHROMA_DC_4x4) {
-        int u_dc        = (!currMB->is_v_block);
-        int j           = 0;
-        int i           = 0;
-        int bit         = (u_dc ? 17 : 18);
-        int default_bit = (currMB->is_intra_block ? 1 : 0);
-        int upper_bit   = default_bit;
-        int left_bit    = default_bit;
-        int ctx;
-
-        PixelPos block_a, block_b;
-        get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
-        get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);    
-
-        //--- get bits from neighboring blocks ---
-        if (block_b.available) {
-            if (mb_data[block_b.mb_addr].mb_type == IPCM)
-                upper_bit = 1;
-            else
-                upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits, bit);
-        }
-
-        if (block_a.available) {
-            if (mb_data[block_a.mb_addr].mb_type == IPCM)
-                left_bit = 1;
-            else
-                left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits, bit);
-        }
-
-        ctx = 2 * upper_bit + left_bit;
-        //===== encode symbol =====
-        cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-        if (cbp_bit) {
-            //--- set bits for current block ---
-            bit = (u_dc ? 17 : 18); 
-            currMB->s_cbp[0].bits   |= i64_power2(bit);
-        }
-    } else {
-        int u_ac        = (!currMB->is_v_block);
-        int j           = currMB->subblock_y;
-        int i           = currMB->subblock_x;
-        int bit         = (u_ac ? 19 : 35);
-        int default_bit = (currMB->is_intra_block ? 1 : 0);
-        int upper_bit   = default_bit;
-        int left_bit    = default_bit;
-        int ctx;
-
-        PixelPos block_a, block_b;
-        get4x4NeighbourBase(currMB, i - 1, j    , mb_size[IS_CHROMA], &block_a);
-        get4x4NeighbourBase(currMB, i    , j - 1, mb_size[IS_CHROMA], &block_b);    
-
-        //--- get bits from neighboring blocks ---
-        if (block_b.available) {
-            if (mb_data[block_b.mb_addr].mb_type == IPCM)
-                upper_bit = 1;
-            else {
-                int bit_pos_b = 4*block_b.y + block_b.x;
-                upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits, bit + bit_pos_b);
-            }
-        }
-
-        if (block_a.available) {
-            if (mb_data[block_a.mb_addr].mb_type == IPCM)
-                left_bit = 1;
-            else {
-                int bit_pos_a = 4*block_a.y + block_a.x;
-                left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits,bit + bit_pos_a);
-            }
-        }
-
-        ctx = 2 * upper_bit + left_bit;     
-        //===== encode symbol =====
-        cbp_bit = biari_decode_symbol (dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-        if (cbp_bit) {
-            //--- set bits for current block ---
-            bit = (u_ac ? 19 + j + (i >> 2) : 35 + j + (i >> 2)); 
-            currMB->s_cbp[0].bits   |= i64_power2(bit);
-        }
+            currMB->s_cbp[0].bits |= i64_power2(bit);
     }
     return cbp_bit;
 }
@@ -796,245 +496,149 @@ static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironm
 }
 
 
-static void read_comp_coeff_4x4_CABAC(mb_t *currMB, ColorPlane pl)
+static void read_tc_luma(mb_t *currMB, ColorPlane pl)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    int start_scan = IS_I16MB (currMB)? 1 : 0;
 
     const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
+    const byte (*pos_scan8x8)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
 
-    int qp_per = currMB->qp_scaled[pl] / 6;
-    int qp_rem = currMB->qp_scaled[pl] % 6;
-    int transform_pl = sps->separate_colour_plane_flag ? currSlice->colour_plane_id : pl;
-    int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
-        currSlice->InvLevelScale4x4_Intra[transform_pl][qp_rem] :
-        currSlice->InvLevelScale4x4_Inter[transform_pl][qp_rem];
+    if (IS_I16MB(currMB) && !currMB->dpl_flag) {
+        SyntaxElement currSE;
+        currSE.type    = SE_LUM_DC_INTRA;
+        currSE.context = LUMA_16DC;
+        DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
+        if (dP->bitstream->ei_flag)
+            currSE.mapping = linfo_levrun_inter;
+        else
+            currSE.reading = readRunLevel_CABAC;
 
-    SyntaxElement currSE;
-    if (pl == PLANE_Y || sps->separate_colour_plane_flag)
-        currSE.context = IS_I16MB(currMB) ? LUMA_16AC : LUMA_4x4;
-    else if (pl == PLANE_U)
-        currSE.context = IS_I16MB(currMB) ? CB_16AC : CB_4x4;
-    else
-        currSE.context = IS_I16MB(currMB) ? CR_16AC : CR_4x4;
+        int coef_ctr = -1;
+        int level = 1;
+        for (int k = 0; k < 17 && level != 0; ++k) {
+            dP->readSyntaxElement(currMB, &currSE, dP);
+            level = currSE.value1;
+            if (level != 0) {
+                coef_ctr += currSE.value2 + 1;
+                //coeffLevel[startIdx + coef_ctr] = level;
+                int i0 = pos_scan4x4[coef_ctr][0];
+                int j0 = pos_scan4x4[coef_ctr][1];
+                currSlice->cof[0][j0 * 4][i0 * 4] = level;
+            }
+        }
 
-    for (int block_y = 0; block_y < MB_BLOCK_SIZE; block_y += BLOCK_SIZE_8x8) {
-        for (int block_x = 0; block_x < MB_BLOCK_SIZE; block_x += BLOCK_SIZE_8x8) {
-            if (currMB->cbp & (1 << ((block_y >> 2) + (block_x >> 3)))) {
-                for (int j = block_y; j < block_y + BLOCK_SIZE_8x8; j += 4) {
-                    for (int i = block_x; i < block_x + BLOCK_SIZE_8x8; i += 4) {
-                        currMB->subblock_x = i;
-                        currMB->subblock_y = j;
+        if (!currMB->TransformBypassModeFlag)
+            itrans_2(currMB, pl);
+    }
 
-                        int coef_ctr = start_scan - 1;
-                        int level = 1;
-                        for (int k = start_scan; k < 17 && level != 0; ++k) {
-                            currSE.type = currMB->is_intra_block ?
-                                (k == 0 ? SE_LUM_DC_INTRA : SE_LUM_AC_INTRA) :
-                                (k == 0 ? SE_LUM_DC_INTER : SE_LUM_AC_INTER);
-                            DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
-                            if (dP->bitstream->ei_flag)
-                                currSE.mapping = linfo_levrun_inter;
+    if (!currMB->transform_size_8x8_flag) {
+        int qp_per = currMB->qp_scaled[pl] / 6;
+        int qp_rem = currMB->qp_scaled[pl] % 6;
+        int transform_pl = sps->separate_colour_plane_flag ? currSlice->colour_plane_id : pl;
+        int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
+            currSlice->InvLevelScale4x4_Intra[transform_pl][qp_rem] :
+            currSlice->InvLevelScale4x4_Inter[transform_pl][qp_rem];
+
+        SyntaxElement currSE;
+        if (pl == PLANE_Y || sps->separate_colour_plane_flag)
+            currSE.context = IS_I16MB(currMB) ? LUMA_16AC : LUMA_4x4;
+        else if (pl == PLANE_U)
+            currSE.context = IS_I16MB(currMB) ? CB_16AC : CB_4x4;
+        else
+            currSE.context = IS_I16MB(currMB) ? CR_16AC : CR_4x4;
+
+        int start_scan = IS_I16MB (currMB)? 1 : 0;
+
+        for (int i8x8 = 0; i8x8 < 4; i8x8++) {
+            int block_x = (i8x8 % 2) * 2;
+            int block_y = (i8x8 / 2) * 2;
+
+            for (int i4x4 = 0; i4x4 < 4; i4x4++) {
+                if (currMB->cbp & (1 << i8x8)) {
+                    int i = block_x + (i4x4 % 2);
+                    int j = block_y + (i4x4 / 2);
+
+                    currMB->subblock_x = i * 4;
+                    currMB->subblock_y = j * 4;
+
+                    int coef_ctr = start_scan - 1;
+                    int level = 1;
+                    for (int k = start_scan; k < 17 && level != 0; ++k) {
+                        currSE.type = currMB->is_intra_block ?
+                            (k == 0 ? SE_LUM_DC_INTRA : SE_LUM_AC_INTRA) :
+                            (k == 0 ? SE_LUM_DC_INTER : SE_LUM_AC_INTER);
+                        DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
+                        if (dP->bitstream->ei_flag)
+                            currSE.mapping = linfo_levrun_inter;
+                        else
+                            currSE.reading = readRunLevel_CABAC;
+
+                        dP->readSyntaxElement(currMB, &currSE, dP);
+                        level = currSE.value1;
+                        if (level != 0) {
+                            coef_ctr += currSE.value2 + 1;
+                            currMB->s_cbp[pl].blk |= (int64)(0x01 << (j * 4 + i));
+                            int i0 = pos_scan4x4[coef_ctr][0];
+                            int j0 = pos_scan4x4[coef_ctr][1];
+
+                            if (!currMB->TransformBypassModeFlag)
+                                currSlice->cof[pl][j * 4 + j0][i * 4 + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0]) << qp_per, 4);
                             else
-                                currSE.reading = readRunLevel_CABAC;
-
-                            dP->readSyntaxElement(currMB, &currSE, dP);
-                            level = currSE.value1;
-                            if (level != 0) {
-                                coef_ctr += currSE.value2 + 1;
-                                int i0 = pos_scan4x4[coef_ctr][0];
-                                int j0 = pos_scan4x4[coef_ctr][1];
-                                currMB->s_cbp[pl].blk |= i64_power2(j + (i >> 2)) ;
-
-                                if (!currMB->TransformBypassModeFlag)
-                                    currSlice->cof[pl][j + j0][i + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0]) << qp_per, 4);
-                                else
-                                    currSlice->cof[pl][j + j0][i + i0] = level;
-                            }
+                                currSlice->cof[pl][j * 4 + j0][i * 4 + i0] = level;
                         }
                     }
                 }
             }
         }
-    }
-}
+    } else {
+        int qp_per = currMB->qp_scaled[pl] / 6;
+        int qp_rem = currMB->qp_scaled[pl] % 6;
+        int transform_pl = sps->separate_colour_plane_flag ? currSlice->colour_plane_id : pl;
+        int (*InvLevelScale8x8)[8] = currMB->is_intra_block ?
+            currSlice->InvLevelScale8x8_Intra[transform_pl][qp_rem] :
+            currSlice->InvLevelScale8x8_Inter[transform_pl][qp_rem];
 
-static void read_comp_coeff_8x8_CABAC(mb_t *currMB, ColorPlane pl)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-
-    const byte (*pos_scan8x8)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
-
-    int qp_per = currMB->qp_scaled[pl] / 6;
-    int qp_rem = currMB->qp_scaled[pl] % 6;
-    int transform_pl = sps->separate_colour_plane_flag ? currSlice->colour_plane_id : pl;
-    int (*InvLevelScale8x8)[8] = currMB->is_intra_block ?
-        currSlice->InvLevelScale8x8_Intra[transform_pl][qp_rem] :
-        currSlice->InvLevelScale8x8_Inter[transform_pl][qp_rem];
-
-    SyntaxElement currSE;
-    if (pl == PLANE_Y || sps->separate_colour_plane_flag)
-        currSE.context = LUMA_8x8;
-    else if (pl == PLANE_U)
-        currSE.context = CB_8x8;
-    else
-        currSE.context = CR_8x8;  
-
-    for (int b8 = 0; b8 < 4; b8++) {
-        if (currMB->cbp & (1 << b8)) {
-            int boff_x = (b8&0x01) << 3;
-            int boff_y = (b8 >> 1) << 3;
-            currMB->subblock_x = boff_x;
-            currMB->subblock_y = boff_y;
-
-            int coef_ctr = -1;
-            int level = 1;
-            for (int k = 0; k < 65 && level != 0; ++k) {
-                currSE.type = currMB->is_intra_block ?
-                    (k == 0 ? SE_LUM_DC_INTRA : SE_LUM_AC_INTRA) :
-                    (k == 0 ? SE_LUM_DC_INTER : SE_LUM_AC_INTER);
-                DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
-                if (dP->bitstream->ei_flag)
-                    currSE.mapping = linfo_levrun_inter;
-                else
-                    currSE.reading = readRunLevel_CABAC;
-
-                dP->readSyntaxElement(currMB, &currSE, dP);
-                level = currSE.value1;
-                if (level != 0) {
-                    coef_ctr += currSE.value2 + 1;
-                    int i = pos_scan8x8[coef_ctr][0];
-                    int j = pos_scan8x8[coef_ctr][1];
-                    currMB->s_cbp[pl].blk |= (int64) 51 << (4 * b8 - 2 * (b8 & 0x01)); // corresponds to 110011, as if all four 4x4 blocks contain coeff, shifted to block position            
-
-                    if (!currMB->TransformBypassModeFlag)
-                        currSlice->cof[pl][boff_y + j][boff_x + i] = rshift_rnd_sf((level * InvLevelScale8x8[j][i]) << qp_per, 6);
-                    else
-                        currSlice->cof[pl][boff_y + j][boff_x + i] = level;
-                }
-            }
-        }
-    }
-}
-
-
-static void read_tc_luma(mb_t *currMB, ColorPlane pl)
-{
-    if (IS_I16MB(currMB) && !currMB->dpl_flag) {
-        int16_t coeffLevel[16];
-        currMB->residual_block_cabac(coeffLevel, 0, 15, 16, pl, 0, 0);
-    }
-
-    if (currMB->transform_size_8x8_flag)
-        read_comp_coeff_8x8_CABAC(currMB, pl); 
-    else
-        read_comp_coeff_4x4_CABAC(currMB, pl);        
-}
-
-static void read_tc_chroma_420(mb_t *currMB)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-
-    const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
-
-    int qp_per_uv[2];
-    int qp_rem_uv[2];
-    for (int i = 0; i < 2; ++i) {
-        qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
-        qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
-    }
-
-    int num_blk8x8_uv = 0;
-    if (sps->chroma_format_idc != YUV400)
-        num_blk8x8_uv = (1 << sps->chroma_format_idc) & (~(0x1));
-    int num_uv_blocks = num_blk8x8_uv >> 1;
-    int num_cdc_coeff = num_blk8x8_uv << 1;
-
-    if (currMB->cbp > 15) {
-        for (int ll = 0; ll < 3; ll += 2) {
-            int uv = ll >> 1;
-            currMB->is_v_block = ll;
-
-            SyntaxElement currSE;
-            currSE.context = CHROMA_DC;
-            currSE.type    = currMB->is_intra_block ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER;
-            DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
-            if (dP->bitstream->ei_flag)
-                currSE.mapping = linfo_levrun_c2x2;
-            else
-                currSE.reading = readRunLevel_CABAC;
-
-            int coef_ctr = -1;
-            int level = 1;
-            for (int k = 0; k < num_cdc_coeff + 1 && level != 0; ++k) {
-                dP->readSyntaxElement(currMB, &currSE, dP);
-                level = currSE.value1;
-                if (level != 0) {
-                    currMB->s_cbp[0].blk |= 0xf0000 << (ll << 1);
-                    coef_ctr += currSE.value2 + 1;
-                    int i0 = coef_ctr % 2;
-                    int j0 = coef_ctr / 2;
-                    assert(coef_ctr < num_cdc_coeff);
-                    if (coef_ctr < 4)
-                        currSlice->cof[uv + 1][j0 << 2][i0 << 2] = level;
-                }
-            }
-
-            int smb = (currSlice->slice_type == SP_SLICE && !currMB->is_intra_block) ||
-                      (currSlice->slice_type == SI_SLICE && currMB->mb_type == SI4MB);
-            if (!smb && !currMB->TransformBypassModeFlag)
-                itrans_420(currMB, (ColorPlane)(uv + 1));
-        }
-    }
-
-    if (currMB->cbp > 31) {
         SyntaxElement currSE;
-        currSE.context = CHROMA_AC;
-        currSE.type    = currMB->is_intra_block ? SE_CHR_AC_INTRA : SE_CHR_AC_INTER;
-        DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
-        if (dP->bitstream->ei_flag)
-            currSE.mapping = linfo_levrun_inter;
+        if (pl == PLANE_Y || sps->separate_colour_plane_flag)
+            currSE.context = LUMA_8x8;
+        else if (pl == PLANE_U)
+            currSE.context = CB_8x8;
         else
-            currSE.reading = readRunLevel_CABAC;
+            currSE.context = CR_8x8;  
 
-        int yuv = sps->chroma_format_idc - 1;
+        for (int i8x8 = 0; i8x8 < 4; i8x8++) {
+            int block_x = (i8x8 % 2) * 2;
+            int block_y = (i8x8 / 2) * 2;
 
-        for (int b8 = 0; b8 < num_blk8x8_uv; ++b8) {
-            int uv = b8 > (num_uv_blocks - 1);
-            currMB->is_v_block = uv;
+            if (currMB->cbp & (1 << i8x8)) {
+                currMB->subblock_x = block_x * 4;
+                currMB->subblock_y = block_y * 4;
 
-            int (*InvLevelScale4x4)[4] = NULL;
-            if (!currMB->TransformBypassModeFlag)
-                InvLevelScale4x4 = currMB->is_intra_block ?
-                    currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]] :
-                    currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
-
-            for (int b4 = 0; b4 < 4; ++b4) {
-                int i = cofuv_blk_x[yuv][b8][b4];
-                int j = cofuv_blk_y[yuv][b8][b4];
-
-                currMB->subblock_y = subblk_offset_y[yuv][b8][b4];
-                currMB->subblock_x = subblk_offset_x[yuv][b8][b4];
-
-                int coef_ctr = 0;
+                int coef_ctr = -1;
                 int level = 1;
-                for (int k = 0; k < 16 && level != 0; ++k) {
+                for (int k = 0; k < 65 && level != 0; ++k) {
+                    currSE.type = currMB->is_intra_block ?
+                        (k == 0 ? SE_LUM_DC_INTRA : SE_LUM_AC_INTRA) :
+                        (k == 0 ? SE_LUM_DC_INTER : SE_LUM_AC_INTER);
+                    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
+                    if (dP->bitstream->ei_flag)
+                        currSE.mapping = linfo_levrun_inter;
+                    else
+                        currSE.reading = readRunLevel_CABAC;
+
                     dP->readSyntaxElement(currMB, &currSE, dP);
                     level = currSE.value1;
-
                     if (level != 0) {
-                        currMB->s_cbp[0].blk |= i64_power2(cbp_blk_chroma[b8][b4]);
                         coef_ctr += currSE.value2 + 1;
-                        int i0 = pos_scan4x4[coef_ctr][0];
-                        int j0 = pos_scan4x4[coef_ctr][1];
+                        currMB->s_cbp[pl].blk |= (int64)(0x33 << (block_y * 4 + block_x));
+                        int i0 = pos_scan8x8[coef_ctr][0];
+                        int j0 = pos_scan8x8[coef_ctr][1];
 
                         if (!currMB->TransformBypassModeFlag)
-                            currSlice->cof[uv + 1][(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0])<<qp_per_uv[uv], 4);
+                            currSlice->cof[pl][block_y * 4 + j0][block_x * 4 + i0] = rshift_rnd_sf((level * InvLevelScale8x8[j0][i0]) << qp_per, 6);
                         else
-                            currSlice->cof[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
+                            currSlice->cof[pl][block_y * 4 + j0][block_x * 4 + i0] = level;
                     }
                 }
             }
@@ -1042,102 +646,59 @@ static void read_tc_chroma_420(mb_t *currMB)
     }
 }
 
-static void read_tc_chroma_422(mb_t *currMB)
+static void read_tc_chroma(mb_t *currMB)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-
-    const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
-
-    int qp_per_uv[2];
-    int qp_rem_uv[2];
-    for (int i = 0; i < 2; ++i) {
-        qp_per_uv[i] = currMB->qp_scaled[i + 1] / 6;
-        qp_rem_uv[i] = currMB->qp_scaled[i + 1] % 6;
-    }
-
-    int num_blk8x8_uv = 0;
-    if (sps->chroma_format_idc != YUV400)
-        num_blk8x8_uv = (1 << sps->chroma_format_idc) & (~(0x1));
-    int num_uv_blocks = num_blk8x8_uv >> 1;
-    int num_cdc_coeff = num_blk8x8_uv << 1;
+    int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
 
     if (currMB->cbp > 15) {      
-        for (int ll = 0; ll < 3; ll += 2) {
-            int uv = ll >> 1;
-            currMB->is_v_block = ll;
+        SyntaxElement currSE;
+        currSE.context = sps->ChromaArrayType == 1 ? CHROMA_DC : CHROMA_DC_2x4;
+        currSE.type    = currMB->is_intra_block ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER;
+        DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
+        if (dP->bitstream->ei_flag)
+            currSE.mapping = linfo_levrun_c2x2;
+        else
+            currSE.reading = readRunLevel_CABAC;
 
-            int qp_per_uv_dc = (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) / 6;       //for YUV422 only
-            int qp_rem_uv_dc = (currMB->qpc[uv] + 3 + sps->QpBdOffsetC) % 6;       //for YUV422 only
-            int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
-                currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv_dc] :
-                currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv_dc];
+        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
+            currMB->is_v_block = iCbCr * 2;
 
-            SyntaxElement currSE;
-            currSE.context = CHROMA_DC_2x4;
-            currSE.type    = currMB->is_intra_block ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER;
-            DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
-            if (dP->bitstream->ei_flag)
-                currSE.mapping = linfo_levrun_c2x2;
-            else
-                currSE.reading = readRunLevel_CABAC;
-
-            int m3[2][4] = { { 0 }, { 0 } };
-
-            CBPStructure *s_cbp = &currMB->s_cbp[0];
             int coef_ctr = -1;
             int level = 1;
-            for (int k = 0; k < 9 && level != 0; ++k) {
+            for (int k = 0; k < NumC8x8 * 4 + 1 && level != 0; ++k) {
                 dP->readSyntaxElement(currMB, &currSE, dP);
                 level = currSE.value1;
 
+                int i0, j0;
                 if (level != 0) {
-                    s_cbp->blk |= ((int64)0xff0000) << (ll<<2);
                     coef_ctr += currSE.value2 + 1;
-                    assert(coef_ctr < num_cdc_coeff);
-                    int i0 = FIELD_SCAN[coef_ctr][0];
-                    int j0 = FIELD_SCAN[coef_ctr][1];
-                    m3[i0][j0] = level;
+                    assert(coef_ctr < NumC8x8 * 4);
+                    if (sps->ChromaArrayType == 1) {
+                        i0 = coef_ctr % 2;
+                        j0 = coef_ctr / 2;
+                        currMB->s_cbp[0].blk |= (int64)(0xf << (iCbCr * 4 + 16));
+                    }
+                    if (sps->ChromaArrayType == 2) {
+                        i0 = FIELD_SCAN[coef_ctr][0];
+                        j0 = FIELD_SCAN[coef_ctr][1];
+                        currMB->s_cbp[0].blk |= (int64)(0xff << (iCbCr * 8 + 16));
+                    }
+                    if (coef_ctr < NumC8x8 * 4)
+                        currSlice->cof[iCbCr + 1][j0 * 4][i0 * 4] = level;
                 }
             }
 
-            if (!currMB->TransformBypassModeFlag) {
-                int m4[2][4];
-
-                m4[0][0] = m3[0][0] + m3[1][0];
-                m4[0][1] = m3[0][1] + m3[1][1];
-                m4[0][2] = m3[0][2] + m3[1][2];
-                m4[0][3] = m3[0][3] + m3[1][3];
-
-                m4[1][0] = m3[0][0] - m3[1][0];
-                m4[1][1] = m3[0][1] - m3[1][1];
-                m4[1][2] = m3[0][2] - m3[1][2];
-                m4[1][3] = m3[0][3] - m3[1][3];
-
-                int temp[2][4];
-                for (int i = 0; i < 2; ++i) {
-                    int m6[4];
-
-                    m6[0] = m4[i][0] + m4[i][2];
-                    m6[1] = m4[i][0] - m4[i][2];
-                    m6[2] = m4[i][1] - m4[i][3];
-                    m6[3] = m4[i][1] + m4[i][3];
-
-                    temp[i][0] = m6[0] + m6[3];
-                    temp[i][1] = m6[1] + m6[2];
-                    temp[i][2] = m6[1] - m6[2];
-                    temp[i][3] = m6[0] - m6[3];
-                }
-
-                for (int j = 0; j < sps->MbHeightC; j += BLOCK_SIZE) {
-                    for (int i = 0; i < sps->MbWidthC; i += BLOCK_SIZE)
-                        currSlice->cof[uv + 1][j][i] = rshift_rnd_sf((temp[i / 4][j / 4] * InvLevelScale4x4[0][0]) << qp_per_uv_dc, 6);
-                }
-            } else {
-                for (int j = 0; j < sps->MbHeightC; j += BLOCK_SIZE) {
-                    for (int i = 0; i < sps->MbWidthC; i += BLOCK_SIZE)
-                        currSlice->cof[uv + 1][j][i] = m3[i / 4][j / 4];
-                }
+            if (sps->ChromaArrayType == 1) {
+                int smb = (currSlice->slice_type == SP_SLICE && !currMB->is_intra_block) ||
+                          (currSlice->slice_type == SI_SLICE && currMB->mb_type == SI4MB);
+                if (!smb && !currMB->TransformBypassModeFlag)
+                    itrans_420(currMB, (ColorPlane)(iCbCr + 1));
+            }
+            if (sps->ChromaArrayType == 2) {
+                if (!currMB->TransformBypassModeFlag)
+                    itrans_422(currMB, (ColorPlane)(iCbCr + 1));
             }
         }
     }
@@ -1152,42 +713,44 @@ static void read_tc_chroma_422(mb_t *currMB)
         else
             currSE.reading = readRunLevel_CABAC;
 
-        CBPStructure *s_cbp = &currMB->s_cbp[0];
-        int yuv = sps->chroma_format_idc - 1;
+        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
+            const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
+            int qp_per_uv = currMB->qp_scaled[iCbCr + 1] / 6;
+            int qp_rem_uv = currMB->qp_scaled[iCbCr + 1] % 6;
 
-        for (int b8 = 0; b8 < num_blk8x8_uv; ++b8) {
-            int uv = b8 > (num_uv_blocks - 1);
-            currMB->is_v_block = uv;
+            for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
+                currMB->is_v_block = iCbCr;
 
-            int (*InvLevelScale4x4)[4] = NULL;
-            if (!currMB->TransformBypassModeFlag)
-                InvLevelScale4x4 = currMB->is_intra_block ?
-                    currSlice->InvLevelScale4x4_Intra[uv + 1][qp_rem_uv[uv]] :
-                    currSlice->InvLevelScale4x4_Inter[uv + 1][qp_rem_uv[uv]];
+                int (*InvLevelScale4x4)[4] = NULL;
+                if (!currMB->TransformBypassModeFlag)
+                    InvLevelScale4x4 = currMB->is_intra_block ?
+                        currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv] :
+                        currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv];
 
-            for (int b4 = 0; b4 < 4; ++b4) {
-                int i = cofuv_blk_x[yuv][b8][b4];
-                int j = cofuv_blk_y[yuv][b8][b4];
+                for (int i4x4 = 0; i4x4 < 4; i4x4++) {
+                    int i = (i4x4 % 2);
+                    int j = (i4x4 / 2) + (i8x8 * 2);
 
-                currMB->subblock_y = subblk_offset_y[yuv][b8][b4];
-                currMB->subblock_x = subblk_offset_x[yuv][b8][b4];
+                    currMB->subblock_x = i * 4;
+                    currMB->subblock_y = j * 4;
 
-                int coef_ctr = 0;
-                int level = 1;
-                for (int k = 0; k < 16 && level != 0; ++k) {
-                    dP->readSyntaxElement(currMB, &currSE, dP);
-                    level = currSE.value1;
+                    int coef_ctr = 0;
+                    int level = 1;
+                    for (int k = 0; k < 16 && level != 0; ++k) {
+                        dP->readSyntaxElement(currMB, &currSE, dP);
+                        level = currSE.value1;
 
-                    if (level != 0) {
-                        s_cbp->blk |= i64_power2(cbp_blk_chroma[b8][b4]);
-                        coef_ctr += currSE.value2 + 1;
-                        int i0 = pos_scan4x4[coef_ctr][0];
-                        int j0 = pos_scan4x4[coef_ctr][1];
+                        if (level != 0) {
+                            currMB->s_cbp[0].blk |= (int64)(0x1 << (i8x8 * 4 + i4x4 + 16));
+                            coef_ctr += currSE.value2 + 1;
+                            int i0 = pos_scan4x4[coef_ctr][0];
+                            int j0 = pos_scan4x4[coef_ctr][1];
 
-                        if (!currMB->TransformBypassModeFlag)
-                            currSlice->cof[uv + 1][(j<<2) + j0][(i<<2) + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0]) << qp_per_uv[uv], 4);
-                        else
-                            currSlice->cof[uv + 1][(j<<2) + j0][(i<<2) + i0] = level;
+                            if (!currMB->TransformBypassModeFlag)
+                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0]) << qp_per_uv, 4);
+                            else
+                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = level;
+                        }
                     }
                 }
             }
@@ -1202,11 +765,8 @@ void macroblock_t::read_CBP_and_coeffs_from_NAL_CABAC()
     sps_t *sps = slice->active_sps;
 
     read_tc_luma(this, PLANE_Y);
-
-    if (sps->chroma_format_idc == YUV420)
-        read_tc_chroma_420(this);
-    if (sps->chroma_format_idc == YUV422)
-        read_tc_chroma_422(this);
+    if (sps->chroma_format_idc == YUV420 || sps->chroma_format_idc == YUV422)
+        read_tc_chroma(this);
     if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag) {
         read_tc_luma(this, PLANE_U);
         read_tc_luma(this, PLANE_V);
