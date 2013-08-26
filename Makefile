@@ -112,7 +112,7 @@ distclean: clean
 
 tags:
 	@echo update tag table
-	@ctags inc/*.h src/*.cc
+	@ctags inc/*.h src/*.cpp
 
 bin:    $(OBJ)
 	@echo
