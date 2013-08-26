@@ -86,16 +86,16 @@ endif
 
 OBJSUF= .o$(SUFFIX)
 
-SRC=    $(wildcard $(SRCDIR)/*.cc)
-ADDSRC= $(wildcard $(ADDSRCDIR)/*.cc)
-PARSER= $(wildcard parser/*.cc)
-DECODER= $(wildcard decoder/*.cc)
-CORE= $(wildcard core/*.cc)
-OBJ=    $(SRC:$(SRCDIR)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
-OBJ+=   $(ADDSRC:$(ADDSRCDIR)/%.cc=$(OBJDIR)/%.o$(SUFFIX))
-OBJ+=   $(PARSER:parser/%.cc=$(OBJDIR)/%.o$(SUFFIX))
-OBJ+=   $(DECODER:decoder/%.cc=$(OBJDIR)/%.o$(SUFFIX))
-OBJ+=   $(CORE:core/%.cc=$(OBJDIR)/%.o$(SUFFIX))
+SRC=    $(wildcard $(SRCDIR)/*.cpp)
+ADDSRC= $(wildcard $(ADDSRCDIR)/*.cpp)
+PARSER= $(wildcard parser/*.cpp)
+DECODER= $(wildcard decoder/*.cpp)
+CORE= $(wildcard core/*.cpp)
+OBJ=    $(SRC:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(ADDSRC:$(ADDSRCDIR)/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(PARSER:parser/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(DECODER:decoder/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(CORE:core/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
 BIN=    $(BINDIR)/$(NAME)$(SUFFIX)
 
 .PHONY: default distclean clean tags depend
@@ -129,23 +129,23 @@ depend:
          >$(DEPEND)'
 	@echo
 
-$(OBJDIR)/%.o$(SUFFIX): $(SRCDIR)/%.cc
+$(OBJDIR)/%.o$(SUFFIX): $(SRCDIR)/%.cpp
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
-$(OBJDIR)/%.o$(SUFFIX): $(ADDSRCDIR)/%.cc
+$(OBJDIR)/%.o$(SUFFIX): $(ADDSRCDIR)/%.cpp
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
-$(OBJDIR)/%.o$(SUFFIX): parser/%.cc
+$(OBJDIR)/%.o$(SUFFIX): parser/%.cpp
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
-$(OBJDIR)/%.o$(SUFFIX): decoder/%.cc
+$(OBJDIR)/%.o$(SUFFIX): decoder/%.cpp
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
-$(OBJDIR)/%.o$(SUFFIX): core/%.cc
+$(OBJDIR)/%.o$(SUFFIX): core/%.cpp
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 
