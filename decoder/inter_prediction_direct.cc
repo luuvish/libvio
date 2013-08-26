@@ -28,6 +28,8 @@
 #define INVALIDINDEX  (-135792468)
 
 
+static const uint8_t decode_block_scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
+
 static inline int RSD(int x)
 {
     return ((x&2)?(x|1):(x&(~1)));

@@ -1198,6 +1198,16 @@ void init_subset_sps_list(sub_sps_t *subset_sps_list, int iSize)
   }
 }
 
+
+static inline void free_pointer(void *pointer)
+{
+  if (pointer != NULL)
+  {
+    free(pointer);
+    pointer = NULL;
+  }
+}
+
 void reset_subset_sps(sub_sps_t *subset_sps)
 {
   int i, j;

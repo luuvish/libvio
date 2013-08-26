@@ -24,8 +24,33 @@
 #include "mb_read_syntax.h"
 
 
+// CABAC block types
+typedef enum {
+    LUMA_16DC     =   0,
+    LUMA_16AC     =   1,
+    LUMA_8x8      =   2,
+    LUMA_8x4      =   3,
+    LUMA_4x8      =   4,
+    LUMA_4x4      =   5,
+    CHROMA_DC     =   6,
+    CHROMA_AC     =   7,
+    CHROMA_DC_2x4 =   8,
+    CHROMA_DC_4x4 =   9,
+    CB_16DC       =  10,
+    CB_16AC       =  11,
+    CB_8x8        =  12,
+    CB_8x4        =  13,
+    CB_4x8        =  14,
+    CB_4x4        =  15,
+    CR_16DC       =  16,
+    CR_16AC       =  17,
+    CR_8x8        =  18,
+    CR_8x4        =  19,
+    CR_4x8        =  20,
+    CR_4x4        =  21
+} CABACBlockTypes;
+
 #define IS_I16MB(MB)    ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
-#define IS_DIRECT(MB)   ((MB)->mb_type == 0 && (currSlice->slice_type == B_SLICE))
 
 static inline int rshift_rnd_sf(int x, int a)
 {
@@ -33,32 +58,22 @@ static inline int rshift_rnd_sf(int x, int a)
 }
 
 
-
-//! for the linfo_levrun_inter routine
-static const byte NTAB1[4][8][2] = {
-    { {1, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
-    { {1, 1}, {1, 2}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
-    { {2, 0}, {1, 3}, {1, 4}, {1, 5}, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
-    { {3, 0}, {2, 1}, {2, 2}, {1, 6}, {1, 7}, {1, 8}, {1, 9}, {4, 0} }
-};
-
-static const byte LEVRUN1[16] = {
-    4, 2, 2, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0
-};
-
-//! for the linfo_levrun__c2x2 routine
-static const byte LEVRUN3[4] = { 2, 1, 0, 0 };
-
-static const byte NTAB3[2][2][2] = {
-    { {1, 0}, {0, 0} },
-    { {2, 0}, {1, 1} }
-};
-
-
 static void linfo_levrun_inter(int len, int info, int *level, int *irun)
 {
+    //! for the linfo_levrun_inter routine
+    static const byte NTAB1[4][8][2] = {
+        { {1, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
+        { {1, 1}, {1, 2}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
+        { {2, 0}, {1, 3}, {1, 4}, {1, 5}, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
+        { {3, 0}, {2, 1}, {2, 2}, {1, 6}, {1, 7}, {1, 8}, {1, 9}, {4, 0} }
+    };
+
+    static const byte LEVRUN1[16] = {
+        4, 2, 2, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0
+    };
+
     if (len <= 9) {
-        int l2  = imax(0,(len >> 1)-1);
+        int l2  = imax(0, (len >> 1) - 1);
         int inf = info >> 1;
         *level = NTAB1[l2][inf][0];
         *irun  = NTAB1[l2][inf][1];
@@ -77,6 +92,14 @@ static void linfo_levrun_inter(int len, int info, int *level, int *irun)
 
 static void linfo_levrun_c2x2(int len, int info, int *level, int *irun)
 {
+    //! for the linfo_levrun__c2x2 routine
+    static const byte NTAB3[2][2][2] = {
+        { {1, 0}, {0, 0} },
+        { {2, 0}, {1, 1} }
+    };
+
+    static const byte LEVRUN3[4] = { 2, 1, 0, 0 };
+
     if (len <= 5) {
         int l2  = imax(0, (len >> 1) - 1);
         int inf = info >> 1;
@@ -95,190 +118,49 @@ static void linfo_levrun_c2x2(int len, int info, int *level, int *irun)
         *level = 0;
 }
 
-static const short maxpos       [] = {15, 14, 63, 31, 31, 15,  3, 14,  7, 15, 15, 14, 63, 31, 31, 15, 15, 14, 63, 31, 31, 15};
-static const short c1isdc       [] = { 1,  0,  1,  1,  1,  1,  1,  0,  1,  1,  1,  0,  1,  1,  1,  1,  1,  0,  1,  1,  1,  1};
-static const short type2ctx_bcbp[] = { 0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10, 11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20};
-static const short type2ctx_map [] = { 0,  1,  2,  3,  4,  5,  6,  7,  6,  6, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}; // 8
-static const short type2ctx_last[] = { 0,  1,  2,  3,  4,  5,  6,  7,  6,  6, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}; // 8
-static const short type2ctx_one [] = { 0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10, 11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20}; // 7
-static const short type2ctx_abs [] = { 0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10, 11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20}; // 7
-static const short max_c2       [] = { 4,  4,  4,  4,  4,  4,  3,  4,  3,  3,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4}; // 9
-
-//===== position -> ctx for MAP =====
-//--- zig-zag scan ----
-static const byte  pos2ctx_map8x8 [] = { 0,  1,  2,  3,  4,  5,  5,  4,  4,  3,  3,  4,  4,  4,  5,  5,
-                                         4,  4,  4,  4,  3,  3,  6,  7,  7,  7,  8,  9, 10,  9,  8,  7,
-                                         7,  6, 11, 12, 13, 11,  6,  7,  8,  9, 14, 10,  9,  8,  6, 11,
-                                        12, 13, 11,  6,  9, 14, 10,  9, 11, 12, 13, 11 ,14, 10, 12, 14}; // 15 CTX
-static const byte  pos2ctx_map8x4 [] = { 0,  1,  2,  3,  4,  5,  7,  8,  9, 10, 11,  9,  8,  6,  7,  8,
-                                         9, 10, 11,  9,  8,  6, 12,  8,  9, 10, 11,  9, 13, 13, 14, 14}; // 15 CTX
-static const byte  pos2ctx_map4x4 [] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 14}; // 15 CTX
-static const byte  pos2ctx_map2x4c[] = { 0,  0,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2}; // 15 CTX
-static const byte  pos2ctx_map4x4c[] = { 0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2}; // 15 CTX
-static const byte* pos2ctx_map    [] = {pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8, pos2ctx_map8x4,
-                                        pos2ctx_map8x4, pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map4x4,
-                                        pos2ctx_map2x4c, pos2ctx_map4x4c, 
-                                        pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8,pos2ctx_map8x4,
-                                        pos2ctx_map8x4, pos2ctx_map4x4,
-                                        pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8,pos2ctx_map8x4,
-                                        pos2ctx_map8x4,pos2ctx_map4x4};
-//--- interlace scan ----
-//taken from ABT
-static const byte  pos2ctx_map8x8i[] = { 0,  1,  1,  2,  2,  3,  3,  4,  5,  6,  7,  7,  7,  8,  4,  5,
-                                         6,  9, 10, 10,  8, 11, 12, 11,  9,  9, 10, 10,  8, 11, 12, 11,
-                                         9,  9, 10, 10,  8, 11, 12, 11,  9,  9, 10, 10,  8, 13, 13,  9,
-                                         9, 10, 10,  8, 13, 13,  9,  9, 10, 10, 14, 14, 14, 14, 14, 14}; // 15 CTX
-static const byte  pos2ctx_map8x4i[] = { 0,  1,  2,  3,  4,  5,  6,  3,  4,  5,  6,  3,  4,  7,  6,  8,
-                                         9,  7,  6,  8,  9, 10, 11, 12, 12, 10, 11, 13, 13, 14, 14, 14}; // 15 CTX
-static const byte  pos2ctx_map4x8i[] = { 0,  1,  1,  1,  2,  3,  3,  4,  4,  4,  5,  6,  2,  7,  7,  8,
-                                         8,  8,  5,  6,  9, 10, 10, 11, 11, 11, 12, 13, 13, 14, 14, 14}; // 15 CTX
-static const byte* pos2ctx_map_int[] = {pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8i,pos2ctx_map8x4i,
-                                        pos2ctx_map4x8i,pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map4x4,
-                                        pos2ctx_map2x4c, pos2ctx_map4x4c,
-                                        pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8i,pos2ctx_map8x4i,
-                                        pos2ctx_map8x4i,pos2ctx_map4x4,
-                                        pos2ctx_map4x4, pos2ctx_map4x4, pos2ctx_map8x8i,pos2ctx_map8x4i,
-                                        pos2ctx_map8x4i,pos2ctx_map4x4};
-
-//===== position -> ctx for LAST =====
-static const byte  pos2ctx_last8x8 [] = { 0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-                                          2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
-                                          3,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  4,  4,  4,
-                                          5,  5,  5,  5,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  8}; //  9 CTX
-static const byte  pos2ctx_last8x4 [] = { 0,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,
-                                          3,  3,  3,  3,  4,  4,  4,  4,  5,  5,  6,  6,  7,  7,  8,  8}; //  9 CTX
-
-static const byte  pos2ctx_last4x4 [] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15}; // 15 CTX
-static const byte  pos2ctx_last2x4c[] = { 0,  0,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2}; // 15 CTX
-static const byte  pos2ctx_last4x4c[] = { 0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2}; // 15 CTX
-static const byte* pos2ctx_last    [] = {pos2ctx_last4x4, pos2ctx_last4x4, pos2ctx_last8x8, pos2ctx_last8x4,
-                                         pos2ctx_last8x4, pos2ctx_last4x4, pos2ctx_last4x4, pos2ctx_last4x4,
-                                         pos2ctx_last2x4c, pos2ctx_last4x4c,
-                                         pos2ctx_last4x4, pos2ctx_last4x4, pos2ctx_last8x8,pos2ctx_last8x4,
-                                         pos2ctx_last8x4, pos2ctx_last4x4,
-                                         pos2ctx_last4x4, pos2ctx_last4x4, pos2ctx_last8x8,pos2ctx_last8x4,
-                                         pos2ctx_last8x4, pos2ctx_last4x4};
 
 static inline int get_bit(int64 x, int n)
 {
     return (int)(((x >> n) & 1));
 }
 
-static unsigned int exp_golomb_decode_eq_prob(DecodingEnvironment *dep_dp, int k)
+static uint32_t unary_exp_golomb_level_decode(DecodingEnvironment *dep_dp, BiContextTypePtr ctx)
 {
-    unsigned int l;
-    int symbol = 0;
-    int binary_symbol = 0;
+    const uint32_t exp_start = 13;
+    uint32_t symbol = 0;
+    uint32_t binary_symbol = 0;
+    uint32_t l, k = 1;
 
+    if (biari_decode_symbol(dep_dp, ctx) == 0)
+        return 0;
+
+    do {
+        l = biari_decode_symbol(dep_dp, ctx);
+        ++symbol;
+        ++k;
+    } while (l != 0 && k != exp_start);
+
+    if (l == 0)
+        return symbol;
+
+    k = 0;
     do {
         l = biari_decode_symbol_eq_prob(dep_dp);
         if (l == 1) {
-            symbol += (1<<k);
+            symbol += (1 << k);
             ++k;
         }
     } while (l != 0);
 
-    while (k--)                             //next binary part
+    while (k--) {
         if (biari_decode_symbol_eq_prob(dep_dp) == 1)
-            binary_symbol |= (1<<k);
+            binary_symbol |= (1 << k);
+    }
 
-    return (unsigned int) (symbol + binary_symbol);
+    return symbol + binary_symbol + 1;
 }
 
-static unsigned int unary_exp_golomb_level_decode(DecodingEnvironment *dep_dp, BiContextTypePtr ctx)
-{
-    unsigned int symbol = biari_decode_symbol(dep_dp, ctx);
-
-    if (symbol == 0)
-        return 0;
-    else {
-        unsigned int l, k = 1;
-        unsigned int exp_start = 13;
-
-        symbol = 0;
-
-        do {
-            l = biari_decode_symbol(dep_dp, ctx);
-            ++symbol;
-            ++k;
-        } while (l != 0 && k != exp_start);
-        if (l != 0)
-            symbol += exp_golomb_decode_eq_prob(dep_dp,0)+1;
-        return symbol;
-    }
-}
-
-static int read_significance_map(mb_t *currMB, DecodingEnvironment *dep_dp, int type, int coeff[])
-{
-    slice_t *currSlice = currMB->p_Slice;
-    int               fld    = (currSlice->field_pic_flag || currMB->mb_field_decoding_flag);
-    const byte *pos2ctx_Map = (fld) ? pos2ctx_map_int[type] : pos2ctx_map[type];
-    const byte *pos2ctx_Last = pos2ctx_last[type];
-
-    BiContextTypePtr  map_ctx  = currSlice->tex_ctx->map_contexts [fld][type2ctx_map [type]];
-    BiContextTypePtr  last_ctx = currSlice->tex_ctx->last_contexts[fld][type2ctx_last[type]];
-
-    int i;
-    int coeff_ctr = 0;
-    int i0        = 0;
-    int i1        = maxpos[type];
-
-    if (!c1isdc[type]) {
-        ++i0;
-        ++i1;
-    }
-
-    for (i = i0; i < i1; ++i) { // if last coeff is reached, it has to be significant
-        //--- read significance symbol ---
-        if (biari_decode_symbol(dep_dp, map_ctx + pos2ctx_Map[i])) {
-            *(coeff++) = 1;
-            ++coeff_ctr;
-            //--- read last coefficient symbol ---
-            if (biari_decode_symbol(dep_dp, last_ctx + pos2ctx_Last[i])) {
-                memset(coeff, 0, (i1 - i) * sizeof(int));
-                return coeff_ctr;
-            }
-        } else
-            *(coeff++) = 0;
-    }
-    //--- last coefficient must be significant if no last symbol was received ---
-    if (i < i1 + 1) {
-        *coeff = 1;
-        ++coeff_ctr;
-    }
-
-    return coeff_ctr;
-}
-
-static void read_significant_coefficients(DecodingEnvironment *dep_dp, TextureInfoContexts *tex_ctx, int type, int *coeff)
-{
-    BiContextType *one_contexts = tex_ctx->one_contexts[type2ctx_one[type]];
-    BiContextType *abs_contexts = tex_ctx->abs_contexts[type2ctx_abs[type]];
-    const short max_type = max_c2[type];
-    int i = maxpos[type];
-    int *cof = coeff + i;
-    int   c1 = 1;
-    int   c2 = 0;
-
-    for (; i >= 0; i--) {
-        if (*cof != 0) {
-            *cof += biari_decode_symbol(dep_dp, one_contexts + c1);
-
-            if (*cof == 2) {
-                *cof += unary_exp_golomb_level_decode(dep_dp, abs_contexts + c2);
-                c2 = imin (++c2, max_type);
-                c1 = 0;
-            } else if (c1)
-                c1 = imin (++c1, 4);
-
-            if (biari_decode_symbol_eq_prob(dep_dp))
-                *cof = - *cof;
-        }
-        cof--;
-    }
-}
-
-static int read_and_store_CBP_block_bit_444(mb_t *currMB, DecodingEnvironment *dep_dp, int type)
+static int read_and_store_CBP_block_bit(mb_t *currMB, DecodingEnvironment *dep_dp, int type)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
@@ -323,7 +205,7 @@ static int read_and_store_CBP_block_bit_444(mb_t *currMB, DecodingEnvironment *d
             bit_pos_b = 4 * block_b.y + block_b.x;
     }
 
-    if (sps->separate_colour_plane_flag && type != LUMA_8x8) {
+    if ((sps->separate_colour_plane_flag || sps->chroma_format_idc != YUV444) && type != LUMA_8x8) {
         if (block_b.available) {
             if (mb_data[block_b.mb_addr].mb_type == IPCM)
                 upper_bit = 1;
@@ -336,13 +218,11 @@ static int read_and_store_CBP_block_bit_444(mb_t *currMB, DecodingEnvironment *d
             else
                 left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits, bit + bit_pos_a);
         }
-    } else {
+    } else if (sps->chroma_format_idc == YUV444) {
         if (block_b.available) {
             if (!size_8x8_flag || mb_data[block_b.mb_addr].transform_size_8x8_flag) {
                 if (mb_data[block_b.mb_addr].mb_type == IPCM)
                     upper_bit = 1;
-                else if (size_8x8_flag)
-                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[pl].bits_8x8, bit + bit_pos_b);
                 else
                     upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[pl].bits, bit + bit_pos_b);
             }
@@ -351,96 +231,19 @@ static int read_and_store_CBP_block_bit_444(mb_t *currMB, DecodingEnvironment *d
             if (!size_8x8_flag || mb_data[block_a.mb_addr].transform_size_8x8_flag) {
                 if (mb_data[block_a.mb_addr].mb_type == IPCM)
                     left_bit = 1;
-                else if (size_8x8_flag)
-                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[pl].bits_8x8, bit + bit_pos_a);
                 else
                     left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[pl].bits, bit + bit_pos_a);
             }
         }
     }
 
-    ctx = 2 * upper_bit + left_bit;
-    cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-
-    bit = y_dc ?  0 :
-          y_ac ?  1 + j + (i >> 2) :
-          u_dc ? 17 :
-          v_dc ? 18 :
-          u_ac ? 19 + j + (i >> 2) :
-                 35 + j + (i >> 2);
-
-    if (cbp_bit) {
-        if (size_8x8_flag) {
-            currMB->s_cbp[pl].bits     |= (int64)(0x33 << bit);
-            currMB->s_cbp[pl].bits_8x8 |= (int64)(0x33 << bit);
-        } else if (type == LUMA_8x4 || type == CB_8x4 || type == CR_8x4)
-            currMB->s_cbp[pl].bits |= (int64)(0x03 << bit);
-        else if (type == LUMA_4x8 || type == CB_4x8 || type == CR_4x8)
-            currMB->s_cbp[pl].bits |= (int64)(0x11 << bit);
-        else
-            currMB->s_cbp[pl].bits |= (int64)(0x01 << bit);
-    }
-    return cbp_bit;
-}
-
-static int read_and_store_CBP_block_bit_normal(mb_t *currMB, DecodingEnvironment *dep_dp, int type)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    TextureInfoContexts *tex_ctx = currSlice->tex_ctx;
-    mb_t *mb_data = currSlice->mb_data;
-    int y_ac        = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_8x4 || type==LUMA_4x8 || type==LUMA_4x4
-                      || type==CB_16AC || type==CB_8x8 || type==CB_8x4 || type==CB_4x8 || type==CB_4x4
-                      || type==CR_16AC || type==CR_8x8 || type==CR_8x4 || type==CR_4x8 || type==CR_4x4);
-    int y_dc        = (type==LUMA_16DC || type==CB_16DC || type==CR_16DC); 
-    int u_ac        = (type==CHROMA_AC && !currMB->is_v_block);
-    int v_ac        = (type==CHROMA_AC &&  currMB->is_v_block);
-    int chroma_dc   = (type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4);
-    int u_dc        = (chroma_dc && !currMB->is_v_block);
-    int v_dc        = (chroma_dc &&  currMB->is_v_block);
-    int i           = (y_ac || u_ac || v_ac ? currMB->subblock_x : 0);
-    int j           = (y_ac || u_ac || v_ac ? currMB->subblock_y : 0);
-    int bit         = (y_dc ? 0 : y_ac ? 1 : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 : 35);
-    int default_bit = (currMB->is_intra_block ? 1 : 0);
-    int upper_bit   = default_bit;
-    int left_bit    = default_bit;
-    int cbp_bit     = 1;  // always one for 8x8 mode
-    int ctx;
-    int bit_pos_a   = 0;
-    int bit_pos_b   = 0;
-
-    int mb_size[2][2] = {
-        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
-        { sps->MbWidthC, sps->MbHeightC }
+    static const short type2ctx_bcbp[] = {
+         0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10,
+        11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20
     };
 
-    PixelPos block_a, block_b;
-    get4x4Neighbour(currMB, i - 1, j, mb_size[y_dc || y_ac ? IS_LUMA : IS_CHROMA], &block_a);
-    get4x4Neighbour(currMB, i, j - 1, mb_size[y_dc || y_ac ? IS_LUMA : IS_CHROMA], &block_b);
-    if (y_ac || u_ac || v_ac) {
-        if (block_a.available)
-            bit_pos_a = 4 * block_a.y + block_a.x;
-        if (block_b.available)
-            bit_pos_b = 4 * block_b.y + block_b.x;
-    }
-
-    if (type != LUMA_8x8) {
-        if (block_b.available) {
-            if (mb_data[block_b.mb_addr].mb_type == IPCM)
-                upper_bit = 1;
-            else
-                upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits, bit + bit_pos_b);
-        }
-        if (block_a.available) {
-            if (mb_data[block_a.mb_addr].mb_type == IPCM)
-                left_bit = 1;
-            else
-                left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits, bit + bit_pos_a);
-        }
-    }
-
-    if (type != LUMA_8x8) {
-        ctx = 2 * upper_bit + left_bit;     
+    if (sps->chroma_format_idc == YUV444 || type != LUMA_8x8) {
+        ctx = 2 * upper_bit + left_bit;
         cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
     }
 
@@ -452,46 +255,239 @@ static int read_and_store_CBP_block_bit_normal(mb_t *currMB, DecodingEnvironment
                  35 + j + (i >> 2);
 
     if (cbp_bit) {
-        if (type == LUMA_8x8)
-            currMB->s_cbp[0].bits |= (int64)(0x33 << bit);
-        else if (type == LUMA_8x4)
-            currMB->s_cbp[0].bits |= (int64)(0x03 << bit);
-        else if (type == LUMA_4x8)
-            currMB->s_cbp[0].bits |= (int64)(0x11 << bit);
-        else
-            currMB->s_cbp[0].bits |= i64_power2(bit);
+        if (sps->chroma_format_idc == YUV444) {
+            if (size_8x8_flag)
+                currMB->s_cbp[pl].bits |= ((int64)0x33 << bit);
+            else if (type == LUMA_8x4 || type == CB_8x4 || type == CR_8x4)
+                currMB->s_cbp[pl].bits |= ((int64)0x03 << bit);
+            else if (type == LUMA_4x8 || type == CB_4x8 || type == CR_4x8)
+                currMB->s_cbp[pl].bits |= ((int64)0x11 << bit);
+            else
+                currMB->s_cbp[pl].bits |= ((int64)0x01 << bit);
+        } else {
+            if (type == LUMA_8x8)
+                currMB->s_cbp[0].bits |= ((int64)0x33 << bit);
+            else if (type == LUMA_8x4)
+                currMB->s_cbp[0].bits |= ((int64)0x03 << bit);
+            else if (type == LUMA_4x8)
+                currMB->s_cbp[0].bits |= ((int64)0x11 << bit);
+            else
+                currMB->s_cbp[0].bits |= ((int64)0x01 << bit);
+        }
     }
     return cbp_bit;
 }
 
-static int read_and_store_CBP_block_bit(mb_t *currMB, DecodingEnvironment *dep_dp, int type)
-{
-    if (currMB->p_Slice->active_sps->chroma_format_idc == YUV444)
-        return read_and_store_CBP_block_bit_444(currMB, dep_dp, type);
-    else
-        return read_and_store_CBP_block_bit_normal(currMB, dep_dp, type);
-}
-
 static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp)
 {
-    slice_t *currSlice = currMB->p_Slice;
-    int  *coeff_ctr = &currSlice->coeff_ctr;
-    int  *coeff = currSlice->coeff;
+    static const short maxpos[] = {
+        15, 14, 63, 31, 31, 15,  3, 14,  7, 15, 15,
+        14, 63, 31, 31, 15, 15, 14, 63, 31, 31, 15
+    };
+    static const short c1isdc[] = {
+         1,  0,  1,  1,  1,  1,  1,  0,  1,  1,  1,
+         0,  1,  1,  1,  1,  1,  0,  1,  1,  1,  1
+    };
+    static const short max_c2[] = {
+         4,  4,  4,  4,  4,  4,  3,  4,  3,  3,  4,
+         4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4
+    }; // 9
 
-    if (*coeff_ctr < 0) {
-        if ((*coeff_ctr = read_and_store_CBP_block_bit(currMB, dep_dp, se->context) ) != 0) {
-            *coeff_ctr = read_significance_map(currMB, dep_dp, se->context, coeff);
-            read_significant_coefficients(dep_dp, currSlice->tex_ctx, se->context, coeff);
+    static const short type2ctx_map[] = {
+         0,  1,  2,  3,  4,  5,  6,  7,  6,  6, 10,
+        11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
+    }; // 8
+    static const short type2ctx_last[] = {
+         0,  1,  2,  3,  4,  5,  6,  7,  6,  6, 10,
+        11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
+    }; // 8
+    static const short type2ctx_one[] = {
+         0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10,
+        11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20
+    }; // 7
+    static const short type2ctx_abs[] = {
+         0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10,
+        11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20
+    }; // 7
+
+    //===== position -> ctx for MAP =====
+    //--- zig-zag scan ----
+    static const uint8_t pos2ctx_map8x8[] = {
+         0,  1,  2,  3,  4,  5,  5,  4,  4,  3,  3,  4,  4,  4,  5,  5,
+         4,  4,  4,  4,  3,  3,  6,  7,  7,  7,  8,  9, 10,  9,  8,  7,
+         7,  6, 11, 12, 13, 11,  6,  7,  8,  9, 14, 10,  9,  8,  6, 11,
+        12, 13, 11,  6,  9, 14, 10,  9, 11, 12, 13, 11 ,14, 10, 12, 14
+    }; // 15 CTX
+    static const uint8_t pos2ctx_map8x4[] = {
+        0,  1,  2,  3,  4,  5,  7,  8,  9, 10, 11,  9,  8,  6,  7,  8,
+        9, 10, 11,  9,  8,  6, 12,  8,  9, 10, 11,  9, 13, 13, 14, 14
+    }; // 15 CTX
+    static const uint8_t pos2ctx_map4x4[] = {
+        0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 14
+    }; // 15 CTX
+    static const uint8_t pos2ctx_map2x4c[] = {
+        0,  0,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
+    }; // 15 CTX
+    static const uint8_t pos2ctx_map4x4c[] = {
+        0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2
+    }; // 15 CTX
+
+    static const uint8_t *pos2ctx_map[] = {
+        pos2ctx_map4x4, pos2ctx_map4x4,
+        pos2ctx_map8x8, pos2ctx_map8x4,
+        pos2ctx_map8x4, pos2ctx_map4x4,
+        pos2ctx_map4x4, pos2ctx_map4x4,
+        pos2ctx_map2x4c, pos2ctx_map4x4c, 
+        pos2ctx_map4x4, pos2ctx_map4x4,
+        pos2ctx_map8x8, pos2ctx_map8x4,
+        pos2ctx_map8x4, pos2ctx_map4x4,
+        pos2ctx_map4x4, pos2ctx_map4x4,
+        pos2ctx_map8x8, pos2ctx_map8x4,
+        pos2ctx_map8x4, pos2ctx_map4x4
+    };
+
+    //--- interlace scan ----
+    //taken from ABT
+    static const uint8_t pos2ctx_map8x8i[] = {
+        0,  1,  1,  2,  2,  3,  3,  4,  5,  6,  7,  7,  7,  8,  4,  5,
+        6,  9, 10, 10,  8, 11, 12, 11,  9,  9, 10, 10,  8, 11, 12, 11,
+        9,  9, 10, 10,  8, 11, 12, 11,  9,  9, 10, 10,  8, 13, 13,  9,
+        9, 10, 10,  8, 13, 13,  9,  9, 10, 10, 14, 14, 14, 14, 14, 14
+    }; // 15 CTX
+    static const uint8_t pos2ctx_map8x4i[] = {
+        0,  1,  2,  3,  4,  5,  6,  3,  4,  5,  6,  3,  4,  7,  6,  8,
+        9,  7,  6,  8,  9, 10, 11, 12, 12, 10, 11, 13, 13, 14, 14, 14
+    }; // 15 CTX
+    static const uint8_t pos2ctx_map4x8i[] = {
+        0,  1,  1,  1,  2,  3,  3,  4,  4,  4,  5,  6,  2,  7,  7,  8,
+        8,  8,  5,  6,  9, 10, 10, 11, 11, 11, 12, 13, 13, 14, 14, 14
+    }; // 15 CTX
+
+    static const uint8_t *pos2ctx_map_int[] = {
+        pos2ctx_map4x4, pos2ctx_map4x4,
+        pos2ctx_map8x8i, pos2ctx_map8x4i,
+        pos2ctx_map4x8i, pos2ctx_map4x4,
+        pos2ctx_map4x4, pos2ctx_map4x4,
+        pos2ctx_map2x4c, pos2ctx_map4x4c,
+        pos2ctx_map4x4, pos2ctx_map4x4,
+        pos2ctx_map8x8i, pos2ctx_map8x4i,
+        pos2ctx_map8x4i, pos2ctx_map4x4,
+        pos2ctx_map4x4, pos2ctx_map4x4,
+        pos2ctx_map8x8i, pos2ctx_map8x4i,
+        pos2ctx_map8x4i, pos2ctx_map4x4
+    };
+
+    //===== position -> ctx for LAST =====
+    static const uint8_t pos2ctx_last8x8[] = {
+        0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+        2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
+        3,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  4,  4,  4,
+        5,  5,  5,  5,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  8
+    }; //  9 CTX
+    static const uint8_t pos2ctx_last8x4[] = {
+        0,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,
+        3,  3,  3,  3,  4,  4,  4,  4,  5,  5,  6,  6,  7,  7,  8,  8
+    }; //  9 CTX
+    static const uint8_t pos2ctx_last4x4[] = {
+        0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15
+    }; // 15 CTX
+    static const uint8_t pos2ctx_last2x4c[] = {
+        0,  0,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
+    }; // 15 CTX
+    static const uint8_t pos2ctx_last4x4c[] = {
+        0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2
+    }; // 15 CTX
+
+    static const uint8_t *pos2ctx_last[] = {
+        pos2ctx_last4x4, pos2ctx_last4x4,
+        pos2ctx_last8x8, pos2ctx_last8x4,
+        pos2ctx_last8x4, pos2ctx_last4x4,
+        pos2ctx_last4x4, pos2ctx_last4x4,
+        pos2ctx_last2x4c, pos2ctx_last4x4c,
+        pos2ctx_last4x4, pos2ctx_last4x4,
+        pos2ctx_last8x8, pos2ctx_last8x4,
+        pos2ctx_last8x4, pos2ctx_last4x4,
+        pos2ctx_last4x4, pos2ctx_last4x4,
+        pos2ctx_last8x8, pos2ctx_last8x4,
+        pos2ctx_last8x4, pos2ctx_last4x4
+    };
+
+    slice_t *currSlice = currMB->p_Slice;
+
+    int field = (currSlice->field_pic_flag || currMB->mb_field_decoding_flag);
+    const byte *pos2ctx_Map = field ? pos2ctx_map_int[se->context] : pos2ctx_map[se->context];
+    const byte *pos2ctx_Last = pos2ctx_last[se->context];
+    BiContextType *map_ctx      = currSlice->tex_ctx->map_contexts [field][type2ctx_map [se->context]];
+    BiContextType *last_ctx     = currSlice->tex_ctx->last_contexts[field][type2ctx_last[se->context]];
+    BiContextType *one_contexts = currSlice->tex_ctx->one_contexts[type2ctx_one[se->context]];
+    BiContextType *abs_contexts = currSlice->tex_ctx->abs_contexts[type2ctx_abs[se->context]];
+    const short max_type = max_c2[se->context];
+
+    if (currSlice->coeff_ctr < 0) {
+        currSlice->coeff_ctr = read_and_store_CBP_block_bit(currMB, dep_dp, se->context);
+
+        if (currSlice->coeff_ctr) {
+            int i;
+            int *coeff = currSlice->coeff;
+            int i0     = 0;
+            int i1     = maxpos[se->context];
+            currSlice->coeff_ctr = 0;
+
+            if (!c1isdc[se->context]) {
+                ++i0;
+                ++i1;
+            }
+
+            for (i = i0; i < i1; ++i) {
+                int c = biari_decode_symbol(dep_dp, map_ctx + pos2ctx_Map[i]);
+                *(coeff++) = c;
+                currSlice->coeff_ctr += c;
+                if (c && biari_decode_symbol(dep_dp, last_ctx + pos2ctx_Last[i])) {
+                    memset(coeff, 0, (i1 - i) * sizeof(int));
+                    i = i1 + 1;
+                    break;
+                }
+            }
+            if (i <= i1) {
+                int c = 1;
+                *(coeff++) = c;
+                currSlice->coeff_ctr += c;
+            }
+
+            i = maxpos[se->context];
+            int *cof = currSlice->coeff + i;
+            int c1 = 1;
+            int c2 = 0;
+
+            for (; i >= 0; i--) {
+                if (*cof != 0) {
+                    *cof += biari_decode_symbol(dep_dp, one_contexts + c1);
+
+                    if (*cof == 2) {
+                        *cof += unary_exp_golomb_level_decode(dep_dp, abs_contexts + c2);
+                        c2 = imin(++c2, max_type);
+                        c1 = 0;
+                    } else if (c1)
+                        c1 = imin(++c1, 4);
+
+                    if (biari_decode_symbol_eq_prob(dep_dp))
+                        *cof = - *cof;
+                }
+                cof--;
+            }
         }
     }
 
-    if (*coeff_ctr) {
-        for (se->value2 = 0; coeff[currSlice->pos] == 0; ++currSlice->pos, ++se->value2);
-        se->value1 = coeff[currSlice->pos++];
-    } else {
-        se->value1 = se->value2 = 0;
+    se->value1 = 0;
+    se->value2 = 0;
+    if (currSlice->coeff_ctr) {
+        while (currSlice->coeff[currSlice->pos] == 0) {
+            ++currSlice->pos;
+            ++se->value2;
+        }
+        se->value1 = currSlice->coeff[currSlice->pos++];
     }
-    if ((*coeff_ctr)-- == 0) 
+    if ((currSlice->coeff_ctr)-- == 0) 
         currSlice->pos = 0;
 }
 

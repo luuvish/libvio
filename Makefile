@@ -63,8 +63,8 @@ else
 endif
 
 LIBS=   -lm $(STATIC)
-#CFLAGS+=  -std=gnu99 -pedantic -ffloat-store -fno-strict-aliasing -fsigned-char $(STATIC)
-CFLAGS+=  -pedantic -ffloat-store -fno-strict-aliasing -fsigned-char $(STATIC)
+#CFLAGS+= -std=gnu99 -pedantic -ffloat-store -fno-strict-aliasing -fsigned-char $(STATIC)
+CFLAGS+= -std=c++11 -stdlib=libc++ $(STATIC)
 FLAGS=  $(CFLAGS) -Wall $(INCDIR:%=-I%)
 
 ifeq ($(M32),1)

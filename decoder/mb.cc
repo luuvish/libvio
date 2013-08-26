@@ -159,7 +159,7 @@ static void mb_pred_ipcm(mb_t *currMB)
     StorablePicture *dec_picture = currSlice->dec_picture;
 
     for (i = 0; i < 16; ++i) {
-        for (j = 0;j < 16 ; ++j)
+        for (j = 0; j < 16 ; ++j)
             dec_picture->imgY[currMB->pix_y + i][currMB->pix_x + j] = (imgpel) currSlice->cof[0][i][j];
     }
 

@@ -1,0 +1,22 @@
+
+
+1. slice_header()
+    sps를 설정하기 전에 separate_colour_plane_flag를 읽고 colour_plane_id를 parsing하고 있음.
+
+2. pred_weight_table()
+    chroma_format_idc != 0 일때 chroma_log2_weight_denom을 parsing함.
+    seperate_colour_plane_flag == 1 인 경우 ChromaArrayType == 0이고 이 경우에도 chroma_log2_weight_denom이 parsing되면 안됨.
+
+3. reset_format_info()
+    output->width[1] output->width[2] 대신 source에 대입.
+
+4. update_direct_mv_info_spatial_8x8()
+    475 line, mv_info->ref_pic[LIST_1] = list1[(short)l0_rFrame] 에서 LIST_1 대신 LIST_0, list1 대신 list0
+
+5. intra_cr_decoding()
+	mb_pred_interMxM()는 I16MB, I8MB, I4MB일 때만 호출되므로 이 함수가 호출하는 intra_cr_decoding()은 SI4MB가 될 수 없음.
+	따라서 SI4MB에 대한 prediction, transform이 수행되지 않음.
+
+6. predict_nnz(), predict_nnz_chroma()
+    if (!pix.available) ++cnt; 증가시키면 안됨.
+    chroma일 때 plane_id = 1 의 4x4 블럭에 (iCbCr*2+x,y)로 교차해서 저장. 편법에 가까우며 더 복잡함.

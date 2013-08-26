@@ -89,9 +89,13 @@ static inline void* mem_calloc(size_t nitems, size_t size)
   return d;
 }
 
-static inline void mem_free(void *a)
+static inline void mem_free(void *pointer)
 {
-  free_pointer(a);
+  if (pointer != NULL)
+  {
+    free(pointer);
+    pointer = NULL;
+  }
 }
 
 #ifdef __cplusplus
