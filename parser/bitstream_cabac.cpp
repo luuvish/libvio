@@ -18,10 +18,6 @@
 #include "bitstream_cabac.h"
 #include "bitstream_elements.h"
 
-#include "memalloc.h"
-#include "image.h"
-#include "neighbour.h"
-
 
 /* Range table for  LPS */
 static const byte rLPS_table_64x4[64][4] = {
@@ -135,7 +131,7 @@ static const byte renorm_table_32[32] = {
  */
 void arideco_done_decoding(DecodingEnvironment *dep)
 {
-  (*dep->Dcodestrm_len)++;
+    (*dep->Dcodestrm_len)++;
 }
 
 /*!
@@ -146,7 +142,7 @@ void arideco_done_decoding(DecodingEnvironment *dep)
  */
 static inline unsigned int getbyte(DecodingEnvironment *dep)
 {     
-  return dep->Dcodestrm[(*dep->Dcodestrm_len)++];
+    return dep->Dcodestrm[(*dep->Dcodestrm_len)++];
 }
 
 /*!
@@ -157,10 +153,10 @@ static inline unsigned int getbyte(DecodingEnvironment *dep)
  */
 static inline unsigned int getword(DecodingEnvironment *dep)
 {
-  int *len = dep->Dcodestrm_len;
-  byte *p_code_strm = &dep->Dcodestrm[*len];
-  *len += 2;
-  return ((*p_code_strm<<8) | *(p_code_strm + 1));
+    int *len = dep->Dcodestrm_len;
+    byte *p_code_strm = &dep->Dcodestrm[*len];
+    *len += 2;
+    return ((*p_code_strm<<8) | *(p_code_strm + 1));
 }
 /*!
  ************************************************************************
@@ -177,7 +173,7 @@ void arideco_start_decoding(DecodingEnvironment *dep, unsigned char *code_buffer
 
     dep->Dvalue = getbyte(dep);
     dep->Dvalue = (dep->Dvalue << 16) | getword(dep); // lookahead of 2 bytes: always make sure that bitstream buffer
-                                        // contains 2 more bytes than actual bitstream
+                                                      // contains 2 more bytes than actual bitstream
     dep->DbitsLeft = 15;
     dep->Drange = HALF;
 }
@@ -191,7 +187,7 @@ void arideco_start_decoding(DecodingEnvironment *dep, unsigned char *code_buffer
  */
 int arideco_bits_read(DecodingEnvironment *dep)
 { 
- return (((*dep->Dcodestrm_len) << 3) - dep->DbitsLeft);
+    return (((*dep->Dcodestrm_len) << 3) - dep->DbitsLeft);
 }
 
 
@@ -203,12 +199,12 @@ int arideco_bits_read(DecodingEnvironment *dep)
 *    the decoded symbol
 ************************************************************************
 */
-unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct)
+unsigned int biari_decode_symbol(DecodingEnvironment *dep, cabac_context_t *bi_ct)
 {  
-    unsigned int bit    = bi_ct->MPS;
+    unsigned int bit    = bi_ct->valMPS;
     unsigned int *value = &dep->Dvalue;
     unsigned int *range = &dep->Drange;  
-    uint16       *state = &bi_ct->state;
+    uint8_t      *state = &bi_ct->pStateIdx;
     unsigned int rLPS   = rLPS_table_64x4[*state][(*range>>6) & 0x03];
     int *DbitsLeft = &dep->DbitsLeft;
 
@@ -231,7 +227,7 @@ unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct)
 
         bit ^= 0x01;
         if (!(*state))          // switch meaning of MPS if necessary 
-            bi_ct->MPS ^= 0x01; 
+            bi_ct->valMPS ^= 0x01; 
 
         *state = AC_next_state_LPS_64[*state]; // next state 
     }
@@ -259,27 +255,23 @@ unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct)
  */
 unsigned int biari_decode_symbol_eq_prob(DecodingEnvironment *dep)
 {
-   int tmp_value;
-   unsigned int *value = &dep->Dvalue;
-   int *DbitsLeft = &dep->DbitsLeft;
+    int tmp_value;
+    unsigned int *value = &dep->Dvalue;
+    int *DbitsLeft = &dep->DbitsLeft;
 
-  if(--(*DbitsLeft) == 0)  
-  {
-    *value = (*value << 16) | getword( dep );  // lookahead of 2 bytes: always make sure that bitstream buffer
-                                             // contains 2 more bytes than actual bitstream
-    *DbitsLeft = 16;
-  }
-  tmp_value  = *value - (dep->Drange << *DbitsLeft);
+    if (--(*DbitsLeft) == 0) {
+        *value = (*value << 16) | getword( dep );  // lookahead of 2 bytes: always make sure that bitstream buffer
+                                                   // contains 2 more bytes than actual bitstream
+        *DbitsLeft = 16;
+    }
+    tmp_value = *value - (dep->Drange << *DbitsLeft);
 
-  if (tmp_value < 0)
-  {
-    return 0;
-  }
-  else
-  {
-    *value = tmp_value;
-    return 1;
-  }
+    if (tmp_value < 0)
+        return 0;
+    else {
+        *value = tmp_value;
+        return 1;
+    }
 }
 
 /*!
@@ -292,35 +284,27 @@ unsigned int biari_decode_symbol_eq_prob(DecodingEnvironment *dep)
  */
 unsigned int biari_decode_final(DecodingEnvironment *dep)
 {
-  unsigned int range  = dep->Drange - 2;
-  int value  = dep->Dvalue;
-  value -= (range << dep->DbitsLeft);
+    unsigned int range  = dep->Drange - 2;
+    int value  = dep->Dvalue;
+    value -= (range << dep->DbitsLeft);
 
-  if (value < 0) 
-  {
-    if( range >= QUARTER )
-    {
-      dep->Drange = range;
-      return 0;
-    }
-    else 
-    {   
-      dep->Drange = (range << 1);
-      if( --(dep->DbitsLeft) > 0 )
-        return 0;
-      else
-      {
-        dep->Dvalue = (dep->Dvalue << 16) | getword( dep ); // lookahead of 2 bytes: always make sure that bitstream buffer
-                                                            // contains 2 more bytes than actual bitstream
-        dep->DbitsLeft = 16;
-        return 0;
-      }
-    }
-  }
-  else
-  {
-    return 1;
-  }
+    if (value < 0) {
+        if (range >= QUARTER) {
+            dep->Drange = range;
+            return 0;
+        } else {
+            dep->Drange = (range << 1);
+            if (--(dep->DbitsLeft) > 0)
+                return 0;
+            else {
+                dep->Dvalue = (dep->Dvalue << 16) | getword( dep ); // lookahead of 2 bytes: always make sure that bitstream buffer
+                                                                    // contains 2 more bytes than actual bitstream
+                dep->DbitsLeft = 16;
+                return 0;
+            }
+        }
+    } else
+        return 1;
 }
 
 /*!
@@ -329,63 +313,18 @@ unsigned int biari_decode_final(DecodingEnvironment *dep)
  *    Initializes a given context with some pre-defined probability state
  ************************************************************************
  */
-void biari_init_context (int qp, BiContextTypePtr ctx, const char* ini)
+void cabac_context_t::init(int8_t m, int8_t n, uint8_t SliceQpY)
 {
-  int pstate = ((ini[0]* qp )>>4) + ini[1];
-
-  if ( pstate >= 64 )
-  {
-    pstate = imin(126, pstate);
-    ctx->state = (uint16) (pstate - 64);
-    ctx->MPS   = 1;
-  }
-  else
-  {
-    pstate = imax(1, pstate);
-    ctx->state = (uint16) (63 - pstate);
-    ctx->MPS   = 0;
-  }
+    uint8_t preCtxState = iClip3(1, 126, ((m * iClip3(0, 51, SliceQpY)) >> 4) + n);
+    if (preCtxState <= 63) {
+        this->pStateIdx = 63 - preCtxState;
+        this->valMPS    = 0;
+    } else {
+        this->pStateIdx = preCtxState - 64;
+        this->valMPS    = 1;
+    }
 }
 
-
-
-MotionInfoContexts* create_contexts_MotionInfo(void)
-{
-    MotionInfoContexts *deco_ctx;
-
-    deco_ctx = (MotionInfoContexts*) calloc(1, sizeof(MotionInfoContexts) );
-    if (deco_ctx == NULL)
-        no_mem_exit("create_contexts_MotionInfo: deco_ctx");
-
-    return deco_ctx;
-}
-
-TextureInfoContexts* create_contexts_TextureInfo(void)
-{
-    TextureInfoContexts *deco_ctx;
-
-    deco_ctx = (TextureInfoContexts*) calloc(1, sizeof(TextureInfoContexts) );
-    if (deco_ctx == NULL)
-        no_mem_exit("create_contexts_TextureInfo: deco_ctx");
-
-    return deco_ctx;
-}
-
-void delete_contexts_MotionInfo(MotionInfoContexts *deco_ctx)
-{
-    if (deco_ctx == NULL)
-        return;
-
-    free(deco_ctx);
-}
-
-void delete_contexts_TextureInfo(TextureInfoContexts *deco_ctx)
-{
-    if (deco_ctx == NULL)
-        return;
-
-    free(deco_ctx);
-}
 
 int readSyntaxElement_CABAC(mb_t *currMB, SyntaxElement *se, DataPartition *this_dataPart)
 {

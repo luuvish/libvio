@@ -124,7 +124,7 @@ static inline int get_bit(int64 x, int n)
     return (int)(((x >> n) & 1));
 }
 
-static uint32_t unary_exp_golomb_level_decode(DecodingEnvironment *dep_dp, BiContextTypePtr ctx)
+static uint32_t unary_exp_golomb_level_decode(DecodingEnvironment* dep_dp, cabac_context_t* ctx)
 {
     const uint32_t exp_start = 13;
     uint32_t symbol = 0;
@@ -164,7 +164,7 @@ static int read_and_store_CBP_block_bit(mb_t *currMB, DecodingEnvironment *dep_d
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    TextureInfoContexts *tex_ctx = currSlice->tex_ctx;
+    cabac_contexts_t *mot_ctx = currSlice->mot_ctx;
     mb_t *mb_data = currSlice->mb_data;
     int y_ac        = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_8x4 || type==LUMA_4x8 || type==LUMA_4x4
                       || type==CB_16AC || type==CB_8x8 || type==CB_8x4 || type==CB_4x8 || type==CB_4x4
@@ -244,7 +244,7 @@ static int read_and_store_CBP_block_bit(mb_t *currMB, DecodingEnvironment *dep_d
 
     if (sps->chroma_format_idc == YUV444 || type != LUMA_8x8) {
         ctx = 2 * upper_bit + left_bit;
-        cbp_bit = biari_decode_symbol(dep_dp, tex_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
+        cbp_bit = biari_decode_symbol(dep_dp, mot_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
     }
 
     bit = y_dc ?  0 :
@@ -297,15 +297,7 @@ static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironm
          0,  1,  2,  3,  4,  5,  6,  7,  6,  6, 10,
         11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
     }; // 8
-    static const short type2ctx_last[] = {
-         0,  1,  2,  3,  4,  5,  6,  7,  6,  6, 10,
-        11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
-    }; // 8
     static const short type2ctx_one[] = {
-         0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10,
-        11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20
-    }; // 7
-    static const short type2ctx_abs[] = {
          0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10,
         11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20
     }; // 7
@@ -332,20 +324,6 @@ static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironm
         0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2
     }; // 15 CTX
 
-    static const uint8_t *pos2ctx_map[] = {
-        pos2ctx_map4x4, pos2ctx_map4x4,
-        pos2ctx_map8x8, pos2ctx_map8x4,
-        pos2ctx_map8x4, pos2ctx_map4x4,
-        pos2ctx_map4x4, pos2ctx_map4x4,
-        pos2ctx_map2x4c, pos2ctx_map4x4c, 
-        pos2ctx_map4x4, pos2ctx_map4x4,
-        pos2ctx_map8x8, pos2ctx_map8x4,
-        pos2ctx_map8x4, pos2ctx_map4x4,
-        pos2ctx_map4x4, pos2ctx_map4x4,
-        pos2ctx_map8x8, pos2ctx_map8x4,
-        pos2ctx_map8x4, pos2ctx_map4x4
-    };
-
     //--- interlace scan ----
     //taken from ABT
     static const uint8_t pos2ctx_map8x8i[] = {
@@ -363,18 +341,29 @@ static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironm
         8,  8,  5,  6,  9, 10, 10, 11, 11, 11, 12, 13, 13, 14, 14, 14
     }; // 15 CTX
 
-    static const uint8_t *pos2ctx_map_int[] = {
-        pos2ctx_map4x4, pos2ctx_map4x4,
-        pos2ctx_map8x8i, pos2ctx_map8x4i,
-        pos2ctx_map4x8i, pos2ctx_map4x4,
-        pos2ctx_map4x4, pos2ctx_map4x4,
-        pos2ctx_map2x4c, pos2ctx_map4x4c,
-        pos2ctx_map4x4, pos2ctx_map4x4,
-        pos2ctx_map8x8i, pos2ctx_map8x4i,
-        pos2ctx_map8x4i, pos2ctx_map4x4,
-        pos2ctx_map4x4, pos2ctx_map4x4,
-        pos2ctx_map8x8i, pos2ctx_map8x4i,
-        pos2ctx_map8x4i, pos2ctx_map4x4
+    static const uint8_t *pos2ctx_map[2][22] = {
+        { pos2ctx_map4x4,  pos2ctx_map4x4,
+          pos2ctx_map8x8,  pos2ctx_map8x4,
+          pos2ctx_map8x4,  pos2ctx_map4x4,
+          pos2ctx_map4x4,  pos2ctx_map4x4,
+          pos2ctx_map2x4c, pos2ctx_map4x4c, 
+          pos2ctx_map4x4,  pos2ctx_map4x4,
+          pos2ctx_map8x8,  pos2ctx_map8x4,
+          pos2ctx_map8x4,  pos2ctx_map4x4,
+          pos2ctx_map4x4,  pos2ctx_map4x4,
+          pos2ctx_map8x8,  pos2ctx_map8x4,
+          pos2ctx_map8x4,  pos2ctx_map4x4 },
+        { pos2ctx_map4x4,  pos2ctx_map4x4,
+          pos2ctx_map8x8i, pos2ctx_map8x4i,
+          pos2ctx_map4x8i, pos2ctx_map4x4,
+          pos2ctx_map4x4,  pos2ctx_map4x4,
+          pos2ctx_map2x4c, pos2ctx_map4x4c,
+          pos2ctx_map4x4,  pos2ctx_map4x4,
+          pos2ctx_map8x8i, pos2ctx_map8x4i,
+          pos2ctx_map8x4i, pos2ctx_map4x4,
+          pos2ctx_map4x4,  pos2ctx_map4x4,
+          pos2ctx_map8x8i, pos2ctx_map8x4i,
+          pos2ctx_map8x4i, pos2ctx_map4x4 }
     };
 
     //===== position -> ctx for LAST =====
@@ -398,29 +387,29 @@ static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironm
         0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2
     }; // 15 CTX
 
-    static const uint8_t *pos2ctx_last[] = {
-        pos2ctx_last4x4, pos2ctx_last4x4,
-        pos2ctx_last8x8, pos2ctx_last8x4,
-        pos2ctx_last8x4, pos2ctx_last4x4,
-        pos2ctx_last4x4, pos2ctx_last4x4,
+    static const uint8_t *pos2ctx_last[22] = {
+        pos2ctx_last4x4,  pos2ctx_last4x4,
+        pos2ctx_last8x8,  pos2ctx_last8x4,
+        pos2ctx_last8x4,  pos2ctx_last4x4,
+        pos2ctx_last4x4,  pos2ctx_last4x4,
         pos2ctx_last2x4c, pos2ctx_last4x4c,
-        pos2ctx_last4x4, pos2ctx_last4x4,
-        pos2ctx_last8x8, pos2ctx_last8x4,
-        pos2ctx_last8x4, pos2ctx_last4x4,
-        pos2ctx_last4x4, pos2ctx_last4x4,
-        pos2ctx_last8x8, pos2ctx_last8x4,
-        pos2ctx_last8x4, pos2ctx_last4x4
+        pos2ctx_last4x4,  pos2ctx_last4x4,
+        pos2ctx_last8x8,  pos2ctx_last8x4,
+        pos2ctx_last8x4,  pos2ctx_last4x4,
+        pos2ctx_last4x4,  pos2ctx_last4x4,
+        pos2ctx_last8x8,  pos2ctx_last8x4,
+        pos2ctx_last8x4,  pos2ctx_last4x4
     };
 
     slice_t *currSlice = currMB->p_Slice;
 
-    int field = (currSlice->field_pic_flag || currMB->mb_field_decoding_flag);
-    const byte *pos2ctx_Map = field ? pos2ctx_map_int[se->context] : pos2ctx_map[se->context];
+    bool field = (currSlice->field_pic_flag || currMB->mb_field_decoding_flag);
+    const byte *pos2ctx_Map  = pos2ctx_map [field][se->context];
     const byte *pos2ctx_Last = pos2ctx_last[se->context];
-    BiContextType *map_ctx      = currSlice->tex_ctx->map_contexts [field][type2ctx_map [se->context]];
-    BiContextType *last_ctx     = currSlice->tex_ctx->last_contexts[field][type2ctx_last[se->context]];
-    BiContextType *one_contexts = currSlice->tex_ctx->one_contexts[type2ctx_one[se->context]];
-    BiContextType *abs_contexts = currSlice->tex_ctx->abs_contexts[type2ctx_abs[se->context]];
+    cabac_context_t *map_ctx  = currSlice->mot_ctx->map_contexts [field][type2ctx_map[se->context]];
+    cabac_context_t *last_ctx = currSlice->mot_ctx->last_contexts[field][type2ctx_map[se->context]];
+    cabac_context_t *one_ctx = currSlice->mot_ctx->one_contexts[type2ctx_one[se->context]];
+    cabac_context_t *abs_ctx = currSlice->mot_ctx->abs_contexts[type2ctx_one[se->context]];
     const short max_type = max_c2[se->context];
 
     if (currSlice->coeff_ctr < 0) {
@@ -461,10 +450,10 @@ static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironm
 
             for (; i >= 0; i--) {
                 if (*cof != 0) {
-                    *cof += biari_decode_symbol(dep_dp, one_contexts + c1);
+                    *cof += biari_decode_symbol(dep_dp, one_ctx + c1);
 
                     if (*cof == 2) {
-                        *cof += unary_exp_golomb_level_decode(dep_dp, abs_contexts + c2);
+                        *cof += unary_exp_golomb_level_decode(dep_dp, abs_ctx + c2);
                         c2 = imin(++c2, max_type);
                         c1 = 0;
                     } else if (c1)

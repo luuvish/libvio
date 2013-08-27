@@ -603,7 +603,6 @@ static void free_slice(slice_t *currSlice)
 
     // delete all context models
     delete_contexts_MotionInfo (currSlice->mot_ctx);
-    delete_contexts_TextureInfo(currSlice->tex_ctx);
 
     for (int i = 0; i < 6; i++) {
         if (currSlice->listX[i]) {

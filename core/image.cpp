@@ -483,7 +483,6 @@ static slice_t *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
 
     // create all context models
     currSlice->mot_ctx = create_contexts_MotionInfo();
-    currSlice->tex_ctx = create_contexts_TextureInfo();
 
     currSlice->max_part_nr = 3;  //! assume data partitioning (worst case) for the following mallocs()
     currSlice->partArr = AllocPartition(currSlice->max_part_nr);

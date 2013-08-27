@@ -26,41 +26,21 @@ extern "C" {
 #include "global.h"
 #include "bitstream.h"
 
-/***********************************************************************
- * D a t a    t y p e s   f o r  C A B A C
- ***********************************************************************
- */
 
-//! struct for context management
-typedef struct {
-    uint16        state; // index into state-table CP
-    unsigned char MPS;   // Least Probable Symbol 0/1 CP
-    unsigned char dummy; // for alignment
-} BiContextType;
+struct cabac_context_t {
+    uint8_t pStateIdx; // index into state-table CP
+    uint8_t valMPS;    // Least Probable Symbol 0/1 CP
 
-typedef BiContextType *BiContextTypePtr;
+    void init(int8_t m, int8_t n, uint8_t SliceQpY);
+};
 
 
-/**********************************************************************
- * C O N T E X T S   F O R   T M L   S Y N T A X   E L E M E N T S
- **********************************************************************
- */
-
-#define NUM_MB_TYPE_CTX  11
-#define NUM_B8_TYPE_CTX   9
-#define NUM_MV_RES_CTX   10
-#define NUM_REF_NO_CTX    6
-#define NUM_DELTA_QP_CTX  4
-#define NUM_MB_AFF_CTX    4
-
-typedef struct motion_info_context_t {
-    BiContextType mb_type_contexts [3][NUM_MB_TYPE_CTX];
-    BiContextType b8_type_contexts [2][NUM_B8_TYPE_CTX];
-    BiContextType mv_res_contexts  [2][NUM_MV_RES_CTX];
-    BiContextType ref_no_contexts  [2][NUM_REF_NO_CTX];
-    BiContextType delta_qp_contexts   [NUM_DELTA_QP_CTX];
-    BiContextType mb_aff_contexts     [NUM_MB_AFF_CTX];
-} MotionInfoContexts;
+#define NUM_MB_TYPE_CTX        11
+#define NUM_B8_TYPE_CTX         9
+#define NUM_MV_RES_CTX         10
+#define NUM_REF_NO_CTX          6
+#define NUM_DELTA_QP_CTX        4
+#define NUM_MB_AFF_CTX          4
 
 #define NUM_BLOCK_TYPES        22
 
@@ -74,17 +54,30 @@ typedef struct motion_info_context_t {
 #define NUM_ONE_CTX             5
 #define NUM_ABS_CTX             5
 
-typedef struct texture_info_context_t {
-    BiContextType transform_size_contexts   [NUM_TRANSFORM_SIZE_CTX];
-    BiContextType ipr_contexts              [NUM_IPR_CTX];
-    BiContextType cipr_contexts             [NUM_CIPR_CTX];
-    BiContextType cbp_contexts           [3][NUM_CBP_CTX];
-    BiContextType bcbp_contexts             [NUM_BLOCK_TYPES][NUM_BCBP_CTX];
-    BiContextType map_contexts           [2][NUM_BLOCK_TYPES][NUM_MAP_CTX];
-    BiContextType last_contexts          [2][NUM_BLOCK_TYPES][NUM_LAST_CTX];
-    BiContextType one_contexts              [NUM_BLOCK_TYPES][NUM_ONE_CTX];
-    BiContextType abs_contexts              [NUM_BLOCK_TYPES][NUM_ABS_CTX];
-} TextureInfoContexts;
+struct cabac_contexts_t {
+    cabac_context_t mb_type_contexts       [3][NUM_MB_TYPE_CTX];
+    cabac_context_t b8_type_contexts       [2][NUM_B8_TYPE_CTX];
+    cabac_context_t mv_res_contexts        [2][NUM_MV_RES_CTX];
+    cabac_context_t ref_no_contexts        [2][NUM_REF_NO_CTX];
+    cabac_context_t delta_qp_contexts         [NUM_DELTA_QP_CTX];
+    cabac_context_t mb_aff_contexts           [NUM_MB_AFF_CTX];
+
+    cabac_context_t transform_size_contexts   [NUM_TRANSFORM_SIZE_CTX];
+    cabac_context_t ipr_contexts              [NUM_IPR_CTX];
+    cabac_context_t cipr_contexts             [NUM_CIPR_CTX];
+    cabac_context_t cbp_contexts           [3][NUM_CBP_CTX];
+    cabac_context_t bcbp_contexts             [NUM_BLOCK_TYPES][NUM_BCBP_CTX];
+    cabac_context_t map_contexts           [2][NUM_BLOCK_TYPES][NUM_MAP_CTX];
+    cabac_context_t last_contexts          [2][NUM_BLOCK_TYPES][NUM_LAST_CTX];
+    cabac_context_t one_contexts              [NUM_BLOCK_TYPES][NUM_ONE_CTX];
+    cabac_context_t abs_contexts              [NUM_BLOCK_TYPES][NUM_ABS_CTX];
+
+    void init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t SliceQpY);
+};
+
+cabac_contexts_t* create_contexts_MotionInfo(void);
+void delete_contexts_MotionInfo(cabac_contexts_t *enco_ctx);
+
 
 //*********************** end of data type definition for CABAC *******************
 
@@ -98,24 +91,15 @@ struct macroblock_t;
 void arideco_start_decoding(DecodingEnvironment *eep, unsigned char *code_buffer, int firstbyte, int *code_len);
 int  arideco_bits_read(DecodingEnvironment *dep);
 void arideco_done_decoding(DecodingEnvironment *dep);
-void biari_init_context (int qp, BiContextTypePtr ctx, const char* ini);
-unsigned int biari_decode_symbol(DecodingEnvironment *dep, BiContextType *bi_ct );
+unsigned int biari_decode_symbol(DecodingEnvironment *dep, cabac_context_t *bi_ct );
 unsigned int biari_decode_symbol_eq_prob(DecodingEnvironment *dep);
 unsigned int biari_decode_final(DecodingEnvironment *dep);
-
-
-MotionInfoContexts*  create_contexts_MotionInfo(void);
-TextureInfoContexts* create_contexts_TextureInfo(void);
-void delete_contexts_MotionInfo(MotionInfoContexts *enco_ctx);
-void delete_contexts_TextureInfo(TextureInfoContexts *enco_ctx);
 
 int  cabac_startcode_follows(struct slice_t *currSlice, int eos_bit);
 int  uvlc_startcode_follows(struct slice_t *currSlice, int dummy);
 
-int  readSyntaxElement_CABAC         (struct macroblock_t *currMB, SyntaxElement *se, DataPartition *this_dataPart);
+int  readSyntaxElement_CABAC(struct macroblock_t *currMB, SyntaxElement *se, DataPartition *this_dataPart);
 
-
-void  init_contexts(struct slice_t *currslice);
 
 #ifdef __cplusplus
 }

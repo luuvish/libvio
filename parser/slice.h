@@ -17,8 +17,7 @@ extern "C" {
 
 #define MAX_NUM_REF_IDX 32
 
-struct motion_info_context_t;
-struct texture_info_context_t;
+struct cabac_contexts_t;
 struct macroblock_t;
 
 
@@ -184,10 +183,7 @@ typedef struct slice_t {
     struct storable_picture **listX[6];
 
     DataPartition            *partArr;      //!< array of partitions
-    struct motion_info_context_t  *mot_ctx;      //!< pointer to struct of context models for use in CABAC
-    struct texture_info_context_t *tex_ctx;      //!< pointer to struct of context models for use in CABAC
-
-
+    cabac_contexts_t         *mot_ctx;      //!< pointer to struct of context models for use in CABAC
 
     int                       mvscale[6][MAX_REFERENCE_PICTURES];
 

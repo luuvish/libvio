@@ -239,7 +239,7 @@ bool slice_t::init()
                                                                : p_Vid->Is_redundant_correct;
 
     if (this->active_pps->entropy_coding_mode_flag) {
-        init_contexts(this);
+        this->mot_ctx->init(this->slice_type, this->cabac_init_idc, this->SliceQpY);
         this->last_dquant = 0;
     }
 

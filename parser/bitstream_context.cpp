@@ -1,21 +1,9 @@
 
-/*!
- *************************************************************************************
- * \file context_ini.c
- *
- * \brief
- *    CABAC context initializations
- *
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *    - Detlev Marpe
- *    - Heiko Schwarz
- **************************************************************************************
- */
-
 #include "global.h"
 #include "slice.h"
 #include "bitstream_cabac.h"
+
+#include "memalloc.h"
 
 
 #define CTX_UNUSED          {0,64}
@@ -989,90 +977,95 @@ static const char INIT_FLD_LAST_P[3][8][15][2] =
 
 #define IBIARI_CTX_INIT2(ii,jj,ctx,tab,num, qp) \
 { \
-  for (i=0; i<ii; ++i) \
-  for (j=0; j<jj; ++j) \
-  { \
-  biari_init_context (qp, &(ctx[i][j]), tab ## _I[num][i][j]); \
+  for (int i=0; i<ii; ++i) \
+  for (int j=0; j<jj; ++j) { \
+    ctx[i][j].init(tab ## _I[num][i][j][0], tab ## _I[num][i][j][1], qp); \
   } \
 }
 
 #define PBIARI_CTX_INIT2(ii,jj,ctx,tab,num, qp) \
 { \
-  for (i=0; i<ii; ++i) \
-  for (j=0; j<jj; ++j) \
-  { \
-  biari_init_context (qp, &(ctx[i][j]), tab ## _P[num][i][j]); \
+  for (int i=0; i<ii; ++i) \
+  for (int j=0; j<jj; ++j) { \
+    ctx[i][j].init(tab ## _P[num][i][j][0], tab ## _P[num][i][j][1], qp); \
   } \
 }
 
 
 #define IBIARI_CTX_INIT1(jj,ctx,tab,num, qp) \
 { \
-  for (j=0; j<jj; ++j) \
-  { \
-  biari_init_context (qp, &(ctx[j]), tab ## _I[num][0][j]); \
+  for (int j=0; j<jj; ++j) { \
+    ctx[j].init(tab ## _I[num][0][j][0], tab ## _I[num][0][j][1], qp); \
   } \
 }
-
 
 #define PBIARI_CTX_INIT1(jj,ctx,tab,num, qp) \
 { \
-  { \
-  for (j=0; j<jj; ++j) \
-  { \
-  biari_init_context (qp, &(ctx[j]), tab ## _P[num][0][j]); \
-  } \
+  for (int j=0; j<jj; ++j) { \
+    ctx[j].init(tab ## _P[num][0][j][0], tab ## _P[num][0][j][1], qp); \
   } \
 }
 
-void init_contexts(slice_t *currSlice)
+void cabac_contexts_t::init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t SliceQpY)
 {
-    MotionInfoContexts*  mc = currSlice->mot_ctx;
-    TextureInfoContexts* tc = currSlice->tex_ctx;
-    int i, j;
-    int qp = imax(0, currSlice->SliceQpY);
-    int cabac_init_idc = currSlice->cabac_init_idc;
-
-    //--- motion coding contexts ---
-    if (currSlice->slice_type == I_SLICE || currSlice->slice_type == SI_SLICE) {
-        IBIARI_CTX_INIT2 (3,           NUM_MB_TYPE_CTX,  mc->mb_type_contexts,        INIT_MB_TYPE,        cabac_init_idc, qp);
-        IBIARI_CTX_INIT2 (2,           NUM_B8_TYPE_CTX,  mc->b8_type_contexts,        INIT_B8_TYPE,        cabac_init_idc, qp);
-        IBIARI_CTX_INIT2 (2,           NUM_MV_RES_CTX,   mc->mv_res_contexts,         INIT_MV_RES,         cabac_init_idc, qp);
-        IBIARI_CTX_INIT2 (2,           NUM_REF_NO_CTX,   mc->ref_no_contexts,         INIT_REF_NO,         cabac_init_idc, qp);
-        IBIARI_CTX_INIT1 (             NUM_DELTA_QP_CTX, mc->delta_qp_contexts,       INIT_DELTA_QP,       cabac_init_idc, qp);
-        IBIARI_CTX_INIT1 (             NUM_MB_AFF_CTX,   mc->mb_aff_contexts,         INIT_MB_AFF,         cabac_init_idc, qp);    
+    if (slice_type == I_slice || slice_type == SI_slice) {
+        IBIARI_CTX_INIT2 (3,           NUM_MB_TYPE_CTX,  this->mb_type_contexts,        INIT_MB_TYPE,        cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT2 (2,           NUM_B8_TYPE_CTX,  this->b8_type_contexts,        INIT_B8_TYPE,        cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT2 (2,           NUM_MV_RES_CTX,   this->mv_res_contexts,         INIT_MV_RES,         cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT2 (2,           NUM_REF_NO_CTX,   this->ref_no_contexts,         INIT_REF_NO,         cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT1 (             NUM_DELTA_QP_CTX, this->delta_qp_contexts,       INIT_DELTA_QP,       cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT1 (             NUM_MB_AFF_CTX,   this->mb_aff_contexts,         INIT_MB_AFF,         cabac_init_idc, SliceQpY);    
 
         //--- texture coding contexts ---
-        IBIARI_CTX_INIT1 (       NUM_TRANSFORM_SIZE_CTX, tc->transform_size_contexts, INIT_TRANSFORM_SIZE, cabac_init_idc, qp);
-        IBIARI_CTX_INIT1 (                 NUM_IPR_CTX,  tc->ipr_contexts,            INIT_IPR,            cabac_init_idc, qp);
-        IBIARI_CTX_INIT1 (                 NUM_CIPR_CTX, tc->cipr_contexts,           INIT_CIPR,           cabac_init_idc, qp);
-        IBIARI_CTX_INIT2 (3,               NUM_CBP_CTX,  tc->cbp_contexts,            INIT_CBP,            cabac_init_idc, qp);
-        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_BCBP_CTX, tc->bcbp_contexts,           INIT_BCBP,           cabac_init_idc, qp);
-        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  tc->map_contexts[0],         INIT_MAP,            cabac_init_idc, qp);
-        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  tc->map_contexts[1],         INIT_FLD_MAP,        cabac_init_idc, qp);
-        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_LAST_CTX, tc->last_contexts[1],        INIT_FLD_LAST,       cabac_init_idc, qp);
-        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_LAST_CTX, tc->last_contexts[0],        INIT_LAST,           cabac_init_idc, qp);    
-        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ONE_CTX,  tc->one_contexts,            INIT_ONE,            cabac_init_idc, qp);
-        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ABS_CTX,  tc->abs_contexts,            INIT_ABS,            cabac_init_idc, qp);
+        IBIARI_CTX_INIT1 (       NUM_TRANSFORM_SIZE_CTX, this->transform_size_contexts, INIT_TRANSFORM_SIZE, cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT1 (                 NUM_IPR_CTX,  this->ipr_contexts,            INIT_IPR,            cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT1 (                 NUM_CIPR_CTX, this->cipr_contexts,           INIT_CIPR,           cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT2 (3,               NUM_CBP_CTX,  this->cbp_contexts,            INIT_CBP,            cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_BCBP_CTX, this->bcbp_contexts,           INIT_BCBP,           cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  this->map_contexts[0],         INIT_MAP,            cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  this->map_contexts[1],         INIT_FLD_MAP,        cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_LAST_CTX, this->last_contexts[1],        INIT_FLD_LAST,       cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_LAST_CTX, this->last_contexts[0],        INIT_LAST,           cabac_init_idc, SliceQpY);    
+        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ONE_CTX,  this->one_contexts,            INIT_ONE,            cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ABS_CTX,  this->abs_contexts,            INIT_ABS,            cabac_init_idc, SliceQpY);
     } else {
-        PBIARI_CTX_INIT2 (3,           NUM_MB_TYPE_CTX,  mc->mb_type_contexts,        INIT_MB_TYPE,        cabac_init_idc, qp);
-        PBIARI_CTX_INIT2 (2,           NUM_B8_TYPE_CTX,  mc->b8_type_contexts,        INIT_B8_TYPE,        cabac_init_idc, qp);
-        PBIARI_CTX_INIT2 (2,           NUM_MV_RES_CTX,   mc->mv_res_contexts,         INIT_MV_RES,         cabac_init_idc, qp);
-        PBIARI_CTX_INIT2 (2,           NUM_REF_NO_CTX,   mc->ref_no_contexts,         INIT_REF_NO,         cabac_init_idc, qp);
-        PBIARI_CTX_INIT1 (             NUM_DELTA_QP_CTX, mc->delta_qp_contexts,       INIT_DELTA_QP,       cabac_init_idc, qp);
-        PBIARI_CTX_INIT1 (             NUM_MB_AFF_CTX,   mc->mb_aff_contexts,         INIT_MB_AFF,         cabac_init_idc, qp);    
+        PBIARI_CTX_INIT2 (3,           NUM_MB_TYPE_CTX,  this->mb_type_contexts,        INIT_MB_TYPE,        cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT2 (2,           NUM_B8_TYPE_CTX,  this->b8_type_contexts,        INIT_B8_TYPE,        cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT2 (2,           NUM_MV_RES_CTX,   this->mv_res_contexts,         INIT_MV_RES,         cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT2 (2,           NUM_REF_NO_CTX,   this->ref_no_contexts,         INIT_REF_NO,         cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT1 (             NUM_DELTA_QP_CTX, this->delta_qp_contexts,       INIT_DELTA_QP,       cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT1 (             NUM_MB_AFF_CTX,   this->mb_aff_contexts,         INIT_MB_AFF,         cabac_init_idc, SliceQpY);    
 
         //--- texture coding contexts ---
-        PBIARI_CTX_INIT1 (       NUM_TRANSFORM_SIZE_CTX, tc->transform_size_contexts, INIT_TRANSFORM_SIZE, cabac_init_idc, qp);
-        PBIARI_CTX_INIT1 (                 NUM_IPR_CTX,  tc->ipr_contexts,            INIT_IPR,            cabac_init_idc, qp);
-        PBIARI_CTX_INIT1 (                 NUM_CIPR_CTX, tc->cipr_contexts,           INIT_CIPR,           cabac_init_idc, qp);
-        PBIARI_CTX_INIT2 (3,               NUM_CBP_CTX,  tc->cbp_contexts,            INIT_CBP,            cabac_init_idc, qp);
-        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_BCBP_CTX, tc->bcbp_contexts,           INIT_BCBP,           cabac_init_idc, qp);
-        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  tc->map_contexts[0],         INIT_MAP,            cabac_init_idc, qp);
-        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  tc->map_contexts[1],         INIT_FLD_MAP,        cabac_init_idc, qp);
-        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_LAST_CTX, tc->last_contexts[1],        INIT_FLD_LAST,       cabac_init_idc, qp);
-        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_LAST_CTX, tc->last_contexts[0],        INIT_LAST,           cabac_init_idc, qp);    
-        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ONE_CTX,  tc->one_contexts,            INIT_ONE,            cabac_init_idc, qp);
-        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ABS_CTX,  tc->abs_contexts,            INIT_ABS,            cabac_init_idc, qp);
+        PBIARI_CTX_INIT1 (       NUM_TRANSFORM_SIZE_CTX, this->transform_size_contexts, INIT_TRANSFORM_SIZE, cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT1 (                 NUM_IPR_CTX,  this->ipr_contexts,            INIT_IPR,            cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT1 (                 NUM_CIPR_CTX, this->cipr_contexts,           INIT_CIPR,           cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT2 (3,               NUM_CBP_CTX,  this->cbp_contexts,            INIT_CBP,            cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_BCBP_CTX, this->bcbp_contexts,           INIT_BCBP,           cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  this->map_contexts[0],         INIT_MAP,            cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  this->map_contexts[1],         INIT_FLD_MAP,        cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_LAST_CTX, this->last_contexts[1],        INIT_FLD_LAST,       cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_LAST_CTX, this->last_contexts[0],        INIT_LAST,           cabac_init_idc, SliceQpY);    
+        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ONE_CTX,  this->one_contexts,            INIT_ONE,            cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ABS_CTX,  this->abs_contexts,            INIT_ABS,            cabac_init_idc, SliceQpY);
     }
+}
+
+cabac_contexts_t* create_contexts_MotionInfo(void)
+{
+    cabac_contexts_t *deco_ctx;
+
+    deco_ctx = (cabac_contexts_t*) calloc(1, sizeof(cabac_contexts_t) );
+    if (deco_ctx == NULL)
+        no_mem_exit("create_contexts_MotionInfo: deco_ctx");
+
+    return deco_ctx;
+}
+
+void delete_contexts_MotionInfo(cabac_contexts_t *deco_ctx)
+{
+    if (deco_ctx == NULL)
+        return;
+
+    free(deco_ctx);
 }
