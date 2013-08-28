@@ -203,7 +203,6 @@ static int parse_dpa(slice_t *currSlice)
     currSlice->nal_ref_idc = nalu->nal_ref_idc;
     currSlice->dp_mode     = PAR_DP_3;
     currSlice->max_part_nr = 3;
-    currSlice->ei_flag     = 0;
 #if MVC_EXTENSION_ENABLE
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[0];
 #endif

@@ -21,7 +21,7 @@
 
 
 
-static void read_skip_flag_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void read_skip_flag_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -38,7 +38,7 @@ static void read_skip_flag_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t
         currMB->p_Slice->last_dquant = 0;
 }
 
-static void readFieldModeInfo_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void readFieldModeInfo_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -50,7 +50,7 @@ static void readFieldModeInfo_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engin
     se->value1 = dep_dp->decode_decision(&ctx->mb_aff_contexts[ctxIdxInc]);
 }
 
-static void readMB_typeInfo_CABAC_i_slice(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void readMB_typeInfo_CABAC_i_slice(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -162,7 +162,7 @@ static void readMB_typeInfo_CABAC_i_slice(mb_t *currMB, SyntaxElement *se, cabac
     se->value1 = curr_mb_type;
 }
 
-static void readMB_typeInfo_CABAC_p_slice(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void readMB_typeInfo_CABAC_p_slice(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -226,7 +226,7 @@ static void readMB_typeInfo_CABAC_p_slice(mb_t *currMB, SyntaxElement *se, cabac
     se->value1 = curr_mb_type;
 }
 
-static void readMB_typeInfo_CABAC_b_slice(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void readMB_typeInfo_CABAC_b_slice(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -320,7 +320,7 @@ static void readMB_typeInfo_CABAC_b_slice(mb_t *currMB, SyntaxElement *se, cabac
     se->value1 = curr_mb_type;
 }
 
-static void readB8_typeInfo_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void readB8_typeInfo_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -373,7 +373,7 @@ static void readB8_typeInfo_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_
 }
 
 
-static void readMB_transform_size_flag_CABAC( mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void readMB_transform_size_flag_CABAC( mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -386,7 +386,7 @@ static void readMB_transform_size_flag_CABAC( mb_t *currMB, SyntaxElement *se, c
     se->value1 = act_sym;
 }
 
-static void readIntraPredMode_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void readIntraPredMode_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -403,7 +403,7 @@ static void readIntraPredMode_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engin
     }
 }
 
-static void readCIPredMode_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void readCIPredMode_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -425,7 +425,7 @@ static void readCIPredMode_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t
     se->value1 = act_sym;
 }
 
-static void readRefFrame_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void readRefFrame_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     StorablePicture *dec_picture = currSlice->dec_picture;
@@ -531,7 +531,7 @@ static unsigned int unary_exp_golomb_mv_decode(cabac_engine_t *dep_dp, cabac_con
     }
 }
 
-static void read_mvd_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void read_mvd_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -589,48 +589,7 @@ static void read_mvd_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_
     se->value1 = act_sym;
 }
 
-//! gives CBP value from codeword number, both for intra and inter
-static const byte NCBP[2][48][2] = {
-      // 0      1        2       3       4       5       6       7       8       9      10      11
-    {{15, 0},{ 0, 1},{ 7, 2},{11, 4},{13, 8},{14, 3},{ 3, 5},{ 5,10},{10,12},{12,15},{ 1, 7},{ 2,11},
-     { 4,13},{ 8,14},{ 6, 6},{ 9, 9},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
-     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
-     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0}},
-    {{47, 0},{31,16},{15, 1},{ 0, 2},{23, 4},{27, 8},{29,32},{30, 3},{ 7, 5},{11,10},{13,12},{14,15},
-     {39,47},{43, 7},{45,11},{46,13},{16,14},{ 3, 6},{ 5, 9},{10,31},{12,35},{19,37},{21,42},{26,44},
-     {28,33},{35,34},{37,36},{42,40},{44,39},{ 1,43},{ 2,45},{ 4,46},{ 8,17},{17,18},{18,20},{20,24},
-     {24,19},{ 6,21},{ 9,26},{22,28},{25,23},{32,27},{33,29},{34,30},{36,22},{40,25},{38,38},{41,41}}
-};
-
-static void linfo_cbp_intra_normal(int len, int info, int *cbp, int *dummy)
-{
-    int cbp_idx;
-    linfo_ue(len, info, &cbp_idx, dummy);
-    *cbp = NCBP[1][cbp_idx][0];
-}
-
-static void linfo_cbp_intra_other(int len, int info, int *cbp, int *dummy)
-{
-    int cbp_idx;
-    linfo_ue(len, info, &cbp_idx, dummy);
-    *cbp = NCBP[0][cbp_idx][0];
-}
-
-static void linfo_cbp_inter_normal(int len, int info, int *cbp, int *dummy)
-{
-    int cbp_idx;
-    linfo_ue(len, info, &cbp_idx, dummy);
-    *cbp = NCBP[1][cbp_idx][1];
-}
-
-static void linfo_cbp_inter_other(int len, int info, int *cbp, int *dummy)
-{
-    int cbp_idx;
-    linfo_ue(len, info, &cbp_idx, dummy);
-    *cbp = NCBP[0][cbp_idx][1];
-}
-
-static void read_CBP_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void read_CBP_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
     slice_t *currSlice = currMB->p_Slice;
@@ -731,7 +690,7 @@ static void read_CBP_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_
         currSlice->last_dquant = 0;
 }
 
-static void read_dQuant_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void read_dQuant_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
@@ -773,10 +732,9 @@ int check_next_mb_and_get_field_mode_CABAC(slice_t *slice)
 
     mb_t *currMB;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_MBTYPE;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
-    currSE.reading = read_skip_flag_CABAC;
 
     cabac_engine_t *dep_dp = &dP->bitstream->de_cabac;
 
@@ -846,14 +804,12 @@ uint32_t parse_mb_skip_run(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_MBTYPE;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag) {
-        currSE.mapping = linfo_ue;
+    if (!pps->entropy_coding_mode_flag)
         currSE.value1 = dP->bitstream->ue();
-    }
 
     return currSE.value1;
 }
@@ -863,18 +819,16 @@ bool parse_mb_skip_flag(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_MBTYPE;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)
-        currSE.mapping = linfo_ue;
+    if (!pps->entropy_coding_mode_flag)
+        currSE.value1 = dP->bitstream->ue();
     else
-        currSE.reading = read_skip_flag_CABAC;
-    dP->readSyntaxElement(mb, &currSE, dP);
+        read_skip_flag_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
 
-    if (!dP->bitstream->ei_flag)
-        mb->ei_flag = 0;
+    mb->ei_flag = 0;
 
     return !currSE.value1;
 }
@@ -884,17 +838,14 @@ bool parse_mb_field_decoding_flag(mb_t *mb)
 	slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_MBTYPE;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag) {
-        currSE.mapping = linfo_ue;
+    if (!pps->entropy_coding_mode_flag)
         currSE.value1 = dP->bitstream->f(1);
-    } else {
-        currSE.reading = readFieldModeInfo_CABAC;
-        dP->readSyntaxElement(mb, &currSE, dP);
-    }
+    else
+        readFieldModeInfo_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
 
     return currSE.value1;
 }
@@ -904,25 +855,25 @@ uint32_t parse_mb_type(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_MBTYPE;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)   
-        currSE.mapping = linfo_ue;
-    else
-        currSE.reading =
+    if (!pps->entropy_coding_mode_flag)   
+        currSE.value1 = dP->bitstream->ue();
+    else {
+        void (*reading)(macroblock_t*, syntax_element_t*, cabac_engine_t*) =
             slice->slice_type == I_slice || slice->slice_type == SI_slice ? readMB_typeInfo_CABAC_i_slice :
             slice->slice_type == P_slice || slice->slice_type == SP_slice ? readMB_typeInfo_CABAC_p_slice :
                                                                             readMB_typeInfo_CABAC_b_slice;
-    dP->readSyntaxElement(mb, &currSE, dP);
+        reading(mb, &currSE, &dP->bitstream->de_cabac);
+    }
 
     if (!pps->entropy_coding_mode_flag &&
         (slice->slice_type == P_slice || slice->slice_type == SP_slice))
         (currSE.value1)++;
 
-    if (!dP->bitstream->ei_flag)
-        mb->ei_flag = 0;
+    mb->ei_flag = 0;
 
     return currSE.value1;
 }
@@ -932,16 +883,14 @@ uint8_t parse_sub_mb_type(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_MBTYPE;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag) 
-        currSE.mapping = linfo_ue;
+    if (!pps->entropy_coding_mode_flag) 
+        currSE.value1 = dP->bitstream->ue();
     else
-        currSE.reading = readB8_typeInfo_CABAC;
-
-    dP->readSyntaxElement(mb, &currSE, dP);
+        readB8_typeInfo_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
 
     return currSE.value1;
 }
@@ -952,16 +901,14 @@ bool parse_transform_size_8x8_flag(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_HEADER;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)
+    if (!pps->entropy_coding_mode_flag)
         currSE.value1 = dP->bitstream->f(1);
-    else {
-        currSE.reading = readMB_transform_size_flag_CABAC;
-        dP->readSyntaxElement(mb, &currSE, dP);
-    }
+    else
+        readMB_transform_size_flag_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
 
     return currSE.value1;
 }
@@ -971,19 +918,18 @@ int8_t parse_intra_pred_mode(mb_t *mb, uint8_t block4x4Idx)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_INTRAPREDMODE;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag) {
+    if (!pps->entropy_coding_mode_flag) {
         if (dP->bitstream->f(1))
             currSE.value1 = -1;
         else
             currSE.value1 = dP->bitstream->f(3);
     } else {
         currSE.context = block4x4Idx;
-        currSE.reading = readIntraPredMode_CABAC;
-        dP->readSyntaxElement(mb, &currSE, dP);
+        readIntraPredMode_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
     }
 
     return currSE.value1;
@@ -994,16 +940,14 @@ uint8_t parse_intra_chroma_pred_mode(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_INTRAPREDMODE;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)
-        currSE.mapping = linfo_ue;
+    if (!pps->entropy_coding_mode_flag)
+        currSE.value1 = dP->bitstream->ue();
     else
-        currSE.reading = readCIPredMode_CABAC;
-
-    dP->readSyntaxElement(mb, &currSE, dP);
+        readCIPredMode_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
 
     return currSE.value1;
 }
@@ -1023,26 +967,20 @@ uint8_t parse_ref_idx(mb_t *mb, uint8_t b8mode, uint8_t list)
     if (!refidx_present || num_ref_idx_active <= 1)
         return 0;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_REFFRAME;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)
-        currSE.mapping = linfo_ue;
-    else
-        currSE.reading = readRefFrame_CABAC;
-
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag) {
-        if (num_ref_idx_active == 2) {
-            currSE.context = (b8mode >= 4);
+    if (!pps->entropy_coding_mode_flag) {
+        if (num_ref_idx_active == 2)
             currSE.value1 = 1 - dP->bitstream->f(1);
-            return currSE.value1;
-        }
+        else
+            currSE.value1 = dP->bitstream->ue();
+    } else {
+        currSE.context = (b8mode >= 4);
+        currSE.value2  = list;
+        readRefFrame_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
     }
-
-    currSE.context = (b8mode >= 4);
-    currSE.value2 = list;
-    dP->readSyntaxElement(mb, &currSE, dP);
 
     return currSE.value1;
 }
@@ -1052,19 +990,32 @@ int16_t parse_mvd(mb_t *mb, uint8_t xy, uint8_t list)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = SE_MVD;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag) 
-        currSE.mapping = linfo_se;
-    else
-        currSE.reading = read_mvd_CABAC;
 
-    currSE.value2 = xy * 2 + list;
-    dP->readSyntaxElement(mb, &currSE, dP);
+    if (!pps->entropy_coding_mode_flag) 
+        currSE.value1 = dP->bitstream->se();
+    else {
+        currSE.value2 = xy * 2 + list;
+        read_mvd_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
+    }
 
     return currSE.value1;
 }
+
+//! gives CBP value from codeword number, both for intra and inter
+static const byte NCBP[2][48][2] = {
+      // 0      1        2       3       4       5       6       7       8       9      10      11
+    {{15, 0},{ 0, 1},{ 7, 2},{11, 4},{13, 8},{14, 3},{ 3, 5},{ 5,10},{10,12},{12,15},{ 1, 7},{ 2,11},
+     { 4,13},{ 8,14},{ 6, 6},{ 9, 9},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
+     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
+     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0}},
+    {{47, 0},{31,16},{15, 1},{ 0, 2},{23, 4},{27, 8},{29,32},{30, 3},{ 7, 5},{11,10},{13,12},{14,15},
+     {39,47},{43, 7},{45,11},{46,13},{16,14},{ 3, 6},{ 5, 9},{10,31},{12,35},{19,37},{21,42},{26,44},
+     {28,33},{35,34},{37,36},{42,40},{44,39},{ 1,43},{ 2,45},{ 4,46},{ 8,17},{17,18},{18,20},{20,24},
+     {24,19},{ 6,21},{ 9,26},{22,28},{25,23},{32,27},{33,29},{34,30},{36,22},{40,25},{38,38},{41,41}}
+};
 
 uint8_t parse_coded_block_pattern(mb_t *mb)
 {
@@ -1072,21 +1023,17 @@ uint8_t parse_coded_block_pattern(mb_t *mb)
     sps_t *sps = slice->active_sps;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
-    currSE.type = (mb->mb_type == I4MB || mb->mb_type == SI4MB || mb->mb_type == I8MB) ?
-                  SE_CBP_INTRA : SE_CBP_INTER;
+    syntax_element_t currSE;
+    currSE.type = mb->is_intra_block ? SE_CBP_INTRA : SE_CBP_INTER;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)
-        currSE.mapping =
-            (mb->mb_type == I4MB || mb->mb_type == SI4MB || mb->mb_type == I8MB) ?
-            (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ?
-             linfo_cbp_intra_other : linfo_cbp_intra_normal) :
-            (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ?
-             linfo_cbp_inter_other : linfo_cbp_inter_normal);
-    else
-        currSE.reading = read_CBP_CABAC;
 
-    dP->readSyntaxElement(mb, &currSE, dP);
+    if (!pps->entropy_coding_mode_flag) {
+        bool normal  = (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ? 0 : 1);
+        bool inter   = (mb->is_intra_block ? 0 : 1);
+        int  cbp_idx = dP->bitstream->ue();
+        currSE.value1 = NCBP[normal][cbp_idx][inter];
+    } else
+        read_CBP_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
 
     return currSE.value1;
 }
@@ -1096,15 +1043,14 @@ int8_t parse_mb_qp_delta(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type = !mb->is_intra_block ? SE_DELTA_QUANT_INTER : SE_DELTA_QUANT_INTRA;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
-    if (!pps->entropy_coding_mode_flag || dP->bitstream->ei_flag)
-        currSE.mapping = linfo_se;
-    else
-        currSE.reading = read_dQuant_CABAC;
 
-    dP->readSyntaxElement(mb, &currSE, dP);
+    if (!pps->entropy_coding_mode_flag)
+        currSE.value1 = dP->bitstream->se();
+    else
+        read_dQuant_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
 
     return currSE.value1;
 }

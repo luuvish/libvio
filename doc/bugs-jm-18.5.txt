@@ -20,3 +20,7 @@
 6. predict_nnz(), predict_nnz_chroma()
     if (!pix.available) ++cnt; 증가시키면 안됨.
     chroma일 때 plane_id = 1 의 4x4 블럭에 (iCbCr*2+x,y)로 교차해서 저장. 편법에 가까우며 더 복잡함.
+
+7. read_CBP_and_coeffs_from_NAL_CABAC_420(), ...
+	ei_flag가 1일 경우 currSE.mapping을 설정하나 readSyntaxElement는 entropy_coding_mode_flag에 의해 한번 설정되면 ei_flag를 구별하지 않음.
+	Bitstream::ei_flag은 0으로 초기화 된 후에 값이 변하지 않으므로 linfo_levrun_c2x2, linfo_levrun_inter는 실행될 수 없음.

@@ -28,35 +28,31 @@
 extern "C" {
 #endif
 
-struct annex_b_struct;
+struct annex_b_t;
 struct nalu_t;
 struct macroblock_t;
-struct syntaxelement_dec;
 struct datapartition_dec;
-struct syntaxelement_dec;
 struct cabac_context_t;
 
 //! Data Partitioning Modes
-typedef enum
-{
-  PAR_DP_1,   //!< no data partitioning is supported
-  PAR_DP_3    //!< data partitioning with 3 partitions
+typedef enum {
+    PAR_DP_1,   //!< no data partitioning is supported
+    PAR_DP_3    //!< data partitioning with 3 partitions
 } PAR_DP_TYPE;
 
 //! Output File Types
-typedef enum
-{
-  PAR_OF_ANNEXB,    //!< Annex B byte stream format
-  PAR_OF_RTP       //!< RTP packets in outfile
+typedef enum {
+    PAR_OF_ANNEXB,    //!< Annex B byte stream format
+    PAR_OF_RTP       //!< RTP packets in outfile
 } PAR_OF_TYPE;
 
-typedef struct bitstream_t {
-    int                    FileFormat; //!< File format of the Input file, PAR_OF_ANNEXB or PAR_OF_RTP
-    int                    BitStreamFile;
-    struct annex_b_struct *annex_b;
-    int                    LastAccessUnitExists;
-    int                    NALUCount;
-} bitstream_t;
+struct bitstream_t {
+    int        FileFormat; //!< File format of the Input file, PAR_OF_ANNEXB or PAR_OF_RTP
+    int        BitStreamFile;
+    annex_b_t* annex_b;
+    int        LastAccessUnitExists;
+    int        NALUCount;
+};
 
 
 //! struct to characterize the state of the arithmetic coding engine
@@ -88,7 +84,6 @@ typedef struct bit_stream_dec {
     int           bitstream_length;   //!< over codebuffer lnegth, byte oriented, CAVLC only
     // ErrorConcealment
     byte          *streamBuffer;      //!< actual codebuffer for read bytes
-    int           ei_flag;            //!< error indication, 0: no error, else unspecified error
 
     cabac_engine_t de_cabac;
 
@@ -120,29 +115,8 @@ typedef struct bit_stream_dec {
     uint32_t te(const char *name="");
 } Bitstream;
 
-//! Syntaxelement
-typedef struct syntaxelement_dec {
-    int           type;                  //!< type of syntax element for data part.
-    int           value1;                //!< numerical value of syntax element
-    int           value2;                //!< for blocked symbols, e.g. run/level
-    int           len;                   //!< length of code
-    int           inf;                   //!< info part of CAVLC code
-    int           context;               //!< CABAC context
-
-    //! for mapping of CAVLC to syntaxElement
-    void (*mapping)(int len, int info, int *value1, int *value2);
-    //! used for CABAC: refers to actual coding method of each individual syntax element type
-    void (*reading)(struct macroblock_t *currMB, struct syntaxelement_dec *, cabac_engine_t *);
-} SyntaxElement;
-
-//! DataPartition
 typedef struct datapartition_dec {
     Bitstream *bitstream;
-
-    int (*readSyntaxElement)(struct macroblock_t *currMB, struct syntaxelement_dec *, struct datapartition_dec *);
-          /*!< virtual function;
-               actual method depends on chosen data partition and
-               entropy coding method  */
 } DataPartition;
 
 
@@ -158,14 +132,18 @@ void FreePartition(DataPartition *dp, int n);
 Bitstream *InitPartition(DataPartition *dp, struct nalu_t *nalu);
 
 
+struct syntax_element_t {
+    int type;    //!< type of syntax element for data part.
+    int value1;  //!< numerical value of syntax element
+    int value2;  //!< for blocked symbols, e.g. run/level
+    int len;     //!< length of code
+    int inf;     //!< info part of CAVLC code
+    int context; //!< CABAC context
+};
+
 
 // CAVLC mapping
-void linfo_ue(int len, int info, int *value1, int *dummy);
-void linfo_se(int len, int info, int *value1, int *dummy);
-
-int  readSyntaxElement_UVLC(struct macroblock_t *currMB, struct syntaxelement_dec *sym, struct datapartition_dec *dp);
-int  readSyntaxElement_CABAC(struct macroblock_t *currMB, SyntaxElement *se, DataPartition *this_dataPart);
-int  GetBits  (byte buffer[],int totbitoffset,int *info, int bitcount, int numbits);
+int GetBits(byte buffer[],int totbitoffset,int *info, int bitcount, int numbits);
 
 
 

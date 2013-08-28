@@ -248,7 +248,7 @@ bool slice_t::init()
         fill_wp_params(this);
 
 
-    if ((current_header != SOP && current_header != SOS) || this->ei_flag != 0)
+    if (current_header != SOP && current_header != SOS)
         return false;
 
     if (this->active_sps->separate_colour_plane_flag != 0)

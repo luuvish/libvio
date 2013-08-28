@@ -57,68 +57,6 @@ static inline int rshift_rnd_sf(int x, int a)
     return ((x + (1 << (a-1) )) >> a);
 }
 
-
-static void linfo_levrun_inter(int len, int info, int *level, int *irun)
-{
-    //! for the linfo_levrun_inter routine
-    static const byte NTAB1[4][8][2] = {
-        { {1, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
-        { {1, 1}, {1, 2}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
-        { {2, 0}, {1, 3}, {1, 4}, {1, 5}, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
-        { {3, 0}, {2, 1}, {2, 2}, {1, 6}, {1, 7}, {1, 8}, {1, 9}, {4, 0} }
-    };
-
-    static const byte LEVRUN1[16] = {
-        4, 2, 2, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0
-    };
-
-    if (len <= 9) {
-        int l2  = imax(0, (len >> 1) - 1);
-        int inf = info >> 1;
-        *level = NTAB1[l2][inf][0];
-        *irun  = NTAB1[l2][inf][1];
-        if (info % 2 == 1)
-            *level = -*level;
-    } else {
-        *irun  = (info & 0x1e) >> 1;
-        *level = LEVRUN1[*irun] + (info >> 5) + (1 << ((len >> 1) - 5));
-        if (info % 2 == 1)
-            *level = -*level;
-    }
-
-    if (len == 1)
-        *level = 0;
-}
-
-static void linfo_levrun_c2x2(int len, int info, int *level, int *irun)
-{
-    //! for the linfo_levrun__c2x2 routine
-    static const byte NTAB3[2][2][2] = {
-        { {1, 0}, {0, 0} },
-        { {2, 0}, {1, 1} }
-    };
-
-    static const byte LEVRUN3[4] = { 2, 1, 0, 0 };
-
-    if (len <= 5) {
-        int l2  = imax(0, (len >> 1) - 1);
-        int inf = info >> 1;
-        *level = NTAB3[l2][inf][0];
-        *irun  = NTAB3[l2][inf][1];
-        if (info % 2 == 1)
-            *level = -*level;
-    } else {
-        *irun  = (info & 0x06) >> 1;
-        *level = LEVRUN3[*irun] + (info >> 3) + (1 << ((len >> 1) - 3));
-        if (info % 2 == 1)
-            *level = -*level;
-    }
-
-    if (len == 1)
-        *level = 0;
-}
-
-
 static inline int get_bit(int64 x, int n)
 {
     return (int)(((x >> n) & 1));
@@ -278,7 +216,7 @@ static int read_and_store_CBP_block_bit(mb_t *currMB, cabac_engine_t *dep_dp, in
     return cbp_bit;
 }
 
-static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
+static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     static const short maxpos[] = {
         15, 14, 63, 31, 31, 15,  3, 14,  7, 15, 15,
@@ -490,19 +428,15 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
     const byte (*pos_scan8x8)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
 
     if (IS_I16MB(currMB) && !currMB->dpl_flag) {
-        SyntaxElement currSE;
+        syntax_element_t currSE;
         currSE.type    = SE_LUM_DC_INTRA;
         currSE.context = LUMA_16DC;
         DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
-        if (dP->bitstream->ei_flag)
-            currSE.mapping = linfo_levrun_inter;
-        else
-            currSE.reading = readRunLevel_CABAC;
 
         int coef_ctr = -1;
         int level = 1;
         for (int k = 0; k < 17 && level != 0; ++k) {
-            dP->readSyntaxElement(currMB, &currSE, dP);
+            readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
             level = currSE.value1;
             if (level != 0) {
                 coef_ctr += currSE.value2 + 1;
@@ -525,7 +459,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
             currSlice->InvLevelScale4x4_Intra[transform_pl][qp_rem] :
             currSlice->InvLevelScale4x4_Inter[transform_pl][qp_rem];
 
-        SyntaxElement currSE;
+        syntax_element_t currSE;
         if (pl == PLANE_Y || sps->separate_colour_plane_flag)
             currSE.context = IS_I16MB(currMB) ? LUMA_16AC : LUMA_4x4;
         else if (pl == PLANE_U)
@@ -554,12 +488,8 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                             (k == 0 ? SE_LUM_DC_INTRA : SE_LUM_AC_INTRA) :
                             (k == 0 ? SE_LUM_DC_INTER : SE_LUM_AC_INTER);
                         DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
-                        if (dP->bitstream->ei_flag)
-                            currSE.mapping = linfo_levrun_inter;
-                        else
-                            currSE.reading = readRunLevel_CABAC;
 
-                        dP->readSyntaxElement(currMB, &currSE, dP);
+                        readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
                         level = currSE.value1;
                         if (level != 0) {
                             coef_ctr += currSE.value2 + 1;
@@ -584,7 +514,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
             currSlice->InvLevelScale8x8_Intra[transform_pl][qp_rem] :
             currSlice->InvLevelScale8x8_Inter[transform_pl][qp_rem];
 
-        SyntaxElement currSE;
+        syntax_element_t currSE;
         if (pl == PLANE_Y || sps->separate_colour_plane_flag)
             currSE.context = LUMA_8x8;
         else if (pl == PLANE_U)
@@ -607,12 +537,8 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                         (k == 0 ? SE_LUM_DC_INTRA : SE_LUM_AC_INTRA) :
                         (k == 0 ? SE_LUM_DC_INTER : SE_LUM_AC_INTER);
                     DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
-                    if (dP->bitstream->ei_flag)
-                        currSE.mapping = linfo_levrun_inter;
-                    else
-                        currSE.reading = readRunLevel_CABAC;
 
-                    dP->readSyntaxElement(currMB, &currSE, dP);
+                    readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
                     level = currSE.value1;
                     if (level != 0) {
                         coef_ctr += currSE.value2 + 1;
@@ -638,14 +564,10 @@ static void read_tc_chroma(mb_t *currMB)
     int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
 
     if (currMB->cbp > 15) {      
-        SyntaxElement currSE;
+        syntax_element_t currSE;
         currSE.context = sps->ChromaArrayType == 1 ? CHROMA_DC : CHROMA_DC_2x4;
         currSE.type    = currMB->is_intra_block ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER;
         DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
-        if (dP->bitstream->ei_flag)
-            currSE.mapping = linfo_levrun_c2x2;
-        else
-            currSE.reading = readRunLevel_CABAC;
 
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
             currMB->is_v_block = iCbCr * 2;
@@ -653,7 +575,7 @@ static void read_tc_chroma(mb_t *currMB)
             int coef_ctr = -1;
             int level = 1;
             for (int k = 0; k < NumC8x8 * 4 + 1 && level != 0; ++k) {
-                dP->readSyntaxElement(currMB, &currSE, dP);
+                readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
                 level = currSE.value1;
 
                 int i0, j0;
@@ -689,14 +611,10 @@ static void read_tc_chroma(mb_t *currMB)
     }
 
     if (currMB->cbp > 31) {
-        SyntaxElement currSE;
+        syntax_element_t currSE;
         currSE.context = CHROMA_AC;
         currSE.type    = currMB->is_intra_block ? SE_CHR_AC_INTRA : SE_CHR_AC_INTER;
         DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
-        if (dP->bitstream->ei_flag)
-            currSE.mapping = linfo_levrun_inter;
-        else
-            currSE.reading = readRunLevel_CABAC;
 
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
             const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
@@ -722,7 +640,7 @@ static void read_tc_chroma(mb_t *currMB)
                     int coef_ctr = 0;
                     int level = 1;
                     for (int k = 0; k < 16 && level != 0; ++k) {
-                        dP->readSyntaxElement(currMB, &currSE, dP);
+                        readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
                         level = currSE.value1;
 
                         if (level != 0) {
@@ -763,20 +681,16 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
 {
     slice_t *slice = this->p_Slice;
 
-    SyntaxElement currSE;
+    syntax_element_t currSE;
     currSE.type    = SE_LUM_DC_INTRA;
     currSE.context = LUMA_16DC;
     DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
-    if (dP->bitstream->ei_flag)
-        currSE.mapping = linfo_levrun_inter;
-    else
-        currSE.reading = readRunLevel_CABAC;
 
     const byte (*pos_scan4x4)[2] = !slice->field_pic_flag && !this->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
     int coef_ctr = -1;
     int level = 1;
     for (int k = 0; k < 17 && level != 0; ++k) {
-        dP->readSyntaxElement(this, &currSE, dP);
+        readRunLevel_CABAC(this, &currSE, &dP->bitstream->de_cabac);
         level = currSE.value1;
         if (level != 0) {
             coef_ctr += currSE.value2 + 1;

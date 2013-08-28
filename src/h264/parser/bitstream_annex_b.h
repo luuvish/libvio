@@ -18,7 +18,7 @@ extern "C" {
 
 #include "bitstream_nal.h"
 
-typedef struct annex_b_struct {
+struct annex_b_t {
   	int   BitStreamFile;                //!< the bit stream file
   	byte *iobuffer;
   	byte *iobufferread;
@@ -29,16 +29,20 @@ typedef struct annex_b_struct {
   	int   IsFirstByteStreamNALU;
   	int   nextstartcodebytes;
   	byte *Buf;  
-} ANNEXB_t;
 
-int  get_nalu_from_annex_b(NALU_t *nalu, ANNEXB_t *annex_b);
+    void open (char *fn);
+    void close();
+    void reset();
+};
 
-void open_annex_b  (char *fn, ANNEXB_t *annex_b);
-void close_annex_b (ANNEXB_t *annex_b);
-void malloc_annex_b(unsigned max_size, ANNEXB_t **p_annex_b);
-void free_annex_b  (ANNEXB_t **p_annex_b);
-void init_annex_b  (ANNEXB_t *annex_b);
-void reset_annex_b (ANNEXB_t *annex_b);
+int  get_nalu_from_annex_b(NALU_t *nalu, annex_b_t *annex_b);
+
+void open_annex_b  (char *fn, annex_b_t *annex_b);
+void close_annex_b (annex_b_t *annex_b);
+void malloc_annex_b(unsigned max_size, annex_b_t **p_annex_b);
+void free_annex_b  (annex_b_t **p_annex_b);
+void init_annex_b  (annex_b_t *annex_b);
+void reset_annex_b (annex_b_t *annex_b);
 
 #ifdef __cplusplus
 }

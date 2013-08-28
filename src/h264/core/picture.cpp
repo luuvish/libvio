@@ -187,7 +187,6 @@ void UseParameterSet (slice_t *currSlice)
     int PicParsetId = currSlice->pic_parameter_set_id;  
     pps_t *pps = &p_Vid->PicParSet[PicParsetId];
     sps_t *sps = &p_Vid->SeqParSet[pps->seq_parameter_set_id];
-    int i;
 
     if (pps->Valid != TRUE)
         printf ("Trying to use an invalid (uninitialized) Picture Parameter Set with ID %d, expect the unexpected...\n", PicParsetId);
@@ -224,14 +223,6 @@ void UseParameterSet (slice_t *currSlice)
     activate_sps(p_Vid, sps);
     activate_pps(p_Vid, pps);
 
-    // currSlice->dp_mode is set by read_new_slice (NALU first byte available there)
-    if (!pps->entropy_coding_mode_flag) {
-        for (i = 0; i < 3; i++)
-            currSlice->partArr[i].readSyntaxElement = readSyntaxElement_UVLC;      
-    } else {
-        for (i = 0; i < 3; i++)
-            currSlice->partArr[i].readSyntaxElement = readSyntaxElement_CABAC;
-    }
     p_Vid->type = currSlice->slice_type;
 }
 

@@ -19,9 +19,9 @@
 
 static const int IOBUFFERSIZE = 512*1024; //65536;
 
-void malloc_annex_b(unsigned int max_size, ANNEXB_t **p_annex_b)
+void malloc_annex_b(unsigned int max_size, annex_b_t **p_annex_b)
 {
-  if ( ((*p_annex_b) = (ANNEXB_t *)calloc(1, sizeof(ANNEXB_t))) == NULL)
+  if ( ((*p_annex_b) = (annex_b_t *)calloc(1, sizeof(annex_b_t))) == NULL)
   {
     snprintf(errortext, ET_SIZE, "Memory allocation for Annex_B file failed");
     error(errortext,100);
@@ -32,7 +32,7 @@ void malloc_annex_b(unsigned int max_size, ANNEXB_t **p_annex_b)
   }
 }
 
-void init_annex_b(ANNEXB_t *annex_b)
+void init_annex_b(annex_b_t *annex_b)
 {
     annex_b->BitStreamFile         = -1;
     annex_b->iobuffer              = NULL;
@@ -43,7 +43,7 @@ void init_annex_b(ANNEXB_t *annex_b)
     annex_b->nextstartcodebytes    = 0;
 }
 
-void free_annex_b(ANNEXB_t **p_annex_b)
+void free_annex_b(annex_b_t **p_annex_b)
 {
     free((*p_annex_b)->Buf);
     (*p_annex_b)->Buf = NULL;
@@ -58,7 +58,7 @@ void free_annex_b(ANNEXB_t **p_annex_b)
 *    fill IO buffer
 ************************************************************************
 */
-static inline int getChunk(ANNEXB_t *annex_b)
+static inline int getChunk(annex_b_t *annex_b)
 {
     unsigned int readbytes = read(annex_b->BitStreamFile, annex_b->iobuffer, annex_b->iIOBufferSize); 
     if (0 == readbytes) {
@@ -77,7 +77,7 @@ static inline int getChunk(ANNEXB_t *annex_b)
 *    returns a byte from IO buffer
 ************************************************************************
 */
-static inline byte getfbyte(ANNEXB_t *annex_b)
+static inline byte getfbyte(annex_b_t *annex_b)
 {
     if (0 == annex_b->bytesinbuffer) {
         if (0 == getChunk(annex_b))
@@ -138,7 +138,7 @@ static inline int FindStartCode(unsigned char *Buf, int zeros_in_startcode)
  ************************************************************************
  */
 
-int get_nalu_from_annex_b(NALU_t *nalu, ANNEXB_t *annex_b)
+int get_nalu_from_annex_b(NALU_t *nalu, annex_b_t *annex_b)
 {
     int i;
     int info2 = 0, info3 = 0, pos = 0;
@@ -259,7 +259,7 @@ int get_nalu_from_annex_b(NALU_t *nalu, ANNEXB_t *annex_b)
  *    none
  ************************************************************************
  */
-void open_annex_b(char *fn, ANNEXB_t *annex_b)
+void open_annex_b(char *fn, annex_b_t *annex_b)
 {
     if (NULL != annex_b->iobuffer)
         error("open_annex_b: tried to open Annex B file twice", 500);
@@ -282,7 +282,7 @@ void open_annex_b(char *fn, ANNEXB_t *annex_b)
  *    Closes the bit stream file
  ************************************************************************
  */
-void close_annex_b(ANNEXB_t *annex_b)
+void close_annex_b(annex_b_t *annex_b)
 {
     if (annex_b->BitStreamFile != -1) {
         close(annex_b->BitStreamFile);
@@ -292,7 +292,7 @@ void close_annex_b(ANNEXB_t *annex_b)
     annex_b->iobuffer = NULL;
 }
 
-void reset_annex_b(ANNEXB_t *annex_b)
+void reset_annex_b(annex_b_t *annex_b)
 {
     annex_b->is_eof = FALSE;
     annex_b->bytesinbuffer = 0;
