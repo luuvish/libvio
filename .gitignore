@@ -1,0 +1,8 @@
+bin
+src/h264/dependencies
+src/h264/objects
+test/checksums
+test/images
+test/streams
+test/tools/*/*.err
+test/tools/*/*.log

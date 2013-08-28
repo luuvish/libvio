@@ -20,7 +20,7 @@
 # ===========================================================================
 
 
-NAME=   h264dec
+NAME=   arrow++h264
 
 ### include debug information: 1=yes, 0=no
 DBG?= 0
@@ -36,8 +36,8 @@ OPENMP?= 0
 
 DEPEND= dependencies
 
-BINDIR= ../../../bin
-INCDIR= lcommon/inc ldecod/inc core parser decoder
+BINDIR= ../../bin
+INCDIR= core parser decoder
 SRCDIR= ldecod/src
 OBJDIR= objects
 
