@@ -197,32 +197,12 @@ static int GetVLCSymbol(int *info, Bitstream *currStream)
 
 
 
-/*!
- ************************************************************************
- * \brief
- *    mapping rule for ue(v) syntax elements
- * \par Input:
- *    lenght and info
- * \par Output:
- *    number in the code table
- ************************************************************************
- */
 void linfo_ue(int len, int info, int *value1, int *dummy)
 {
   //assert ((len >> 1) < 32);
   *value1 = (int) (((unsigned int) 1 << (len >> 1)) + (unsigned int) (info) - 1);
 }
 
-/*!
- ************************************************************************
- * \brief
- *    mapping rule for se(v) syntax elements
- * \par Input:
- *    lenght and info
- * \par Output:
- *    signed mvd
- ************************************************************************
- */
 void linfo_se(int len,  int info, int *value1, int *dummy)
 {
   //assert ((len >> 1) < 32);
@@ -233,39 +213,22 @@ void linfo_se(int len,  int info, int *value1, int *dummy)
 }
 
 
-
-/*!
- ************************************************************************
- * \brief
- *    read next UVLC codeword from UVLC-partition and
- *    map it to the corresponding syntax element
- ************************************************************************
- */
-int readSyntaxElement_VLC(SyntaxElement *sym, Bitstream *currStream)
+int readSyntaxElement_UVLC(mb_t *currMB, SyntaxElement *sym, struct datapartition_dec *dP)
 {
-    sym->len = GetVLCSymbol(&sym->inf, currStream);
+    sym->len = GetVLCSymbol(&sym->inf, dP->bitstream);
     if (sym->len == -1)
         return -1;
 
-    //currStream->frame_bitoffset += sym->len;
     sym->mapping(sym->len, sym->inf, &(sym->value1), &(sym->value2));
-
     return 1;
 }
 
-
-/*!
- ************************************************************************
- * \brief
- *    read next UVLC codeword from UVLC-partition and
- *    map it to the corresponding syntax element
- ************************************************************************
- */
-int readSyntaxElement_UVLC(mb_t *currMB, SyntaxElement *sym, struct datapartition_dec *dP)
+int readSyntaxElement_CABAC(mb_t *currMB, SyntaxElement *se, struct datapartition_dec *dP)
 {
-    return readSyntaxElement_VLC(sym, dP->bitstream);
+    cabac_engine_t *dep_dp = &dP->bitstream->de_cabac;
+    se->reading(currMB, se, dep_dp);
+    return 0;
 }
-
 
 /*!
  ************************************************************************

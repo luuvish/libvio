@@ -34,6 +34,7 @@ struct macroblock_t;
 struct syntaxelement_dec;
 struct datapartition_dec;
 struct syntaxelement_dec;
+struct cabac_context_t;
 
 //! Data Partitioning Modes
 typedef enum
@@ -59,13 +60,23 @@ typedef struct bitstream_t {
 
 
 //! struct to characterize the state of the arithmetic coding engine
-typedef struct {
-    unsigned int  Drange;
-    unsigned int  Dvalue;
-    int           DbitsLeft;
-    byte         *Dcodestrm;
-    int          *Dcodestrm_len;
-} DecodingEnvironment;
+struct cabac_engine_t {
+    uint16_t codIRange;
+    uint32_t Dvalue;
+    int      DbitsLeft;
+    byte    *Dcodestrm;
+    int     *Dcodestrm_len;
+
+    void     init(unsigned char *code_buffer, int firstbyte, int *code_len);
+
+    bool     decode_decision(cabac_context_t *ctx);
+    bool     decode_bypass();
+    bool     decode_terminate();
+    void     renormD();
+
+    uint32_t u (cabac_context_t* ctx, int ctx_offset);
+    uint32_t tu(cabac_context_t* ctx, int ctx_offset, unsigned int max_symbol);
+};
 
 //! Bitstream
 typedef struct bit_stream_dec {
@@ -79,7 +90,7 @@ typedef struct bit_stream_dec {
     byte          *streamBuffer;      //!< actual codebuffer for read bytes
     int           ei_flag;            //!< error indication, 0: no error, else unspecified error
 
-    DecodingEnvironment de_cabac;
+    cabac_engine_t de_cabac;
 
     uint32_t nal_unit_header_bytes;
     uint8_t  nal_ref_idc;
@@ -121,7 +132,7 @@ typedef struct syntaxelement_dec {
     //! for mapping of CAVLC to syntaxElement
     void (*mapping)(int len, int info, int *value1, int *value2);
     //! used for CABAC: refers to actual coding method of each individual syntax element type
-    void (*reading)(struct macroblock_t *currMB, struct syntaxelement_dec *, DecodingEnvironment *);
+    void (*reading)(struct macroblock_t *currMB, struct syntaxelement_dec *, cabac_engine_t *);
 } SyntaxElement;
 
 //! DataPartition
@@ -152,8 +163,8 @@ Bitstream *InitPartition(DataPartition *dp, struct nalu_t *nalu);
 void linfo_ue(int len, int info, int *value1, int *dummy);
 void linfo_se(int len, int info, int *value1, int *dummy);
 
-int  readSyntaxElement_VLC (struct syntaxelement_dec *sym, Bitstream *currStream);
 int  readSyntaxElement_UVLC(struct macroblock_t *currMB, struct syntaxelement_dec *sym, struct datapartition_dec *dp);
+int  readSyntaxElement_CABAC(struct macroblock_t *currMB, SyntaxElement *se, DataPartition *this_dataPart);
 int  GetBits  (byte buffer[],int totbitoffset,int *info, int bitcount, int numbits);
 
 

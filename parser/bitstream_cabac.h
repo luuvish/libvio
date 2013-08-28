@@ -79,26 +79,10 @@ cabac_contexts_t* create_contexts_MotionInfo(void);
 void delete_contexts_MotionInfo(cabac_contexts_t *enco_ctx);
 
 
-//*********************** end of data type definition for CABAC *******************
-
-// structures that will be declared somewhere else
-struct storable_picture;
-struct datapartition_dec;
-struct syntaxelement_dec;
 struct slice_t;
-struct macroblock_t;
 
-void arideco_start_decoding(DecodingEnvironment *eep, unsigned char *code_buffer, int firstbyte, int *code_len);
-int  arideco_bits_read(DecodingEnvironment *dep);
-void arideco_done_decoding(DecodingEnvironment *dep);
-unsigned int biari_decode_symbol(DecodingEnvironment *dep, cabac_context_t *bi_ct );
-unsigned int biari_decode_symbol_eq_prob(DecodingEnvironment *dep);
-unsigned int biari_decode_final(DecodingEnvironment *dep);
-
-int  cabac_startcode_follows(struct slice_t *currSlice, int eos_bit);
-int  uvlc_startcode_follows(struct slice_t *currSlice, int dummy);
-
-int  readSyntaxElement_CABAC(struct macroblock_t *currMB, SyntaxElement *se, DataPartition *this_dataPart);
+int  cabac_startcode_follows(slice_t *currSlice, int eos_bit);
+int  uvlc_startcode_follows(slice_t *currSlice, int dummy);
 
 
 #ifdef __cplusplus

@@ -124,18 +124,18 @@ static inline int get_bit(int64 x, int n)
     return (int)(((x >> n) & 1));
 }
 
-static uint32_t unary_exp_golomb_level_decode(DecodingEnvironment* dep_dp, cabac_context_t* ctx)
+static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_context_t* ctx)
 {
     const uint32_t exp_start = 13;
     uint32_t symbol = 0;
     uint32_t binary_symbol = 0;
     uint32_t l, k = 1;
 
-    if (biari_decode_symbol(dep_dp, ctx) == 0)
+    if (dep_dp->decode_decision(ctx) == 0)
         return 0;
 
     do {
-        l = biari_decode_symbol(dep_dp, ctx);
+        l = dep_dp->decode_decision(ctx);
         ++symbol;
         ++k;
     } while (l != 0 && k != exp_start);
@@ -145,7 +145,7 @@ static uint32_t unary_exp_golomb_level_decode(DecodingEnvironment* dep_dp, cabac
 
     k = 0;
     do {
-        l = biari_decode_symbol_eq_prob(dep_dp);
+        l = dep_dp->decode_bypass();
         if (l == 1) {
             symbol += (1 << k);
             ++k;
@@ -153,14 +153,14 @@ static uint32_t unary_exp_golomb_level_decode(DecodingEnvironment* dep_dp, cabac
     } while (l != 0);
 
     while (k--) {
-        if (biari_decode_symbol_eq_prob(dep_dp) == 1)
+        if (dep_dp->decode_bypass() == 1)
             binary_symbol |= (1 << k);
     }
 
     return symbol + binary_symbol + 1;
 }
 
-static int read_and_store_CBP_block_bit(mb_t *currMB, DecodingEnvironment *dep_dp, int type)
+static int read_and_store_CBP_block_bit(mb_t *currMB, cabac_engine_t *dep_dp, int type)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
@@ -244,7 +244,7 @@ static int read_and_store_CBP_block_bit(mb_t *currMB, DecodingEnvironment *dep_d
 
     if (sps->chroma_format_idc == YUV444 || type != LUMA_8x8) {
         ctx = 2 * upper_bit + left_bit;
-        cbp_bit = biari_decode_symbol(dep_dp, mot_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
+        cbp_bit = dep_dp->decode_decision(mot_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
     }
 
     bit = y_dc ?  0 :
@@ -278,7 +278,7 @@ static int read_and_store_CBP_block_bit(mb_t *currMB, DecodingEnvironment *dep_d
     return cbp_bit;
 }
 
-static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironment *dep_dp)
+static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, cabac_engine_t *dep_dp)
 {
     static const short maxpos[] = {
         15, 14, 63, 31, 31, 15,  3, 14,  7, 15, 15,
@@ -428,10 +428,10 @@ static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironm
             }
 
             for (i = i0; i < i1; ++i) {
-                int c = biari_decode_symbol(dep_dp, map_ctx + pos2ctx_Map[i]);
+                int c = dep_dp->decode_decision(map_ctx + pos2ctx_Map[i]);
                 *(coeff++) = c;
                 currSlice->coeff_ctr += c;
-                if (c && biari_decode_symbol(dep_dp, last_ctx + pos2ctx_Last[i])) {
+                if (c && dep_dp->decode_decision(last_ctx + pos2ctx_Last[i])) {
                     memset(coeff, 0, (i1 - i) * sizeof(int));
                     i = i1 + 1;
                     break;
@@ -450,7 +450,7 @@ static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironm
 
             for (; i >= 0; i--) {
                 if (*cof != 0) {
-                    *cof += biari_decode_symbol(dep_dp, one_ctx + c1);
+                    *cof += dep_dp->decode_decision(one_ctx + c1);
 
                     if (*cof == 2) {
                         *cof += unary_exp_golomb_level_decode(dep_dp, abs_ctx + c2);
@@ -459,7 +459,7 @@ static void readRunLevel_CABAC(mb_t *currMB, SyntaxElement *se, DecodingEnvironm
                     } else if (c1)
                         c1 = imin(++c1, 4);
 
-                    if (biari_decode_symbol_eq_prob(dep_dp))
+                    if (dep_dp->decode_bypass())
                         *cof = - *cof;
                 }
                 cof--;

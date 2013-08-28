@@ -231,7 +231,7 @@ static void readIPCM_CABAC(slice_t *currSlice, struct datapartition_dec *dP)
     sps_t *sps = currSlice->active_sps;
     StorablePicture *dec_picture = currSlice->dec_picture;
     Bitstream* currStream = dP->bitstream;
-    DecodingEnvironment *dep = &dP->bitstream->de_cabac;
+    cabac_engine_t *dep = &dP->bitstream->de_cabac;
     byte *buf = currStream->streamBuffer;
     int BitstreamLengthInBits = (dP->bitstream->bitstream_length << 3) + 7;
 
@@ -278,7 +278,7 @@ static void readIPCM_CABAC(slice_t *currSlice, struct datapartition_dec *dP)
     if (bits_read & 7)
         ++(*dep->Dcodestrm_len);
 
-    arideco_start_decoding(&currStream->de_cabac, currStream->streamBuffer, currStream->read_len, &currStream->read_len);
+    currStream->de_cabac.init(currStream->streamBuffer, currStream->read_len, &currStream->read_len);
 }
 
 static void read_IPCM_coeffs_from_NAL(slice_t *currSlice, struct datapartition_dec *dP)

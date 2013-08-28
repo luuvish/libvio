@@ -974,36 +974,48 @@ static const char INIT_FLD_LAST_P[3][8][15][2] =
 };
 
 
-
-#define IBIARI_CTX_INIT2(ii,jj,ctx,tab,num, qp) \
-{ \
-  for (int i=0; i<ii; ++i) \
-  for (int j=0; j<jj; ++j) { \
-    ctx[i][j].init(tab ## _I[num][i][j][0], tab ## _I[num][i][j][1], qp); \
-  } \
-}
-
-#define PBIARI_CTX_INIT2(ii,jj,ctx,tab,num, qp) \
-{ \
-  for (int i=0; i<ii; ++i) \
-  for (int j=0; j<jj; ++j) { \
-    ctx[i][j].init(tab ## _P[num][i][j][0], tab ## _P[num][i][j][1], qp); \
-  } \
+void cabac_context_t::init(int8_t m, int8_t n, uint8_t SliceQpY)
+{
+    uint8_t preCtxState = iClip3(1, 126, ((m * iClip3(0, 51, SliceQpY)) >> 4) + n);
+    if (preCtxState <= 63) {
+        this->pStateIdx = 63 - preCtxState;
+        this->valMPS    = 0;
+    } else {
+        this->pStateIdx = preCtxState - 64;
+        this->valMPS    = 1;
+    }
 }
 
 
-#define IBIARI_CTX_INIT1(jj,ctx,tab,num, qp) \
+#define IBIARI_CTX_INIT2(ii,jj,ctx,tab,num,qp) \
 { \
-  for (int j=0; j<jj; ++j) { \
-    ctx[j].init(tab ## _I[num][0][j][0], tab ## _I[num][0][j][1], qp); \
-  } \
+    for (int i=0; i<ii; ++i) \
+    for (int j=0; j<jj; ++j) { \
+        ctx[i][j].init(tab ## _I[num][i][j][0], tab ## _I[num][i][j][1], qp); \
+    } \
 }
 
-#define PBIARI_CTX_INIT1(jj,ctx,tab,num, qp) \
+#define PBIARI_CTX_INIT2(ii,jj,ctx,tab,num,qp) \
 { \
-  for (int j=0; j<jj; ++j) { \
-    ctx[j].init(tab ## _P[num][0][j][0], tab ## _P[num][0][j][1], qp); \
-  } \
+    for (int i=0; i<ii; ++i) \
+    for (int j=0; j<jj; ++j) { \
+        ctx[i][j].init(tab ## _P[num][i][j][0], tab ## _P[num][i][j][1], qp); \
+    } \
+}
+
+
+#define IBIARI_CTX_INIT1(jj,ctx,tab,num,qp) \
+{ \
+    for (int j=0; j<jj; ++j) { \
+        ctx[j].init(tab ## _I[num][0][j][0], tab ## _I[num][0][j][1], qp); \
+    } \
+}
+
+#define PBIARI_CTX_INIT1(jj,ctx,tab,num,qp) \
+{ \
+    for (int j=0; j<jj; ++j) { \
+        ctx[j].init(tab ## _P[num][0][j][0], tab ## _P[num][0][j][1], qp); \
+    } \
 }
 
 void cabac_contexts_t::init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t SliceQpY)
