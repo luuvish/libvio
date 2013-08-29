@@ -13,7 +13,6 @@
 
 #include "global.h"
 #include "slice.h"
-#include "bitstream_elements.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
 #include "macroblock.h"
@@ -428,10 +427,9 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
     const byte (*pos_scan8x8)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
 
     if (IS_I16MB(currMB) && !currMB->dpl_flag) {
+        DataPartition *dP = &currSlice->partArr[currSlice->dp_mode ? 1 : 0];
         syntax_element_t currSE;
-        currSE.type    = SE_LUM_DC_INTRA;
         currSE.context = LUMA_16DC;
-        DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
 
         int coef_ctr = -1;
         int level = 1;
@@ -484,10 +482,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                     int coef_ctr = start_scan - 1;
                     int level = 1;
                     for (int k = start_scan; k < 17 && level != 0; ++k) {
-                        currSE.type = currMB->is_intra_block ?
-                            (k == 0 ? SE_LUM_DC_INTRA : SE_LUM_AC_INTRA) :
-                            (k == 0 ? SE_LUM_DC_INTER : SE_LUM_AC_INTER);
-                        DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
+                        DataPartition *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
 
                         readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
                         level = currSE.value1;
@@ -533,10 +528,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                 int coef_ctr = -1;
                 int level = 1;
                 for (int k = 0; k < 65 && level != 0; ++k) {
-                    currSE.type = currMB->is_intra_block ?
-                        (k == 0 ? SE_LUM_DC_INTRA : SE_LUM_AC_INTRA) :
-                        (k == 0 ? SE_LUM_DC_INTER : SE_LUM_AC_INTER);
-                    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
+                    DataPartition *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
 
                     readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
                     level = currSE.value1;
@@ -564,10 +556,9 @@ static void read_tc_chroma(mb_t *currMB)
     int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
 
     if (currMB->cbp > 15) {      
+        DataPartition *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
         syntax_element_t currSE;
         currSE.context = sps->ChromaArrayType == 1 ? CHROMA_DC : CHROMA_DC_2x4;
-        currSE.type    = currMB->is_intra_block ? SE_CHR_DC_INTRA : SE_CHR_DC_INTER;
-        DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
 
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
             currMB->is_v_block = iCbCr * 2;
@@ -611,10 +602,9 @@ static void read_tc_chroma(mb_t *currMB)
     }
 
     if (currMB->cbp > 31) {
+        DataPartition *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
         syntax_element_t currSE;
         currSE.context = CHROMA_AC;
-        currSE.type    = currMB->is_intra_block ? SE_CHR_AC_INTRA : SE_CHR_AC_INTER;
-        DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][currSE.type]];
 
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
             const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
@@ -681,10 +671,9 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
 {
     slice_t *slice = this->p_Slice;
 
+    DataPartition *dP = &slice->partArr[slice->dp_mode ? 1 : 0];
     syntax_element_t currSE;
-    currSE.type    = SE_LUM_DC_INTRA;
     currSE.context = LUMA_16DC;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     const byte (*pos_scan4x4)[2] = !slice->field_pic_flag && !this->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
     int coef_ctr = -1;

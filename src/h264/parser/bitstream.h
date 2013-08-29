@@ -133,11 +133,8 @@ Bitstream *InitPartition(DataPartition *dp, struct nalu_t *nalu);
 
 
 struct syntax_element_t {
-    int type;    //!< type of syntax element for data part.
     int value1;  //!< numerical value of syntax element
     int value2;  //!< for blocked symbols, e.g. run/level
-    int len;     //!< length of code
-    int inf;     //!< info part of CAVLC code
     int context; //!< CABAC context
 };
 

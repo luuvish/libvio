@@ -26,8 +26,6 @@
 #include "intra_prediction.h"
 
 
-#include "bitstream_elements.h"
-
 // Macro defines
 #define Q_BITS          15
 #define DQ_BITS          6

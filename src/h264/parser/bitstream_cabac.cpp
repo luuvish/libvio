@@ -16,7 +16,6 @@
 #include "macroblock.h"
 #include "bitstream.h"
 #include "bitstream_cabac.h"
-#include "bitstream_elements.h"
 
 
 // Table 9-44 Specification of rangeTabLPS depending on pStateIdx and qCodIRangeIdx
@@ -219,9 +218,8 @@ int cabac_startcode_follows(slice_t *currSlice, int eos_bit)
     unsigned int  bit;
 
     if (eos_bit) {
-        const byte     *partMap = assignSE2partition[currSlice->dp_mode];
-        DataPartition  *dP      = &(currSlice->partArr[partMap[SE_MBTYPE]]);  
-        cabac_engine_t *dep_dp  = &dP->bitstream->de_cabac;
+        Bitstream *bitstream = currSlice->partArr[0].bitstream;
+        cabac_engine_t *dep_dp = &bitstream->de_cabac;
 
         bit = dep_dp->decode_terminate(); //GB
     } else
@@ -232,9 +230,7 @@ int cabac_startcode_follows(slice_t *currSlice, int eos_bit)
 
 int uvlc_startcode_follows(slice_t *currSlice, int dummy)
 {
-    byte            dp_Nr = assignSE2partition[currSlice->dp_mode][SE_MBTYPE];
-    DataPartition     *dP = &(currSlice->partArr[dp_Nr]);
-    Bitstream *currStream = dP->bitstream;
+    Bitstream *bitstream = currSlice->partArr[0].bitstream;
 
-    return !currStream->more_rbsp_data();
+    return !bitstream->more_rbsp_data();
 }

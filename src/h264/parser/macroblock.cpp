@@ -25,7 +25,6 @@
 #include "global.h"
 #include "slice.h"
 #include "dpb.h"
-#include "bitstream_elements.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
 #include "macroblock.h"

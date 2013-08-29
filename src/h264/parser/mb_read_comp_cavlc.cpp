@@ -13,7 +13,6 @@
 
 #include "global.h"
 #include "slice.h"
-#include "bitstream_elements.h"
 #include "bitstream.h"
 #include "macroblock.h"
 #include "mb_read.h"
@@ -177,9 +176,8 @@ static const uint8_t run_before_code[15][16] = {
 
 uint8_t macroblock_t::parse_coeff_token(int nC)
 {
-    slice_t *currSlice = this->p_Slice;
-    int dptype = this->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
-    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
+    slice_t *slice = this->p_Slice;
+    DataPartition *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
     Bitstream *currStream = dP->bitstream;
 
     if (nC >= 8) {
@@ -248,9 +246,8 @@ static int16_t parse_level(Bitstream *currStream, uint8_t level_prefix, uint8_t 
 
 uint8_t macroblock_t::parse_total_zeros(int yuv, int tzVlcIndex)
 {
-    slice_t *currSlice = this->p_Slice;
-    int dptype = this->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
-    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
+    slice_t *slice = this->p_Slice;
+    DataPartition *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
     Bitstream *currStream = dP->bitstream;
 
     int tab = tzVlcIndex - 1;
@@ -270,9 +267,8 @@ uint8_t macroblock_t::parse_total_zeros(int yuv, int tzVlcIndex)
 
 uint8_t macroblock_t::parse_run_before(uint8_t zerosLeft)
 {
-    slice_t *currSlice = this->p_Slice;
-    int dptype = this->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
-    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
+    slice_t *slice = this->p_Slice;
+    DataPartition *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
     Bitstream *currStream = dP->bitstream;
 
     int tab = imin(zerosLeft, 7) - 1;
@@ -294,9 +290,8 @@ uint8_t macroblock_t::parse_run_before(uint8_t zerosLeft)
 void macroblock_t::read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
                                         int levelVal[16], int runVal[16], int *number_coefficients)
 {
-    slice_t *currSlice = this->p_Slice;
-    int dptype = this->is_intra_block ? SE_LUM_AC_INTRA : SE_LUM_AC_INTER;
-    DataPartition *dP = &currSlice->partArr[assignSE2partition[currSlice->dp_mode][dptype]];
+    slice_t *slice = this->p_Slice;
+    DataPartition *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
     Bitstream *currStream = dP->bitstream;
 
     memset(levelVal, 0, maxNumCoeff * sizeof(int));

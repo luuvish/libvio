@@ -25,7 +25,6 @@
 #include "global.h"
 #include "slice.h"
 #include "dpb.h"
-#include "bitstream_elements.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
 #include "macroblock.h"
@@ -457,7 +456,7 @@ void macroblock_t::parse()
                 check_next_mb_and_get_field_mode_CABAC(slice);
         } else {
             if (slice->mb_skip_run == 1 && slice->MbaffFrameFlag && CurrMbAddr % 2 == 0) {
-                DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][SE_MBTYPE]];
+                DataPartition *dP = &slice->partArr[0];
                 this->mb_field_decoding_flag = dP->bitstream->next_bits(1);
             }
         }
@@ -528,7 +527,7 @@ void macroblock_t::parse_i_pcm()
     if (slice->dp_mode && slice->dpB_NotPresent)
         concealIPCMcoeffs(this);
     else {
-        DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][SE_LUM_DC_INTRA]];
+        DataPartition *dP = &slice->partArr[slice->dp_mode ? 1 : 0];
         read_IPCM_coeffs_from_NAL(slice, dP);
     }
 }

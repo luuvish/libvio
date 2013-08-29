@@ -14,7 +14,6 @@
 
 #include "global.h"
 #include "slice.h"
-#include "bitstream_elements.h"
 #include "bitstream_nal.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"

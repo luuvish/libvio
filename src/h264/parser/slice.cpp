@@ -11,7 +11,6 @@
 
 #include "global.h"
 #include "bitstream.h"
-#include "bitstream_elements.h"
 #include "defines.h"
 #include "fmo.h"
 #include "dpb.h"
@@ -24,9 +23,7 @@
 void slice_header(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
-    byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
-    DataPartition *partition = &(currSlice->partArr[dP_nr]);
-    Bitstream *s = partition->bitstream;
+    Bitstream *s = currSlice->partArr[0].bitstream;
 
     currSlice->first_mb_in_slice = s->ue("SH: first_mb_in_slice");
     p_Vid->type = currSlice->slice_type = s->ue("SH: slice_type") % 5;
@@ -231,9 +228,7 @@ void slice_header(slice_t *currSlice)
 
 void ref_pic_list_modification(slice_t *currSlice)
 {
-    byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
-    DataPartition *partition = &currSlice->partArr[dP_nr];
-    Bitstream *s = partition->bitstream;
+    Bitstream *s = currSlice->partArr[0].bitstream;
 
     currSlice->ref_pic_list_modification_flag_l0 = 0;
     if (currSlice->slice_type != I_slice && currSlice->slice_type != SI_slice) {
@@ -271,9 +266,7 @@ void ref_pic_list_modification(slice_t *currSlice)
 #if (MVC_EXTENSION_ENABLE)
 void ref_pic_list_mvc_modification(slice_t *currSlice)
 {
-    byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
-    DataPartition *partition = &(currSlice->partArr[dP_nr]);
-    Bitstream *s = partition->bitstream;
+    Bitstream *s = currSlice->partArr[0].bitstream;
 
     currSlice->ref_pic_list_modification_flag_l0 = 0;
     if (currSlice->slice_type != I_slice && currSlice->slice_type != SI_slice) {
@@ -317,9 +310,7 @@ void ref_pic_list_mvc_modification(slice_t *currSlice)
 
 void pred_weight_table(slice_t *currSlice)
 {
-    byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
-    DataPartition *partition = &(currSlice->partArr[dP_nr]);
-    Bitstream *s = partition->bitstream;
+    Bitstream *s = currSlice->partArr[0].bitstream;
 
     sps_t *sps = currSlice->active_sps;
     int i, j;
@@ -423,9 +414,7 @@ void pred_weight_table(slice_t *currSlice)
 
 void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *s, slice_t *currSlice)
 {
-    //byte dP_nr = assignSE2partition[currSlice->dp_mode][SE_HEADER];
-    //DataPartition *partition = &currSlice->partArr[dP_nr];
-    //Bitstream *s = partition->bitstream;
+    //Bitstream *s = currSlice->partArr[0].bitstream;
 
     sps_t *sps = currSlice->active_sps;
     int val;

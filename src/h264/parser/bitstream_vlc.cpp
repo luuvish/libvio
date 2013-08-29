@@ -16,7 +16,6 @@
 #include "global.h"
 #include "macroblock.h"
 #include "bitstream.h"
-#include "bitstream_elements.h"
 
 
 bool bit_stream_dec::more_rbsp_data(void)

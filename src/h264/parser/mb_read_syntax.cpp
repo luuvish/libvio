@@ -4,7 +4,6 @@
 #include "global.h"
 #include "slice.h"
 #include "dpb.h"
-#include "bitstream_elements.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
 #include "macroblock.h"
@@ -216,7 +215,7 @@ static void readMB_typeInfo_CABAC_p_slice(mb_t *currMB, syntax_element_t *se, ca
             // decoding of I pred-mode: 0,1,2,3
             act_ctx = 10;
             mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx);
-            act_sym += mode_sym*2;
+            act_sym += mode_sym * 2;
             mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx);
             act_sym += mode_sym;
             curr_mb_type = act_sym;
@@ -732,9 +731,8 @@ int check_next_mb_and_get_field_mode_CABAC(slice_t *slice)
 
     mb_t *currMB;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_MBTYPE;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     cabac_engine_t *dep_dp = &dP->bitstream->de_cabac;
 
@@ -804,9 +802,8 @@ uint32_t parse_mb_skip_run(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_MBTYPE;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag)
         currSE.value1 = dP->bitstream->ue();
@@ -819,9 +816,8 @@ bool parse_mb_skip_flag(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_MBTYPE;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag)
         currSE.value1 = dP->bitstream->ue();
@@ -838,9 +834,8 @@ bool parse_mb_field_decoding_flag(mb_t *mb)
 	slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_MBTYPE;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag)
         currSE.value1 = dP->bitstream->f(1);
@@ -855,9 +850,8 @@ uint32_t parse_mb_type(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_MBTYPE;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag)   
         currSE.value1 = dP->bitstream->ue();
@@ -883,9 +877,8 @@ uint8_t parse_sub_mb_type(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_MBTYPE;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag) 
         currSE.value1 = dP->bitstream->ue();
@@ -901,9 +894,8 @@ bool parse_transform_size_8x8_flag(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_HEADER;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag)
         currSE.value1 = dP->bitstream->f(1);
@@ -918,9 +910,8 @@ int8_t parse_intra_pred_mode(mb_t *mb, uint8_t block4x4Idx)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_INTRAPREDMODE;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag) {
         if (dP->bitstream->f(1))
@@ -940,9 +931,8 @@ uint8_t parse_intra_chroma_pred_mode(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_INTRAPREDMODE;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag)
         currSE.value1 = dP->bitstream->ue();
@@ -957,9 +947,8 @@ uint8_t parse_ref_idx(mb_t *mb, uint8_t b8mode, uint8_t list)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    bool refidx_present = (slice->slice_type == B_slice) ||
-                          (!slice->allrefzero) ||
-                          (mb->mb_type != P8x8);
+    bool refidx_present =
+        slice->slice_type == B_slice || !slice->allrefzero || mb->mb_type != P8x8;
     int num_ref_idx_active = list == LIST_0 ?
         slice->num_ref_idx_l0_active_minus1 + 1 :
         slice->num_ref_idx_l1_active_minus1 + 1;
@@ -967,9 +956,8 @@ uint8_t parse_ref_idx(mb_t *mb, uint8_t b8mode, uint8_t list)
     if (!refidx_present || num_ref_idx_active <= 1)
         return 0;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_REFFRAME;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag) {
         if (num_ref_idx_active == 2)
@@ -990,9 +978,8 @@ int16_t parse_mvd(mb_t *mb, uint8_t xy, uint8_t list)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = SE_MVD;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag) 
         currSE.value1 = dP->bitstream->se();
@@ -1004,30 +991,36 @@ int16_t parse_mvd(mb_t *mb, uint8_t xy, uint8_t list)
     return currSE.value1;
 }
 
-//! gives CBP value from codeword number, both for intra and inter
-static const byte NCBP[2][48][2] = {
-      // 0      1        2       3       4       5       6       7       8       9      10      11
-    {{15, 0},{ 0, 1},{ 7, 2},{11, 4},{13, 8},{14, 3},{ 3, 5},{ 5,10},{10,12},{12,15},{ 1, 7},{ 2,11},
-     { 4,13},{ 8,14},{ 6, 6},{ 9, 9},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
-     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},
-     { 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0},{ 0, 0}},
-    {{47, 0},{31,16},{15, 1},{ 0, 2},{23, 4},{27, 8},{29,32},{30, 3},{ 7, 5},{11,10},{13,12},{14,15},
-     {39,47},{43, 7},{45,11},{46,13},{16,14},{ 3, 6},{ 5, 9},{10,31},{12,35},{19,37},{21,42},{26,44},
-     {28,33},{35,34},{37,36},{42,40},{44,39},{ 1,43},{ 2,45},{ 4,46},{ 8,17},{17,18},{18,20},{20,24},
-     {24,19},{ 6,21},{ 9,26},{22,28},{25,23},{32,27},{33,29},{34,30},{36,22},{40,25},{38,38},{41,41}}
-};
-
 uint8_t parse_coded_block_pattern(mb_t *mb)
 {
     slice_t *slice = mb->p_Slice;
     sps_t *sps = slice->active_sps;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = mb->is_intra_block ? SE_CBP_INTRA : SE_CBP_INTER;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag) {
+        //! gives CBP value from codeword number, both for intra and inter
+        static const uint8_t NCBP[2][48][2] = {
+            { { 15,  0 } , {  0,  1 } , {  7,  2 } , { 11,  4 } , { 13,  8 } , { 14,  3 },
+              {  3,  5 } , {  5, 10 } , { 10, 12 } , { 12, 15 } , {  1,  7 } , {  2, 11 },
+              {  4, 13 } , {  8, 14 } , {  6,  6 } , {  9,  9 } , {  0,  0 } , {  0,  0 },
+              {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 },
+              {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 },
+              {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 },
+              {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 },
+              {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } , {  0,  0 } },
+            { { 47,  0 } , { 31, 16 } , { 15,  1 } , {  0,  2 } , { 23,  4 } , { 27,  8 },
+              { 29, 32 } , { 30,  3 } , {  7,  5 } , { 11, 10 } , { 13, 12 } , { 14, 15 },
+              { 39, 47 } , { 43,  7 } , { 45, 11 } , { 46, 13 } , { 16, 14 } , {  3,  6 },
+              {  5,  9 } , { 10, 31 } , { 12, 35 } , { 19, 37 } , { 21, 42 } , { 26, 44 },
+              { 28, 33 } , { 35, 34 } , { 37, 36 } , { 42, 40 } , { 44, 39 } , {  1, 43 },
+              {  2, 45 } , {  4, 46 } , {  8, 17 } , { 17, 18 } , { 18, 20 } , { 20, 24 },
+              { 24, 19 } , {  6, 21 } , {  9, 26 } , { 22, 28 } , { 25, 23 } , { 32, 27 },
+              { 33, 29 } , { 34, 30 } , { 36, 22 } , { 40, 25 } , { 38, 38 } , { 41, 41 } }
+        };
+
         bool normal  = (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ? 0 : 1);
         bool inter   = (mb->is_intra_block ? 0 : 1);
         int  cbp_idx = dP->bitstream->ue();
@@ -1043,9 +1036,8 @@ int8_t parse_mb_qp_delta(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
+    DataPartition *dP = &slice->partArr[0];
     syntax_element_t currSE;
-    currSE.type = !mb->is_intra_block ? SE_DELTA_QUANT_INTER : SE_DELTA_QUANT_INTRA;
-    DataPartition *dP = &slice->partArr[assignSE2partition[slice->dp_mode][currSE.type]];
 
     if (!pps->entropy_coding_mode_flag)
         currSE.value1 = dP->bitstream->se();
