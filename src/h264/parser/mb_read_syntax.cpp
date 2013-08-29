@@ -19,146 +19,49 @@
 #include "mb_read_syntax.h"
 
 
-
-static void read_skip_flag_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    cabac_contexts_t *ctx = currSlice->mot_ctx;
-    int tabIdx = currSlice->slice_type == B_SLICE ? 2 : 1;
-    int ctxIdx = currSlice->slice_type == B_SLICE ? 7 : 0;
-
-    int condTermFlagA = (currMB->mb_left != NULL) ? (currMB->mb_left->mb_skip_flag == 0) : 0;
-    int condTermFlagB = (currMB->mb_up   != NULL) ? (currMB->mb_up  ->mb_skip_flag == 0) : 0;
-    int ctxIdxInc = condTermFlagA + condTermFlagB;
-
-    se->value1 = dep_dp->decode_decision(&ctx->mb_type_contexts[tabIdx][ctxIdx + ctxIdxInc]) != 1;
-
-    if (!se->value1)
-        currMB->p_Slice->last_dquant = 0;
-}
-
-static void readFieldModeInfo_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    cabac_contexts_t *ctx = currSlice->mot_ctx;
-
-    int condTermFlagA = currMB->mbAvailA ? currSlice->mb_data[currMB->mbAddrA].mb_field_decoding_flag : 0;
-    int condTermFlagB = currMB->mbAvailB ? currSlice->mb_data[currMB->mbAddrB].mb_field_decoding_flag : 0;
-    int ctxIdxInc = condTermFlagA + condTermFlagB;
-
-    se->value1 = dep_dp->decode_decision(&ctx->mb_aff_contexts[ctxIdxInc]);
-}
-
 static void readMB_typeInfo_CABAC_i_slice(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
 
-    int a = 0, b = 0;
-    int act_ctx;
-    int act_sym;
-    int mode_sym;
-    int curr_mb_type = 0;
+    uint8_t mb_type = 0;
 
-    if (currSlice->slice_type == I_SLICE) { // INTRA-frame
-        if (currMB->mb_up != NULL)
-            b = (currMB->mb_up->mb_type != I4MB && currMB->mb_up->mb_type != I8MB ? 1 : 0 );
-        if (currMB->mb_left != NULL)
-            a = (currMB->mb_left->mb_type != I4MB && currMB->mb_left->mb_type != I8MB ? 1 : 0);
+    if (currSlice->slice_type == SI_slice) {
+        int condTermFlagA = currMB->mb_left && currMB->mb_left->mb_type != SI4MB ? 1 : 0;
+        int condTermFlagB = currMB->mb_up   && currMB->mb_up  ->mb_type != SI4MB ? 1 : 0;
+        int ctxIdxInc = condTermFlagA + condTermFlagB;
+        se->context = ctxIdxInc; // store context
 
-        act_ctx = a + b;
-        act_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx);
-        se->context = act_ctx; // store context
-
-        if (act_sym == 0) // 4x4 Intra
-            curr_mb_type = act_sym;
-        else { // 16x16 Intra
-            mode_sym = dep_dp->decode_terminate();
-            if (mode_sym == 1)
-                curr_mb_type = 25;
-            else {
-                act_sym = 1;
-                act_ctx = 4;
-                mode_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx); // decoding of AC/no AC
-                act_sym += mode_sym * 12;
-                act_ctx = 5;
-                // decoding of cbp: 0,1,2
-                mode_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx);
-                if (mode_sym != 0) {
-                    act_ctx = 6;
-                    mode_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx);
-                    act_sym += 4;
-                    if (mode_sym != 0)
-                        act_sym += 4;
-                }
-                // decoding of I pred-mode: 0,1,2,3
-                act_ctx = 7;
-                mode_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx);
-                act_sym += mode_sym * 2;
-                act_ctx = 8;
-                mode_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx);
-                act_sym += mode_sym;
-                curr_mb_type = act_sym;
-            }
-        }
-    } else if (currSlice->slice_type == SI_SLICE) { // SI-frame
-        // special ctx's for SI4MB
-        if (currMB->mb_up != NULL)
-            b = (( (currMB->mb_up)->mb_type != SI4MB) ? 1 : 0 );
-        if (currMB->mb_left != NULL)
-            a = (( (currMB->mb_left)->mb_type != SI4MB) ? 1 : 0 );
-
-        act_ctx = a + b;
-        act_sym = dep_dp->decode_decision(ctx->mb_type_contexts[1] + act_ctx);
-        se->context = act_ctx; // store context
-
-        if (act_sym == 0) //  SI 4x4 Intra
-            curr_mb_type = 0;
-        else { // analog INTRA_IMG
-            if (currMB->mb_up != NULL)
-                b = (( (currMB->mb_up)->mb_type != I4MB) ? 1 : 0 );
-            if (currMB->mb_left != NULL)
-                a = (( (currMB->mb_left)->mb_type != I4MB) ? 1 : 0 );
-
-            act_ctx = a + b;
-            act_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx);
-            se->context = act_ctx; // store context
-
-            if (act_sym == 0) // 4x4 Intra
-                curr_mb_type = 1;
-            else { // 16x16 Intra
-                mode_sym = dep_dp->decode_terminate();
-                if (mode_sym == 1)
-                    curr_mb_type = 26;
-                else {
-                    act_sym = 2;
-                    act_ctx = 4;
-                    mode_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx); // decoding of AC/no AC
-                    act_sym += mode_sym * 12;
-                    act_ctx = 5;
-                    // decoding of cbp: 0,1,2
-                    mode_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx);
-                    if (mode_sym != 0) {
-                        act_ctx = 6;
-                        mode_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx);
-                        act_sym += 4;
-                        if (mode_sym != 0)
-                          act_sym += 4;
-                    }
-                    // decoding of I pred-mode: 0,1,2,3
-                    act_ctx = 7;
-                    mode_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx);
-                    act_sym += mode_sym * 2;
-                    act_ctx = 8;
-                    mode_sym = dep_dp->decode_decision(ctx->mb_type_contexts[0] + act_ctx);
-                    act_sym += mode_sym;
-                    curr_mb_type = act_sym;
-                }
-            }
-        }
+        mb_type = dep_dp->decode_decision(ctx->mb_type_contexts[1] + ctxIdxInc);
     }
 
-    se->value1 = curr_mb_type;
+    if (currSlice->slice_type == I_slice || mb_type) {
+        int condTermFlagA = 0;
+        int condTermFlagB = 0;
+        if (currSlice->slice_type == I_slice) {
+            condTermFlagA = currMB->mb_left && currMB->mb_left->mb_type != I4MB && currMB->mb_left->mb_type != I8MB ? 1 : 0;
+            condTermFlagB = currMB->mb_up   && currMB->mb_up  ->mb_type != I4MB && currMB->mb_up->mb_type   != I8MB ? 1 : 0;
+        } else if (currSlice->slice_type == SI_slice) {
+            condTermFlagA = currMB->mb_left && currMB->mb_left->mb_type != I4MB ? 1 : 0;
+            condTermFlagB = currMB->mb_up   && currMB->mb_up  ->mb_type != I4MB ? 1 : 0;
+        }
+        int ctxIdxInc = condTermFlagA + condTermFlagB;
+        se->context = ctxIdxInc; // store context
+
+        if (!dep_dp->decode_decision(ctx->mb_type_contexts[0] + ctxIdxInc))
+            mb_type += 0;
+        else if (!dep_dp->decode_terminate()) {
+            mb_type += 1;
+            mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[0] + 4) * 12;
+            if (dep_dp->decode_decision(ctx->mb_type_contexts[0] + 5))
+                mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[0] + 6) * 4 + 4;
+            mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[0] + 7) * 2;
+            mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[0] + 8);
+        } else
+            mb_type += 25;
+    }
+
+    se->value1 = mb_type;
 }
 
 static void readMB_typeInfo_CABAC_p_slice(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
@@ -166,63 +69,31 @@ static void readMB_typeInfo_CABAC_p_slice(mb_t *currMB, syntax_element_t *se, ca
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
 
-    int act_ctx;
-    int act_sym;
-    int mode_sym;
-    int curr_mb_type;
-    cabac_context_t *mb_type_contexts = ctx->mb_type_contexts[1];
+    uint8_t mb_type = 0;
 
-    if (dep_dp->decode_decision(&mb_type_contexts[4])) {
-        if (dep_dp->decode_decision(&mb_type_contexts[7]))
-            act_sym = 7;
-        else
-            act_sym = 6;
+    if (dep_dp->decode_decision(ctx->mb_type_contexts[1] + 4)) {
+        mb_type = 6;
+        mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[1] + 7);
+    } else if (dep_dp->decode_decision(ctx->mb_type_contexts[1] + 5)) {
+        mb_type = 3;
+        mb_type -= dep_dp->decode_decision(ctx->mb_type_contexts[1] + 7);
     } else {
-        if (dep_dp->decode_decision(&mb_type_contexts[5])) {
-            if (dep_dp->decode_decision(&mb_type_contexts[7])) 
-                act_sym = 2;
-            else
-                act_sym = 3;
-        } else {
-            if (dep_dp->decode_decision(&mb_type_contexts[6]))
-                act_sym = 4;
-            else
-                act_sym = 1;
-        }
+        mb_type = 1;
+        mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[1] + 6) * 3;
     }
 
-    if (act_sym <= 6)
-        curr_mb_type = act_sym;
-    else { // additional info for 16x16 Intra-mode
-        mode_sym = dep_dp->decode_terminate();
-        if (mode_sym == 1)
-            curr_mb_type = 31;
-        else {
-            act_ctx = 8;
-            mode_sym =  dep_dp->decode_decision(mb_type_contexts + act_ctx); // decoding of AC/no AC
-            act_sym += mode_sym*12;
+    if (mb_type <= 6)
+        mb_type += 0;
+    else if (!dep_dp->decode_terminate()) {
+        mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[1] + 8) * 12;
+        if (dep_dp->decode_decision(ctx->mb_type_contexts[1] + 9))
+            mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[1] + 9) * 4 + 4;
+        mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[1] + 10) * 2;
+        mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[1] + 10);
+    } else
+        mb_type = 31;
 
-            // decoding of cbp: 0,1,2
-            act_ctx = 9;
-            mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx);
-            if (mode_sym != 0) {
-                act_sym += 4;
-                mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx);
-                if (mode_sym != 0)
-                    act_sym += 4;
-            }
-
-            // decoding of I pred-mode: 0,1,2,3
-            act_ctx = 10;
-            mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx);
-            act_sym += mode_sym * 2;
-            mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx);
-            act_sym += mode_sym;
-            curr_mb_type = act_sym;
-        }
-    }
-
-    se->value1 = curr_mb_type;
+    se->value1 = mb_type;
 }
 
 static void readMB_typeInfo_CABAC_b_slice(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
@@ -230,199 +101,92 @@ static void readMB_typeInfo_CABAC_b_slice(mb_t *currMB, syntax_element_t *se, ca
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
 
-    int a = 0, b = 0;
-    int act_ctx;
-    int act_sym;
-    int mode_sym;
-    int curr_mb_type;
-    cabac_context_t *mb_type_contexts = ctx->mb_type_contexts[2];
+    uint8_t mb_type = 0;
 
-    if (currMB->mb_up != NULL)
-        b = (( (currMB->mb_up)->mb_type != 0) ? 1 : 0 );
+    int condTermFlagA = currMB->mb_left && currMB->mb_left->mb_type != 0 ? 1 : 0;
+    int condTermFlagB = currMB->mb_up   && currMB->mb_up  ->mb_type != 0 ? 1 : 0;
+    int ctxIdxInc = condTermFlagA + condTermFlagB;
 
-    if (currMB->mb_left != NULL)
-        a = (( (currMB->mb_left)->mb_type != 0) ? 1 : 0 );
+    if (dep_dp->decode_decision(ctx->mb_type_contexts[2] + ctxIdxInc)) {
+        if (dep_dp->decode_decision(ctx->mb_type_contexts[2] + 4)) {
+            if (dep_dp->decode_decision(ctx->mb_type_contexts[2] + 5)) {
+                mb_type = 12;
+                mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[2] + 6) * 8; 
+                mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[2] + 6) * 4;
+                mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[2] + 6) * 2;
 
-    act_ctx = a + b;
-
-    if (dep_dp->decode_decision(&mb_type_contexts[act_ctx])) {
-        if (dep_dp->decode_decision(&mb_type_contexts[4])) {
-            if (dep_dp->decode_decision(&mb_type_contexts[5])) {
-                act_sym = 12;
-                if (dep_dp->decode_decision(&mb_type_contexts[6])) 
-                    act_sym += 8;
-                if (dep_dp->decode_decision(&mb_type_contexts[6])) 
-                    act_sym += 4;
-                if (dep_dp->decode_decision(&mb_type_contexts[6])) 
-                    act_sym += 2;
-
-                if (act_sym == 24)  
-                    act_sym = 11;
-                else if (act_sym == 26)  
-                    act_sym = 22;
+                if (mb_type == 24)  
+                    mb_type = 11;
+                else if (mb_type == 26)  
+                    mb_type = 22;
                 else {
-                    if (act_sym == 22)
-                        act_sym = 23;
-                    if (dep_dp->decode_decision(&mb_type_contexts[6]))
-                        act_sym += 1;
+                    if (mb_type == 22)
+                        mb_type = 23;
+                    mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[2] + 6);
                 }
             } else {
-                act_sym = 3;
-                if (dep_dp->decode_decision(&mb_type_contexts[6])) 
-                    act_sym += 4;
-                if (dep_dp->decode_decision(&mb_type_contexts[6])) 
-                    act_sym += 2;
-                if (dep_dp->decode_decision(&mb_type_contexts[6])) 
-                    act_sym += 1;
+                mb_type = 3;
+                mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[2] + 6) * 4;
+                mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[2] + 6) * 2;
+                mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[2] + 6);
             }
-        } else {
-            if (dep_dp->decode_decision(&mb_type_contexts[6])) 
-                act_sym = 2;
-            else
-                act_sym = 1;
-        }
+        } else
+            mb_type = dep_dp->decode_decision(ctx->mb_type_contexts[2] + 6) + 1;
     } else
-        act_sym = 0;
+        mb_type = 0;
 
-    if (act_sym <= 23)
-        curr_mb_type = act_sym;
-    else { // additional info for 16x16 Intra-mode
-        mode_sym = dep_dp->decode_terminate();
-        if (mode_sym == 1)
-            curr_mb_type = 48;
-        else {
-            mb_type_contexts = ctx->mb_type_contexts[1];
-            act_ctx = 8;
-            mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx); // decoding of AC/no AC
-            act_sym += mode_sym*12;
+    if (mb_type <= 23)
+        mb_type += 0;
+    else if (!dep_dp->decode_terminate()) {
+        mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[1] + 8) * 12;
+        if (dep_dp->decode_decision(ctx->mb_type_contexts[1] + 9))
+            mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[1] + 9) * 4 + 4;
+        mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[1] + 10) * 2;
+        mb_type += dep_dp->decode_decision(ctx->mb_type_contexts[1] + 10);
+    } else
+        mb_type = 48;
 
-            // decoding of cbp: 0,1,2
-            act_ctx = 9;
-            mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx);
-            if (mode_sym != 0) {
-                act_sym += 4;
-                mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx);
-                if (mode_sym != 0)
-                    act_sym += 4;
-            }
-
-            // decoding of I pred-mode: 0,1,2,3
-            act_ctx = 10;
-            mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx);
-            act_sym += mode_sym * 2;
-            mode_sym = dep_dp->decode_decision(mb_type_contexts + act_ctx);
-            act_sym += mode_sym;
-            curr_mb_type = act_sym;
-        }
-    }
-
-    se->value1 = curr_mb_type;
+    se->value1 = mb_type;
 }
 
 static void readB8_typeInfo_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
     slice_t *currSlice = currMB->p_Slice;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
-    cabac_context_t *b8_type_contexts;
-    int act_sym = 0;
+
+    uint8_t mb_type = 0;
 
     if (currSlice->slice_type == P_slice) {
-        b8_type_contexts = &ctx->b8_type_contexts[0][1];
-
-        if (dep_dp->decode_decision(b8_type_contexts++))
-            act_sym = 0;
-        else {
-            if (dep_dp->decode_decision(++b8_type_contexts))
-                act_sym = (dep_dp->decode_decision(++b8_type_contexts)) ? 2: 3;
-            else
-                act_sym = 1;
+        mb_type = 0;
+        if (!dep_dp->decode_decision(ctx->b8_type_contexts[0] + 1)) {
+            mb_type += 1;
+            if (dep_dp->decode_decision(ctx->b8_type_contexts[0] + 3)) {
+                mb_type += 1;
+                mb_type += dep_dp->decode_decision(ctx->b8_type_contexts[0] + 4) ? 0 : 1;
+            }
         }
     } else {
-        b8_type_contexts = ctx->b8_type_contexts[1];
-
-        if (dep_dp->decode_decision(b8_type_contexts++)) {
-            if (dep_dp->decode_decision(b8_type_contexts++)) {
-                if (dep_dp->decode_decision(b8_type_contexts++)) {
-                    if (dep_dp->decode_decision(b8_type_contexts)) {
-                        act_sym = 10;
-                        if (dep_dp->decode_decision(b8_type_contexts)) 
-                            act_sym++;
-                    } else {
-                        act_sym = 6;
-                        if (dep_dp->decode_decision(b8_type_contexts)) 
-                            act_sym += 2;
-                        if (dep_dp->decode_decision(b8_type_contexts)) 
-                            act_sym++;
-                    }
-                } else {
-                    act_sym = 2;
-                    if (dep_dp->decode_decision(b8_type_contexts)) 
-                        act_sym += 2;
-                    if (dep_dp->decode_decision(b8_type_contexts)) 
-                        act_sym++;
-                }
-            } else
-                act_sym = dep_dp->decode_decision(++b8_type_contexts) ? 1 : 0;
-            act_sym++;
-        } else
-            act_sym = 0;
+        mb_type = 0;
+        if (dep_dp->decode_decision(ctx->b8_type_contexts[1])) {
+            mb_type += 1;
+            if (dep_dp->decode_decision(ctx->b8_type_contexts[1] + 1)) {
+                mb_type += 2;
+                if (dep_dp->decode_decision(ctx->b8_type_contexts[1] + 2)) {
+                    mb_type += 4;
+                    if (dep_dp->decode_decision(ctx->b8_type_contexts[1] + 3))
+                        mb_type += 4;
+                    else
+                        mb_type += dep_dp->decode_decision(ctx->b8_type_contexts[1] + 3) * 2;
+                } else
+                    mb_type += dep_dp->decode_decision(ctx->b8_type_contexts[1] + 3) * 2;
+            }
+            mb_type += dep_dp->decode_decision(ctx->b8_type_contexts[1] + 3);
+        }
     }
 
-    se->value1 = act_sym;
+    se->value1 = mb_type;
 }
 
-
-static void readMB_transform_size_flag_CABAC( mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    cabac_contexts_t *ctx = currSlice->mot_ctx;
-
-    int b = (currMB->mb_up   == NULL) ? 0 : currMB->mb_up->transform_size_8x8_flag;
-    int a = (currMB->mb_left == NULL) ? 0 : currMB->mb_left->transform_size_8x8_flag;
-
-    int act_sym = dep_dp->decode_decision(ctx->transform_size_contexts + a + b);
-
-    se->value1 = act_sym;
-}
-
-static void readIntraPredMode_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    cabac_contexts_t *ctx = currSlice->mot_ctx;
-
-    int act_sym = dep_dp->decode_decision(ctx->ipr_contexts);
-
-    // remaining_mode_selector
-    if (act_sym == 1)
-        se->value1 = -1;
-    else {
-        se->value1  = (dep_dp->decode_decision(ctx->ipr_contexts + 1)     );
-        se->value1 |= (dep_dp->decode_decision(ctx->ipr_contexts + 1) << 1);
-        se->value1 |= (dep_dp->decode_decision(ctx->ipr_contexts + 1) << 2);
-    }
-}
-
-static void readCIPredMode_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    cabac_contexts_t *ctx = currSlice->mot_ctx;
-
-    mb_t *MbUp   = currMB->mb_up;
-    mb_t *MbLeft = currMB->mb_left;
-
-    int b = (MbUp != NULL)   ? (((MbUp->intra_chroma_pred_mode   != 0) && (MbUp->mb_type != IPCM)) ? 1 : 0) : 0;
-    int a = (MbLeft != NULL) ? (((MbLeft->intra_chroma_pred_mode != 0) && (MbLeft->mb_type != IPCM)) ? 1 : 0) : 0;
-    int act_ctx = a + b;
-    int act_sym;
-
-    // binIdx[] = { act_ctx, 3, 3 };
-
-    act_sym = dep_dp->decode_decision(ctx->cipr_contexts + act_ctx);
-    if (act_sym != 0)
-        act_sym = dep_dp->tu(ctx->cipr_contexts + 3, 0, 1) + 1;
-
-    se->value1 = act_sym;
-}
 
 static void readRefFrame_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
@@ -590,96 +354,56 @@ static void read_mvd_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *d
 
 static void read_CBP_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
-    StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
     slice_t *currSlice = currMB->p_Slice;
+    sps_t *sps = currSlice->active_sps;
     cabac_contexts_t *ctx = currSlice->mot_ctx;
-    mb_t *neighborMB = NULL;
 
-    int mb_x, mb_y;
-    int a = 0, b = 0;
-    int curr_cbp_ctx;
     int cbp = 0;
-    int cbp_bit;
-    int mask;
-    PixelPos block_a;
-
-    int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
 
     //  coding of luma part (bit by bit)
-    for (mb_y = 0; mb_y < 4; mb_y += 2) {
-        if (mb_y == 0) {
-            neighborMB = currMB->mb_up;
-            b = 0;
-        }
-
-        for (mb_x = 0; mb_x < 4; mb_x += 2) {
-            if (mb_y == 0) {
-                if (neighborMB != NULL) {
-                    if (neighborMB->mb_type!=IPCM)
-                        b = (( (neighborMB->cbp & (1<<(2 + (mb_x>>1)))) == 0) ? 2 : 0);
-                }
-            } else
-                b = ( ((cbp & (1<<(mb_x/2))) == 0) ? 2: 0);
+    for (int mb_y = 0; mb_y < 4; mb_y += 2) {
+        for (int mb_x = 0; mb_x < 4; mb_x += 2) {
+            int condTermFlagA = 0;
+            int condTermFlagB = 0;
 
             if (mb_x == 0) {
-                get4x4Neighbour(currMB, (mb_x<<2) - 1, (mb_y << 2), mb_size, &block_a);
-                if (block_a.available) {
-                    if (currSlice->mb_data[block_a.mb_addr].mb_type==IPCM)
-                        a = 0;
-                    else
-                        a = (( (currSlice->mb_data[block_a.mb_addr].cbp & (1<<(2*(block_a.y/2)+1))) == 0) ? 1 : 0);
-                } else
-                    a = 0;
+                PixelPos block_a;
+                int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+                get4x4Neighbour(currMB, (mb_x << 2) - 1, (mb_y << 2), mb_size, &block_a);
+                if (block_a.available && currSlice->mb_data[block_a.mb_addr].mb_type != IPCM) {
+                    int a_cbp = currSlice->mb_data[block_a.mb_addr].cbp;
+                    condTermFlagA = (a_cbp & (1 << (2 * (block_a.y >> 1) + 1))) == 0 ? 1 : 0;
+                }
             } else
-                a = ( ((cbp & (1<<mb_y)) == 0) ? 1: 0);
+                condTermFlagA = (cbp & (1 << mb_y)) == 0 ? 1 : 0;
+            if (mb_y == 0) {
+                if (currMB->mb_up && currMB->mb_up->mb_type != IPCM) {
+                    int b_cbp = currMB->mb_up->cbp;
+                    condTermFlagB = (b_cbp & (1 << (2 + (mb_x >> 1)))) == 0 ? 2 : 0;
+                }
+            } else
+                condTermFlagB = (cbp & (1 << (mb_x >> 1))) == 0 ? 2 : 0;
 
-            curr_cbp_ctx = a + b;
-            mask = (1 << (mb_y + (mb_x >> 1)));
-            cbp_bit = dep_dp->decode_decision(ctx->cbp_contexts[0] + curr_cbp_ctx);
-            if (cbp_bit) 
-                cbp += mask;
+            int ctxIdxInc = condTermFlagA + condTermFlagB;
+            if (dep_dp->decode_decision(ctx->cbp_contexts[0] + ctxIdxInc))
+                cbp += (1 << (mb_y + (mb_x >> 1)));
         }
     }
 
-    if ((dec_picture->chroma_format_idc != YUV400) && (dec_picture->chroma_format_idc != YUV444)) {
+    if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
         // coding of chroma part
         // CABAC decoding for BinIdx 0
-        b = 0;
-        neighborMB = currMB->mb_up;
-        if (neighborMB != NULL) {
-            if (neighborMB->mb_type==IPCM || (neighborMB->cbp > 15))
-                b = 2;
-        }
-
-        a = 0;
-        neighborMB = currMB->mb_left;
-        if (neighborMB != NULL) {
-            if (neighborMB->mb_type==IPCM || (neighborMB->cbp > 15))
-                a = 1;
-        }
-
-        curr_cbp_ctx = a + b;
-        cbp_bit = dep_dp->decode_decision(ctx->cbp_contexts[1] + curr_cbp_ctx);
+        int condTermFlagA = currMB->mb_left && (currMB->mb_left->mb_type == IPCM || currMB->mb_left->cbp > 15) ? 1 : 0;
+        int condTermFlagB = currMB->mb_up   && (currMB->mb_up  ->mb_type == IPCM || currMB->mb_up  ->cbp > 15) ? 2 : 0;
+        int ctxIdxInc = condTermFlagA + condTermFlagB;
 
         // CABAC decoding for BinIdx 1
-        if (cbp_bit) { // set the chroma bits
-            b = 0;
-            neighborMB = currMB->mb_up;
-            if (neighborMB != NULL) {
-                if ((neighborMB->mb_type == IPCM) || ((neighborMB->cbp >> 4) == 2))
-                    b = 2;
-            }
+        if (dep_dp->decode_decision(ctx->cbp_contexts[1] + ctxIdxInc)) { // set the chroma bits
+            condTermFlagA = currMB->mb_left && (currMB->mb_left->mb_type == IPCM || (currMB->mb_left->cbp >> 4) == 2) ? 1 : 0;
+            condTermFlagB = currMB->mb_up   && (currMB->mb_up  ->mb_type == IPCM || (currMB->mb_up  ->cbp >> 4) == 2) ? 2 : 0;
+            ctxIdxInc = condTermFlagA + condTermFlagB;
 
-            a = 0;
-            neighborMB = currMB->mb_left;
-            if (neighborMB != NULL) {
-                if ((neighborMB->mb_type == IPCM) || ((neighborMB->cbp >> 4) == 2))
-                    a = 1;
-            }
-
-            curr_cbp_ctx = a + b;
-            cbp_bit = dep_dp->decode_decision(ctx->cbp_contexts[2] + curr_cbp_ctx);
-            cbp += (cbp_bit == 1) ? 32 : 16;
+            cbp += dep_dp->decode_decision(ctx->cbp_contexts[2] + ctxIdxInc) ? 32 : 16;
         }
     }
 
@@ -689,112 +413,6 @@ static void read_CBP_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *d
         currSlice->last_dquant = 0;
 }
 
-static void read_dQuant_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    cabac_contexts_t *ctx = currSlice->mot_ctx;
-
-    int dquant = 0;
-    int act_ctx = (currSlice->last_dquant != 0 ? 1 : 0);
-    int act_sym = dep_dp->decode_decision(ctx->delta_qp_contexts + act_ctx);
-
-    //int binIdx[] = { act_ctx, 2, 3, 3, 3, 3, 3 };
-
-    if (act_sym != 0) {
-        act_ctx = 2;
-        act_sym = dep_dp->u(ctx->delta_qp_contexts + act_ctx, 1) + 1;
-
-        dquant = (act_sym + 1) >> 1;
-        if ((act_sym & 1) == 0) // lsb is signed bit
-            dquant = -dquant;
-    }
-
-    se->value1 = dquant;
-
-    currSlice->last_dquant = dquant;
-}
-
-
-int check_next_mb_and_get_field_mode_CABAC(slice_t *slice)
-{
-    VideoParameters     *p_Vid = slice->p_Vid;
-    cabac_context_t*       mb_type_ctx_copy[3];
-    cabac_context_t*       mb_aff_ctx_copy;
-    cabac_engine_t *dep_dp_copy;
-    cabac_contexts_t  *mot_ctx  = slice->mot_ctx;  
-
-    int length;
-
-    int skip   = 0;
-    int field  = 0;
-    int i;
-
-    mb_t *currMB;
-
-    DataPartition *dP = &slice->partArr[0];
-    syntax_element_t currSE;
-
-    cabac_engine_t *dep_dp = &dP->bitstream->de_cabac;
-
-    //get next MB
-    ++slice->current_mb_nr;
-  
-    currMB = &slice->mb_data[slice->current_mb_nr];
-    currMB->p_Vid    = p_Vid;
-    currMB->p_Slice  = slice; 
-    currMB->slice_nr = slice->current_slice_nr;
-    currMB->mb_field_decoding_flag = slice->mb_data[slice->current_mb_nr-1].mb_field_decoding_flag;
-    currMB->mbAddrX  = slice->current_mb_nr;
-
-    CheckAvailabilityOfNeighborsMBAFF(currMB);
-    CheckAvailabilityOfNeighborsCABAC(currMB);
-
-    //create
-    dep_dp_copy = (cabac_engine_t *)calloc(1, sizeof(cabac_engine_t) );
-    for (i=0;i<3;++i)
-        mb_type_ctx_copy[i] = (cabac_context_t*) calloc(NUM_MB_TYPE_CTX, sizeof(cabac_context_t) );
-    mb_aff_ctx_copy = (cabac_context_t*) calloc(NUM_MB_AFF_CTX, sizeof(cabac_context_t) );
-
-    //copy
-    memcpy(dep_dp_copy,dep_dp,sizeof(cabac_engine_t));
-    length = *(dep_dp_copy->Dcodestrm_len) = *(dep_dp->Dcodestrm_len);
-    for (i=0;i<3;++i)
-        memcpy(mb_type_ctx_copy[i], mot_ctx->mb_type_contexts[i],NUM_MB_TYPE_CTX*sizeof(cabac_context_t) );
-    memcpy(mb_aff_ctx_copy, mot_ctx->mb_aff_contexts,NUM_MB_AFF_CTX*sizeof(cabac_context_t) );
-
-    //check_next_mb
-    slice->last_dquant = 0;
-    read_skip_flag_CABAC(currMB, &currSE, dep_dp);
-
-    skip = (currSE.value1 == 0);
-
-    if (!skip) {
-        readFieldModeInfo_CABAC(currMB, &currSE, dep_dp);
-        field = currSE.value1;
-        slice->mb_data[slice->current_mb_nr-1].mb_field_decoding_flag = (Boolean)field;
-    }
-
-    //reset
-    slice->current_mb_nr--;
-
-    memcpy(dep_dp,dep_dp_copy,sizeof(cabac_engine_t));
-    *(dep_dp->Dcodestrm_len) = length;
-    for (i=0;i<3;++i)
-        memcpy(mot_ctx->mb_type_contexts[i],mb_type_ctx_copy[i], NUM_MB_TYPE_CTX*sizeof(cabac_context_t) );
-    memcpy( mot_ctx->mb_aff_contexts,mb_aff_ctx_copy,NUM_MB_AFF_CTX*sizeof(cabac_context_t) );
-
-    CheckAvailabilityOfNeighborsCABAC(currMB);
-
-    //delete
-    free(dep_dp_copy);
-    for (i=0;i<3;++i)
-        free(mb_type_ctx_copy[i]);
-    free(mb_aff_ctx_copy);
-
-    return skip;
-}
-
-
 
 
 uint32_t parse_mb_skip_run(mb_t *mb)
@@ -802,13 +420,14 @@ uint32_t parse_mb_skip_run(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    DataPartition *dP = &slice->partArr[0];
-    syntax_element_t currSE;
+    Bitstream *bitstream = slice->partArr[0].bitstream;
+
+    uint32_t mb_skip_run = 0;
 
     if (!pps->entropy_coding_mode_flag)
-        currSE.value1 = dP->bitstream->ue();
+        mb_skip_run = bitstream->ue();
 
-    return currSE.value1;
+    return mb_skip_run;
 }
 
 bool parse_mb_skip_flag(mb_t *mb)
@@ -816,17 +435,29 @@ bool parse_mb_skip_flag(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    DataPartition *dP = &slice->partArr[0];
-    syntax_element_t currSE;
+    Bitstream *bitstream = slice->partArr[0].bitstream;
+    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    cabac_contexts_t *ctx = slice->mot_ctx;
 
-    if (!pps->entropy_coding_mode_flag)
-        currSE.value1 = dP->bitstream->ue();
-    else
-        read_skip_flag_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
+    bool mb_skip_flag = 0;
+
+    if (pps->entropy_coding_mode_flag) {
+        int tabIdx = slice->slice_type == B_slice ? 2 : 1;
+        int ctxIdx = slice->slice_type == B_slice ? 7 : 0;
+
+        int condTermFlagA = mb->mb_left && !mb->mb_left->mb_skip_flag ? 1 : 0;
+        int condTermFlagB = mb->mb_up   && !mb->mb_up  ->mb_skip_flag ? 1 : 0;
+        int ctxIdxInc = condTermFlagA + condTermFlagB;
+
+        mb_skip_flag = dep_dp->decode_decision(&ctx->mb_type_contexts[tabIdx][ctxIdx + ctxIdxInc]);
+
+        if (mb_skip_flag)
+            slice->last_dquant = 0;
+    }
 
     mb->ei_flag = 0;
 
-    return !currSE.value1;
+    return mb_skip_flag;
 }
 
 bool parse_mb_field_decoding_flag(mb_t *mb)
@@ -834,15 +465,23 @@ bool parse_mb_field_decoding_flag(mb_t *mb)
 	slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    DataPartition *dP = &slice->partArr[0];
-    syntax_element_t currSE;
+    Bitstream *bitstream = slice->partArr[0].bitstream;
+    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    cabac_contexts_t *ctx = slice->mot_ctx;
+
+    bool mb_field_decoding_flag;
 
     if (!pps->entropy_coding_mode_flag)
-        currSE.value1 = dP->bitstream->f(1);
-    else
-        readFieldModeInfo_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
+        mb_field_decoding_flag = bitstream->f(1);
+    else {
+        int condTermFlagA = mb->mbAvailA && slice->mb_data[mb->mbAddrA].mb_field_decoding_flag ? 1 : 0;
+        int condTermFlagB = mb->mbAvailB && slice->mb_data[mb->mbAddrB].mb_field_decoding_flag ? 1 : 0;
+        int ctxIdxInc = condTermFlagA + condTermFlagB;
 
-    return currSE.value1;
+        mb_field_decoding_flag = dep_dp->decode_decision(ctx->mb_aff_contexts + ctxIdxInc);
+    }
+
+    return mb_field_decoding_flag;
 }
 
 uint32_t parse_mb_type(mb_t *mb)
@@ -850,26 +489,28 @@ uint32_t parse_mb_type(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    DataPartition *dP = &slice->partArr[0];
-    syntax_element_t currSE;
+    Bitstream *bitstream = slice->partArr[0].bitstream;
+    cabac_engine_t *dep_dp = &bitstream->de_cabac;
 
-    if (!pps->entropy_coding_mode_flag)   
-        currSE.value1 = dP->bitstream->ue();
-    else {
+    uint32_t mb_type;
+
+    if (!pps->entropy_coding_mode_flag) {
+        mb_type = bitstream->ue();
+        if (slice->slice_type == P_slice || slice->slice_type == SP_slice)
+            mb_type++;
+    } else {
+        syntax_element_t currSE;
         void (*reading)(macroblock_t*, syntax_element_t*, cabac_engine_t*) =
             slice->slice_type == I_slice || slice->slice_type == SI_slice ? readMB_typeInfo_CABAC_i_slice :
             slice->slice_type == P_slice || slice->slice_type == SP_slice ? readMB_typeInfo_CABAC_p_slice :
                                                                             readMB_typeInfo_CABAC_b_slice;
-        reading(mb, &currSE, &dP->bitstream->de_cabac);
+        reading(mb, &currSE, dep_dp);
+        mb_type = currSE.value1;
     }
-
-    if (!pps->entropy_coding_mode_flag &&
-        (slice->slice_type == P_slice || slice->slice_type == SP_slice))
-        (currSE.value1)++;
 
     mb->ei_flag = 0;
 
-    return currSE.value1;
+    return mb_type;
 }
 
 uint8_t parse_sub_mb_type(mb_t *mb)
@@ -877,13 +518,14 @@ uint8_t parse_sub_mb_type(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    DataPartition *dP = &slice->partArr[0];
-    syntax_element_t currSE;
+    Bitstream *bitstream = slice->partArr[0].bitstream;
+    cabac_engine_t *dep_dp = &bitstream->de_cabac;
 
+    syntax_element_t currSE;
     if (!pps->entropy_coding_mode_flag) 
-        currSE.value1 = dP->bitstream->ue();
+        currSE.value1 = bitstream->ue();
     else
-        readB8_typeInfo_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
+        readB8_typeInfo_CABAC(mb, &currSE, dep_dp);
 
     return currSE.value1;
 }
@@ -894,15 +536,23 @@ bool parse_transform_size_8x8_flag(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    DataPartition *dP = &slice->partArr[0];
-    syntax_element_t currSE;
+    Bitstream *bitstream = slice->partArr[0].bitstream;
+    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    cabac_contexts_t *ctx = slice->mot_ctx;
+
+    bool transform_size_8x8_flag;
 
     if (!pps->entropy_coding_mode_flag)
-        currSE.value1 = dP->bitstream->f(1);
-    else
-        readMB_transform_size_flag_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
+        transform_size_8x8_flag = bitstream->f(1);
+    else {
+        int condTermFlagA = mb->mb_left && mb->mb_left->transform_size_8x8_flag ? 1 : 0;
+        int condTermFlagB = mb->mb_up   && mb->mb_up  ->transform_size_8x8_flag ? 1 : 0;
+        int ctxIdxInc = condTermFlagA + condTermFlagB;
 
-    return currSE.value1;
+        transform_size_8x8_flag = dep_dp->decode_decision(ctx->transform_size_contexts + ctxIdxInc);
+    }
+
+    return transform_size_8x8_flag;
 }
 
 int8_t parse_intra_pred_mode(mb_t *mb, uint8_t block4x4Idx)
@@ -910,20 +560,28 @@ int8_t parse_intra_pred_mode(mb_t *mb, uint8_t block4x4Idx)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    DataPartition *dP = &slice->partArr[0];
-    syntax_element_t currSE;
+    Bitstream *bitstream = slice->partArr[0].bitstream;
+    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    cabac_contexts_t *ctx = slice->mot_ctx;
+
+    int8_t intra_pred_mode;
 
     if (!pps->entropy_coding_mode_flag) {
-        if (dP->bitstream->f(1))
-            currSE.value1 = -1;
+        if (bitstream->f(1))
+            intra_pred_mode = -1;
         else
-            currSE.value1 = dP->bitstream->f(3);
+            intra_pred_mode = bitstream->f(3);
     } else {
-        currSE.context = block4x4Idx;
-        readIntraPredMode_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
+        if (dep_dp->decode_decision(ctx->ipr_contexts))
+            intra_pred_mode = -1;
+        else {
+            intra_pred_mode  = (dep_dp->decode_decision(ctx->ipr_contexts + 1)     );
+            intra_pred_mode |= (dep_dp->decode_decision(ctx->ipr_contexts + 1) << 1);
+            intra_pred_mode |= (dep_dp->decode_decision(ctx->ipr_contexts + 1) << 2);
+        }
     }
 
-    return currSE.value1;
+    return intra_pred_mode;
 }
 
 uint8_t parse_intra_chroma_pred_mode(mb_t *mb)
@@ -931,15 +589,27 @@ uint8_t parse_intra_chroma_pred_mode(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    DataPartition *dP = &slice->partArr[0];
-    syntax_element_t currSE;
+    Bitstream *bitstream = slice->partArr[0].bitstream;
+    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    cabac_contexts_t *ctx = slice->mot_ctx;
+
+    uint8_t intra_chroma_pred_mode;
 
     if (!pps->entropy_coding_mode_flag)
-        currSE.value1 = dP->bitstream->ue();
-    else
-        readCIPredMode_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
+        intra_chroma_pred_mode = bitstream->ue();
+    else {
+        int condTermFlagA = mb->mb_left && mb->mb_left->intra_chroma_pred_mode != 0 && mb->mb_left->mb_type != IPCM ? 1 : 0;
+        int condTermFlagB = mb->mb_up   && mb->mb_up  ->intra_chroma_pred_mode != 0 && mb->mb_up  ->mb_type != IPCM ? 1 : 0;
+        int ctxIdxInc = condTermFlagA + condTermFlagB;
 
-    return currSE.value1;
+        // binIdx[] = { ctxIdxInc, 3, 3 };
+
+        intra_chroma_pred_mode = dep_dp->decode_decision(ctx->cipr_contexts + ctxIdxInc);
+        if (intra_chroma_pred_mode)
+            intra_chroma_pred_mode = dep_dp->tu(ctx->cipr_contexts + 3, 0, 1) + 1;
+    }
+
+    return intra_chroma_pred_mode;
 }
 
 uint8_t parse_ref_idx(mb_t *mb, uint8_t b8mode, uint8_t list)
@@ -1036,13 +706,32 @@ int8_t parse_mb_qp_delta(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    DataPartition *dP = &slice->partArr[0];
-    syntax_element_t currSE;
+    Bitstream *bitstream = slice->partArr[0].bitstream;
+    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    cabac_contexts_t *ctx = slice->mot_ctx;
+
+    int8_t mb_qp_delta;
 
     if (!pps->entropy_coding_mode_flag)
-        currSE.value1 = dP->bitstream->se();
-    else
-        read_dQuant_CABAC(mb, &currSE, &dP->bitstream->de_cabac);
+        mb_qp_delta = bitstream->se();
+    else {
+        int ctxIdxInc = slice->last_dquant != 0 ? 1 : 0;
 
-    return currSE.value1;
+        mb_qp_delta = dep_dp->decode_decision(ctx->delta_qp_contexts + ctxIdxInc);
+
+        //int binIdx[] = { ctxIdxInc, 2, 3, 3, 3, 3, 3 };
+
+        if (mb_qp_delta) {
+            ctxIdxInc = 2;
+            int act_sym = dep_dp->u(ctx->delta_qp_contexts + ctxIdxInc, 1) + 1;
+
+            mb_qp_delta = (act_sym + 1) >> 1;
+            if ((act_sym & 1) == 0) // lsb is signed bit
+                mb_qp_delta = -mb_qp_delta;
+        }
+
+        slice->last_dquant = mb_qp_delta;
+    }
+
+    return mb_qp_delta;
 }

@@ -143,6 +143,11 @@ typedef struct slice_t {
 
     int8_t      PrevQpY;
 
+    bool        prescan_skip_read;
+    bool        prescan_skip_flag;
+    bool        prescan_mb_field_decoding_read;
+    bool        prescan_mb_field_decoding_flag;
+
     //weighted prediction
     unsigned short            weighted_pred_flag;
     unsigned short            weighted_bipred_idc;

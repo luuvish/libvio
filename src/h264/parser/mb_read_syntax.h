@@ -7,8 +7,6 @@ extern "C" {
 
 #include "global.h"
 
-int      check_next_mb_and_get_field_mode_CABAC(slice_t *slice);
-
 uint32_t parse_mb_skip_run            (mb_t *mb);
 bool     parse_mb_skip_flag           (mb_t *mb);
 bool     parse_mb_field_decoding_flag (mb_t *mb);

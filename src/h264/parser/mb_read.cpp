@@ -437,9 +437,15 @@ void macroblock_t::parse()
     int CurrMbAddr = this->mbAddrX;
     bool moreDataFlag = 1;
 
+    Bitstream *bitstream = slice->partArr[0].bitstream;
+
     if (slice->slice_type != I_slice && slice->slice_type != SI_slice) {
         if (pps->entropy_coding_mode_flag) {
-            this->mb_skip_flag = parse_mb_skip_flag(this);
+            if (slice->prescan_skip_read) {
+                slice->prescan_skip_read = false;
+                this->mb_skip_flag = slice->prescan_skip_flag;
+            } else
+                this->mb_skip_flag = parse_mb_skip_flag(this);
         } else {
             if (slice->mb_skip_run == -1)
                 slice->mb_skip_run = parse_mb_skip_run(this);
@@ -451,13 +457,41 @@ void macroblock_t::parse()
         this->mb_type = !this->mb_skip_flag;
         this->cbp     = !this->mb_skip_flag;
 
-        if (pps->entropy_coding_mode_flag) {
-            if (this->mb_skip_flag && slice->MbaffFrameFlag && CurrMbAddr % 2 == 0)
-                check_next_mb_and_get_field_mode_CABAC(slice);
-        } else {
-            if (slice->mb_skip_run == 1 && slice->MbaffFrameFlag && CurrMbAddr % 2 == 0) {
-                DataPartition *dP = &slice->partArr[0];
-                this->mb_field_decoding_flag = dP->bitstream->next_bits(1);
+        if (slice->MbaffFrameFlag && CurrMbAddr % 2 == 0) {
+            if (pps->entropy_coding_mode_flag) {
+                if (this->mb_skip_flag) {
+                    //get next MB
+                    ++slice->current_mb_nr;
+
+                    mb_t *currMB;
+                    currMB = &slice->mb_data[slice->current_mb_nr];
+                    currMB->p_Vid    = slice->p_Vid;
+                    currMB->p_Slice  = slice; 
+                    currMB->slice_nr = slice->current_slice_nr;
+                    currMB->mb_field_decoding_flag = slice->mb_data[slice->current_mb_nr-1].mb_field_decoding_flag;
+                    currMB->mbAddrX  = slice->current_mb_nr;
+
+                    CheckAvailabilityOfNeighborsMBAFF(currMB);
+                    CheckAvailabilityOfNeighborsCABAC(currMB);
+
+                    //check_next_mb
+                    slice->last_dquant = 0;
+                    slice->prescan_skip_read = true;
+                    slice->prescan_skip_flag = parse_mb_skip_flag(currMB);
+                    if (!slice->prescan_skip_flag) {
+                        slice->prescan_mb_field_decoding_read = true;
+                        slice->prescan_mb_field_decoding_flag = parse_mb_field_decoding_flag(currMB);
+                        slice->mb_data[slice->current_mb_nr-1].mb_field_decoding_flag = slice->prescan_mb_field_decoding_flag;
+                    }
+
+                    //reset
+                    slice->current_mb_nr--;
+
+                    CheckAvailabilityOfNeighborsCABAC(currMB);
+                }
+            } else {
+                if (slice->mb_skip_run == 1)
+                    this->mb_field_decoding_flag = bitstream->next_bits(1);
             }
         }
 
@@ -475,7 +509,11 @@ void macroblock_t::parse()
             slice->mb_data[CurrMbAddr - 1].mb_skip_flag : 0;
         if (slice->MbaffFrameFlag &&
             (CurrMbAddr % 2 == 0 || (CurrMbAddr % 2 == 1 && prevMbSkipped))) {
-            this->mb_field_decoding_flag = parse_mb_field_decoding_flag(this);
+            if (slice->prescan_mb_field_decoding_read) {
+                slice->prescan_mb_field_decoding_read = false;
+                this->mb_field_decoding_flag = slice->prescan_mb_field_decoding_flag;
+            } else
+                this->mb_field_decoding_flag = parse_mb_field_decoding_flag(this);
         }
     }
 

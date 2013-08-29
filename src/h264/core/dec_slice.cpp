@@ -207,6 +207,9 @@ bool slice_t::init()
 
     this->mb_skip_run = -1;
 
+    this->prescan_skip_read = false;
+    this->prescan_mb_field_decoding_read = false;
+
     this->PrevQpY = this->SliceQpY;
 
     init_lists(this);
