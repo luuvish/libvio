@@ -225,96 +225,40 @@ static void concealIPCMcoeffs(mb_t *currMB)
 }
 
 
-static void readIPCM_CABAC(slice_t *currSlice, struct datapartition_dec *dP)
+static void read_IPCM_coeffs_from_NAL(mb_t *currMB)
 {
+    slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    StorablePicture *dec_picture = currSlice->dec_picture;
-    Bitstream* currStream = dP->bitstream;
-    cabac_engine_t *dep = &dP->bitstream->de_cabac;
-    byte *buf = currStream->streamBuffer;
-    int BitstreamLengthInBits = (dP->bitstream->bitstream_length << 3) + 7;
+    pps_t *pps = currSlice->active_pps;
 
-    int val = 0;
-    int bits_read = 0;
-    int bitoffset, bitdepth;
-    int uv, i, j;
+    Bitstream* bitstream = currSlice->partArr[currSlice->dp_mode ? 1 : 0].bitstream;
+    cabac_engine_t *dep = &bitstream->de_cabac;
 
-    while (dep->DbitsLeft >= 8) {
-        dep->Dvalue   >>= 8;
-        dep->DbitsLeft -= 8;
-        (*dep->Dcodestrm_len)--;
+    if (pps->entropy_coding_mode_flag) {
+        bitstream->frame_bitoffset -= (dep->DbitsLeft / 8);
+        bitstream->frame_bitoffset *= 8;
+    } else {
+        if (bitstream->frame_bitoffset & 7)
+            bitstream->f(8 - (bitstream->frame_bitoffset & 7));
     }
 
-    bitoffset = (*dep->Dcodestrm_len) << 3;
-
-    // read luma values
-    bitdepth = sps->BitDepthY;
-    for (i = 0; i < MB_BLOCK_SIZE; i++) {
-        for (j = 0; j < MB_BLOCK_SIZE; j++) {
-            bits_read += GetBits(buf, bitoffset, &val, BitstreamLengthInBits, bitdepth);
-            currSlice->cof[0][i][j] = val;
-
-            bitoffset += bitdepth;
-        }
+    for (int i = 0; i < 16; i++) {
+        for (int j = 0; j < 16; j++)
+            currSlice->cof[0][i][j] = bitstream->f(sps->BitDepthY);
     }
 
-    // read chroma values
-    bitdepth = sps->BitDepthC;
-    if (dec_picture->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
-        for (uv = 1; uv < 3; ++uv) {
-            for (i = 0; i < sps->MbHeightC; ++i) {
-                for (j = 0; j < sps->MbWidthC; ++j) {
-                    bits_read += GetBits(buf, bitoffset, &val, BitstreamLengthInBits, bitdepth);
-                    currSlice->cof[uv][i][j] = val;
-
-                    bitoffset += bitdepth;
-                }
+    if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
+        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
+            for (int i = 0; i < sps->MbHeightC; i++) {
+                for (int j = 0; j < sps->MbWidthC; j++)
+                    currSlice->cof[iCbCr + 1][i][j] = bitstream->f(sps->BitDepthC);
             }
         }
     }
 
-    (*dep->Dcodestrm_len) += ( bits_read >> 3);
-    if (bits_read & 7)
-        ++(*dep->Dcodestrm_len);
-
-    currStream->de_cabac.init(currStream->streamBuffer, currStream->read_len, &currStream->read_len);
-}
-
-static void read_IPCM_coeffs_from_NAL(slice_t *currSlice, struct datapartition_dec *dP)
-{
-    sps_t *sps = currSlice->active_sps;
-    pps_t *pps = currSlice->active_pps;
-
-    Bitstream *currStream = dP->bitstream;
-    int i, j;
-
-    //For CABAC, we don't need to read bits to let stream byte aligned
-    //  because we have variable for integer bytes position
-    if (pps->entropy_coding_mode_flag) {
-        readIPCM_CABAC(currSlice, dP);
-        return;
-    }
-
-    //read bits to let stream byte aligned
-    if ((dP->bitstream->frame_bitoffset & 0x07) != 0)
-        currStream->f(8 - (currStream->frame_bitoffset & 0x07));
-
-    //read luma and chroma IPCM coefficients
-    for (i = 0; i < 16; i++) {
-        for (j = 0; j < 16; j++)
-            currSlice->cof[0][i][j] = currStream->f(sps->BitDepthY);
-    }
-
-    if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
-        for (i = 0; i < sps->MbHeightC; i++) {
-            for (j = 0; j < sps->MbWidthC; j++)
-                currSlice->cof[1][i][j] = currStream->f(sps->BitDepthC);
-        }
-        for (i = 0; i < sps->MbHeightC; i++) {
-            for (j = 0; j < sps->MbWidthC; j++)
-                currSlice->cof[2][i][j] = currStream->f(sps->BitDepthC);
-        }
-    }
+    if (pps->entropy_coding_mode_flag)
+        dep->init(bitstream->streamBuffer, (bitstream->frame_bitoffset + 7) / 8, &bitstream->frame_bitoffset);
+        //dep->init(bitstream);
 }
 
 
@@ -574,8 +518,7 @@ void macroblock_t::parse_i_pcm()
     if (slice->dp_mode && slice->dpB_NotPresent)
         concealIPCMcoeffs(this);
     else {
-        DataPartition *dP = &slice->partArr[slice->dp_mode ? 1 : 0];
-        read_IPCM_coeffs_from_NAL(slice, dP);
+        read_IPCM_coeffs_from_NAL(this);
     }
 }
 

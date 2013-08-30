@@ -94,9 +94,15 @@ void cabac_engine_t::init(unsigned char *code_buffer, int firstbyte, int *code_l
     this->Dvalue = (getbyte(this) << 16) | getword(this);
     this->DbitsLeft = 15;
     this->codIRange = 510;
-    //this->codIOffset = read_bits(9);
 }
-
+/*
+void cabac_engine_t::init(Bitstream* bitstream)
+{
+    this->bitstream  = bitstream;
+    this->codIRange  = 510;
+    this->codIOffset = this->bitstream->read_bits(9);
+}
+*/
 bool cabac_engine_t::decode_decision(cabac_context_t* ctx)
 {  
     uint8_t qCodIRangeIdx = (this->codIRange >> 6) & 3;
@@ -105,12 +111,13 @@ bool cabac_engine_t::decode_decision(cabac_context_t* ctx)
 
     this->codIRange -= codIRangeLPS;
 
+    //if (this->codIOffset < this->codIRange) {
     if (this->Dvalue < (this->codIRange << this->DbitsLeft)) {
         binVal = ctx->valMPS;
         ctx->pStateIdx = transIdxMPS[ctx->pStateIdx];
     } else {
         binVal = !ctx->valMPS;
-        // this->codIOffset -= this->codIRange;
+        //this->codIOffset -= this->codIRange;
         this->Dvalue -= (this->codIRange << this->DbitsLeft);
         this->codIRange = codIRangeLPS;
         if (ctx->pStateIdx == 0)
@@ -127,7 +134,7 @@ bool cabac_engine_t::decode_bypass()
 {
     uint8_t binVal;
 
-    //this->codIOffset = (this->codIOffset << 1) | read_bits(1);
+    //this->codIOffset = (this->codIOffset << 1) | this->bitstream->read_bits(1);
     if (--(this->DbitsLeft) == 0) {
         // lookahead of 2 bytes: always make sure that bitstream buffer
         // contains 2 more bytes than actual bitstream
@@ -135,6 +142,7 @@ bool cabac_engine_t::decode_bypass()
         this->DbitsLeft = 16;
     }
 
+    //if (this->codIOffset < this->codIRange)
     if (this->Dvalue < (this->codIRange << this->DbitsLeft))
         binVal = 0;
     else {
@@ -152,6 +160,7 @@ bool cabac_engine_t::decode_terminate()
 
     this->codIRange -= 2;
 
+    //if (this->codIOffset < this->codIRange) {
     if (this->Dvalue < (this->codIRange << this->DbitsLeft)) {
         binVal = 0;
         this->renormD();
@@ -166,7 +175,7 @@ void cabac_engine_t::renormD()
     if (this->codIRange < 256) {
         int renorm = renorm_table_32[(this->codIRange >> 3) & 0x1F];
         this->codIRange <<= renorm;
-        //this->CodIOffset = (this->CodIOffset << renorm) | read_bits(renorm);
+        //this->codIOffset = (this->codIOffset << renorm) | this->bitstream->read_bits(renorm);
         this->DbitsLeft -= renorm;
 
         if (this->DbitsLeft <= 0) {

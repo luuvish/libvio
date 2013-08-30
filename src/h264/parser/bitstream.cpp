@@ -117,10 +117,10 @@ void FreePartition(DataPartition *dp, int n)
 Bitstream *InitPartition(DataPartition *dp, struct nalu_t *nalu)
 {
     Bitstream *currStream = dp->bitstream;
-    currStream->frame_bitoffset = currStream->read_len = 0;
+    currStream->frame_bitoffset = 0;
 
     memcpy (currStream->streamBuffer, &nalu->buf[1], nalu->len-1);
-    currStream->code_len = currStream->bitstream_length = RBSPtoSODB(currStream->streamBuffer, nalu->len-1);
+    currStream->bitstream_length = RBSPtoSODB(currStream->streamBuffer, nalu->len-1);
 
     return currStream;
 }

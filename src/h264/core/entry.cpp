@@ -173,10 +173,9 @@ static int parse_idr(slice_t *currSlice)
         currSlice->current_mb_nr = currSlice->first_mb_in_slice;
 
     if (p_Vid->active_pps->entropy_coding_mode_flag) {
-        int ByteStartPosition = currStream->frame_bitoffset / 8;
-        if (currStream->frame_bitoffset % 8 != 0)
-            ++ByteStartPosition;
-        currSlice->partArr[0].bitstream->de_cabac.init(currStream->streamBuffer, ByteStartPosition, &currStream->read_len);
+        currSlice->partArr[0].bitstream->de_cabac.init(
+            currStream->streamBuffer, (currStream->frame_bitoffset + 7) / 8, &currStream->frame_bitoffset);
+        //currSlice->partArr[0].bitstream->de_cabac.init(currSlice->partArr[0].bitstream);
     }
     p_Vid->recovery_point = 0;
     return current_header;

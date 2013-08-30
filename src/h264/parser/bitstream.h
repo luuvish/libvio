@@ -55,14 +55,20 @@ struct bitstream_t {
 };
 
 
+struct bit_stream_dec;
+
 //! struct to characterize the state of the arithmetic coding engine
 struct cabac_engine_t {
+    bit_stream_dec* bitstream;
     uint16_t codIRange;
+    uint16_t codIOffset;
+
     uint32_t Dvalue;
     int      DbitsLeft;
     byte    *Dcodestrm;
     int     *Dcodestrm_len;
 
+    //void     init(bit_stream_dec* bitstream);
     void     init(unsigned char *code_buffer, int firstbyte, int *code_len);
 
     bool     decode_decision(cabac_context_t *ctx);
@@ -76,13 +82,8 @@ struct cabac_engine_t {
 
 //! Bitstream
 typedef struct bit_stream_dec {
-    // CABAC Decoding
-    int           read_len;           //!< actual position in the codebuffer, CABAC only
-    int           code_len;           //!< overall codebuffer length, CABAC only
-    // CAVLC Decoding
     int           frame_bitoffset;    //!< actual position in the codebuffer, bit-oriented, CAVLC only
     int           bitstream_length;   //!< over codebuffer lnegth, byte oriented, CAVLC only
-    // ErrorConcealment
     byte          *streamBuffer;      //!< actual codebuffer for read bytes
 
     cabac_engine_t de_cabac;
@@ -128,12 +129,6 @@ void reset_bitstream(struct bitstream_t *bitstream);
 DataPartition *AllocPartition(int n);
 void FreePartition(DataPartition *dp, int n);
 Bitstream *InitPartition(DataPartition *dp, struct nalu_t *nalu);
-
-
-
-// CAVLC mapping
-int GetBits(byte buffer[],int totbitoffset,int *info, int bitcount, int numbits);
-
 
 
 #ifdef __cplusplus
