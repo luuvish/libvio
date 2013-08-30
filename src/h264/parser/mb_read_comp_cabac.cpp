@@ -49,6 +49,13 @@ typedef enum {
     CR_4x4        =  21
 } CABACBlockTypes;
 
+struct syntax_element_t {
+    int value1;  //!< numerical value of syntax element
+    int value2;  //!< for blocked symbols, e.g. run/level
+    int context; //!< CABAC context
+};
+
+
 #define IS_I16MB(MB)    ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
 
 static inline int rshift_rnd_sf(int x, int a)

@@ -444,8 +444,12 @@ void macroblock_t::parse()
             if (slice->prescan_skip_read) {
                 slice->prescan_skip_read = false;
                 this->mb_skip_flag = slice->prescan_skip_flag;
-            } else
+            } else {
                 this->mb_skip_flag = parse_mb_skip_flag(this);
+                if (this->mb_skip_flag)
+                    slice->last_dquant = 0;
+                this->ei_flag = 0;
+            }
         } else {
             if (slice->mb_skip_run == -1)
                 slice->mb_skip_run = parse_mb_skip_run(this);
@@ -478,6 +482,9 @@ void macroblock_t::parse()
                     slice->last_dquant = 0;
                     slice->prescan_skip_read = true;
                     slice->prescan_skip_flag = parse_mb_skip_flag(currMB);
+                    if (slice->prescan_skip_flag)
+                        slice->last_dquant = 0;
+                    this->ei_flag = 0;
                     if (!slice->prescan_skip_flag) {
                         slice->prescan_mb_field_decoding_read = true;
                         slice->prescan_mb_field_decoding_flag = parse_mb_field_decoding_flag(currMB);
@@ -521,8 +528,10 @@ void macroblock_t::parse()
         CheckAvailabilityOfNeighborsCABAC(this);
 
 
-    if (moreDataFlag)
+    if (moreDataFlag) {
         this->mb_type = parse_mb_type(this);
+        this->ei_flag = 0;
+    }
 
     if (slice->slice_type != I_slice && slice->slice_type != SI_slice) {
         if (slice->MbaffFrameFlag && this->mb_field_decoding_flag) {
@@ -705,7 +714,7 @@ void macroblock_t::parse_ipred_4x4_modes()
     for (int luma4x4BlkIdx = 0; luma4x4BlkIdx < 16; luma4x4BlkIdx++) {
         int bx = ((luma4x4BlkIdx / 4) % 2) * 8 + ((luma4x4BlkIdx % 4) % 2) * 4;
         int by = ((luma4x4BlkIdx / 4) / 2) * 8 + ((luma4x4BlkIdx % 4) / 2) * 4;
-        int val = parse_intra_pred_mode(this, luma4x4BlkIdx);
+        int val = parse_intra_pred_mode(this);
 
         this->prev_intra4x4_pred_mode_flag[luma4x4BlkIdx] = val == -1;
         this->rem_intra4x4_pred_mode      [luma4x4BlkIdx] = val;
@@ -765,7 +774,7 @@ void macroblock_t::parse_ipred_8x8_modes()
     for (int luma8x8BlkIdx = 0; luma8x8BlkIdx < 4; luma8x8BlkIdx++) {
         int bx = (luma8x8BlkIdx % 2) * 8;
         int by = (luma8x8BlkIdx / 2) * 8;
-        int val = parse_intra_pred_mode(this, luma8x8BlkIdx * 4);
+        int val = parse_intra_pred_mode(this);
 
         this->prev_intra8x8_pred_mode_flag[luma8x8BlkIdx] = val == -1;
         this->rem_intra8x8_pred_mode      [luma8x8BlkIdx] = val;
@@ -863,8 +872,8 @@ void macroblock_t::parse_ref_pic_idx(int list)
     PicMotionParams **mv_info = slice->dec_picture->mv_info;
 
     int partmode = this->mb_type == P8x8 ? 4 : this->mb_type;
-    int step_h0  = BLOCK_STEP [partmode][0];
-    int step_v0  = BLOCK_STEP [partmode][1];
+    int step_h0  = BLOCK_STEP[partmode][0];
+    int step_v0  = BLOCK_STEP[partmode][1];
 
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {      
@@ -874,7 +883,7 @@ void macroblock_t::parse_ref_pic_idx(int list)
                 this->b8mode[k] != 0) {
                 this->subblock_x = i0 << 2;
                 this->subblock_y = j0 << 2;
-                uint8_t refframe = parse_ref_idx(this, this->b8mode[k], list);
+                uint8_t refframe = parse_ref_idx(this, list);
                 for (int j = 0; j < step_v0; j++) {
                     for (int i = 0; i < step_h0; i++)
                         mv_info[this->block_y + j0 + j][this->block_x + i0 + i].ref_idx[list] = refframe;
@@ -976,6 +985,9 @@ void macroblock_t::parse_cbp_qp()
     // Delta quant only if nonzero coeffs
     if (IS_I16MB(this) || this->cbp != 0) {
         this->mb_qp_delta = parse_mb_qp_delta(this);
+
+        if (pps->entropy_coding_mode_flag)        
+            slice->last_dquant = this->mb_qp_delta;
 
         assert(this->mb_qp_delta >= -(26 + sps->QpBdOffsetY / 2) &&
                this->mb_qp_delta <=  (25 + sps->QpBdOffsetY / 2));

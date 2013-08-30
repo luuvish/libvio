@@ -120,8 +120,6 @@ typedef struct datapartition_dec {
 } DataPartition;
 
 
-
-
 void open_bitstream(struct bitstream_t **bitstream,
                     char *name, int format, unsigned max_size);
 void close_bitstream(struct bitstream_t *bitstream);
@@ -131,12 +129,6 @@ DataPartition *AllocPartition(int n);
 void FreePartition(DataPartition *dp, int n);
 Bitstream *InitPartition(DataPartition *dp, struct nalu_t *nalu);
 
-
-struct syntax_element_t {
-    int value1;  //!< numerical value of syntax element
-    int value2;  //!< for blocked symbols, e.g. run/level
-    int context; //!< CABAC context
-};
 
 
 // CAVLC mapping

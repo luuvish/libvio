@@ -24,3 +24,6 @@
 7. read_CBP_and_coeffs_from_NAL_CABAC_420(), ...
 	ei_flag가 1일 경우 currSE.mapping을 설정하나 readSyntaxElement는 entropy_coding_mode_flag에 의해 한번 설정되면 ei_flag를 구별하지 않음.
 	Bitstream::ei_flag은 0으로 초기화 된 후에 값이 변하지 않으므로 linfo_levrun_c2x2, linfo_levrun_inter는 실행될 수 없음.
+
+8. readMB_typeInfo_CABAC_i_slice()
+    SI_slice일 때, I slice type의 predictor가 I4MB와 I8MB type이 아닐 때 a,b가 1 이어야 함. I8MB인 경우가 빠짐.
