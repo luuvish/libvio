@@ -21,39 +21,33 @@
  * ===========================================================================
  */
 
-#include "global.h"
+#include "memalloc.h" 
 #include "bitstream.h"
 #include "data_partition.h"
 
-#include "memalloc.h" 
-
-
-static const int IOBUFFERSIZE = 512*1024; //65536;
-
-//Start code and Emulation Prevention need this to be defined in identical manner at encoder and decoder
-#define ZEROBYTES_SHORTSTARTCODE 2 //indicates the number of zero bytes in the short start-code prefix
-
 
 struct annex_b_t {
-    int32_t  BitStreamFile;                //!< the bit stream file
+    static const int IOBUFFERSIZE = 512 * 1024;
+
+    int32_t  BitStreamFile;
     uint8_t* iobuffer;
     uint8_t* iobufferread;
     int32_t  bytesinbuffer;
-    int32_t  is_eof;
+    bool     is_eof;
     int32_t  iIOBufferSize;
 
     int32_t  IsFirstByteStreamNALU;
     int32_t  nextstartcodebytes;
     uint8_t* Buf;  
 
-    //annex_b_t(uint32_t max_size);
-    //~annex_b_t();
+    annex_b_t(uint32_t max_size);
+    ~annex_b_t();
 
-    void open (char* fn);
-    void close();
-    void reset();
+    void     open (const char* fn);
+    void     close();
+    void     reset();
 
-    int  get_nalu(nalu_t* nalu);
+    int      get_nalu(nalu_t* nalu);
 
     inline int     getChunk();
     inline uint8_t getfbyte();
@@ -61,27 +55,20 @@ struct annex_b_t {
 };
 
 
-static void malloc_annex_b(unsigned int max_size, annex_b_t **p_annex_b)
+annex_b_t::annex_b_t(uint32_t max_size)
 {
-    if ( ((*p_annex_b) = (annex_b_t *)calloc(1, sizeof(annex_b_t))) == NULL) {
-        snprintf(errortext, ET_SIZE, "Memory allocation for Annex_B file failed");
-        error(errortext,100);
-    }
-    if (((*p_annex_b)->Buf = (byte*)malloc(max_size)) == NULL)
+    this->Buf = new uint8_t[max_size];
+    if (!this->Buf)
         error("malloc_annex_b: Buf", 101);
 }
 
-static void free_annex_b(annex_b_t **p_annex_b)
+annex_b_t::~annex_b_t()
 {
-    free((*p_annex_b)->Buf);
-    (*p_annex_b)->Buf = NULL;
-
-    free(*p_annex_b);
-    *p_annex_b = NULL;  
+    delete this->Buf;
 }
 
 
-void annex_b_t::open(char* fn)
+void annex_b_t::open(const char* fn)
 {
     if (this->iobuffer)
         error("open_annex_b: tried to open Annex B file twice", 500);
@@ -90,11 +77,11 @@ void annex_b_t::open(char* fn)
         error(errortext, 500);
     }
 
-    this->iIOBufferSize = IOBUFFERSIZE * sizeof(uint8_t);
-    this->iobuffer = (uint8_t*)malloc(this->iIOBufferSize);
+    this->iIOBufferSize = annex_b_t::IOBUFFERSIZE * sizeof(uint8_t);
+    this->iobuffer = new uint8_t[this->iIOBufferSize];
     if (!this->iobuffer)
         error("open_annex_b: cannot allocate IO buffer", 500);
-    this->is_eof = FALSE;
+    this->is_eof = false;
     this->getChunk();
 }
 
@@ -104,16 +91,17 @@ void annex_b_t::close()
         ::close(this->BitStreamFile);
         this->BitStreamFile = -1;
     }
-    free(this->iobuffer);
+    delete this->iobuffer;
     this->iobuffer = NULL;
 }
 
 void annex_b_t::reset()
 {
-    this->is_eof = FALSE;
+    this->is_eof = false;
     this->bytesinbuffer = 0;
     this->iobufferread = this->iobuffer;
 }
+
 
 int annex_b_t::get_nalu(nalu_t* nalu)
 {
@@ -138,7 +126,7 @@ int annex_b_t::get_nalu(nalu_t* nalu)
         }
     }
 
-    if (this->is_eof == TRUE) {
+    if (this->is_eof) {
         if (pos == 0)
             return 0;
         else {
@@ -171,7 +159,7 @@ int annex_b_t::get_nalu(nalu_t* nalu)
     this->IsFirstByteStreamNALU = 0;
 
     while (!StartCodeFound) {
-        if (this->is_eof == TRUE) {
+        if (this->is_eof) {
             pBuf -= 2;
             while (*(pBuf--) == 0)
                 pos--;
@@ -233,7 +221,7 @@ inline int annex_b_t::getChunk()
 {
     unsigned int readbytes = ::read(this->BitStreamFile, this->iobuffer, this->iIOBufferSize); 
     if (0 == readbytes) {
-        this->is_eof = TRUE;
+        this->is_eof = true;
         return 0;
     }
 
@@ -269,19 +257,23 @@ inline int annex_b_t::FindStartCode(uint8_t* Buf, int zeros_in_startcode)
 }
 
 
-void bitstream_t::open(char* name, int format, unsigned max_size)
+void bitstream_t::open(const char* name, type format, unsigned max_size)
 {
     this->FileFormat           = format;
     this->LastAccessUnitExists = 0;
     this->NALUCount            = 0;
 
     switch (format) {
-    case PAR_OF_RTP:
+    case type::RTP:
         open_rtp(name, &this->BitStreamFile);
         break;
-    case PAR_OF_ANNEXB:
+    case type::ANNEX_B:
     default:
-        malloc_annex_b(max_size, &this->annex_b);
+        this->annex_b = new annex_b_t(max_size);
+        if (!this->annex_b) {
+            snprintf(errortext, ET_SIZE, "Memory allocation for Annex_B file failed");
+            error(errortext,100);
+        }
         this->annex_b->open(name);
         break;
     }
@@ -290,26 +282,29 @@ void bitstream_t::open(char* name, int format, unsigned max_size)
 void bitstream_t::close()
 {
     switch (this->FileFormat) {
-    case PAR_OF_RTP:
+    case type::RTP:
         close_rtp(&this->BitStreamFile);
         break;   
-    case PAR_OF_ANNEXB:
+    case type::ANNEX_B:
     default:
         this->annex_b->close();
-        free_annex_b(&this->annex_b);
+        delete this->annex_b;
         break;
     }
 }
 
 void bitstream_t::reset()
 {
-    if (this->FileFormat == PAR_OF_ANNEXB)
+    if (this->FileFormat == type::ANNEX_B)
         this->annex_b->reset(); 
 }
 
 
 static int EBSPtoRBSP(byte *streamBuffer, int end_bytepos, int begin_bytepos)
 {
+    //Start code and Emulation Prevention need this to be defined in identical manner at encoder and decoder
+    #define ZEROBYTES_SHORTSTARTCODE 2 //indicates the number of zero bytes in the short start-code prefix
+
     int i, j, count;
     count = 0;
 
@@ -359,10 +354,10 @@ int bitstream_t::read_next_nalu(nalu_t* nalu)
     int ret;
 
     switch (this->FileFormat) {
-    case PAR_OF_RTP:
+    case type::RTP:
         ret = get_nalu_from_rtp(nalu, this->BitStreamFile);
         break;   
-    case PAR_OF_ANNEXB:
+    case type::ANNEX_B:
     default:
         ret = this->annex_b->get_nalu(nalu);
         break;
@@ -370,7 +365,7 @@ int bitstream_t::read_next_nalu(nalu_t* nalu)
 
     if (ret < 0) {
         snprintf(errortext, ET_SIZE, "Error while getting the NALU in file format %s, exit\n",
-                 this->FileFormat==PAR_OF_ANNEXB?"Annex B":"RTP");
+                 this->FileFormat == type::ANNEX_B ? "Annex B" : "RTP");
         error(errortext, 601);
     }
     if (ret == 0)

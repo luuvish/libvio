@@ -21,10 +21,6 @@
 #ifndef _MBUFFERDEC_H_
 #define _MBUFFERDEC_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "global.h"
 #include "bitstream_cabac.h"
 
@@ -382,9 +378,5 @@ static inline int compare_fs_by_poc_desc( const void *arg1, const void *arg2 )
 
 extern void get_smallest_poc(dpb_t *p_Dpb, int *poc,int * pos);
 extern int remove_unused_frame_from_dpb(dpb_t *p_Dpb);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

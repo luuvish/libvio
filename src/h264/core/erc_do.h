@@ -1,18 +1,3 @@
-
-/*!
- ************************************************************************
- * \file  erc_do.h
- *
- * \brief
- *      Header for the I & P frame error concealment common functions
- *
- * \author
- *      - Viktor Varsa                     <viktor.varsa@nokia.com>
- *      - Ye-Kui Wang                   <wyk@ieee.org>
- *
- ************************************************************************
- */
-
 #ifndef _ERC_DO_H_
 #define _ERC_DO_H_
 
@@ -41,4 +26,3 @@ int ercCollectColumnBlocks( int predBlocks[], int currRow, int currColumn, char 
      ((object_list+((currMBNum)<<2))->param))
 
 #endif
-

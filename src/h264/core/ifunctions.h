@@ -1,25 +1,6 @@
-
-/*!
- ************************************************************************
- *  \file
- *     ifunctions.h
- *
- *  \brief
- *     define some inline functions that are used within the encoder.
- *
- *  \author
- *      Main contributors (see contributors.h for copyright, address and affiliation details)
- *      - Karsten Suehring
- *      - Alexis Tourapis                 <alexismt@ieee.org>
- *
- ************************************************************************
- */
 #ifndef _IFUNCTIONS_H_
 #define _IFUNCTIONS_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include <math.h>
 #include <limits.h>
@@ -72,9 +53,5 @@ static inline unsigned CeilLog2( unsigned uiVal)
   return uiRet;
 }
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif
-

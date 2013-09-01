@@ -371,7 +371,9 @@ static void alloc_video_params(VideoParameters **p_Vid)
 
     (*p_Vid)->iNumOfSlicesAllocated = MAX_NUM_DECSLICES;
     (*p_Vid)->pNextSlice = NULL;
-    (*p_Vid)->nalu = AllocNALU(MAX_CODED_FRAME_SIZE);
+    (*p_Vid)->nalu = new nalu_t(MAX_CODED_FRAME_SIZE);
+    if (!(*p_Vid)->nalu)
+        no_mem_exit("AllocNALU: n");
     (*p_Vid)->pDecOuputPic = (DecodedPicList *)calloc(1, sizeof(DecodedPicList));
     (*p_Vid)->pNextPPS = AllocPPS();
     (*p_Vid)->first_sps = 1;
@@ -477,7 +479,8 @@ int OpenDecoder(InputParameters *p_Inp)
         pDecoder->p_Vid->p_ref = -1;
 
     pDecoder->p_Vid->bitstream.open(
-        pDecoder->p_Inp->infile, pDecoder->p_Inp->FileFormat,
+        pDecoder->p_Inp->infile,
+        pDecoder->p_Inp->FileFormat ? bitstream_t::type::RTP : bitstream_t::type::ANNEX_B,
         pDecoder->p_Vid->nalu->max_size);
 
     init_video_params(pDecoder->p_Vid);
@@ -599,10 +602,10 @@ static void free_slice(slice_t *currSlice)
     free_mem3Dint(currSlice->wp_offset );
     free_mem4Dint(currSlice->wbp_weight);
 
-    FreePartition (currSlice->partArr, 3);
+    delete []currSlice->partArr;
 
     // delete all context models
-    delete_contexts_MotionInfo (currSlice->mot_ctx);
+    delete currSlice->mot_ctx;
 
     for (int i = 0; i < 6; i++) {
         if (currSlice->listX[i]) {
@@ -666,7 +669,7 @@ static void free_img( VideoParameters *p_Vid)
             free(p_Vid->ppSliceList);
         }
         if (p_Vid->nalu) {
-            FreeNALU(p_Vid->nalu);
+            delete p_Vid->nalu;
             p_Vid->nalu = NULL;
         }
         //free memory;

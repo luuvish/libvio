@@ -1,29 +1,6 @@
-
-/*!
- ************************************************************************
- * \file  erc_api.h
- *
- * \brief
- *      External (still inside video decoder) interface for error concealment module
- *
- * \author
- *      - Ari Hourunranta                <ari.hourunranta@nokia.com>
- *      - Ye-Kui Wang                    <wyk@ieee.org>
- *      - Jill Boyce                     <jill.boyce@thomson.net>
- *      - Saurav K Bandyopadhyay         <saurav@ieee.org>
- *      - Zhenyu Wu                      <Zhenyu.Wu@thomson.net
- *      - Purvin Pandit                  <Purvin.Pandit@thomson.net>
- *
- * ************************************************************************
- */
-
-
 #ifndef _ERC_API_H_
 #define _ERC_API_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "defines.h"
 
@@ -192,9 +169,5 @@ struct macroblock_t;
 void erc_picture(VideoParameters *p_Vid, StorablePicture **dec_picture);
 void ercWriteMBMODEandMV(struct macroblock_t *currMB);
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif
-

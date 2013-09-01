@@ -1,26 +1,6 @@
-
-/*!
- ************************************************************************
- * \file block.h
- *
- * \brief
- *    definitions for block decoding functions
- *
- * \author
- *  Inge Lille-Langoy               <inge.lille-langoy@telenor.com>    \n
- *  Telenor Satellite Services                                         \n
- *  P.O.Box 6914 St.Olavs plass                                        \n
- *  N-0130 Oslo, Norway
- *
- ************************************************************************
- */
-
 #ifndef _TRANSFORM_H_
 #define _TRANSFORM_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "global.h"
 #include "transform.h"
@@ -54,9 +34,5 @@ void itrans_420  (struct macroblock_t *currMB, ColorPlane pl);
 void itrans_422  (struct macroblock_t *currMB, ColorPlane pl);
 void iTransform  (struct macroblock_t *currMB, ColorPlane pl, int smb);
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _TRANSFORM_H_ */

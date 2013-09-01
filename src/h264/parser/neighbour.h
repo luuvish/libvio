@@ -16,10 +16,6 @@
 #ifndef _NEIGHBOUR_H_
 #define _NEIGHBOUR_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct macroblock_t;
 
 void CheckAvailabilityOfNeighbors(struct macroblock_t *currMB);
@@ -40,9 +36,5 @@ void get_neighbors(struct macroblock_t *currMB, PixelPos *block, int mb_x, int m
 void check_dp_neighbors(struct macroblock_t *currMB);
 
 int predict_nnz(struct macroblock_t *currMB, int pl, int i, int j);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _NEIGHBOUR_H_ */

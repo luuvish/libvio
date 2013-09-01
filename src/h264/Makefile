@@ -62,6 +62,8 @@ else
 	CFLAGS+=-Wno-unused-but-set-variable
 endif
 
+CC = clang++
+
 LIBS=   -lm $(STATIC)
 #CFLAGS+= -std=gnu99 -pedantic -ffloat-store -fno-strict-aliasing -fsigned-char $(STATIC)
 CFLAGS+= -std=c++11 -stdlib=libc++ $(STATIC)

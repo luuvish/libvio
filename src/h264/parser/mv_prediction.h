@@ -14,16 +14,8 @@
 #ifndef _MV_PREDICTION_H_
 #define _MV_PREDICTION_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void GetMVPredictor(mb_t *currMB, PixelPos *block, MotionVector *pmv,
                     short ref_frame, PicMotionParams **mv_info,
                     int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -1,34 +1,6 @@
-
-/*!
- ************************************************************************
- *  \file
- *     global.h
- *  \brief
- *     global definitions for H.264 decoder.
- *  \author
- *     Copyright (C) 1999  Telenor Satellite Services,Norway
- *                         Ericsson Radio Systems, Sweden
- *
- *     Inge Lille-Langoy               <inge.lille-langoy@telenor.com>
- *
- *     Telenor Satellite Services
- *     Keysers gt.13                       tel.:   +47 23 13 86 98
- *     N-0130 Oslo,Norway                  fax.:   +47 22 77 79 80
- *
- *     Rickard Sjoberg                 <rickard.sjoberg@era.ericsson.se>
- *
- *     Ericsson Radio Systems
- *     KI/ERA/T/VV
- *     164 80 Stockholm, Sweden
- *
- ************************************************************************
- */
 #ifndef _GLOBAL_H_
 #define _GLOBAL_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -42,6 +14,7 @@ extern "C" {
 #include "ifunctions.h"
 
 #include "parset.h"
+#include "bitstream.h"
 
 typedef enum {
   CM_UNKNOWN = -1,
@@ -505,9 +478,5 @@ static inline int is_FREXT_profile(unsigned int profile_idc)
   return ( profile_idc >= FREXT_HP || profile_idc == FREXT_CAVLC444 );
 }
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif
-

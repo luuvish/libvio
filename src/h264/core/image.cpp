@@ -482,10 +482,16 @@ static slice_t *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
     }
 
     // create all context models
-    currSlice->mot_ctx = create_contexts_MotionInfo();
+    currSlice->mot_ctx = new cabac_contexts_t;
+    if (currSlice->mot_ctx == NULL)
+        no_mem_exit("create_contexts_MotionInfo: deco_ctx");
 
     currSlice->max_part_nr = 3;  //! assume data partitioning (worst case) for the following mallocs()
-    currSlice->partArr = AllocPartition(currSlice->max_part_nr);
+    currSlice->partArr = new data_partition_t[currSlice->max_part_nr];
+    if (!currSlice->partArr) {
+        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
+        error(errortext, 100);
+    }
 
     memory_size += get_mem3Dint(&(currSlice->wp_weight), 2, MAX_REFERENCE_PICTURES, 3);
     memory_size += get_mem3Dint(&(currSlice->wp_offset), 6, MAX_REFERENCE_PICTURES, 3);

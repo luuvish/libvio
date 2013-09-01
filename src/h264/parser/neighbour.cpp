@@ -13,6 +13,7 @@
  */
 
 #include "global.h"
+#include "data_partition.h"
 #include "slice.h"
 #include "macroblock.h"
 #include "dpb.h"

@@ -1,23 +1,6 @@
-
-/*!
- *************************************************************************************
- * \file mb_prediction.h
- *
- * \brief
- *    Functions for macroblock prediction
- *
- * \author
- *     Main contributors (see contributors.h for copyright, address and affiliation details)
- *     - Alexis Michael Tourapis         <alexismt@ieee.org>  
- *************************************************************************************
- */
-
 #ifndef _INTER_PREDICTION_H_
 #define _INTER_PREDICTION_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "global.h"
 #include "dpb.h"
@@ -39,9 +22,5 @@ int get_inter8x8(struct macroblock_t *currMB, StorablePicture *dec_picture, int 
 
 void update_direct_mv_info(struct macroblock_t *currMB);
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _INTER_PREDICTION_H_ */

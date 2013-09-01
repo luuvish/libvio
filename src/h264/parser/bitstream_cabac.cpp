@@ -1,10 +1,8 @@
-#include "global.h"
-#include "memalloc.h"
 #include "slice.h"
 #include "bitstream_cabac.h"
 
 
-#define CTX_UNUSED          {0,64}
+#define CTX_UNUSED {0,64}
 
 
 static const char INIT_MB_TYPE_I[1][3][11][2] =
@@ -1059,23 +1057,4 @@ void cabac_contexts_t::init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t 
         PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ONE_CTX,  this->one_contexts,            INIT_ONE,            cabac_init_idc, SliceQpY);
         PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ABS_CTX,  this->abs_contexts,            INIT_ABS,            cabac_init_idc, SliceQpY);
     }
-}
-
-cabac_contexts_t* create_contexts_MotionInfo(void)
-{
-    cabac_contexts_t *deco_ctx;
-
-    deco_ctx = (cabac_contexts_t*) calloc(1, sizeof(cabac_contexts_t) );
-    if (deco_ctx == NULL)
-        no_mem_exit("create_contexts_MotionInfo: deco_ctx");
-
-    return deco_ctx;
-}
-
-void delete_contexts_MotionInfo(cabac_contexts_t *deco_ctx)
-{
-    if (deco_ctx == NULL)
-        return;
-
-    free(deco_ctx);
 }

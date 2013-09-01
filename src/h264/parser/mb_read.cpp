@@ -26,7 +26,7 @@
 #include "slice.h"
 #include "dpb.h"
 #include "bitstream_cabac.h"
-#include "bitstream.h"
+#include "data_partition.h"
 #include "macroblock.h"
 #include "mb_read.h"
 #include "fmo.h"

@@ -17,14 +17,9 @@
 #ifndef _PARSET_H_
 #define _PARSET_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-#include "bitstream.h"
-#include "data_partition.h"
-
-#include "defines.h"
+struct nalu_t;
+struct data_partition_t;
 struct video_par;
 struct slice_t;
 
@@ -382,10 +377,6 @@ void ProcessSubsetSPS (struct video_par *p_Vid, nalu_t *nalu);
 void init_subset_sps_list(sub_sps_t *subset_sps_list, int iSize);
 void reset_subset_sps(sub_sps_t *subset_sps);
 int  GetBaseViewId(struct video_par *p_Vid, sub_sps_t **subset_sps);
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif /* _PARSET_H_ */

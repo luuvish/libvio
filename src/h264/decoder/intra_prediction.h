@@ -1,23 +1,5 @@
-
-/*!
- *************************************************************************************
- * \file mb_prediction.h
- *
- * \brief
- *    Functions for macroblock prediction
- *
- * \author
- *     Main contributors (see contributors.h for copyright, address and affiliation details)
- *     - Alexis Michael Tourapis         <alexismt@ieee.org>  
- *************************************************************************************
- */
-
 #ifndef _INTRA_PREDICTION_H_
 #define _INTRA_PREDICTION_H_
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 enum {
@@ -59,9 +41,5 @@ struct intra_prediction_t {
     void intra_pred_chroma(mb_t *currMB);
 };
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _INTRA_PREDICTION_H_ */

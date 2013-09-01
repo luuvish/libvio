@@ -13,7 +13,7 @@
 
 #include "global.h"
 #include "slice.h"
-#include "bitstream.h"
+#include "data_partition.h"
 #include "macroblock.h"
 #include "mb_read.h"
 #include "transform.h"

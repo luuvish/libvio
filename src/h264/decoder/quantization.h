@@ -1,22 +1,6 @@
-
-/*!
- ************************************************************************
- * \file quant.h
- *
- * \brief
- *    definitions for quantization functions
- *
- * \author
- *
- ************************************************************************
- */
-
 #ifndef _QUANT_H_
 #define _QUANT_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 //! Dequantization coefficients
 static const int dequant_coef[6][4][4] = {
@@ -90,9 +74,5 @@ struct slice_t;
 // For Q-matrix
 void assign_quant_params(struct slice_t *currslice);
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif
-

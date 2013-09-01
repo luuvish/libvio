@@ -1,25 +1,6 @@
-/*!
- ************************************************************************
- * \file  memalloc.h
- *
- * \brief
- *    Memory allocation and free helper funtions
- *
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *     - Karsten Suehring
- *     - Alexis Michael Tourapis         <alexismt@ieee.org> 
- *     - Yuwen He                        <yhe@dolby.com>
- *
- ************************************************************************
- */
-
 #ifndef _MEMALLOC_H_
 #define _MEMALLOC_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "global.h"
 #include "dpb.h"
@@ -98,9 +79,5 @@ static inline void mem_free(void *pointer)
   }
 }
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif
-

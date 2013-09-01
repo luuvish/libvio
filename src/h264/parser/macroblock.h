@@ -14,10 +14,6 @@
 #ifndef _MACROBLOCK_H_
 #define _MACROBLOCK_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "global.h"
 #include "dpb.h"
 #include "transform.h"
@@ -128,40 +124,40 @@ typedef struct cbp_s {
 } CBPStructure;
 
 //! mb_t
-typedef struct macroblock_t {
-    struct slice_t        *p_Slice;                    //!< pointer to the current slice
-    struct video_par      *p_Vid;                      //!< pointer to VideoParameters
-    struct inp_par        *p_Inp;
-    int                    mbAddrX;                    //!< current MB address
-    int                    mbAddrA, mbAddrB, mbAddrC, mbAddrD;
-    Boolean                mbAvailA, mbAvailB, mbAvailC, mbAvailD;
-    BlockPos               mb;
-    int                    block_x;
-    int                    block_y;
-    int                    pix_x;
-    int                    pix_y;
-    int                    pix_c_x;
-    int                    pix_c_y;
+struct macroblock_t {
+    slice_t*   p_Slice;                    //!< pointer to the current slice
+    video_par* p_Vid;                      //!< pointer to VideoParameters
+    inp_par*   p_Inp;
+    int        mbAddrX;                    //!< current MB address
+    int        mbAddrA, mbAddrB, mbAddrC, mbAddrD;
+    Boolean    mbAvailA, mbAvailB, mbAvailC, mbAvailD;
+    BlockPos   mb;
+    int        block_x;
+    int        block_y;
+    int        pix_x;
+    int        pix_y;
+    int        pix_c_x;
+    int        pix_c_y;
 
-    int                    subblock_x;
-    int                    subblock_y;
+    int        subblock_x;
+    int        subblock_y;
 
-    int                    qp;                    //!< QP luma
-    int                    qpc[2];                //!< QP chroma
-    int                    qp_scaled[MAX_PLANE];  //!< QP scaled for all comps.
-    Boolean                is_intra_block;
-    Boolean                is_v_block;
-    Boolean                DeblockCall;
+    int        qp;                    //!< QP luma
+    int        qpc[2];                //!< QP chroma
+    int        qp_scaled[MAX_PLANE];  //!< QP scaled for all comps.
+    Boolean    is_intra_block;
+    Boolean    is_v_block;
+    Boolean    DeblockCall;
 
-    short                  slice_nr;
-    char                   ei_flag;             //!< error indicator flag that enables concealment
-    char                   dpl_flag;            //!< error indicator flag that signals a missing data partition
+    short      slice_nr;
+    char       ei_flag;             //!< error indicator flag that enables concealment
+    char       dpl_flag;            //!< error indicator flag that signals a missing data partition
 
-    struct macroblock_t *mb_up;   //!< pointer to neighboring MB (CABAC)
-    struct macroblock_t *mb_left; //!< pointer to neighboring MB (CABAC)
+    macroblock_t* mb_up;   //!< pointer to neighboring MB (CABAC)
+    macroblock_t* mb_left; //!< pointer to neighboring MB (CABAC)
 
-    struct macroblock_t *mbup;   // neighbors for loopfilter
-    struct macroblock_t *mbleft; // neighbors for loopfilter
+    macroblock_t* mbup;   // neighbors for loopfilter
+    macroblock_t* mbleft; // neighbors for loopfilter
 
     // some storage of macroblock syntax elements for global access
     bool        mb_skip_flag;
@@ -204,8 +200,8 @@ typedef struct macroblock_t {
     //int         cof[3][16][16];
 
 
-    short        mvd[2][BLOCK_MULTIPLE][BLOCK_MULTIPLE][2]; //!< indices correspond to [forw,backw][block_y][block_x][x,y]
-    int          cbp;
+    short       mvd[2][BLOCK_MULTIPLE][BLOCK_MULTIPLE][2]; //!< indices correspond to [forw,backw][block_y][block_x][x,y]
+    int         cbp;
     CBPStructure s_cbp[3];
 
     char        b8mode[4];
@@ -278,11 +274,9 @@ typedef struct macroblock_t {
     void        read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
                                      int levelVal[16], int runVal[16], int *number_coefficients);
 
-} mb_t;
+};
 
+using mb_t = macroblock_t;
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif

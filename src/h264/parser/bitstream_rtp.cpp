@@ -92,10 +92,9 @@
 #include <netinet/in.h>
 #endif
 
-#include "global.h"
+#include "memalloc.h"
 #include "bitstream.h"
 #include "data_partition.h"
-#include "memalloc.h"
 
 #define MAXRTPPAYLOADLEN  (65536 - 40)    //!< Maximum payload size of an RTP packet */
 #define MAXRTPPACKETSIZE  (65536 - 28)    //!< Maximum size of an RTP packet incl. header */
@@ -134,7 +133,7 @@ int  RTPReadPacket(RTPpacket_t *p, int bitstream);
  ************************************************************************
  */
 
-void open_rtp(char *fn, int *p_BitStreamFile)
+void open_rtp(const char *fn, int *p_BitStreamFile)
 {
     if (((*p_BitStreamFile) = open(fn, OPENFLAGS_READ)) == -1) {
         snprintf(errortext, ET_SIZE, "Cannot open RTP file '%s'", fn);

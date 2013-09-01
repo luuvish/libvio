@@ -1,29 +1,6 @@
-
-/*!
- **************************************************************************
- * \file defines.h
- *
- * \brief
- *    Header file containing some useful global definitions
- *
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *     - Detlev Marpe
- *     - Karsten Suehring
- *     - Alexis Michael Tourapis         <alexismt@ieee.org> 
- *   
- *
- * \date
- *    21. March 2001
- **************************************************************************
- */
-
 #ifndef _DEFINES_H_
 #define _DEFINES_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define JM                  "18 (FRExt)"
 #define VERSION             "18.5"
@@ -122,9 +99,5 @@ enum {
 
 #define MAX_PLANE 3
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif
-

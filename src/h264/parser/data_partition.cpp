@@ -1,21 +1,6 @@
-
-/*!
- ************************************************************************
- * \file  nalu.c
- *
- * \brief
- *    Decoder NALU support functions
- *
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *    - Stephan Wenger   <stewe@cs.tu-berlin.de>
- ************************************************************************
- */
-
-#include "global.h"
 #include "memalloc.h"
-#include "data_partition.h"
 #include "bitstream_cabac.h"
+#include "data_partition.h"
 
 
 // Table 9-44 Specification of rangeTabLPS depending on pStateIdx and qCodIRangeIdx
@@ -74,7 +59,7 @@ void cabac_engine_t::init(data_partition_t* dp)
     if (dp->frame_bitoffset & 7)
         dp->f(8 - (dp->frame_bitoffset & 7));
 
-    this->dp  = dp;
+    this->dp = dp;
     this->codIRange  = 510;
     this->codIOffset = this->dp->read_bits(9);
 }
@@ -179,6 +164,21 @@ uint32_t cabac_engine_t::tu(cabac_context_t* ctx, int ctx_offset, unsigned int m
 }
 
 
+data_partition_t::data_partition_t()
+{
+    this->streamBuffer = new uint8_t[MAX_CODED_FRAME_SIZE];
+    if (!this->streamBuffer) {
+        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for streamBuffer failed");
+        error(errortext, 100);
+    }
+}
+
+data_partition_t::~data_partition_t()
+{
+    assert(this->streamBuffer != NULL);
+    delete this->streamBuffer;
+}
+
 static int RBSPtoSODB(uint8_t* streamBuffer, int last_byte_pos)
 {
     int bitoffset = 0;
@@ -198,7 +198,6 @@ static int RBSPtoSODB(uint8_t* streamBuffer, int last_byte_pos)
 
     return last_byte_pos;
 }
-
 
 void data_partition_t::init(nalu_t* nalu)
 {
@@ -265,28 +264,28 @@ uint32_t data_partition_t::read_bits(uint8_t n)
     return value;
 }
 
-uint32_t data_partition_t::u(uint8_t n, const char *name)
+uint32_t data_partition_t::u(uint8_t n, const char* name)
 {
     return this->read_bits(n);
 }
 
-int32_t data_partition_t::i(uint8_t n, const char *name)
+int32_t data_partition_t::i(uint8_t n, const char* name)
 {
     uint32_t value = this->read_bits(n);
     return -(value & (1 << (n - 1))) | value;
 }
 
-uint32_t data_partition_t::f(uint8_t n, const char *name)
+uint32_t data_partition_t::f(uint8_t n, const char* name)
 {
     return this->read_bits(n);
 }
 
-uint32_t data_partition_t::b(uint8_t n, const char *name)
+uint32_t data_partition_t::b(uint8_t n, const char* name)
 {
     return this->read_bits(n);
 }
 
-uint32_t data_partition_t::ue(const char *name)
+uint32_t data_partition_t::ue(const char* name)
 {
     int leadingZeroBits = -1;
     uint32_t b;
@@ -299,85 +298,28 @@ uint32_t data_partition_t::ue(const char *name)
     return codeNum;
 }
 
-int32_t data_partition_t::se(const char *name)
+int32_t data_partition_t::se(const char* name)
 {
     uint32_t codeNum = this->ue();
     return (codeNum % 2 ? 1 : -1) * ((codeNum + 1) / 2);
 }
 
-uint32_t data_partition_t::ae(const char *name)
+uint32_t data_partition_t::ae(const char* name)
 {
     return 0;
 }
 
-uint32_t data_partition_t::ce(const char *name)
+uint32_t data_partition_t::ce(const char* name)
 {
     return 0;
 }
 
-uint32_t data_partition_t::me(const char *name)
+uint32_t data_partition_t::me(const char* name)
 {
     return 0;
 }
 
-uint32_t data_partition_t::te(const char *name)
+uint32_t data_partition_t::te(const char* name)
 {
     return 0;
-}
-
-
-data_partition_t* AllocPartition(int n)
-{
-    data_partition_t *partArr = (data_partition_t*)calloc(n, sizeof(data_partition_t));
-    if (partArr == NULL) {
-        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
-        error(errortext, 100);
-    }
-
-    for (int i = 0; i < n; ++i) { // loop over all data partitions
-        partArr[i].streamBuffer = (uint8_t*)calloc(MAX_CODED_FRAME_SIZE, sizeof(byte));
-        if (partArr[i].streamBuffer == NULL) {
-            snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for streamBuffer failed");
-            error(errortext, 100);
-        }
-    }
-    return partArr;
-}
-
-void FreePartition(data_partition_t* dp, int n)
-{
-    int i;
-
-    assert(dp != NULL);
-    assert(dp->streamBuffer != NULL);
-    for (i = 0; i < n; ++i)
-        free(dp[i].streamBuffer);
-    free(dp);
-}
-
-nalu_t *AllocNALU(int buffersize)
-{
-    nalu_t *n;
-
-    if ((n = (nalu_t *)calloc(1, sizeof(nalu_t))) == NULL)
-        no_mem_exit("AllocNALU: n");
-
-    n->max_size = buffersize;
-    if ((n->buf = (byte *)calloc(buffersize, sizeof(byte))) == NULL) {
-        free(n);
-        no_mem_exit("AllocNALU: n->buf");
-    }
-
-    return n;
-}
-
-void FreeNALU(nalu_t *n)
-{
-    if (n != NULL) {
-        if (n->buf != NULL) {
-            free(n->buf);
-            n->buf = NULL;
-        }
-        free(n);
-    }
 }

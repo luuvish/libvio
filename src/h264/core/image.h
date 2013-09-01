@@ -1,20 +1,6 @@
-
-/*!
- ************************************************************************
- * \file image.h
- *
- * \brief
- *    prototypes for image.c
- *
- ************************************************************************
- */
-
 #ifndef _IMAGE_H_
 #define _IMAGE_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "dpb.h"
 
@@ -34,9 +20,5 @@ void decode_picture(VideoParameters *p_Vid);
 extern int GetVOIdx(VideoParameters *p_Vid, int iViewId);
 #endif
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif
-

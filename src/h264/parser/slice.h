@@ -10,10 +10,9 @@
 #ifndef _SLICE_H_
 #define _SLICE_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
+#include "global.h"
+#include "parset.h"
 
 #define MAX_NUM_REF_IDX 32
 
@@ -255,9 +254,5 @@ void pred_weight_table(slice_t *currSlice);
 void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *currStream, slice_t *pSlice);
 
 void decode_poc(VideoParameters *p_Vid, slice_t *pSlice);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _SLICE_H_ */

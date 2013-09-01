@@ -24,43 +24,32 @@
 #ifndef _BITSTREAM_H_
 #define _BITSTREAM_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-//! Output File Types
-typedef enum {
-    PAR_OF_ANNEXB,    //!< Annex B byte stream format
-    PAR_OF_RTP       //!< RTP packets in outfile
-} PAR_OF_TYPE;
 
 struct annex_b_t;
 struct nalu_t;
 
 struct bitstream_t {
-    int        FileFormat; //!< File format of the Input file, PAR_OF_ANNEXB or PAR_OF_RTP
-    int        BitStreamFile;
-    annex_b_t* annex_b;
-    int        LastAccessUnitExists;
-    int        NALUCount;
+    enum class type { ANNEX_B, RTP };
 
-    void open (char* name, int format, unsigned max_size);
-    void close();
-    void reset();
+    type        FileFormat; //!< File format of the Input file, PAR_OF_ANNEXB or PAR_OF_RTP
+    int         BitStreamFile;
+    annex_b_t*  annex_b;
+    int         LastAccessUnitExists;
+    int         NALUCount;
 
-    int  read_next_nalu     (nalu_t* nalu);
-    void CheckZeroByteNonVCL(nalu_t* nalu);
-    void CheckZeroByteVCL   (nalu_t* nalu);
+    void        open (const char* name, type format, unsigned max_size);
+    void        close();
+    void        reset();
+
+    int         read_next_nalu     (nalu_t* nalu);
+    void        CheckZeroByteNonVCL(nalu_t* nalu);
+    void        CheckZeroByteVCL   (nalu_t* nalu);
 };
 
 
-void open_rtp         (char *fn, int *p_BitStreamFile);
-void close_rtp        (int *p_BitStreamFile);
-int  get_nalu_from_rtp(nalu_t *nalu, int BitStreamFile);
+void open_rtp         (const char* fn, int* p_BitStreamFile);
+void close_rtp        (int* p_BitStreamFile);
+int  get_nalu_from_rtp(nalu_t* nalu, int BitStreamFile);
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _BITSTREAM_H_ */

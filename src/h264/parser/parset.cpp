@@ -1087,7 +1087,11 @@ void MakeSPSavailable (VideoParameters *p_Vid, int id, sps_t *sps)
 
 void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
 {  
-    data_partition_t *dp = AllocPartition(1);
+    data_partition_t *dp = new data_partition_t[1];
+    if (!dp) {
+        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
+        error(errortext, 100);
+    }
     sps_t *sps = AllocSPS();
 
     dp->init(nalu);
@@ -1116,14 +1120,18 @@ void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
             p_Vid->profile_idc = sps->profile_idc;
     }
 
-    FreePartition(dp, 1);
+    delete []dp;
     FreeSPS(sps);
 }
 
 #if (MVC_EXTENSION_ENABLE)
 void ProcessSubsetSPS(VideoParameters *p_Vid, nalu_t *nalu)
 {
-    data_partition_t *dp = AllocPartition(1);
+    data_partition_t *dp = new data_partition_t[1];
+    if (!dp) {
+        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
+        error(errortext, 100);
+    }
     sub_sps_t *subset_sps;
     int curr_seq_set_id;
 
@@ -1146,13 +1154,17 @@ void ProcessSubsetSPS(VideoParameters *p_Vid, nalu_t *nalu)
         p_Vid->profile_idc = subset_sps->sps.profile_idc;
     }
 
-    FreePartition(dp, 1);
+    delete []dp;
 }
 #endif
 
 void ProcessPPS(VideoParameters *p_Vid, nalu_t *nalu)
 {
-    data_partition_t *dp = AllocPartition(1);
+    data_partition_t *dp = new data_partition_t[1];
+    if (!dp) {
+        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
+        error(errortext, 100);
+    }
     pps_t *pps = AllocPPS();
 
     dp->init(nalu);
@@ -1171,7 +1183,7 @@ void ProcessPPS(VideoParameters *p_Vid, nalu_t *nalu)
         }
     }
     MakePPSavailable(p_Vid, pps->pic_parameter_set_id, pps);
-    FreePartition(dp, 1);
+    delete []dp;
     FreePPS(pps);
 }
 

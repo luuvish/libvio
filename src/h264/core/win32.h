@@ -14,9 +14,6 @@
 #ifndef _WIN32_H_
 #define _WIN32_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 # include <fcntl.h>
 # include <stdlib.h>
@@ -46,8 +43,5 @@ extern void   init_time(void);
 extern int64 timediff(TIME_T* start, TIME_T* end);
 extern int64 timenorm(int64 cur_time);
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif

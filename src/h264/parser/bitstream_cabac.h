@@ -1,27 +1,5 @@
-
-/*!
- ***************************************************************************
- * \file
- *    cabac.h
- *
- * \brief
- *    Header file for entropy coding routines
- *
- * \author
- *    Detlev Marpe                                                         \n
- *    Copyright (C) 2000 HEINRICH HERTZ INSTITUTE All Rights Reserved.
- *
- * \date
- *    21. Oct 2000 (Changes by Tobias Oelbaum 28.08.2001)
- ***************************************************************************
- */
-
 #ifndef _CABAC_H_
 #define _CABAC_H_
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 struct cabac_context_t {
@@ -72,12 +50,5 @@ struct cabac_contexts_t {
     void init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t SliceQpY);
 };
 
-cabac_contexts_t* create_contexts_MotionInfo(void);
-void delete_contexts_MotionInfo(cabac_contexts_t* enco_ctx);
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _CABAC_H_ */

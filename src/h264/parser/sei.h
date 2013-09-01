@@ -11,10 +11,6 @@
 #ifndef _SEI_H_
 #define _SEI_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define MAX_FN 256
 // tone mapping information
 #define MAX_CODED_BIT_DEPTH  12
@@ -45,10 +41,6 @@ void parse_sei(byte *payload, int size, VideoParameters *p_Vid, struct slice_t *
 void tone_map               (imgpel **imgX, imgpel *lut, int size_x, int size_y);
 void init_tone_mapping_sei  (ToneMappingSEI *seiToneMapping);
 void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping);
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif /* _SEI_H_ */

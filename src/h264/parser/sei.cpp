@@ -16,7 +16,7 @@
 #include "global.h"
 #include "memalloc.h"
 #include "sei.h"
-#include "bitstream.h"
+#include "data_partition.h"
 #include "slice.h"
 #include "dpb.h"
 #include "parset.h"
