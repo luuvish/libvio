@@ -33,7 +33,7 @@
 #include "slice.h"
 #include "image.h"
 #include "fmo.h"
-#include "bitstream_nal.h"
+#include "data_partition.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
 #include "parset.h"

@@ -160,9 +160,9 @@ bool macroblock_t::close(slice_t *slice)
     currSlice->current_mb_nr = FmoGetNextMBNr(p_Vid, currSlice->current_mb_nr);
 
     if (currSlice->active_pps->entropy_coding_mode_flag)
-        startcode_follows = cabac_startcode_follows(currSlice, eos_bit);
+        startcode_follows = eos_bit && currSlice->partArr[0].de_cabac.decode_terminate();
     else
-        startcode_follows = uvlc_startcode_follows(currSlice, eos_bit);
+        startcode_follows = !currSlice->partArr[0].more_rbsp_data();
 
     if (currSlice->current_mb_nr == -1) { // End of slice_t group, MUST be end of slice
         assert(startcode_follows);

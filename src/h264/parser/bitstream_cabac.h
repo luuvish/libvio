@@ -23,9 +23,6 @@
 extern "C" {
 #endif
 
-#include "global.h"
-#include "bitstream.h"
-
 
 struct cabac_context_t {
     uint8_t pStateIdx; // index into state-table CP
@@ -76,13 +73,7 @@ struct cabac_contexts_t {
 };
 
 cabac_contexts_t* create_contexts_MotionInfo(void);
-void delete_contexts_MotionInfo(cabac_contexts_t *enco_ctx);
-
-
-struct slice_t;
-
-int  cabac_startcode_follows(slice_t *currSlice, int eos_bit);
-int  uvlc_startcode_follows(slice_t *currSlice, int dummy);
+void delete_contexts_MotionInfo(cabac_contexts_t* enco_ctx);
 
 
 #ifdef __cplusplus

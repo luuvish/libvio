@@ -5,7 +5,7 @@
 #include "global.h"
 #include "image.h"
 #include "fmo.h"
-#include "bitstream_nal.h"
+#include "data_partition.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
 #include "parset.h"
@@ -80,8 +80,7 @@ static int parse_idr(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     InputParameters *p_Inp = currSlice->p_Inp;
-    NALU_t *nalu = p_Vid->nalu; 
-    Bitstream *currStream = NULL;
+    nalu_t *nalu = p_Vid->nalu; 
     int current_header = 0;
 
     if (p_Vid->recovery_point || nalu->nal_unit_type == NALU_TYPE_IDR) {
@@ -105,7 +104,7 @@ static int parse_idr(slice_t *currSlice)
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->svc_extension_flag != 0)
 #endif
-        currStream = InitPartition(&currSlice->partArr[0], nalu);
+        currSlice->partArr[0].init(nalu);
 
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->svc_extension_flag == 0) {
@@ -162,7 +161,7 @@ static int parse_idr(slice_t *currSlice)
 
         current_header = SOP;
         //check zero_byte if it is also the first NAL unit in the access unit
-        CheckZeroByteVCL(p_Vid->bitstream, nalu);
+        p_Vid->bitstream.CheckZeroByteVCL(nalu);
     } else
         current_header = SOS;
 
@@ -172,21 +171,18 @@ static int parse_idr(slice_t *currSlice)
     else
         currSlice->current_mb_nr = currSlice->first_mb_in_slice;
 
-    if (p_Vid->active_pps->entropy_coding_mode_flag) {
-        currSlice->partArr[0].bitstream->de_cabac.init(
-            currStream->streamBuffer, (currStream->frame_bitoffset + 7) / 8, &currStream->frame_bitoffset);
-        //currSlice->partArr[0].bitstream->de_cabac.init(currSlice->partArr[0].bitstream);
-    }
+    if (p_Vid->active_pps->entropy_coding_mode_flag)
+        currSlice->partArr[0].de_cabac.init(&currSlice->partArr[0]);
     p_Vid->recovery_point = 0;
     return current_header;
 }
 
 static int parse_dpa(slice_t *currSlice)
 {
-    VideoParameters *p_Vid = currSlice->p_Vid;
-    InputParameters *p_Inp = currSlice->p_Inp;
-    NALU_t *nalu = p_Vid->nalu; 
-    Bitstream *currStream = NULL;
+    VideoParameters* p_Vid = currSlice->p_Vid;
+    InputParameters* p_Inp = currSlice->p_Inp;
+    nalu_t* nalu = p_Vid->nalu; 
+    data_partition_t* dp;
     int current_header = 0;
 
     int slice_id_a, slice_id_b, slice_id_c;
@@ -205,7 +201,8 @@ static int parse_dpa(slice_t *currSlice)
 #if MVC_EXTENSION_ENABLE
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[0];
 #endif
-    currStream = InitPartition(&currSlice->partArr[0], nalu);
+    dp = &currSlice->partArr[0];
+    dp->init(nalu);
 #if MVC_EXTENSION_ENABLE
     currSlice->view_id = GetBaseViewId(p_Vid, &p_Vid->active_subset_sps);
     currSlice->inter_view_flag = 1;
@@ -227,7 +224,7 @@ static int parse_dpa(slice_t *currSlice)
 
         current_header = SOP;
         //check zero_byte if it is also the first NAL unit in the access unit
-        CheckZeroByteVCL(p_Vid->bitstream, nalu);
+        p_Vid->bitstream.CheckZeroByteVCL(nalu);
     } else
         current_header = SOS;
 
@@ -240,20 +237,21 @@ static int parse_dpa(slice_t *currSlice)
     // Now I need to read the slice ID, which depends on the value of
     // redundant_pic_cnt_present_flag
 
-    slice_id_a = currStream->ue("NALU: DP_A slice_id");
+    slice_id_a = dp->ue("NALU: DP_A slice_id");
 
     if (p_Vid->active_pps->entropy_coding_mode_flag)
         error ("received data partition with CABAC, this is not allowed", 500);
 
     // continue with reading next DP
-    if (0 == read_next_nalu(p_Vid->bitstream, nalu))
+    if (0 == p_Vid->bitstream.read_next_nalu(nalu))
         return current_header;
 
     if ( NALU_TYPE_DPB == nalu->nal_unit_type) {
         // we got a DPB
-        currStream = InitPartition(&currSlice->partArr[1], nalu);
+        dp = &currSlice->partArr[1];
+        dp->init(nalu);
 
-        slice_id_b = currStream->ue("NALU: DP_B slice_id");
+        slice_id_b = dp->ue("NALU: DP_B slice_id");
 
         currSlice->dpB_NotPresent = 0; 
 
@@ -263,10 +261,10 @@ static int parse_dpa(slice_t *currSlice)
             currSlice->dpC_NotPresent = 1;
         } else {
             if (p_Vid->active_pps->redundant_pic_cnt_present_flag)
-                currStream->ue("NALU: DP_B redundant_pic_cnt");
+                dp->ue("NALU: DP_B redundant_pic_cnt");
 
             // we're finished with DP_B, so let's continue with next DP
-            if (0 == read_next_nalu(p_Vid->bitstream, nalu))
+            if (0 == p_Vid->bitstream.read_next_nalu(nalu))
                 return current_header;
         }
     } else
@@ -274,18 +272,19 @@ static int parse_dpa(slice_t *currSlice)
 
     // check if we got DP_C
     if ( NALU_TYPE_DPC == nalu->nal_unit_type) {
-        currStream = InitPartition(&currSlice->partArr[2], nalu);
+        dp = &currSlice->partArr[2];
+        dp->init(nalu);
 
         currSlice->dpC_NotPresent = 0;
 
-        slice_id_c = currStream->ue("NALU: DP_C slice_id");
+        slice_id_c = dp->ue("NALU: DP_C slice_id");
         if ((slice_id_c != slice_id_a)|| (nalu->lost_packets)) {
             printf ("Warning: got a data partition C which does not match DP_A(DP loss!)\n");
             currSlice->dpC_NotPresent =1;
         }
 
         if (p_Vid->active_pps->redundant_pic_cnt_present_flag)
-            currStream->ue("NALU:SLICE_C redudand_pic_cnt");
+            dp->ue("NALU:SLICE_C redudand_pic_cnt");
     } else
         currSlice->dpC_NotPresent = 1;
 
@@ -304,7 +303,7 @@ static int parse_dpa(slice_t *currSlice)
 /*!
  ************************************************************************
  * \brief
- *    Reads new slice from bit_stream_dec
+ *    Reads new slice from data_partition_t
  ************************************************************************
  */
 int read_new_slice(slice_t *currSlice)
@@ -312,9 +311,9 @@ int read_new_slice(slice_t *currSlice)
     VideoParameters *p_Vid = currSlice->p_Vid;
     InputParameters *p_Inp = currSlice->p_Inp;
 
-    NALU_t *nalu = p_Vid->nalu; 
+    nalu_t *nalu = p_Vid->nalu; 
     int current_header = 0;
-    Bitstream *currStream = NULL;
+    data_partition_t* dp = &currSlice->partArr[0];
 
     currSlice->num_dec_mb        = 0;
     currSlice->coeff_ctr         = -1;
@@ -326,20 +325,20 @@ int read_new_slice(slice_t *currSlice)
 #if (MVC_EXTENSION_ENABLE)
         currSlice->svc_extension_flag = -1;
 #endif
-        if (0 == read_next_nalu(p_Vid->bitstream, nalu))
+        if (0 == p_Vid->bitstream.read_next_nalu(nalu))
             return EOS;
 
 #if (MVC_EXTENSION_ENABLE)
         if (p_Inp->DecodeAllLayers == 1 &&
             (nalu->nal_unit_type == NALU_TYPE_PREFIX || nalu->nal_unit_type == NALU_TYPE_SLC_EXT)) {
-            currStream = InitPartition(&currSlice->partArr[0], nalu);
+            dp->init(nalu);
 
-            currSlice->svc_extension_flag = currStream->u(1, "svc_extension_flag");
+            currSlice->svc_extension_flag = dp->u(1, "svc_extension_flag");
 
             if (currSlice->svc_extension_flag)
                 nal_unit_header_svc_extension();
             else {
-                nal_unit_header_mvc_extension(&currSlice->NaluHeaderMVCExt, currStream);
+                nal_unit_header_mvc_extension(&currSlice->NaluHeaderMVCExt, dp);
                 currSlice->NaluHeaderMVCExt.iPrefixNALU = (nalu->nal_unit_type == NALU_TYPE_PREFIX);
             }
 

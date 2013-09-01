@@ -319,7 +319,7 @@ typedef struct video_par {
 #endif
     int p_ref;
 
-    struct bitstream_t *bitstream;
+    struct bitstream_t bitstream;
 
 
 

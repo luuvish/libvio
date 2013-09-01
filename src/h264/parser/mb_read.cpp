@@ -231,34 +231,28 @@ static void read_IPCM_coeffs_from_NAL(mb_t *currMB)
     sps_t *sps = currSlice->active_sps;
     pps_t *pps = currSlice->active_pps;
 
-    Bitstream* bitstream = currSlice->partArr[currSlice->dp_mode ? 1 : 0].bitstream;
-    cabac_engine_t *dep = &bitstream->de_cabac;
+    data_partition_t* dp = &currSlice->partArr[currSlice->dp_mode ? 1 : 0];
+    cabac_engine_t *dep = &dp->de_cabac;
 
-    if (pps->entropy_coding_mode_flag) {
-        bitstream->frame_bitoffset -= (dep->DbitsLeft / 8);
-        bitstream->frame_bitoffset *= 8;
-    } else {
-        if (bitstream->frame_bitoffset & 7)
-            bitstream->f(8 - (bitstream->frame_bitoffset & 7));
-    }
+    if (dp->frame_bitoffset & 7)
+        dp->f(8 - (dp->frame_bitoffset & 7));
 
     for (int i = 0; i < 16; i++) {
         for (int j = 0; j < 16; j++)
-            currSlice->cof[0][i][j] = bitstream->f(sps->BitDepthY);
+            currSlice->cof[0][i][j] = dp->f(sps->BitDepthY);
     }
 
     if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
             for (int i = 0; i < sps->MbHeightC; i++) {
                 for (int j = 0; j < sps->MbWidthC; j++)
-                    currSlice->cof[iCbCr + 1][i][j] = bitstream->f(sps->BitDepthC);
+                    currSlice->cof[iCbCr + 1][i][j] = dp->f(sps->BitDepthC);
             }
         }
     }
 
     if (pps->entropy_coding_mode_flag)
-        dep->init(bitstream->streamBuffer, (bitstream->frame_bitoffset + 7) / 8, &bitstream->frame_bitoffset);
-        //dep->init(bitstream);
+        dep->init(dp);
 }
 
 
@@ -381,7 +375,7 @@ void macroblock_t::parse()
     int CurrMbAddr = this->mbAddrX;
     bool moreDataFlag = 1;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
+    data_partition_t *dp = &slice->partArr[0];
 
     if (slice->slice_type != I_slice && slice->slice_type != SI_slice) {
         if (pps->entropy_coding_mode_flag) {
@@ -442,7 +436,7 @@ void macroblock_t::parse()
                 }
             } else {
                 if (slice->mb_skip_run == 1)
-                    this->mb_field_decoding_flag = bitstream->next_bits(1);
+                    this->mb_field_decoding_flag = dp->next_bits(1);
             }
         }
 

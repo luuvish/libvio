@@ -24,8 +24,8 @@ static uint8_t readRefFrame_CABAC(mb_t *mb, uint8_t list)
 {
     slice_t *slice = mb->p_Slice;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t *dp = &slice->partArr[0];
+    cabac_engine_t *dep_dp = &dp->de_cabac;
 
     uint8_t ref_idx = 0;
 
@@ -116,8 +116,8 @@ static int16_t read_mvd_CABAC(mb_t *mb, uint8_t xy, uint8_t list)
 {
     slice_t *slice = mb->p_Slice;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     int16_t mvd = 0;
 
@@ -172,8 +172,8 @@ static uint8_t read_CBP_CABAC(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     sps_t *sps = slice->active_sps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     uint8_t coded_block_pattern = 0;
 
@@ -240,12 +240,12 @@ uint32_t parse_mb_skip_run(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
+    data_partition_t* dp = &slice->partArr[0];
 
     uint32_t mb_skip_run = 0;
 
     if (!pps->entropy_coding_mode_flag)
-        mb_skip_run = bitstream->ue();
+        mb_skip_run = dp->ue();
 
     return mb_skip_run;
 }
@@ -255,8 +255,8 @@ bool parse_mb_skip_flag(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     bool mb_skip_flag = 0;
 
@@ -280,13 +280,13 @@ bool parse_mb_field_decoding_flag(mb_t *mb)
 	slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     bool mb_field_decoding_flag;
 
     if (!pps->entropy_coding_mode_flag)
-        mb_field_decoding_flag = bitstream->f(1);
+        mb_field_decoding_flag = dp->f(1);
     else {
         cabac_context_t *ctx = slice->mot_ctx->mb_aff_contexts;
 
@@ -304,8 +304,8 @@ static uint8_t parse_mb_type_i_slice(mb_t *mb)
 {
     slice_t *slice = mb->p_Slice;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     uint8_t mb_type = 0;
 
@@ -346,8 +346,8 @@ static uint8_t pares_mb_type_p_slice(mb_t *mb)
 {
     slice_t *slice = mb->p_Slice;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     uint8_t mb_type = 1;
 
@@ -383,8 +383,8 @@ static uint8_t parse_mb_type_b_slice(mb_t *mb)
 {
     slice_t *slice = mb->p_Slice;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     uint8_t mb_type = 0;
 
@@ -444,12 +444,12 @@ uint32_t parse_mb_type(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
+    data_partition_t* dp = &slice->partArr[0];
 
     uint32_t mb_type;
 
     if (!pps->entropy_coding_mode_flag) {
-        mb_type = bitstream->ue();
+        mb_type = dp->ue();
         mb_type += (slice->slice_type == P_slice || slice->slice_type == SP_slice) ? 1 : 0;
     } else {
         uint8_t (*reading)(mb_t*) =
@@ -466,8 +466,8 @@ static uint8_t parse_sub_mb_type_p_slice(mb_t *mb)
 {
     slice_t *slice = mb->p_Slice;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     cabac_context_t *ctx = slice->mot_ctx->b8_type_contexts[0]; // ctxIdxOffset = 21
 
@@ -486,8 +486,8 @@ static uint8_t parse_sub_mb_type_b_slice(mb_t *mb)
 {
     slice_t *slice = mb->p_Slice;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     cabac_context_t *ctx = slice->mot_ctx->b8_type_contexts[1]; // ctxIdxOffset = 36
 
@@ -517,12 +517,12 @@ uint8_t parse_sub_mb_type(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
+    data_partition_t* dp = &slice->partArr[0];
 
     uint8_t sub_mb_type;
 
     if (!pps->entropy_coding_mode_flag) 
-        sub_mb_type = bitstream->ue();
+        sub_mb_type = dp->ue();
     else {
         if (slice->slice_type == P_slice || slice->slice_type == SP_slice)
             sub_mb_type = parse_sub_mb_type_p_slice(mb);
@@ -539,13 +539,13 @@ bool parse_transform_size_8x8_flag(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     bool transform_size_8x8_flag;
 
     if (!pps->entropy_coding_mode_flag)
-        transform_size_8x8_flag = bitstream->f(1);
+        transform_size_8x8_flag = dp->f(1);
     else {
         cabac_context_t *ctx = slice->mot_ctx->transform_size_contexts;
 
@@ -564,16 +564,16 @@ int8_t parse_intra_pred_mode(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     int8_t intra_pred_mode = 0;
 
     if (!pps->entropy_coding_mode_flag) {
-        if (bitstream->f(1))
+        if (dp->f(1))
             intra_pred_mode = -1;
         else
-            intra_pred_mode = bitstream->f(3);
+            intra_pred_mode = dp->f(3);
     } else {
         cabac_context_t *ctx = slice->mot_ctx->ipr_contexts;
 
@@ -594,13 +594,13 @@ uint8_t parse_intra_chroma_pred_mode(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     uint8_t intra_chroma_pred_mode;
 
     if (!pps->entropy_coding_mode_flag)
-        intra_chroma_pred_mode = bitstream->ue();
+        intra_chroma_pred_mode = dp->ue();
     else {
         cabac_context_t *ctx = slice->mot_ctx->cipr_contexts;
 
@@ -632,15 +632,15 @@ uint8_t parse_ref_idx(mb_t *mb, uint8_t list)
     if (!refidx_present || num_ref_idx_active <= 1)
         return 0;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
+    data_partition_t* dp = &slice->partArr[0];
 
     uint8_t ref_idx;
 
     if (!pps->entropy_coding_mode_flag) {
         if (num_ref_idx_active == 2)
-            ref_idx = 1 - bitstream->f(1);
+            ref_idx = 1 - dp->f(1);
         else
-            ref_idx = bitstream->ue();
+            ref_idx = dp->ue();
     } else
         ref_idx = readRefFrame_CABAC(mb, list);
 
@@ -652,12 +652,12 @@ int16_t parse_mvd(mb_t *mb, uint8_t xy, uint8_t list)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
+    data_partition_t* dp = &slice->partArr[0];
 
     int16_t mvd;
 
     if (!pps->entropy_coding_mode_flag) 
-        mvd = bitstream->se();
+        mvd = dp->se();
     else
         mvd = read_mvd_CABAC(mb, xy, list);
 
@@ -670,7 +670,7 @@ uint8_t parse_coded_block_pattern(mb_t *mb)
     sps_t *sps = slice->active_sps;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
+    data_partition_t* dp = &slice->partArr[0];
 
     uint8_t coded_block_pattern;
 
@@ -697,7 +697,7 @@ uint8_t parse_coded_block_pattern(mb_t *mb)
 
         bool normal  = (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ? 0 : 1);
         bool inter   = (mb->is_intra_block ? 0 : 1);
-        int  cbp_idx = bitstream->ue();
+        int  cbp_idx = dp->ue();
         coded_block_pattern = NCBP[normal][cbp_idx][inter];
     } else
         coded_block_pattern = read_CBP_CABAC(mb);
@@ -710,13 +710,13 @@ int8_t parse_mb_qp_delta(mb_t *mb)
     slice_t *slice = mb->p_Slice;
     pps_t *pps = slice->active_pps;
 
-    Bitstream *bitstream = slice->partArr[0].bitstream;
-    cabac_engine_t *dep_dp = &bitstream->de_cabac;
+    data_partition_t* dp = &slice->partArr[0];
+    cabac_engine_t* dep_dp = &dp->de_cabac;
 
     int8_t mb_qp_delta;
 
     if (!pps->entropy_coding_mode_flag)
-        mb_qp_delta = bitstream->se();
+        mb_qp_delta = dp->se();
     else {
         cabac_context_t *ctx = slice->mot_ctx->delta_qp_contexts;
 

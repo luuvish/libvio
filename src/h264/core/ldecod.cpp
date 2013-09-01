@@ -45,7 +45,7 @@
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "bitstream_nal.h"
+#include "data_partition.h"
 #include "bitstream_cabac.h"
 #include "image.h"
 #include "memalloc.h"
@@ -476,9 +476,9 @@ int OpenDecoder(InputParameters *p_Inp)
     } else
         pDecoder->p_Vid->p_ref = -1;
 
-    open_bitstream(&pDecoder->p_Vid->bitstream,
-                   pDecoder->p_Inp->infile, pDecoder->p_Inp->FileFormat,
-                   pDecoder->p_Vid->nalu->max_size);
+    pDecoder->p_Vid->bitstream.open(
+        pDecoder->p_Inp->infile, pDecoder->p_Inp->FileFormat,
+        pDecoder->p_Vid->nalu->max_size);
 
     init_video_params(pDecoder->p_Vid);
  
@@ -544,7 +544,7 @@ int FinitDecoder(DecodedPicList **ppDecPicList)
     flush_dpb(pDecoder->p_Vid->p_Dpb_layer[1]);
 #endif
 
-    reset_bitstream(pDecoder->p_Vid->bitstream);
+    pDecoder->p_Vid->bitstream.reset();
 
     pDecoder->p_Vid->newframe = 0;
     pDecoder->p_Vid->previous_frame_num = 0;
@@ -696,7 +696,7 @@ int CloseDecoder()
     free_layer_buffers(pDecoder->p_Vid, 1);
     free_global_buffers(pDecoder->p_Vid);
 
-    close_bitstream(pDecoder->p_Vid->bitstream);
+    pDecoder->p_Vid->bitstream.close();
 
 #if (MVC_EXTENSION_ENABLE)
     for (i = 0; i < MAX_VIEW_NUM; i++) {

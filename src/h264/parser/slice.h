@@ -186,7 +186,7 @@ typedef struct slice_t {
     char                      listXsize[6];
     struct storable_picture **listX[6];
 
-    DataPartition            *partArr;      //!< array of partitions
+    data_partition_t            *partArr;      //!< array of partitions
     cabac_contexts_t         *mot_ctx;      //!< pointer to struct of context models for use in CABAC
 
     int                       mvscale[6][MAX_REFERENCE_PICTURES];
@@ -252,7 +252,7 @@ void ref_pic_list_mvc_modification(slice_t *currSlice);
 void pred_weight_table(slice_t *currSlice);
 //void dec_ref_pic_marking(slice_t *currSlice);
 
-void dec_ref_pic_marking(VideoParameters *p_Vid, Bitstream *currStream, slice_t *pSlice);
+void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *currStream, slice_t *pSlice);
 
 void decode_poc(VideoParameters *p_Vid, slice_t *pSlice);
 

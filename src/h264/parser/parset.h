@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 #include "bitstream.h"
-#include "bitstream_nal.h"
+#include "data_partition.h"
 
 #include "defines.h"
 struct video_par;
@@ -322,15 +322,15 @@ typedef struct subset_seq_parameter_set_t {
 
 
 // E.1.1 VUI parameter syntax
-void vui_parameters(DataPartition *p, vui_t *vui);
+void vui_parameters(data_partition_t *p, vui_t *vui);
 // E.1.2 HRD parameters syntax
-void hrd_parameters(DataPartition *p, hrd_t *hrd);
+void hrd_parameters(data_partition_t *p, hrd_t *hrd);
 // 7.3.2.1 Sequence parameter set data syntax
-void seq_parameter_set_rbsp(DataPartition *p, sps_t *sps);
+void seq_parameter_set_rbsp(data_partition_t *p, sps_t *sps);
 // 7.3.2.1.1.1 Scaling list syntax
-void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScalingMatrixFlag, Bitstream *s);
+void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScalingMatrixFlag, data_partition_t *s);
 // 7.3.2.2 Picture parameter set RBSP syntax
-void pic_parameter_set_rbsp(struct video_par *p_Vid, DataPartition *p, pps_t *pps);
+void pic_parameter_set_rbsp(struct video_par *p_Vid, data_partition_t *p, pps_t *pps);
 
 // 7.3.2.5 End of sequence RBSP syntax
 void end_of_seq_rbsp();
@@ -354,7 +354,7 @@ typedef struct nalunitheadermvcext_tag {
 
 #if (MVC_EXTENSION_ENABLE)
 struct nalunitheadermvcext_tag;
-void nal_unit_header_mvc_extension(struct nalunitheadermvcext_tag *NaluHeaderMVCExt, struct bit_stream_dec *bitstream);
+void nal_unit_header_mvc_extension(struct nalunitheadermvcext_tag *NaluHeaderMVCExt, struct data_partition_t *bitstream);
 void nal_unit_header_svc_extension();
 void prefix_nal_unit_svc();
 #endif
@@ -367,8 +367,8 @@ void FreeSPS (sps_t *sps);
 
 void MakePPSavailable (struct video_par *p_Vid, int id, pps_t *pps);
 
-void ProcessSPS (struct video_par *p_Vid, NALU_t *nalu);
-void ProcessPPS (struct video_par *p_Vid, NALU_t *nalu);
+void ProcessSPS (struct video_par *p_Vid, nalu_t *nalu);
+void ProcessPPS (struct video_par *p_Vid, nalu_t *nalu);
 
 void CleanUpPPS(struct video_par *p_Vid);
 
@@ -378,7 +378,7 @@ void activate_pps (struct video_par *p_Vid, pps_t *pps);
 void UseParameterSet (struct slice_t *currSlice);
 
 #if (MVC_EXTENSION_ENABLE)
-void ProcessSubsetSPS (struct video_par *p_Vid, NALU_t *nalu);
+void ProcessSubsetSPS (struct video_par *p_Vid, nalu_t *nalu);
 void init_subset_sps_list(sub_sps_t *subset_sps_list, int iSize);
 void reset_subset_sps(sub_sps_t *subset_sps);
 int  GetBaseViewId(struct video_par *p_Vid, sub_sps_t **subset_sps);

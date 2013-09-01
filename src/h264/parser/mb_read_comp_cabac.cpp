@@ -434,14 +434,14 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
     const byte (*pos_scan8x8)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
 
     if (IS_I16MB(currMB) && !currMB->dpl_flag) {
-        DataPartition *dP = &currSlice->partArr[currSlice->dp_mode ? 1 : 0];
+        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? 1 : 0];
         syntax_element_t currSE;
         currSE.context = LUMA_16DC;
 
         int coef_ctr = -1;
         int level = 1;
         for (int k = 0; k < 17 && level != 0; ++k) {
-            readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
+            readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
             level = currSE.value1;
             if (level != 0) {
                 coef_ctr += currSE.value2 + 1;
@@ -489,9 +489,9 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                     int coef_ctr = start_scan - 1;
                     int level = 1;
                     for (int k = start_scan; k < 17 && level != 0; ++k) {
-                        DataPartition *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
+                        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
 
-                        readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
+                        readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
                         level = currSE.value1;
                         if (level != 0) {
                             coef_ctr += currSE.value2 + 1;
@@ -535,9 +535,9 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                 int coef_ctr = -1;
                 int level = 1;
                 for (int k = 0; k < 65 && level != 0; ++k) {
-                    DataPartition *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
+                    data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
 
-                    readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
+                    readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
                     level = currSE.value1;
                     if (level != 0) {
                         coef_ctr += currSE.value2 + 1;
@@ -563,7 +563,7 @@ static void read_tc_chroma(mb_t *currMB)
     int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
 
     if (currMB->cbp > 15) {      
-        DataPartition *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
+        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
         syntax_element_t currSE;
         currSE.context = sps->ChromaArrayType == 1 ? CHROMA_DC : CHROMA_DC_2x4;
 
@@ -573,7 +573,7 @@ static void read_tc_chroma(mb_t *currMB)
             int coef_ctr = -1;
             int level = 1;
             for (int k = 0; k < NumC8x8 * 4 + 1 && level != 0; ++k) {
-                readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
+                readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
                 level = currSE.value1;
 
                 int i0, j0;
@@ -609,7 +609,7 @@ static void read_tc_chroma(mb_t *currMB)
     }
 
     if (currMB->cbp > 31) {
-        DataPartition *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
+        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
         syntax_element_t currSE;
         currSE.context = CHROMA_AC;
 
@@ -637,7 +637,7 @@ static void read_tc_chroma(mb_t *currMB)
                     int coef_ctr = 0;
                     int level = 1;
                     for (int k = 0; k < 16 && level != 0; ++k) {
-                        readRunLevel_CABAC(currMB, &currSE, &dP->bitstream->de_cabac);
+                        readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
                         level = currSE.value1;
 
                         if (level != 0) {
@@ -678,7 +678,7 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
 {
     slice_t *slice = this->p_Slice;
 
-    DataPartition *dP = &slice->partArr[slice->dp_mode ? 1 : 0];
+    data_partition_t *dP = &slice->partArr[slice->dp_mode ? 1 : 0];
     syntax_element_t currSE;
     currSE.context = LUMA_16DC;
 
@@ -686,7 +686,7 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
     int coef_ctr = -1;
     int level = 1;
     for (int k = 0; k < 17 && level != 0; ++k) {
-        readRunLevel_CABAC(this, &currSE, &dP->bitstream->de_cabac);
+        readRunLevel_CABAC(this, &currSE, &dP->de_cabac);
         level = currSE.value1;
         if (level != 0) {
             coef_ctr += currSE.value2 + 1;

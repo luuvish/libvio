@@ -14,7 +14,7 @@
 
 #include "global.h"
 #include "slice.h"
-#include "bitstream_nal.h"
+#include "data_partition.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
 #include "image.h"
@@ -31,10 +31,8 @@
 
 
 // E.1.1 VUI parameter syntax
-void vui_parameters(DataPartition *p, vui_t *vui)
+void vui_parameters(data_partition_t *s, vui_t *vui)
 {
-    Bitstream *s = p->bitstream;
-
     vui->aspect_ratio_idc = 0;
     vui->aspect_ratio_info_present_flag = s->u(1, "VUI: aspect_ratio_info_present_flag");
     if (vui->aspect_ratio_info_present_flag) {
@@ -100,11 +98,11 @@ void vui_parameters(DataPartition *p, vui_t *vui)
 
     vui->nal_hrd_parameters_present_flag   = s->u(1, "VUI: nal_hrd_parameters_present_flag");
     if (vui->nal_hrd_parameters_present_flag)
-        hrd_parameters(p, &vui->nal_hrd_parameters);
+        hrd_parameters(s, &vui->nal_hrd_parameters);
 
     vui->vcl_hrd_parameters_present_flag   = s->u(1, "VUI: vcl_hrd_parameters_present_flag");
     if (vui->vcl_hrd_parameters_present_flag)
-        hrd_parameters(p, &vui->vcl_hrd_parameters);
+        hrd_parameters(s, &vui->vcl_hrd_parameters);
 
     vui->low_delay_hrd_flag = 1 - vui->fixed_frame_rate_flag;
     if (vui->nal_hrd_parameters_present_flag || vui->vcl_hrd_parameters_present_flag)
@@ -147,9 +145,8 @@ void vui_parameters(DataPartition *p, vui_t *vui)
 }
 
 // E.1.2 HRD parameters syntax
-void hrd_parameters(DataPartition *p, hrd_t *hrd)
+void hrd_parameters(data_partition_t *s, hrd_t *hrd)
 {
-    Bitstream *s = p->bitstream;
     int SchedSelIdx;
 
     hrd->cpb_cnt_minus1                                      = s->ue("VUI: cpb_cnt_minus1");
@@ -184,10 +181,9 @@ void hrd_parameters(DataPartition *p, hrd_t *hrd)
 }
 
 // 7.3.2.1 Sequence parameter set data syntax
-void seq_parameter_set_rbsp(DataPartition *p, sps_t *sps)
+void seq_parameter_set_rbsp(data_partition_t *s, sps_t *sps)
 {
     unsigned i;
-    Bitstream *s = p->bitstream;
 
     uint8_t reserved_zero_2bits;
 
@@ -362,7 +358,7 @@ void seq_parameter_set_rbsp(DataPartition *p, sps_t *sps)
     sps->vui_parameters_present_flag           = s->u(1, "SPS: vui_parameters_present_flag");
     sps->vui_parameters.matrix_coefficients = 2;
     if (sps->vui_parameters_present_flag)
-        vui_parameters(p, &sps->vui_parameters);
+        vui_parameters(s, &sps->vui_parameters);
 
     sps->Valid = TRUE;
 }
@@ -384,7 +380,7 @@ static const byte ZZ_SCAN8[64] = {
 };
 
 // 7.3.2.1.1.1 Scaling list syntax
-void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScalingMatrixFlag, Bitstream *s)
+void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScalingMatrixFlag, data_partition_t *s)
 {
     int lastScale = 8;
     int nextScale = 8;
@@ -403,12 +399,11 @@ void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScali
 }
 
 // 7.3.2.2 Picture parameter set RBSP syntax
-void pic_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *p, pps_t *pps)
+void pic_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, pps_t *pps)
 {
     int iGroup;
     int i;
     int chroma_format_idc;
-    Bitstream *s = p->bitstream;
 
     pps->pic_parameter_set_id                         = s->ue("PPS: pic_parameter_set_id");
     pps->seq_parameter_set_id                         = s->ue("PPS: seq_parameter_set_id");
@@ -599,7 +594,7 @@ static void get_max_dec_frame_buf_size(sps_t *sps)
     sps->max_dec_frame_buffering = size;
 }
 
-static void seq_parameter_set_mvc_extension(sub_sps_t *subset_sps, Bitstream *s)
+static void seq_parameter_set_mvc_extension(sub_sps_t *subset_sps, data_partition_t *s)
 {
   int i, j, num_views;
 
@@ -728,7 +723,7 @@ static int MemAlloc1D(void** ppBuf, int iEleSize, int iNum)
   return (*ppBuf == NULL);
 }
 
-static void mvc_hrd_parameters(mvc_vui_t *pMVCVUI, Bitstream *s)
+static void mvc_hrd_parameters(mvc_vui_t *pMVCVUI, data_partition_t *s)
 {
   int i;
 
@@ -749,7 +744,7 @@ static void mvc_hrd_parameters(mvc_vui_t *pMVCVUI, Bitstream *s)
 
 }
 
-static void mvc_vui_parameters_extension(mvc_vui_t *pMVCVUI, Bitstream *s)
+static void mvc_vui_parameters_extension(mvc_vui_t *pMVCVUI, data_partition_t *s)
 {
   int i, j, iNumOps;
 
@@ -799,19 +794,17 @@ static void mvc_vui_parameters_extension(mvc_vui_t *pMVCVUI, Bitstream *s)
 }
 
 // 7.3.2.1.3 Subset sequence parameter set RBSP syntax
-static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *p, int *curr_seq_set_id)
+static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, int *curr_seq_set_id)
 {
     sub_sps_t *subset_sps;
     bool additional_extension2_flag;
     bool additional_extension2_data_flag;
-    Bitstream *s = p->bitstream;
     sps_t *sps = AllocSPS();
 
-  assert (p != NULL);
-  assert (p->bitstream != NULL);
-  assert (p->bitstream->streamBuffer != 0);
+    assert(s != NULL);
+    assert(s->streamBuffer != 0);
 
-  seq_parameter_set_rbsp(p, sps);
+  seq_parameter_set_rbsp(s, sps);
   get_max_dec_frame_buf_size(sps);
 
   *curr_seq_set_id = sps->seq_parameter_set_id;
@@ -861,7 +854,7 @@ static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, DataPartition *
 
 
 #if (MVC_EXTENSION_ENABLE)
-void nal_unit_header_mvc_extension(NALUnitHeaderMVCExt_t *NaluHeaderMVCExt, Bitstream *s)
+void nal_unit_header_mvc_extension(NALUnitHeaderMVCExt_t *NaluHeaderMVCExt, data_partition_t *s)
 {  
     //to be implemented;  
     NaluHeaderMVCExt->non_idr_flag     = s->u(1, "non_idr_flag");
@@ -1092,12 +1085,12 @@ void MakeSPSavailable (VideoParameters *p_Vid, int id, sps_t *sps)
 }
 
 
-void ProcessSPS(VideoParameters *p_Vid, NALU_t *nalu)
+void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
 {  
-    DataPartition *dp = AllocPartition(1);
+    data_partition_t *dp = AllocPartition(1);
     sps_t *sps = AllocSPS();
 
-    InitPartition(dp, nalu);
+    dp->init(nalu);
     seq_parameter_set_rbsp(dp, sps);
 #if (MVC_EXTENSION_ENABLE)
     get_max_dec_frame_buf_size(sps);
@@ -1128,13 +1121,13 @@ void ProcessSPS(VideoParameters *p_Vid, NALU_t *nalu)
 }
 
 #if (MVC_EXTENSION_ENABLE)
-void ProcessSubsetSPS(VideoParameters *p_Vid, NALU_t *nalu)
+void ProcessSubsetSPS(VideoParameters *p_Vid, nalu_t *nalu)
 {
-    DataPartition *dp = AllocPartition(1);
+    data_partition_t *dp = AllocPartition(1);
     sub_sps_t *subset_sps;
     int curr_seq_set_id;
 
-    InitPartition(dp, nalu);
+    dp->init(nalu);
     subset_seq_parameter_set_rbsp(p_Vid, dp, &curr_seq_set_id);
 
     subset_sps = p_Vid->SubsetSeqParSet + curr_seq_set_id;
@@ -1157,12 +1150,12 @@ void ProcessSubsetSPS(VideoParameters *p_Vid, NALU_t *nalu)
 }
 #endif
 
-void ProcessPPS(VideoParameters *p_Vid, NALU_t *nalu)
+void ProcessPPS(VideoParameters *p_Vid, nalu_t *nalu)
 {
-    DataPartition *dp = AllocPartition(1);
+    data_partition_t *dp = AllocPartition(1);
     pps_t *pps = AllocPPS();
 
-    InitPartition(dp, nalu);
+    dp->init(nalu);
     pic_parameter_set_rbsp(p_Vid, dp, pps);
     // PPSConsistencyCheck (pps);
     if (p_Vid->active_pps) {

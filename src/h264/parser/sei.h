@@ -32,7 +32,7 @@ typedef struct tone_mapping_struct_s {
 
     imgpel lut[1<<MAX_CODED_BIT_DEPTH];       //<! look up table for mapping the coded data value to output data value
 
-    Bitstream *data;
+    data_partition_t *data;
     int        payloadSize;
 } ToneMappingSEI;
 #endif

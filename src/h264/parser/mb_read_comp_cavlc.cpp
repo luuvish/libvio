@@ -176,12 +176,11 @@ static const uint8_t run_before_code[15][16] = {
 
 uint8_t macroblock_t::parse_coeff_token(int nC)
 {
-    slice_t *slice = this->p_Slice;
-    DataPartition *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
-    Bitstream *currStream = dP->bitstream;
+    slice_t* slice = this->p_Slice;
+    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
 
     if (nC >= 8) {
-        int code = currStream->read_bits(6);
+        int code = dp->read_bits(6);
         int TotalCoeff   = (code >> 2);
         int TrailingOnes = (code & 3);
         if (TotalCoeff == 0 && TrailingOnes == 3)
@@ -197,8 +196,8 @@ uint8_t macroblock_t::parse_coeff_token(int nC)
         for (int TotalCoeff = 0; TotalCoeff < 17; TotalCoeff++) {
             int length = coeff_token_length[tab][TrailingOnes][TotalCoeff];
             int code   = coeff_token_code  [tab][TrailingOnes][TotalCoeff];
-            if (length > 0 && currStream->next_bits(length) == code) {
-                currStream->read_bits(length);
+            if (length > 0 && dp->next_bits(length) == code) {
+                dp->read_bits(length);
                 return (TotalCoeff << 2) | (TrailingOnes);
             }
         }
@@ -209,7 +208,7 @@ uint8_t macroblock_t::parse_coeff_token(int nC)
 }
 
 /*
-static int16_t parse_level(Bitstream *currStream, uint8_t level_prefix, uint8_t suffixLength)
+static int16_t parse_level(data_partition_t *currStream, uint8_t level_prefix, uint8_t suffixLength)
 {
     int level, sign;
 
@@ -246,17 +245,16 @@ static int16_t parse_level(Bitstream *currStream, uint8_t level_prefix, uint8_t 
 
 uint8_t macroblock_t::parse_total_zeros(int yuv, int tzVlcIndex)
 {
-    slice_t *slice = this->p_Slice;
-    DataPartition *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
-    Bitstream *currStream = dP->bitstream;
+    slice_t* slice = this->p_Slice;
+    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
 
     int tab = tzVlcIndex - 1;
 
     for (int total_zeros = 0; total_zeros < 16; total_zeros++) {
         int length = total_zeros_length[yuv][tab][total_zeros];
         int code   = total_zeros_code  [yuv][tab][total_zeros];
-        if (length > 0 && currStream->next_bits(length) == code) {
-            currStream->read_bits(length);
+        if (length > 0 && dp->next_bits(length) == code) {
+            dp->read_bits(length);
             return total_zeros;
         }
     }
@@ -267,17 +265,16 @@ uint8_t macroblock_t::parse_total_zeros(int yuv, int tzVlcIndex)
 
 uint8_t macroblock_t::parse_run_before(uint8_t zerosLeft)
 {
-    slice_t *slice = this->p_Slice;
-    DataPartition *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
-    Bitstream *currStream = dP->bitstream;
+    slice_t* slice = this->p_Slice;
+    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
 
     int tab = imin(zerosLeft, 7) - 1;
 
     for (int run_before = 0; run_before < 16; run_before++) {
         int length = run_before_length[tab][run_before];
         int code   = run_before_code  [tab][run_before];
-        if (length > 0 && currStream->next_bits(length) == code) {
-            currStream->read_bits(length);
+        if (length > 0 && dp->next_bits(length) == code) {
+            dp->read_bits(length);
             return run_before;
         }
     }
@@ -290,9 +287,8 @@ uint8_t macroblock_t::parse_run_before(uint8_t zerosLeft)
 void macroblock_t::read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
                                         int levelVal[16], int runVal[16], int *number_coefficients)
 {
-    slice_t *slice = this->p_Slice;
-    DataPartition *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
-    Bitstream *currStream = dP->bitstream;
+    slice_t* slice = this->p_Slice;
+    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
 
     memset(levelVal, 0, maxNumCoeff * sizeof(int));
     memset(runVal,   0, maxNumCoeff * sizeof(int));
@@ -305,7 +301,7 @@ void macroblock_t::read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
         int suffixLength = (TotalCoeff > 10 && TrailingOnes < 3 ? 1 : 0);
 
         if (TrailingOnes) {
-            int code = currStream->f(TrailingOnes);
+            int code = dp->f(TrailingOnes);
             int ntr = TrailingOnes;
             for (int i = TotalCoeff - 1; i > TotalCoeff - 1 - TrailingOnes; i--) {
                 int trailing_ones_sign_flag = (code >> (--ntr)) & 1;
@@ -319,13 +315,13 @@ void macroblock_t::read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
 
             int leadingZeroBits = -1;
             for (int b = 0; !b; leadingZeroBits++)
-                b = currStream->read_bits(1);
+                b = dp->read_bits(1);
             level_prefix = leadingZeroBits;
 
             levelSuffixSize = (level_prefix == 14 && suffixLength == 0) ? 4 :
                               (level_prefix >= 15) ? level_prefix - 3 : suffixLength;
             if (levelSuffixSize > 0)
-                level_suffix = currStream->u(levelSuffixSize);
+                level_suffix = dp->u(levelSuffixSize);
             else
                 level_suffix = 0;
 

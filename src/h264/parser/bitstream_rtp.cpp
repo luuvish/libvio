@@ -93,8 +93,8 @@
 #endif
 
 #include "global.h"
-#include "bitstream_nal.h"
-#include "bitstream_rtp.h"
+#include "bitstream.h"
+#include "data_partition.h"
 #include "memalloc.h"
 
 #define MAXRTPPAYLOADLEN  (65536 - 40)    //!< Maximum payload size of an RTP packet */
@@ -172,7 +172,7 @@ void close_rtp(int *p_BitStreamFile)
  ************************************************************************
  */
 
-int get_nalu_from_rtp(NALU_t *nalu, int BitStreamFile)
+int get_nalu_from_rtp(nalu_t *nalu, int BitStreamFile)
 {
     static uint16 first_call = 1;  //!< triggers sequence number initialization on first call
     static uint16 old_seq = 0;     //!< store the last RTP sequence number for loss detection
