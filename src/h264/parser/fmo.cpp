@@ -1,19 +1,3 @@
-
-/*!
- *****************************************************************************
- *
- * \file fmo.c
- *
- * \brief
- *    Support for Flexible mb_t Ordering (FMO)
- *
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *    - Stephan Wenger      stewe@cs.tu-berlin.de
- *    - Karsten Suehring
- ******************************************************************************
- */
-
 #include "global.h"
 #include "slice.h"
 #include "fmo.h"

@@ -1,17 +1,3 @@
-/*!
- ************************************************************************
- * \file  sei.c
- *
- * \brief
- *    Functions to implement SEI messages
- *
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *    - Dong Tian        <tian@cs.tut.fi>
- *    - Karsten Suehring
- ************************************************************************
- */
-
 #include <math.h>
 #include "global.h"
 #include "memalloc.h"

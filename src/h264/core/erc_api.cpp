@@ -1,20 +1,3 @@
-
-/*!
- *************************************************************************************
- * \file erc_api.c
- *
- * \brief
- *    External (still inside video decoder) interface for error concealment module
- *
- *  \author
- *     - Ari Hourunranta                <ari.hourunranta@nokia.com>
- *     - Viktor Varsa                     <viktor.varsa@nokia.com>
- *     - Ye-Kui Wang                   <wyk@ieee.org>
- *
- *************************************************************************************
- */
-
-
 #include "global.h"
 #include "memalloc.h"
 #include "erc_api.h"

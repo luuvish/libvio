@@ -1,16 +1,3 @@
-/*!
- ************************************************************************
- * \file macroblock.h
- *
- * \brief
- *    Arrays for macroblock encoding
- *
- * \author
- *    Inge Lille-Langoy               <inge.lille-langoy@telenor.com>
- *    Copyright (C) 1999 Telenor Satellite Services, Norway
- ************************************************************************
- */
-
 #ifndef _MB_READ_H_
 #define _MB_READ_H_
 

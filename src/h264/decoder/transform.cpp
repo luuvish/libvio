@@ -1,19 +1,3 @@
-
-/*!
- ***********************************************************************
- *  \file
- *      block.c
- *
- *  \brief
- *      Block functions
- *
- *  \author
- *      Main contributors (see contributors.h for copyright, address and affiliation details)
- *      - Inge Lille-Langoy          <inge.lille-langoy@telenor.com>
- *      - Rickard Sjoberg            <rickard.sjoberg@era.ericsson.se>
- ***********************************************************************
- */
-
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"

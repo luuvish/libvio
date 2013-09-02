@@ -1,18 +1,3 @@
-
-/*!
- ***********************************************************************
- *  \file
- *      quant.c
- *
- *  \brief
- *      Quantization functions
- *
- *  \author
- *      Main contributors (see contributors.h for copyright, address and affiliation details)
- *
- ***********************************************************************
- */
-
 #include "global.h"
 #include "slice.h"
 #include "memalloc.h"

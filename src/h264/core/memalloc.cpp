@@ -1,20 +1,3 @@
-
-/*!
- ************************************************************************
- * \file  memalloc.c
- *
- * \brief
- *    Memory allocation and free helper functions
- *
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *     - Alexis Michael Tourapis         <alexismt@ieee.org> 
- *     - Karsten Suehring
- *     - Yuwen He                        <yhe@dolby.com>
- *
- ************************************************************************
- */
-
 #include "global.h"
 #include "memalloc.h"
 

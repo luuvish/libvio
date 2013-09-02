@@ -1,17 +1,3 @@
-
-/*!
- ************************************************************************
- * \file output.c
- *
- * \brief
- *    Output an image and Trance support
- *
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *    - Karsten Suehring
- ************************************************************************
- */
-
 #include "global.h"
 #include "dpb.h"
 #include "image.h"

@@ -1,17 +1,3 @@
-
-/*!
- ************************************************************************
- *  \file
- *     parset.c
- *  \brief
- *     Parameter Sets
- *  \author
- *     Main contributors (see contributors.h for copyright, address and affiliation details)
- *     - Stephan Wenger          <stewe@cs.tu-berlin.de>
- *
- ***********************************************************************
- */
-
 #include "global.h"
 #include "slice.h"
 #include "data_partition.h"
@@ -293,10 +279,13 @@ void seq_parameter_set_rbsp(data_partition_t *s, sps_t *sps)
             sps->offset_for_ref_frame[i]           = s->se("SPS: offset_for_ref_frame[i]");
     }
 
-    assert(sps->log2_max_pic_order_cnt_lsb_minus4 >= 0 && sps->log2_max_pic_order_cnt_lsb_minus4 <= 12);
-    assert(sps->offset_for_non_ref_pic >= -(1 << 31) + 1 && sps->offset_for_non_ref_pic <= (1 << 31) - 1);
-    assert(sps->offset_for_top_to_bottom_field >= -(1 << 31) + 1 && sps->offset_for_top_to_bottom_field <= (1 << 31) - 1);
-    assert(sps->num_ref_frames_in_pic_order_cnt_cycle >= 0 && sps->num_ref_frames_in_pic_order_cnt_cycle <= 255);
+    if (sps->pic_order_cnt_type == 0)
+        assert(sps->log2_max_pic_order_cnt_lsb_minus4 >= 0 && sps->log2_max_pic_order_cnt_lsb_minus4 <= 12);
+    else if (sps->pic_order_cnt_type == 1) {
+        assert(sps->offset_for_non_ref_pic >= -(1 << 31) + 1 && sps->offset_for_non_ref_pic <= (1 << 31) - 1);
+        assert(sps->offset_for_top_to_bottom_field >= -(1 << 31) + 1 && sps->offset_for_top_to_bottom_field <= (1 << 31) - 1);
+        assert(sps->num_ref_frames_in_pic_order_cnt_cycle >= 0 && sps->num_ref_frames_in_pic_order_cnt_cycle <= 255);
+    }
 
     sps->MaxPicOrderCntLsb = 1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4);
     sps->ExpectedDeltaPerPicOrderCntCycle = 0;
@@ -799,7 +788,9 @@ static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_
     sub_sps_t *subset_sps;
     bool additional_extension2_flag;
     bool additional_extension2_data_flag;
-    sps_t *sps = AllocSPS();
+    sps_t *sps = new sps_t;
+    if (!sps)
+        no_mem_exit ("AllocSPS: SPS");
 
     assert(s != NULL);
     assert(s->streamBuffer != 0);
@@ -847,7 +838,7 @@ static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_
     if (subset_sps->sps.Valid)
         subset_sps->Valid = TRUE;
 
-    FreeSPS (sps);
+    delete sps;
     return 0;
 }
 #endif
@@ -1092,7 +1083,9 @@ void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
         snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
         error(errortext, 100);
     }
-    sps_t *sps = AllocSPS();
+    sps_t *sps = new sps_t;
+    if (!sps)
+        no_mem_exit ("AllocSPS: SPS");
 
     dp->init(nalu);
     seq_parameter_set_rbsp(dp, sps);
@@ -1121,7 +1114,7 @@ void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
     }
 
     delete []dp;
-    FreeSPS(sps);
+    delete sps;
 }
 
 #if (MVC_EXTENSION_ENABLE)
@@ -1165,7 +1158,7 @@ void ProcessPPS(VideoParameters *p_Vid, nalu_t *nalu)
         snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
         error(errortext, 100);
     }
-    pps_t *pps = AllocPPS();
+    pps_t *pps = new pps_t;
 
     dp->init(nalu);
     pic_parameter_set_rbsp(p_Vid, dp, pps);
@@ -1184,7 +1177,7 @@ void ProcessPPS(VideoParameters *p_Vid, nalu_t *nalu)
     }
     MakePPSavailable(p_Vid, pps->pic_parameter_set_id, pps);
     delete []dp;
-    FreePPS(pps);
+    delete pps;
 }
 
 #if (MVC_EXTENSION_ENABLE)
@@ -1316,79 +1309,14 @@ int GetBaseViewId(VideoParameters *p_Vid, sub_sps_t **subset_sps)
 }
 #endif
 
-/*!
- *************************************************************************************
- * \brief
- *    Allocates memory for a picture paramater set
- *
- * \return
- *    pointer to a pps
- *************************************************************************************
- */
 
-pps_t *AllocPPS ()
- {
-   pps_t *p;
+pic_parameter_set_t::pic_parameter_set_t()
+{
+    this->slice_group_id = NULL;
+}
 
-   if ((p=(pps_t *)calloc (1, sizeof (pps_t))) == NULL)
-     no_mem_exit ("AllocPPS: PPS");
-   p->slice_group_id = NULL;
-   return p;
- }
-
-
-/*!
- *************************************************************************************
- * \brief
- *    Allocates memory for am sequence paramater set
- *
- * \return
- *    pointer to a sps
- *************************************************************************************
- */
-
-sps_t *AllocSPS ()
- {
-   sps_t *p;
-
-   if ((p=(sps_t *)calloc (1, sizeof (sps_t))) == NULL)
-     no_mem_exit ("AllocSPS: SPS");
-   return p;
- }
-
-
-/*!
- *************************************************************************************
- * \brief
- *    Frees a picture parameter set
- *
- * \param pps to be freed
- *   Picture parameter set to be freed
- *************************************************************************************
- */
-
- void FreePPS (pps_t *pps)
- {
-   assert (pps != NULL);
-   if (pps->slice_group_id != NULL) 
-     free (pps->slice_group_id);
-   free (pps);
- }
-
-
- /*!
- *************************************************************************************
- * \brief
- *    Frees a sps
- *
- * \param sps
- *   Sequence parameter set to be freed
- *************************************************************************************
- */
-
- void FreeSPS (sps_t *sps)
- {
-   assert (sps != NULL);
-   free (sps);
- }
-
+pic_parameter_set_t::~pic_parameter_set_t()
+{
+    if (this->slice_group_id)
+        delete this->slice_group_id;
+}

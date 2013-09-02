@@ -1,19 +1,3 @@
-
-/*!
- **************************************************************************************
- * \file
- *    parset.h
- * \brief
- *    Picture and Sequence Parameter Sets, decoder operations
- * 
- * \date 25 November 2002
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *      - Stephan Wenger        <stewe@cs.tu-berlin.de>
- ***************************************************************************************
- */
-
-
 #ifndef _PARSET_H_
 #define _PARSET_H_
 
@@ -208,6 +192,9 @@ typedef struct pic_parameter_set_t {
     int         ScalingList8x8[6][64];
     bool        UseDefaultScalingMatrix4x4Flag[6];
     bool        UseDefaultScalingMatrix8x8Flag[6];
+
+    pic_parameter_set_t();
+    ~pic_parameter_set_t();
 } pps_t;
 
 
@@ -354,11 +341,6 @@ void nal_unit_header_svc_extension();
 void prefix_nal_unit_svc();
 #endif
 
-pps_t *AllocPPS (void);
-sps_t *AllocSPS (void);
-
-void FreePPS (pps_t *pps);
-void FreeSPS (sps_t *sps);
 
 void MakePPSavailable (struct video_par *p_Vid, int id, pps_t *pps);
 

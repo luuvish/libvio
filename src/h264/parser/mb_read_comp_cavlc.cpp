@@ -1,16 +1,3 @@
-/*!
- ***********************************************************************
- * \file read_comp_cavlc.c
- *
- * \brief
- *     Read Coefficient Components (CAVLC version)
- *
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *    - Alexis Michael Tourapis         <alexismt@ieee.org>
- ***********************************************************************
-*/
-
 #include "global.h"
 #include "slice.h"
 #include "data_partition.h"

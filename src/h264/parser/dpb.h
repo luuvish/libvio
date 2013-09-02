@@ -1,23 +1,3 @@
-/*!
- ***********************************************************************
- *  \file
- *      mbuffer.h
- *
- *  \brief
- *      Frame buffer functions
- *
- *  \author
- *      Main contributors (see contributors.h for copyright, address and affiliation details)
- *      - Karsten Suehring
- *      - Alexis Michael Tourapis  <alexismt@ieee.org>
- 
- *      - Jill Boyce               <jill.boyce@thomson.net>
- *      - Saurav K Bandyopadhyay   <saurav@ieee.org>
- *      - Zhenyu Wu                <Zhenyu.Wu@thomson.net
- *      - Purvin Pandit            <Purvin.Pandit@thomson.net>
- *
- ***********************************************************************
- */
 #ifndef _MBUFFERDEC_H_
 #define _MBUFFERDEC_H_
 

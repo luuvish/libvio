@@ -1,19 +1,3 @@
-
-/*!
- *************************************************************************************
- * \file mc_prediction.c
- *
- * \brief
- *    Functions for motion compensated prediction
- *
- * \author
- *      Main contributors (see contributors.h for copyright, 
- *                         address and affiliation details)
- *      - Alexis Michael Tourapis  <alexismt@ieee.org>
- *      - Chris Vogt
- *
- *************************************************************************************
- */
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"

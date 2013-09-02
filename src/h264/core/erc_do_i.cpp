@@ -1,20 +1,3 @@
-
-/*!
- *************************************************************************************
- * \file
- *      erc_do_i.c
- *
- * \brief
- *      Intra (I) frame error concealment algorithms for decoder
- *
- *  \author
- *      - Ari Hourunranta              <ari.hourunranta@nokia.com>
- *      - Viktor Varsa                 <viktor.varsa@nokia.com>
- *      - Ye-Kui Wang                  <wyk@ieee.org>
- *
- *************************************************************************************
- */
-
 #include "global.h"
 #include "erc_do.h"
 

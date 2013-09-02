@@ -135,7 +135,7 @@ int  RTPReadPacket(RTPpacket_t *p, int bitstream);
 
 void open_rtp(const char *fn, int *p_BitStreamFile)
 {
-    if (((*p_BitStreamFile) = open(fn, OPENFLAGS_READ)) == -1) {
+    if (((*p_BitStreamFile) = open(fn, O_RDONLY)) == -1) {
         snprintf(errortext, ET_SIZE, "Cannot open RTP file '%s'", fn);
         error(errortext, 500);
     }
@@ -360,7 +360,7 @@ int RTPReadPacket(RTPpacket_t *p, int bitstream)
     assert(p->packet != NULL);
     assert(p->payload != NULL);
 
-    Filepos = tell(bitstream);
+    Filepos = lseek(bitstream, 0, SEEK_CUR);
     if (4 != read(bitstream, &p->packlen, 4))
         return 0;
     if (4 != read(bitstream, &intime, 4)) {

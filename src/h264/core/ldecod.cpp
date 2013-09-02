@@ -1,47 +1,3 @@
-
-/*!
- ***********************************************************************
- *  \mainpage
- *     This is the H.264/AVC decoder reference software. For detailed documentation
- *     see the comments in each file.
- *
- *     The JM software web site is located at:
- *     http://iphome.hhi.de/suehring/tml
- *
- *     For bug reporting and known issues see:
- *     https://ipbt.hhi.fraunhofer.de
- *
- *  \author
- *     The main contributors are listed in contributors.h
- *
- *  \version
- *     JM 18.4 (FRExt)
- *
- *  \note
- *     tags are used for document system "doxygen"
- *     available at http://www.doxygen.org
- */
-/*!
- *  \file
- *     ldecod.c
- *  \brief
- *     H.264/AVC reference decoder project main()
- *  \author
- *     Main contributors (see contributors.h for copyright, address and affiliation details)
- *     - Inge Lille-Langøy       <inge.lille-langoy@telenor.com>
- *     - Rickard Sjoberg         <rickard.sjoberg@era.ericsson.se>
- *     - Stephan Wenger          <stewe@cs.tu-berlin.de>
- *     - Jani Lainema            <jani.lainema@nokia.com>
- *     - Sebastian Purreiter     <sebastian.purreiter@mch.siemens.de>
- *     - Byeong-Moon Jeon        <jeonbm@lge.com>
- *     - Gabi Blaettermann
- *     - Ye-Kui Wang             <wyk@ieee.org>
- *     - Valeri George
- *     - Karsten Suehring
- *
- ***********************************************************************
- */
-
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
@@ -138,7 +94,7 @@ static void Report(VideoParameters *p_Vid)
     fprintf(stdout," SNR Y(dB)           : %5.2f\n",snr->snra[0]);
     fprintf(stdout," SNR U(dB)           : %5.2f\n",snr->snra[1]);
     fprintf(stdout," SNR V(dB)           : %5.2f\n",snr->snra[2]);
-    fprintf(stdout," Total decoding time : %.3f sec (%.3f fps)[%d frm/%" FORMAT_OFF_T " ms]\n",p_Vid->tot_time*0.001,(snr->frame_ctr ) * 1000.0 / p_Vid->tot_time, snr->frame_ctr, p_Vid->tot_time);
+    fprintf(stdout," Total decoding time : %.3f sec (%.3f fps)[%d frm/%lld ms]\n",p_Vid->tot_time*0.001,(snr->frame_ctr ) * 1000.0 / p_Vid->tot_time, snr->frame_ctr, p_Vid->tot_time);
     fprintf(stdout,"--------------------------------------------------------------------------\n");
     fprintf(stdout," Exit JM %s decoder, ver %s ",JM, VERSION);
     fprintf(stdout,"\n");
@@ -146,7 +102,7 @@ static void Report(VideoParameters *p_Vid)
   else
   {
     fprintf(stdout,"\n----------------------- Decoding Completed -------------------------------\n");
-    fprintf(stdout," Total decoding time : %.3f sec (%.3f fps)[%d frm/%" FORMAT_OFF_T "  ms]\n",p_Vid->tot_time*0.001, (snr->frame_ctr) * 1000.0 / p_Vid->tot_time, snr->frame_ctr, p_Vid->tot_time);
+    fprintf(stdout," Total decoding time : %.3f sec (%.3f fps)[%d frm/%lld  ms]\n",p_Vid->tot_time*0.001, (snr->frame_ctr) * 1000.0 / p_Vid->tot_time, snr->frame_ctr, p_Vid->tot_time);
     fprintf(stdout,"--------------------------------------------------------------------------\n");
     fprintf(stdout," Exit JM %s decoder, ver %s ",JM, VERSION);
     fprintf(stdout,"\n");
@@ -375,7 +331,9 @@ static void alloc_video_params(VideoParameters **p_Vid)
     if (!(*p_Vid)->nalu)
         no_mem_exit("AllocNALU: n");
     (*p_Vid)->pDecOuputPic = (DecodedPicList *)calloc(1, sizeof(DecodedPicList));
-    (*p_Vid)->pNextPPS = AllocPPS();
+    (*p_Vid)->pNextPPS = new pps_t;
+    if (!(*p_Vid)->pNextPPS)
+         no_mem_exit ("AllocPPS: PPS");
     (*p_Vid)->first_sps = 1;
 }
 
@@ -462,7 +420,7 @@ int OpenDecoder(InputParameters *p_Inp)
         OpenOutputFiles(p_Vid, 0, 1);
     else { //Normal AVC      
         if (strcasecmp(p_Inp->outfile, "\"\"") != 0 && strlen(p_Inp->outfile) > 0) {
-            if ((p_Vid->p_out_mvc[0] = open(p_Inp->outfile, OPENFLAGS_WRITE, OPEN_PERMISSIONS)) == -1) {
+            if ((p_Vid->p_out_mvc[0] = open(p_Inp->outfile, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
                 snprintf(errortext, ET_SIZE, "Error open file %s ", p_Inp->outfile);
                 error(errortext, 500);
             }
@@ -471,7 +429,7 @@ int OpenDecoder(InputParameters *p_Inp)
     }
 
     if (strlen(pDecoder->p_Inp->reffile) > 0 && strcmp(pDecoder->p_Inp->reffile, "\"\"")) {
-        if ((pDecoder->p_Vid->p_ref = open(pDecoder->p_Inp->reffile, OPENFLAGS_READ)) == -1) {
+        if ((pDecoder->p_Vid->p_ref = open(pDecoder->p_Inp->reffile, O_RDONLY)) == -1) {
             fprintf(stdout, " Input reference file                   : %s does not exist \n", pDecoder->p_Inp->reffile);
             fprintf(stdout, "                                          SNR values are not available\n");
         }
@@ -675,7 +633,7 @@ static void free_img( VideoParameters *p_Vid)
         //free memory;
         FreeDecPicList(p_Vid->pDecOuputPic);
         if (p_Vid->pNextPPS) {
-            FreePPS(p_Vid->pNextPPS);
+            delete p_Vid->pNextPPS;
             p_Vid->pNextPPS = NULL;
         }
 
@@ -751,7 +709,7 @@ void OpenOutputFiles(VideoParameters *p_Vid, int view0_id, int view1_id)
                 close(p_Vid->p_out_mvc[0]);
                 p_Vid->p_out_mvc[0] = -1;
             }
-            if ((p_Vid->p_out_mvc[0] = open(out_ViewFileName[0], OPENFLAGS_WRITE, OPEN_PERMISSIONS)) == -1) {
+            if ((p_Vid->p_out_mvc[0] = open(out_ViewFileName[0], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
                 snprintf(errortext, ET_SIZE, "Error open file %s ", out_ViewFileName[0]);
                 fprintf(stderr, "%s\n", errortext);
                 exit(500);
@@ -761,7 +719,7 @@ void OpenOutputFiles(VideoParameters *p_Vid, int view0_id, int view1_id)
                 close(p_Vid->p_out_mvc[1]);
                 p_Vid->p_out_mvc[1] = -1;
             }
-            if ((p_Vid->p_out_mvc[1] = open(out_ViewFileName[1], OPENFLAGS_WRITE, OPEN_PERMISSIONS)) == -1) {
+            if ((p_Vid->p_out_mvc[1] = open(out_ViewFileName[1], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
                 snprintf(errortext, ET_SIZE, "Error open file %s ", out_ViewFileName[1]);
                 fprintf(stderr, "%s\n", errortext);
                 exit(500);

@@ -1,23 +1,3 @@
-
-/*!
- *************************************************************************************
- * \file
- *      erc_do_p.c
- *
- * \brief
- *      Inter (P) frame error concealment algorithms for decoder
- *
- *  \author
- *      - Viktor Varsa                     <viktor.varsa@nokia.com>
- *      - Ye-Kui Wang                      <wyk@ieee.org>
- *      - Jill Boyce                       <jill.boyce@thomson.net>
- *      - Saurav K Bandyopadhyay           <saurav@ieee.org>
- *      - Zhenyu Wu                        <Zhenyu.Wu@thomson.net>
- *      - Purvin Pandit                    <Purvin.Pandit@thomson.net>
- *
- *************************************************************************************
- */
-
 #include "global.h"
 #include "slice.h"
 #include "transform.h"

@@ -1,20 +1,3 @@
-/*!
- ***********************************************************************
- *  \file
- *      mbuffer_mvc.c
- *
- *  \brief
- *      Frame buffer functions
- *
- *  \author
- *      Main contributors (see contributors.h for copyright, address and affiliation details)
- *      - Athanasios Leontaris            <aleon@dolby.com>
- *      - Karsten Suehring
- *      - Alexis Tourapis                 <alexismt@ieee.org>
- *      - Yuwen He                        <yhe@dolby.com>
- ***********************************************************************
- */
-
 #include <limits.h>
 
 #include "global.h"

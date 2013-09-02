@@ -1,24 +1,3 @@
-
-/*!
- ***********************************************************************
- *  \file
- *      mbuffer.c
- *
- *  \brief
- *      Frame buffer functions
- *
- *  \author
- *      Main contributors (see contributors.h for copyright, address and affiliation details)
- *      - Karsten Suehring
- *      - Alexis Tourapis                 <alexismt@ieee.org>
- *      - Jill Boyce                      <jill.boyce@thomson.net>
- *      - Saurav K Bandyopadhyay          <saurav@ieee.org>
- *      - Zhenyu Wu                       <Zhenyu.Wu@thomson.net
- *      - Purvin Pandit                   <Purvin.Pandit@thomson.net>
- *      - Yuwen He                        <yhe@dolby.com>
- ***********************************************************************
- */
-
 #include <limits.h>
 
 #include "global.h"

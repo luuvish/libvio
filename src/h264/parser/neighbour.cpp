@@ -1,17 +1,3 @@
-
-/*!
- *************************************************************************************
- * \file mb_access.c
- *
- * \brief
- *    Functions for macroblock neighborhoods
- *
- *  \author
- *      Main contributors (see contributors.h for copyright, address and affiliation details)
- *      - Karsten Suehring
- *************************************************************************************
- */
-
 #include "global.h"
 #include "data_partition.h"
 #include "slice.h"

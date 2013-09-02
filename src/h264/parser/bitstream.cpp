@@ -72,7 +72,7 @@ void annex_b_t::open(const char* fn)
 {
     if (this->iobuffer)
         error("open_annex_b: tried to open Annex B file twice", 500);
-    if ((this->BitStreamFile = ::open(fn, OPENFLAGS_READ)) == -1) {
+    if ((this->BitStreamFile = ::open(fn, O_RDONLY)) == -1) {
         snprintf(errortext, ET_SIZE, "Cannot open Annex B ByteStream file '%s'", fn);
         error(errortext, 500);
     }

@@ -1,17 +1,3 @@
-/*!
- *************************************************************************************
- * \file intra16x16_pred.c
- *
- * \brief
- *    Functions for intra 16x16 prediction
- *
- * \author
- *      Main contributors (see contributors.h for copyright, 
- *                         address and affiliation details)
- *      - Alexis Michael Tourapis  <alexismt@ieee.org>
- *
- *************************************************************************************
- */
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
