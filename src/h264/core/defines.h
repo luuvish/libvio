@@ -15,8 +15,6 @@
 #define MVC_INIT_VIEW_ID          -1
 #define MAX_VIEW_NUM              1024   
 
-#include "win32.h"
-
 typedef unsigned char  byte;     //!< byte type definition
 typedef unsigned char  uint8;    //!< type definition for unsigned char (same as byte, 8 bits)
 typedef unsigned short uint16;   //!< type definition for unsigned short (16 bits)

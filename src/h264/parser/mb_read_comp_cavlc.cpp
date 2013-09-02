@@ -419,7 +419,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                         coef_ctr += runarr[k] + 1;
 
                         if (!currMB->transform_size_8x8_flag) {
-                            currMB->s_cbp[pl].blk |= (int64)(0x01 << (j * 4 + i));
+                            currMB->s_cbp[pl].blk |= (int64_t)(0x01 << (j * 4 + i));
                             int i0 = pos_scan4x4[coef_ctr][0];
                             int j0 = pos_scan4x4[coef_ctr][1];
 
@@ -428,7 +428,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                             else
                                 currSlice->cof[pl][j * 4 + j0][i * 4 + i0] = levarr[k];
                         } else {
-                            currMB->s_cbp[pl].blk |= (int64)(0x33 << (block_y * 4 + block_x));
+                            currMB->s_cbp[pl].blk |= (int64_t)(0x33 << (block_y * 4 + block_x));
                             int i0 = pos_scan8x8[coef_ctr * 4 + i4x4][0];
                             int j0 = pos_scan8x8[coef_ctr * 4 + i4x4][1];
 
@@ -471,12 +471,12 @@ static void read_tc_chroma(mb_t *currMB)
                     if (sps->ChromaArrayType == 1) {
                         i0 = coeffNum % 2;
                         j0 = coeffNum / 2;
-                        currMB->s_cbp[0].blk |= (int64)(0xf << (iCbCr * 4 + 16));
+                        currMB->s_cbp[0].blk |= (int64_t)(0xf << (iCbCr * 4 + 16));
                     }
                     if (sps->ChromaArrayType == 2) {
                         i0 = FIELD_SCAN[coeffNum][0];
                         j0 = FIELD_SCAN[coeffNum][1];
-                        currMB->s_cbp[0].blk |= (int64)(0xff << (iCbCr * 8 + 16));
+                        currMB->s_cbp[0].blk |= (int64_t)(0xff << (iCbCr * 8 + 16));
                     }
                     currSlice->cof[iCbCr + 1][j0 * 4][i0 * 4] = levelVal[k];
                 }
@@ -521,7 +521,7 @@ static void read_tc_chroma(mb_t *currMB)
                     //for (int k = numcoeff - 1; k >= 0; k--) {
                     for (int k = 0; k < numcoeff; ++k) {
                         if (levarr[k] != 0) {
-                            currMB->s_cbp[0].blk |= (int64)(0x1 << (i8x8 * 4 + i4x4 + 16));
+                            currMB->s_cbp[0].blk |= (int64_t)(0x1 << (i8x8 * 4 + i4x4 + 16));
                             coef_ctr += runarr[k] + 1;
                             int i0 = pos_scan4x4[coef_ctr][0];
                             int j0 = pos_scan4x4[coef_ctr][1];

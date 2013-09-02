@@ -106,8 +106,8 @@ enum {
 
 //! cbp structure
 typedef struct cbp_s {
-    int64 blk     ;
-    int64 bits    ;
+    int64_t blk;
+    int64_t bits;
 } CBPStructure;
 
 //! mb_t

@@ -86,6 +86,11 @@
 
 */
 
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
 #if defined(WIN32) || defined(WIN64)
 #include <Winsock2.h>
 #else
@@ -103,21 +108,21 @@
 #define RTP_TR_TIMESTAMP_MULT 1000        //!< should be something like 27 Mhz / 29.97 Hz */
 
 typedef struct {
-    unsigned int v;          //!< Version, 2 bits, MUST be 0x2
-    unsigned int p;          //!< Padding bit, Padding MUST NOT be used
-    unsigned int x;          //!< Extension, MUST be zero
-    unsigned int cc;         /*!< CSRC count, normally 0 in the absence
+    uint32_t v;          //!< Version, 2 bits, MUST be 0x2
+    uint32_t p;          //!< Padding bit, Padding MUST NOT be used
+    uint32_t x;          //!< Extension, MUST be zero
+    uint32_t cc;         /*!< CSRC count, normally 0 in the absence
                                   of RTP mixers */
-    unsigned int m;          //!< Marker bit
-    unsigned int pt;         //!< 7 bits, Payload Type, dynamically established
-    uint16       seq;        /*!< RTP sequence number, incremented by one for
+    uint32_t m;          //!< Marker bit
+    uint32_t pt;         //!< 7 bits, Payload Type, dynamically established
+    uint16_t seq;        /*!< RTP sequence number, incremented by one for
                                   each sent packet */
-    unsigned int timestamp;  //!< timestamp, 27 MHz for H.264
-    unsigned int ssrc;       //!< Synchronization Source, chosen randomly
-    byte        *payload;    //!< the payload including payload headers
-    unsigned int paylen;     //!< length of payload in bytes
-    byte        *packet;     //!< complete packet including header and payload
-    unsigned int packlen;    //!< length of packet, typically paylen+12
+    uint32_t timestamp;  //!< timestamp, 27 MHz for H.264
+    uint32_t ssrc;       //!< Synchronization Source, chosen randomly
+    uint8_t* payload;    //!< the payload including payload headers
+    uint32_t paylen;     //!< length of payload in bytes
+    uint8_t* packet;     //!< complete packet including header and payload
+    uint32_t packlen;    //!< length of packet, typically paylen+12
 } RTPpacket_t;
 
 int  DecomposeRTPpacket(RTPpacket_t *p);
@@ -353,8 +358,8 @@ void DumpRTPHeader(RTPpacket_t *p)
 
 int RTPReadPacket(RTPpacket_t *p, int bitstream)
 {
-    int64 Filepos;
-    int intime;
+    int64_t Filepos;
+    int     intime;
 
     assert(p != NULL);
     assert(p->packet != NULL);

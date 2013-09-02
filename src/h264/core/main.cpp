@@ -21,9 +21,6 @@
  * ===========================================================================
  */
 
-#include <sys/stat.h>
-
-#include "win32.h"
 #include "h264decoder.h"
 #include "configfile.h"
 
@@ -79,8 +76,6 @@ int main(int argc, char **argv)
     DecodedPicList *pDecPicList;
     int iFramesDecoded = 0;
     InputParameters InputParams;
-
-    init_time();
 
     //get input parameters;
     Configure(&InputParams, argc, argv);

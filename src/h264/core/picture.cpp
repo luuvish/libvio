@@ -1,4 +1,3 @@
-
 #include <math.h>
 #include <limits.h>
 
@@ -401,7 +400,6 @@ static void status_picture(VideoParameters *p_Vid, StorablePicture **dec_picture
 
     char yuv_types[4][6]= {"4:0:0","4:2:0","4:2:2","4:4:4"};
     char yuvFormat[10];
-    int64 tmp_time;                   // time used by decoding the last frame
 
     int structure         = (*dec_picture)->structure;
     int slice_type        = (*dec_picture)->slice_type;
@@ -453,11 +451,10 @@ static void status_picture(VideoParameters *p_Vid, StorablePicture **dec_picture
     }
 
     if (structure == FRAME || structure == BOTTOM_FIELD) {
-        gettime (&(p_Vid->end_time));              // end time
-
-        tmp_time  = timediff(&(p_Vid->start_time), &(p_Vid->end_time));
+        p_Vid->end_time = std::chrono::system_clock::now();
+        int64_t tmp_time = std::chrono::duration_cast<std::chrono::microseconds>(p_Vid->end_time - p_Vid->start_time).count();
         p_Vid->tot_time += tmp_time;
-        tmp_time  = timenorm(tmp_time);
+
         sprintf(yuvFormat,"%s", yuv_types[chroma_format_idc]);
 
         if (p_Inp->silent == FALSE) {
@@ -467,7 +464,7 @@ static void status_picture(VideoParameters *p_Vid, StorablePicture **dec_picture
                         p_Vid->frame_no, cslice_type, frame_poc, pic_num, qp, snr->snr[0], snr->snr[1], snr->snr[2], yuvFormat, (int) tmp_time);
             else
                 fprintf(stdout,"%05d(%s%5d %5d %5d                             %s %7d\n",
-                        p_Vid->frame_no, cslice_type, frame_poc, pic_num, qp, yuvFormat, (int)tmp_time);
+                        p_Vid->frame_no, cslice_type, frame_poc, pic_num, qp, yuvFormat, (int)(tmp_time/1000));
         } else
             fprintf(stdout,"Completed Decoding frame %05d.\r",snr->frame_ctr);
 

@@ -6,8 +6,6 @@
 #include "memalloc.h"
 
 
-
-
 void slice_header(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;

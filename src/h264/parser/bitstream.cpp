@@ -21,6 +21,11 @@
  * ===========================================================================
  */
 
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
 #include "memalloc.h" 
 #include "bitstream.h"
 #include "data_partition.h"

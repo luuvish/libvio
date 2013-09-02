@@ -159,7 +159,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
                     p_Vid->GetStrengthVer(MbQ, edge, mvlimit, p);
                 }
 
-                if ((*((int64 *) Strength)) || ((*(((int64 *) Strength) + 1)))) { // only if one of the 16 Strength bytes is != 0
+                if ((*((int64_t *) Strength)) || ((*(((int64_t *) Strength) + 1)))) { // only if one of the 16 Strength bytes is != 0
                 //if ((*((int *) Strength))) { // only if one of the 16 Strength bytes is != 0
                 //if (p_Strength64[0] || p_Strength64[1]) { // only if one of the 16 Strength bytes is != 0
                     if (filterNon8x8LumaEdgesFlag[edge]) {
@@ -204,7 +204,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
                     p_Vid->GetStrengthHor(MbQ, edge, mvlimit, p);
                 }
 
-                if ((*((int64 *) Strength)) || ((*(((int64 *) Strength) + 1)))) { // only if one of the 16 Strength bytes is != 0
+                if ((*((int64_t *) Strength)) || ((*(((int64_t *) Strength) + 1)))) { // only if one of the 16 Strength bytes is != 0
                 //if (p_Strength64[0] || p_Strength64[1]) { // only if one of the 16 Strength bytes is != 0
                     if (filterNon8x8LumaEdgesFlag[edge]) {
                         p_Vid->EdgeLoopLumaHor( PLANE_Y, imgY, Strength, MbQ, edge << 2, p) ;

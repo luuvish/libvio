@@ -50,7 +50,7 @@ static inline int rshift_rnd_sf(int x, int a)
     return ((x + (1 << (a-1) )) >> a);
 }
 
-static inline int get_bit(int64 x, int n)
+static inline int get_bit(int64_t x, int n)
 {
     return (int)(((x >> n) & 1));
 }
@@ -188,22 +188,22 @@ static int read_and_store_CBP_block_bit(mb_t *currMB, cabac_engine_t *dep_dp, in
     if (cbp_bit) {
         if (sps->chroma_format_idc == YUV444) {
             if (size_8x8_flag)
-                currMB->s_cbp[pl].bits |= ((int64)0x33 << bit);
+                currMB->s_cbp[pl].bits |= ((int64_t)0x33 << bit);
             else if (type == LUMA_8x4 || type == CB_8x4 || type == CR_8x4)
-                currMB->s_cbp[pl].bits |= ((int64)0x03 << bit);
+                currMB->s_cbp[pl].bits |= ((int64_t)0x03 << bit);
             else if (type == LUMA_4x8 || type == CB_4x8 || type == CR_4x8)
-                currMB->s_cbp[pl].bits |= ((int64)0x11 << bit);
+                currMB->s_cbp[pl].bits |= ((int64_t)0x11 << bit);
             else
-                currMB->s_cbp[pl].bits |= ((int64)0x01 << bit);
+                currMB->s_cbp[pl].bits |= ((int64_t)0x01 << bit);
         } else {
             if (type == LUMA_8x8)
-                currMB->s_cbp[0].bits |= ((int64)0x33 << bit);
+                currMB->s_cbp[0].bits |= ((int64_t)0x33 << bit);
             else if (type == LUMA_8x4)
-                currMB->s_cbp[0].bits |= ((int64)0x03 << bit);
+                currMB->s_cbp[0].bits |= ((int64_t)0x03 << bit);
             else if (type == LUMA_4x8)
-                currMB->s_cbp[0].bits |= ((int64)0x11 << bit);
+                currMB->s_cbp[0].bits |= ((int64_t)0x11 << bit);
             else
-                currMB->s_cbp[0].bits |= ((int64)0x01 << bit);
+                currMB->s_cbp[0].bits |= ((int64_t)0x01 << bit);
         }
     }
     return cbp_bit;
@@ -482,7 +482,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                         level = currSE.value1;
                         if (level != 0) {
                             coef_ctr += currSE.value2 + 1;
-                            currMB->s_cbp[pl].blk |= (int64)(0x01 << (j * 4 + i));
+                            currMB->s_cbp[pl].blk |= (int64_t)(0x01 << (j * 4 + i));
                             int i0 = pos_scan4x4[coef_ctr][0];
                             int j0 = pos_scan4x4[coef_ctr][1];
 
@@ -528,7 +528,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                     level = currSE.value1;
                     if (level != 0) {
                         coef_ctr += currSE.value2 + 1;
-                        currMB->s_cbp[pl].blk |= (int64)(0x33 << (block_y * 4 + block_x));
+                        currMB->s_cbp[pl].blk |= (int64_t)(0x33 << (block_y * 4 + block_x));
                         int i0 = pos_scan8x8[coef_ctr][0];
                         int j0 = pos_scan8x8[coef_ctr][1];
 
@@ -570,12 +570,12 @@ static void read_tc_chroma(mb_t *currMB)
                     if (sps->ChromaArrayType == 1) {
                         i0 = coef_ctr % 2;
                         j0 = coef_ctr / 2;
-                        currMB->s_cbp[0].blk |= (int64)(0xf << (iCbCr * 4 + 16));
+                        currMB->s_cbp[0].blk |= (int64_t)(0xf << (iCbCr * 4 + 16));
                     }
                     if (sps->ChromaArrayType == 2) {
                         i0 = FIELD_SCAN[coef_ctr][0];
                         j0 = FIELD_SCAN[coef_ctr][1];
-                        currMB->s_cbp[0].blk |= (int64)(0xff << (iCbCr * 8 + 16));
+                        currMB->s_cbp[0].blk |= (int64_t)(0xff << (iCbCr * 8 + 16));
                     }
                     if (coef_ctr < NumC8x8 * 4)
                         currSlice->cof[iCbCr + 1][j0 * 4][i0 * 4] = level;
@@ -628,7 +628,7 @@ static void read_tc_chroma(mb_t *currMB)
                         level = currSE.value1;
 
                         if (level != 0) {
-                            currMB->s_cbp[0].blk |= (int64)(0x1 << (i8x8 * 4 + i4x4 + 16));
+                            currMB->s_cbp[0].blk |= (int64_t)(0x1 << (i8x8 * 4 + i4x4 + 16));
                             coef_ctr += currSE.value2 + 1;
                             int i0 = pos_scan4x4[coef_ctr][0];
                             int j0 = pos_scan4x4[coef_ctr][1];

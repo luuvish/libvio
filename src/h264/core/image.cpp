@@ -270,7 +270,7 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
 
   if (!currSlice->field_pic_flag || !currSlice->bottom_field_flag)
   {
-    gettime (&(p_Vid->start_time));             // start time
+    p_Vid->start_time = std::chrono::system_clock::now();
   }
 
   dec_picture = p_Vid->dec_picture = alloc_storable_picture (p_Vid, currSlice->structure,

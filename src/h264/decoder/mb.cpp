@@ -1,4 +1,3 @@
-
 #include "global.h"
 #include "dpb.h"
 #include "slice.h"

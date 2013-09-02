@@ -86,7 +86,7 @@ static void Report(VideoParameters *p_Vid)
 #endif
 
   // normalize time
-  p_Vid->tot_time  = timenorm(p_Vid->tot_time);
+  p_Vid->tot_time /= p_Vid->tot_time;
 
   if (p_Inp->silent == FALSE)
   {
@@ -400,8 +400,6 @@ int OpenDecoder(InputParameters *p_Inp)
     iRet = alloc_decoder(&p_Dec);
     if (iRet)
         return (iRet | DEC_ERRMASK);
-
-    init_time();
 
     pDecoder = p_Dec;
     memcpy(pDecoder->p_Inp, p_Inp, sizeof(InputParameters));

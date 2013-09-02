@@ -7,9 +7,9 @@
 #include "deblock_common.h"
 
 
-static inline int64 i64_power2(int x)
+static inline int64_t i64_power2(int x)
 {
-    return x > 63 ? 0 : ((int64)1 << x);
+    return x > 63 ? 0 : ((int64_t)1 << x);
 }
 
 #define get_x_luma(x) (x & 15)

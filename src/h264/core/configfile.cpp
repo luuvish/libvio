@@ -58,8 +58,6 @@
 
 #define INCLUDED_BY_CONFIGFILE_C
 
-#include <sys/stat.h>
-
 #include "global.h"
 #include "memalloc.h"
 #include "bitstream_cabac.h"

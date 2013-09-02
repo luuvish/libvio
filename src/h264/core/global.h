@@ -2,14 +2,18 @@
 #define _GLOBAL_H_
 
 
+#include <chrono>
+
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
-#include <time.h>
-#include <sys/timeb.h>
 
-#include "win32.h"
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
 #include "defines.h"
 #include "ifunctions.h"
 
@@ -325,10 +329,10 @@ typedef struct video_par {
     struct frame_store *out_buffer;
 
     // Timing related variables
-    TIME_T start_time;
-    TIME_T end_time;
-    // Time 
-    int64 tot_time;
+    std::chrono::system_clock::time_point start_time;
+    std::chrono::system_clock::time_point end_time;
+    int64_t                               tot_time;
+
     // B pictures
     int  Bframe_ctr;
     int  frame_no;
