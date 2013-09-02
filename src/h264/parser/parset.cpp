@@ -579,7 +579,7 @@ static void get_max_dec_frame_buf_size(sps_t *sps)
     }
 
     size /= pic_size;
-    size = imin( size, 16);
+    size = min( size, 16);
     sps->max_dec_frame_buffering = size;
 }
 

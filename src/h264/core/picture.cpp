@@ -91,7 +91,7 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
         PicPos[i].y = (short) (i / sps->PicWidthInMbs);
     }
 
-    int pic_unit_bitsize_on_disk = imax(sps->BitDepthY, sps->BitDepthC) > 8 ? 16 : 8;
+    int pic_unit_bitsize_on_disk = max(sps->BitDepthY, sps->BitDepthC) > 8 ? 16 : 8;
     if (layer_id == 0)
         init_output(cps, (pic_unit_bitsize_on_disk + 7) >> 3);
     else

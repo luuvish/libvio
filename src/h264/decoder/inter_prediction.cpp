@@ -8,14 +8,6 @@
 // These variables relate to the subpel accuracy supported by the software (1/4)
 #define BLOCK_SIZE_8x8_SP  32  // BLOCK_SIZE8x8 << 2
 
-static inline int iClip1(int high, int x)
-{
-  x = imax(x, 0);
-  x = imin(x, high);
-
-  return x;
-}
-
 static inline int RSHIFT_RND(int x, int a)
 {
     return (a > 0) ? ((x + (1 << (a-1) )) >> a) : (x << (-a));
@@ -50,7 +42,7 @@ static void mc_prediction(imgpel *mb_pred,
         for (int i = 0; i < block_size_x; i++) {
             if (currSlice->weighted_pred_flag) {
                 int result = RSHIFT_RND((weight * block[i]), denom) + offset;
-                mb_pred[i] = (imgpel)iClip3(0, color_clip, result);
+                mb_pred[i] = (imgpel)clip3(0, color_clip, result);
             } else
                 mb_pred[i] = block[i];
         }
@@ -92,7 +84,7 @@ static void bi_prediction(imgpel *mb_pred,
         for (int i = 0; i < block_size_x; i++) {
             if (weighted_bipred_idc) {
                 int result = RSHIFT_RND((weight0 * *(block_l0++) + weight1 * *(block_l1++)), denom);
-                *(mb_pred++) = (imgpel) iClip1(color_clip, result + offset);
+                *(mb_pred++) = (imgpel) clip1(color_clip, result + offset);
             } else
                 *(mb_pred++) = (imgpel)(((*(block_l0++) + *(block_l1++)) + 1) >> 1);
         }
@@ -160,7 +152,7 @@ static void get_luma_02(imgpel **block, imgpel **cur_imgY, int block_size_y, int
         for (i = 0; i < block_size_x; i++) {
             result  = (*(p0++) + *(p5++)) - 5 * (*(p1++) + *(p4++)) + 20 * (*(p2++) + *(p3++));
 
-            *orig_line = (imgpel) iClip1(max_imgpel_value, ((result + 16)>>5));
+            *orig_line = (imgpel) clip1(max_imgpel_value, ((result + 16)>>5));
             if (dx == 1 || dx == 3 || dy == 1 || dy == 3)
                 *orig_line = (imgpel) ((*orig_line + *(cur_line++) + 1 ) >> 1);
             orig_line++;
@@ -226,9 +218,9 @@ static void get_luma_32(imgpel **block, imgpel **cur_imgY, int **tmp_res, int bl
         for (i = 0; i < block_size_x; i++) {
             result  = (*(x0++) + *(x5++)) - 5 * (*(x1++) + *(x4++)) + 20 * (*(x2++) + *(x3++));
 
-            *orig_line = (imgpel) iClip1(max_imgpel_value, ((result + 512)>>10));
+            *orig_line = (imgpel) clip1(max_imgpel_value, ((result + 512)>>10));
             if (dx == 1 || dx == 3 || dy == 1 || dy == 3)
-                *orig_line = (imgpel) ((*orig_line + iClip1(max_imgpel_value, ((*(tmp_line++) + 16)>>5))+1)>>1);
+                *orig_line = (imgpel) ((*orig_line + clip1(max_imgpel_value, ((*(tmp_line++) + 16)>>5))+1)>>1);
             orig_line++;
         }
     }
@@ -263,7 +255,7 @@ static void get_luma_31(imgpel **block, imgpel **cur_imgY, int block_size_y, int
         for (i = 0; i < block_size_x; i++) {
             result  = (*(p0++) + *(p5++)) - 5 * (*(p1++) + *(p4++)) + 20 * (*(p2++) + *(p3++));
 
-            *(orig_line++) = (imgpel) iClip1(max_imgpel_value, ((result + 16)>>5));
+            *(orig_line++) = (imgpel) clip1(max_imgpel_value, ((result + 16)>>5));
         }
     }
 
@@ -279,7 +271,7 @@ static void get_luma_31(imgpel **block, imgpel **cur_imgY, int block_size_y, int
         for (i = 0; i < block_size_x; i++) {
             result  = (*(p0++) + *(p5++)) - 5 * (*(p1++) + *(p4++)) + 20 * (*(p2++) + *(p3++));
 
-            *orig_line = (imgpel) ((*orig_line + iClip1(max_imgpel_value, ((result + 16) >> 5)) + 1) >> 1);
+            *orig_line = (imgpel) ((*orig_line + clip1(max_imgpel_value, ((result + 16) >> 5)) + 1) >> 1);
             orig_line++;
         }
         p0 = p1 - block_size_x;
@@ -315,8 +307,8 @@ void get_block_luma(StorablePicture *curr_ref, int x_pos, int y_pos, int block_s
     int dy = (y_pos & 3);
     x_pos >>= 2;
     y_pos >>= 2;
-    x_pos = iClip3(-18, maxold_x+2, x_pos);
-    y_pos = iClip3(-10, maxold_y+2, y_pos);
+    x_pos = clip3(-18, maxold_x+2, x_pos);
+    y_pos = clip3(-10, maxold_y+2, y_pos);
 
     if (dx == 0 && dy == 0)
         get_block_00(&block[0][0], &cur_imgY[y_pos][x_pos], curr_ref->iLumaStride, block_size_y);
@@ -401,8 +393,8 @@ static void get_block_chroma(StorablePicture *curr_ref, int x_pos, int y_pos,
         y_pos = y_pos >> shiftpel_y;
         //clip MV;
         assert(vert_block_size <= iChromaPadY && block_size_x <= iChromaPadX);
-        x_pos = iClip3(-iChromaPadX, maxold_x, x_pos); //16
-        y_pos = iClip3(-iChromaPadY, maxold_y, y_pos); //8
+        x_pos = clip3(-iChromaPadX, maxold_x, x_pos); //16
+        y_pos = clip3(-iChromaPadY, maxold_y, y_pos); //8
         img1 = &curr_ref->imgUV[0][y_pos][x_pos];
         img2 = &curr_ref->imgUV[1][y_pos][x_pos];
 

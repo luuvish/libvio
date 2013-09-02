@@ -34,29 +34,29 @@
 struct annex_b_t {
     static const int IOBUFFERSIZE = 512 * 1024;
 
-    int32_t  BitStreamFile;
-    uint8_t* iobuffer;
-    uint8_t* iobufferread;
-    int32_t  bytesinbuffer;
-    bool     is_eof;
-    int32_t  iIOBufferSize;
+    int32_t     BitStreamFile;
+    uint8_t*    iobuffer;
+    uint8_t*    iobufferread;
+    int32_t     bytesinbuffer;
+    bool        is_eof;
+    int32_t     iIOBufferSize;
 
-    int32_t  IsFirstByteStreamNALU;
-    int32_t  nextstartcodebytes;
-    uint8_t* Buf;  
+    int32_t     IsFirstByteStreamNALU;
+    int32_t     nextstartcodebytes;
+    uint8_t*    Buf;  
 
-    annex_b_t(uint32_t max_size);
-    ~annex_b_t();
+                annex_b_t(uint32_t max_size);
+                ~annex_b_t();
 
-    void     open (const char* fn);
-    void     close();
-    void     reset();
+    void        open (const char* fn);
+    void        close();
+    void        reset();
 
-    int      get_nalu(nalu_t* nalu);
+    uint32_t    get_nalu(nalu_t* nalu);
 
-    inline int     getChunk();
-    inline uint8_t getfbyte();
-    inline int     FindStartCode(uint8_t* Buf, int zeros_in_startcode);
+    inline uint32_t getChunk();
+    inline uint8_t  getfbyte();
+    inline bool     FindStartCode(uint8_t* Buf, uint32_t zeros_in_startcode);
 };
 
 
@@ -102,22 +102,22 @@ void annex_b_t::close()
 
 void annex_b_t::reset()
 {
-    this->is_eof = false;
+    this->is_eof        = false;
     this->bytesinbuffer = 0;
-    this->iobufferread = this->iobuffer;
+    this->iobufferread  = this->iobuffer;
 }
 
 
-int annex_b_t::get_nalu(nalu_t* nalu)
+uint32_t annex_b_t::get_nalu(nalu_t* nalu)
 {
-    int i;
-    int info2 = 0, info3 = 0, pos = 0;
-    int StartCodeFound = 0;
-    int LeadingZero8BitsCount = 0;
-    byte *pBuf = this->Buf;
+    bool info2 = false, info3 = false;
+    bool StartCodeFound = false;
+    int  LeadingZero8BitsCount = 0;
+    uint32_t pos = 0;
+    uint8_t* pBuf = this->Buf;
 
     if (this->nextstartcodebytes != 0) {
-        for (i = 0; i < this->nextstartcodebytes - 1; i++) {
+        for (int i = 0; i < this->nextstartcodebytes - 1; i++) {
             (*pBuf++) = 0;
             pos++;
         }
@@ -176,27 +176,27 @@ int annex_b_t::get_nalu(nalu_t* nalu)
             nalu->nal_unit_type = (NaluType) ((*(nalu->buf)) & 0x1f);
             this->nextstartcodebytes = 0;
 
-            return (pos - 1);
+            return pos - 1;
         }
 
         pos++;
         *(pBuf++) = this->getfbyte();    
         info3 = this->FindStartCode(pBuf - 4, 3);
-        if (info3 != 1) {
+        if (!info3) {
             info2 = this->FindStartCode(pBuf - 3, 2);
-            StartCodeFound = info2 & 0x01;
+            StartCodeFound = info2;
         } else
-            StartCodeFound = 1;
+            StartCodeFound = true;
     }
 
     // Here, we have found another start code (and read length of startcode bytes more than we should
     // have.  Hence, go back in the file
-    if (info3 == 1) { //if the detected start code is 00 00 01, trailing_zero_8bits is sure not to be present
+    if (info3) { //if the detected start code is 00 00 01, trailing_zero_8bits is sure not to be present
         pBuf -= 5;
         while (*(pBuf--) == 0)
             pos--;
         this->nextstartcodebytes = 4;
-    } else if (info2 == 1)
+    } else if (info2)
         this->nextstartcodebytes = 3;
     else {
         printf(" Panic: Error in next start code search \n");
@@ -218,13 +218,13 @@ int annex_b_t::get_nalu(nalu_t* nalu)
     nalu->nal_unit_type = (NaluType) ((*(nalu->buf)) & 0x1f);
     nalu->lost_packets  = 0;
 
-    return (pos);
+    return pos;
 }
 
 
-inline int annex_b_t::getChunk()
+inline uint32_t annex_b_t::getChunk()
 {
-    unsigned int readbytes = ::read(this->BitStreamFile, this->iobuffer, this->iIOBufferSize); 
+    uint32_t readbytes = ::read(this->BitStreamFile, this->iobuffer, this->iIOBufferSize); 
     if (0 == readbytes) {
         this->is_eof = true;
         return 0;
@@ -246,23 +246,21 @@ inline uint8_t annex_b_t::getfbyte()
     return *this->iobufferread++;
 }
 
-inline int annex_b_t::FindStartCode(uint8_t* Buf, int zeros_in_startcode)
+inline bool annex_b_t::FindStartCode(uint8_t* Buf, uint32_t zeros_in_startcode)
 {
-    int i;
-
-    for (i = 0; i < zeros_in_startcode; i++) {
+    for (int i = 0; i < zeros_in_startcode; i++) {
         if (*(Buf++) != 0)
-            return 0;
+            return false;
     }
 
     if (*Buf != 1)
-        return 0;
+        return false;
 
-    return 1;
+    return true;
 }
 
 
-void bitstream_t::open(const char* name, type format, unsigned max_size)
+void bitstream_t::open(const char* name, type format, uint32_t max_size)
 {
     this->FileFormat           = format;
     this->LastAccessUnitExists = 0;

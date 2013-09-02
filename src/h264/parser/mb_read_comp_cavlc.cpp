@@ -255,7 +255,7 @@ uint8_t macroblock_t::parse_run_before(uint8_t zerosLeft)
     slice_t* slice = this->p_Slice;
     data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
 
-    int tab = imin(zerosLeft, 7) - 1;
+    int tab = min<int>(zerosLeft, 7) - 1;
 
     for (int run_before = 0; run_before < 16; run_before++) {
         int length = run_before_length[tab][run_before];
@@ -312,7 +312,7 @@ void macroblock_t::read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
             else
                 level_suffix = 0;
 
-            levelCode = (imin(15, level_prefix) << suffixLength) + level_suffix;
+            levelCode = (min(15, level_prefix) << suffixLength) + level_suffix;
             if (level_prefix >= 15 && suffixLength == 0)
                 levelCode += 15;
             if (level_prefix >= 16)
@@ -327,7 +327,7 @@ void macroblock_t::read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
 
             if (suffixLength == 0)
                 suffixLength = 1;
-            if (iabs(levelVal[i]) > (3 << (suffixLength - 1)) && suffixLength < 6)
+            if (abs(levelVal[i]) > (3 << (suffixLength - 1)) && suffixLength < 6)
                 suffixLength++;
         }
 

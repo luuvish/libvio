@@ -113,7 +113,7 @@ void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
   assert( payload!=NULL);
   assert( p_Vid!=NULL);
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -294,7 +294,7 @@ void interpret_subsequence_info( byte* payload, int size, VideoParameters *p_Vid
   int sub_seq_layer_num, sub_seq_id, first_ref_pic_flag, leading_non_ref_pic_flag, last_pic_flag,
     sub_seq_frame_num_flag, sub_seq_frame_num;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -332,7 +332,7 @@ void interpret_subsequence_layer_characteristics_info( byte* payload, int size, 
   long num_sub_layers, accurate_statistics_flag, average_bit_rate, average_frame_rate;
   int i;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -370,7 +370,7 @@ void interpret_subsequence_characteristics_info( byte* payload, int size, VideoP
   unsigned long sub_seq_duration, average_bit_rate, average_frame_rate;
   int num_referenced_subseqs, ref_sub_seq_layer_num, ref_sub_seq_id, ref_sub_seq_direction;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -424,7 +424,7 @@ void interpret_scene_information( byte* payload, int size, VideoParameters *p_Vi
   data_partition_t* buf;
   int scene_id, scene_transition_type, second_scene_id;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -555,7 +555,7 @@ void interpret_pan_scan_rect_info( byte* payload, int size, VideoParameters *p_V
 
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -601,7 +601,7 @@ void interpret_recovery_point_info( byte* payload, int size, VideoParameters *p_
   data_partition_t* buf;
 
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -642,7 +642,7 @@ void interpret_dec_ref_pic_marking_repetition_info( byte* payload, int size, Vid
 
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -711,7 +711,7 @@ void interpret_full_frame_freeze_info( byte* payload, int size, VideoParameters 
   int full_frame_freeze_repetition_period;
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -758,7 +758,7 @@ void interpret_full_frame_snapshot_info( byte* payload, int size, VideoParameter
 
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -787,7 +787,7 @@ void interpret_progressive_refinement_start_info( byte* payload, int size, Video
 
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -818,7 +818,7 @@ void interpret_progressive_refinement_end_info( byte* payload, int size, VideoPa
 
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -850,13 +850,13 @@ void interpret_motion_constrained_slice_group_set_info( byte* payload, int size,
 
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
 
   num_slice_groups_minus1   = buf->ue("SEI: num_slice_groups_minus1");
-  sliceGroupSize = CeilLog2( num_slice_groups_minus1 + 1 );
+  sliceGroupSize = ceil(log2(num_slice_groups_minus1 + 1));
 
   for (i=0; i<=num_slice_groups_minus1;i++)
   {
@@ -903,7 +903,7 @@ void interpret_film_grain_characteristics_info( byte* payload, int size, VideoPa
 
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -970,7 +970,7 @@ void interpret_deblocking_filter_display_preference_info( byte* payload, int siz
 
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -1008,7 +1008,7 @@ void interpret_stereo_video_info_info( byte* payload, int size, VideoParameters 
 
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -1077,7 +1077,7 @@ void interpret_buffering_period_info( byte* payload, int size, VideoParameters *
   data_partition_t* buf;
   sps_t *sps;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -1153,7 +1153,7 @@ void interpret_picture_timing_info( byte* payload, int size, VideoParameters *p_
     return;
   }
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -1293,7 +1293,7 @@ void interpret_frame_packing_arrangement_info( byte* payload, int size, VideoPar
   frame_packing_arrangement_information_struct seiFramePackingArrangement;
   data_partition_t* buf;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -1369,7 +1369,7 @@ void interpret_tone_mapping( byte* payload, int size, VideoParameters *p_Vid )
 
   memset (&seiToneMappingTmp, 0, sizeof (tone_mapping_struct_tmp));
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;
@@ -1545,7 +1545,7 @@ void interpret_post_filter_hints_info( byte* payload, int size, VideoParameters 
   unsigned int filter_hint_size_y, filter_hint_size_x, filter_hint_type, color_component, cx, cy, additional_extension_flag;
   int ***filter_hint;
 
-  buf = (data_partition_t *)malloc(sizeof(data_partition_t));
+  buf = new data_partition_t;
   buf->bitstream_length = size;
   buf->streamBuffer = payload;
   buf->frame_bitoffset = 0;

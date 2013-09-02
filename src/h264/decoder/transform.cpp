@@ -22,20 +22,12 @@ static inline int isign(int x)
 
 static inline int isignab(int a, int b)
 {
-    return ((b) < 0) ? -iabs(a) : iabs(a);
+    return ((b) < 0) ? -abs(a) : abs(a);
 }
 
 static inline int rshift_rnd(int x, int a)
 {
     return (a > 0) ? ((x + (1 << (a-1) )) >> a) : (x << (-a));
-}
-
-static inline int iClip1(int high, int x)
-{
-    x = imax(x, 0);
-    x = imin(x, high);
-
-    return x;
 }
 
 static inline int rshift_rnd_sf(int x, int a)
@@ -558,7 +550,7 @@ void Inv_Residual_trans_Chroma(mb_t *currMB, int uv)
     int max_pel_value_comp = (1 << sps->BitDepthC) - 1;
     for (int j = 0; j < sps->MbHeightC; ++j) {
         for (int i = 0; i < sps->MbWidthC; ++i)
-            mb_rec[j][i] = (imgpel) iClip1(max_pel_value_comp, mb_pred[j][i] + mb_rres[j][i]);
+            mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, mb_pred[j][i] + mb_rres[j][i]);
     }
 }
 
@@ -570,14 +562,14 @@ static void recon8x8(int **m7, imgpel **mb_rec, imgpel **mpr, int max_imgpel_val
         imgpel *m_rec = (*mb_rec++) + ioff;
         imgpel *m_prd = (*mpr++) + ioff;
 
-        *m_rec++ = (imgpel) iClip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
-        *m_rec++ = (imgpel) iClip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
-        *m_rec++ = (imgpel) iClip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
-        *m_rec++ = (imgpel) iClip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
-        *m_rec++ = (imgpel) iClip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
-        *m_rec++ = (imgpel) iClip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
-        *m_rec++ = (imgpel) iClip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
-        *m_rec   = (imgpel) iClip1(max_imgpel_value, (*m_prd  ) + rshift_rnd_sf(*m_tr  , DQ_BITS_8)); 
+        *m_rec++ = (imgpel) clip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
+        *m_rec++ = (imgpel) clip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
+        *m_rec++ = (imgpel) clip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
+        *m_rec++ = (imgpel) clip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
+        *m_rec++ = (imgpel) clip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
+        *m_rec++ = (imgpel) clip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
+        *m_rec++ = (imgpel) clip1(max_imgpel_value, (*m_prd++) + rshift_rnd_sf(*m_tr++, DQ_BITS_8)); 
+        *m_rec   = (imgpel) clip1(max_imgpel_value, (*m_prd  ) + rshift_rnd_sf(*m_tr  , DQ_BITS_8)); 
     }
 }
 
@@ -585,7 +577,7 @@ static void recon8x8_lossless(int **m7, imgpel **mb_rec, imgpel **mpr, int max_i
 {
     for (int j = 0; j < 8; j++) {
         for (int i = ioff; i < ioff + 8; i++)
-            (*mb_rec)[i] = (imgpel) iClip1(max_imgpel_value, ((*m7)[i] + (long)(*mpr)[i])); 
+            (*mb_rec)[i] = (imgpel) clip1<int>(max_imgpel_value, ((*m7)[i] + (long)(*mpr)[i])); 
         mb_rec++;
         m7++;
         mpr++;
@@ -599,7 +591,7 @@ static void sample_reconstruct(imgpel **curImg, imgpel **mpr, int **mb_rres, int
         imgpel *imgPred = &mpr[j][mb_x];
         int *m7 = &mb_rres[j][mb_x]; 
         for (int i = 0; i < width; i++)
-            *imgOrg++ = (imgpel) iClip1( max_imgpel_value, rshift_rnd_sf(*m7++, dq_bits) + *imgPred++);
+            *imgOrg++ = (imgpel) clip1( max_imgpel_value, rshift_rnd_sf(*m7++, dq_bits) + *imgPred++);
     }
 }
 
@@ -647,7 +639,7 @@ static void itrans4x4_ls(mb_t *currMB, ColorPlane pl, int ioff, int joff)
 
     for (int j = joff; j < joff + BLOCK_SIZE; ++j) {
         for (int i = ioff; i < ioff + BLOCK_SIZE; ++i)
-            mb_rec[j][i] = (imgpel) iClip1(max_pel_value_comp, mb_pred[j][i] + cof[j][i]);
+            mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, mb_pred[j][i] + cof[j][i]);
     }
 }
 
@@ -824,11 +816,11 @@ static void itrans_sp(mb_t *currMB, ColorPlane pl, int ioff, int joff)
             int icof = (cof[joff + j][ioff + i] >> qp_per) / InvLevelScale4x4[j][i];
             int ilev;
             if (currSlice->sp_for_switch_flag || currSlice->slice_type == SI_SLICE) {
-                ilev = rshift_rnd_sf(iabs(PBlock[j][i]) * quant_coef[qp_rem_sp][j][i], q_bits_sp);
+                ilev = rshift_rnd_sf(abs(PBlock[j][i]) * quant_coef[qp_rem_sp][j][i], q_bits_sp);
                 ilev = isignab(ilev, PBlock[j][i]) + icof;
             } else {
                 ilev = PBlock[j][i] + ((icof * InvLevelScale4x4[j][i] * A[j][i] <<  qp_per) >> 6);
-                ilev = isign(ilev) * rshift_rnd_sf(iabs(ilev) * quant_coef[qp_rem_sp][j][i], q_bits_sp);
+                ilev = isign(ilev) * rshift_rnd_sf(abs(ilev) * quant_coef[qp_rem_sp][j][i], q_bits_sp);
             }
             cof[joff + j][ioff + i] = ilev * InvLevelScale4x4SP[j][i] << qp_per_sp;
         }
@@ -837,10 +829,10 @@ static void itrans_sp(mb_t *currMB, ColorPlane pl, int ioff, int joff)
     inverse4x4(cof, mb_rres, joff, ioff);
 
     for (int j = joff; j < joff + BLOCK_SIZE; ++j) {
-        mb_rec[j][ioff    ] = (imgpel)iClip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff    ], DQ_BITS));
-        mb_rec[j][ioff + 1] = (imgpel)iClip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff + 1], DQ_BITS));
-        mb_rec[j][ioff + 2] = (imgpel)iClip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff + 2], DQ_BITS));
-        mb_rec[j][ioff + 3] = (imgpel)iClip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff + 3], DQ_BITS));
+        mb_rec[j][ioff    ] = (imgpel)clip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff    ], DQ_BITS));
+        mb_rec[j][ioff + 1] = (imgpel)clip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff + 1], DQ_BITS));
+        mb_rec[j][ioff + 2] = (imgpel)clip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff + 2], DQ_BITS));
+        mb_rec[j][ioff + 3] = (imgpel)clip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff + 3], DQ_BITS));
     }
 
     free_mem2Dint(PBlock);
@@ -896,7 +888,7 @@ static void itrans_sp_cr(mb_t *currMB, int uv)
         for (n2 = 0; n2 < 2; ++n2) {
             for (n1 = 0; n1 < 2; ++n1) {
                 //quantization fo predicted block
-                ilev = rshift_rnd_sf(iabs (mp1[n1+n2*2]) * quant_coef[qp_rem_sp][0][0], q_bits_sp + 1);
+                ilev = rshift_rnd_sf(abs (mp1[n1+n2*2]) * quant_coef[qp_rem_sp][0][0], q_bits_sp + 1);
                 //addition
                 ilev = isignab(ilev, mp1[n1+n2*2]) + cof[n2<<2][n1<<2];
                 //dequantization
@@ -911,7 +903,7 @@ static void itrans_sp_cr(mb_t *currMB, int uv)
                         // recovering coefficient since they are already dequantized earlier
                         cof[n2 + j][n1 + i] = (cof[n2 + j][n1 + i] >> qp_per) / dequant_coef[qp_rem][j][i];
                         //quantization of the predicted block
-                        ilev = rshift_rnd_sf(iabs(PBlock[n2 + j][n1 + i]) * quant_coef[qp_rem_sp][j][i], q_bits_sp);
+                        ilev = rshift_rnd_sf(abs(PBlock[n2 + j][n1 + i]) * quant_coef[qp_rem_sp][j][i], q_bits_sp);
                         //addition of the residual
                         ilev = isignab(ilev,PBlock[n2 + j][n1 + i]) + cof[n2 + j][n1 + i];
                         // Inverse quantization
@@ -924,7 +916,7 @@ static void itrans_sp_cr(mb_t *currMB, int uv)
         for (n2 = 0; n2 < 2; ++n2) {
             for (n1 = 0; n1 < 2; ++n1) {
                 ilev = mp1[n1+n2*2] + (((cof[n2<<2][n1<<2] * dequant_coef[qp_rem][0][0] * A[0][0]) << qp_per) >> 5);
-                ilev = isign(ilev) * rshift_rnd_sf(iabs(ilev) * quant_coef[qp_rem_sp][0][0], q_bits_sp + 1);
+                ilev = isign(ilev) * rshift_rnd_sf(abs(ilev) * quant_coef[qp_rem_sp][0][0], q_bits_sp + 1);
                 mp1[n1+n2*2] = ilev * dequant_coef[qp_rem_sp][0][0] << qp_per_sp;
             }
         }
@@ -938,7 +930,7 @@ static void itrans_sp_cr(mb_t *currMB, int uv)
                         //dequantization and addition of the predicted block      
                         ilev = PBlock[n2 + j][n1 + i] + ((icof * dequant_coef[qp_rem][j][i] * A[j][i] << qp_per) >> 6);
                         //quantization and dequantization
-                        ilev = isign(ilev) * rshift_rnd_sf(iabs(ilev) * quant_coef[qp_rem_sp][j][i], q_bits_sp);
+                        ilev = isign(ilev) * rshift_rnd_sf(abs(ilev) * quant_coef[qp_rem_sp][j][i], q_bits_sp);
                         cof[n2 + j][n1 + i] = ilev * dequant_coef[qp_rem_sp][j][i] << qp_per_sp;
                     }
                 }

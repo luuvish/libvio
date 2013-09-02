@@ -81,22 +81,22 @@ static void FmoGenerateType3MapUnitMap(VideoParameters *p_Vid, slice_t *currSlic
             p_Vid->MapUnitToSliceGroupMap[y * sps->PicWidthInMbs + x] = 0;
 
         if (xDir == -1 && x == leftBound) {
-            leftBound = imax(leftBound - 1, 0);
+            leftBound = max<int>(leftBound - 1, 0);
             x = leftBound;
             xDir = 0;
             yDir = 2 * pps->slice_group_change_direction_flag - 1;
         } else if (xDir == 1 && x == rightBound) {
-            rightBound = imin(rightBound + 1, sps->PicWidthInMbs - 1);
+            rightBound = min<int>(rightBound + 1, sps->PicWidthInMbs - 1);
             x = rightBound;
             xDir = 0;
             yDir = 1 - 2 * pps->slice_group_change_direction_flag;
         } else if (yDir == -1 && y == topBound) {
-            topBound = imax(topBound - 1, 0);
+            topBound = max<int>(topBound - 1, 0);
             y = topBound;
             xDir = 1 - 2 * pps->slice_group_change_direction_flag;
             yDir = 0;
         } else if (yDir == 1 && y == bottomBound) {
-            bottomBound = imin(bottomBound + 1, sps->PicHeightInMapUnits - 1);
+            bottomBound = min<int>(bottomBound + 1, sps->PicHeightInMapUnits - 1);
             y = bottomBound;
             xDir = 2 * pps->slice_group_change_direction_flag - 1;
             yDir = 0;

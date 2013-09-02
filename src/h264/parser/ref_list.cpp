@@ -330,8 +330,8 @@ void init_lists_p_slice(slice_t *currSlice)
     currSlice->listXsize[1] = 0;
 
     // set max size
-    currSlice->listXsize[0] = (char) imin (currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
-    currSlice->listXsize[1] = (char) imin (currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
+    currSlice->listXsize[0] = (char) min<int>(currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
+    currSlice->listXsize[1] = (char) min<int>(currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
 
     // set the unused list entries to NULL
     for (i = currSlice->listXsize[0]; i < MAX_LIST_SIZE; i++)
@@ -473,8 +473,8 @@ void init_lists_b_slice(slice_t *currSlice)
     }
 
     // set max size
-    currSlice->listXsize[0] = imin(currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
-    currSlice->listXsize[1] = imin(currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
+    currSlice->listXsize[0] = min<int>(currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
+    currSlice->listXsize[1] = min<int>(currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
 
     // set the unused list entries to NULL
     for (i = currSlice->listXsize[0]; i < MAX_LIST_SIZE; i++)
@@ -736,7 +736,7 @@ void init_mbaff_lists(VideoParameters *p_Vid, slice_t *currSlice)
 
 static void check_num_ref(dpb_t *p_Dpb)
 {
-  	if ((int)(p_Dpb->ltref_frames_in_buffer +  p_Dpb->ref_frames_in_buffer ) > imax(1, p_Dpb->num_ref_frames))
+  	if ((int)(p_Dpb->ltref_frames_in_buffer +  p_Dpb->ref_frames_in_buffer ) > max(1, p_Dpb->num_ref_frames))
     	error ("Max. number of reference frames exceeded. Invalid stream.", 500);
 }
 
@@ -1099,7 +1099,7 @@ static void adaptive_memory_management(dpb_t *p_Dpb, StorablePicture* p)
     	case FRAME:
 	        p->top_poc    -= p->poc;
 	        p->bottom_poc -= p->poc;
-	        p->poc = imin (p->top_poc, p->bottom_poc);
+	        p->poc = min (p->top_poc, p->bottom_poc);
 	        break;
     	}
 #if (MVC_EXTENSION_ENABLE)
@@ -1119,7 +1119,7 @@ static void sliding_window_memory_management(dpb_t *p_Dpb, StorablePicture* p)
   	assert(!p->idr_flag);
 
   	// if this is a reference pic with sliding window, unmark first ref frame
-  	if (p_Dpb->ref_frames_in_buffer == imax(1, p_Dpb->num_ref_frames) - p_Dpb->ltref_frames_in_buffer) {
+  	if (p_Dpb->ref_frames_in_buffer == max(1, p_Dpb->num_ref_frames) - p_Dpb->ltref_frames_in_buffer) {
     	for (i = 0; i < p_Dpb->used_size; i++) {
       		if (p_Dpb->fs[i]->is_reference && !p_Dpb->fs[i]->is_long_term) {
         		unmark_for_reference(p_Dpb->fs[i]);

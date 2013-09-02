@@ -972,7 +972,7 @@ static const char INIT_FLD_LAST_P[3][8][15][2] =
 
 void cabac_context_t::init(int8_t m, int8_t n, uint8_t SliceQpY)
 {
-    uint8_t preCtxState = iClip3(1, 126, ((m * iClip3(0, 51, SliceQpY)) >> 4) + n);
+    uint8_t preCtxState = clip3(1, 126, ((m * clip3<uint8_t>(0, 51, SliceQpY)) >> 4) + n);
     if (preCtxState <= 63) {
         this->pStateIdx = 63 - preCtxState;
         this->valMPS    = 0;

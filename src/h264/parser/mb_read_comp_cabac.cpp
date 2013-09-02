@@ -385,10 +385,10 @@ static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_
 
                     if (*cof == 2) {
                         *cof += unary_exp_golomb_level_decode(dep_dp, abs_ctx + c2);
-                        c2 = imin(++c2, max_type);
+                        c2 = min<int>(++c2, max_type);
                         c1 = 0;
                     } else if (c1)
-                        c1 = imin(++c1, 4);
+                        c1 = min<int>(++c1, 4);
 
                     if (dep_dp->decode_bypass())
                         *cof = - *cof;

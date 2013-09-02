@@ -10,20 +10,8 @@
 
 static inline int RSD(int x)
 {
- return ((x&2)?(x|1):(x&(~1)));
+    return ((x&2)?(x|1):(x&(~1)));
 }
-
-static inline int RoundLog2 (int iValue)
-{
-  int iRet = 0;
-  int iValue_square = iValue * iValue;
-  while ((1 << (iRet + 1)) <= iValue_square)
-    ++iRet;
-
-  iRet = (iRet + 1) >> 1;
-  return iRet;
-}
-
 
 
 #define MAX_LIST_SIZE 33
@@ -204,12 +192,12 @@ int getDpbSize(VideoParameters *p_Vid, sps_t *active_sps)
   if(p_Vid->profile_idc == MVC_HIGH || p_Vid->profile_idc == STEREO_HIGH)
   {
     int num_views = p_Vid->active_subset_sps->num_views_minus1+1;
-    size = imin(2*size, imax(1, RoundLog2(num_views))*16)/num_views;
+    size = min(2 * size, max<int>(1, round(log2(num_views))) * 16) / num_views;
   }
   else
 #endif
   {
-    size = imin( size, 16);
+    size = min(size, 16);
   }
 
   if (active_sps->vui_parameters_present_flag && active_sps->vui_parameters.bitstream_restriction_flag)
@@ -219,7 +207,7 @@ int getDpbSize(VideoParameters *p_Vid, sps_t *active_sps)
     {
       error("max_dec_frame_buffering larger than MaxDpbSize", 500);
     }
-    size_vui = imax (1, active_sps->vui_parameters.max_dec_frame_buffering);
+    size_vui = max<int>(1, active_sps->vui_parameters.max_dec_frame_buffering);
 #ifdef _DEBUG
     if(size_vui < size)
     {
@@ -1445,7 +1433,7 @@ void dpb_combine_field_yuv(VideoParameters *p_Vid, FrameStore *fs)
       memcpy(fs->frame->imgUV[j][i*2 + 1], fs->bottom_field->imgUV[j][i], fs->bottom_field->size_x_cr*sizeof(imgpel));
     }
   }
-  fs->poc=fs->frame->poc =fs->frame->frame_poc = imin (fs->top_field->poc, fs->bottom_field->poc);
+  fs->poc=fs->frame->poc =fs->frame->frame_poc = min (fs->top_field->poc, fs->bottom_field->poc);
 
   fs->bottom_field->frame_poc=fs->top_field->frame_poc=fs->frame->poc;
 
@@ -1630,7 +1618,7 @@ int GetMaxDecFrameBuffering(VideoParameters *p_Vid)
         {
           error ("max_dec_frame_buffering larger than MaxDpbSize", 500);
         }
-        j = imax (1, curr_subset_sps->sps.vui_parameters.max_dec_frame_buffering);
+        j = max<int>(1, curr_subset_sps->sps.vui_parameters.max_dec_frame_buffering);
       }
 
       if(j > iMax_2)
@@ -1647,7 +1635,7 @@ int GetMaxDecFrameBuffering(VideoParameters *p_Vid)
         {
           error ("max_dec_frame_buffering larger than MaxDpbSize", 500);
         }
-        j = imax (1, curr_sps->vui_parameters.max_dec_frame_buffering);
+        j = max<int>(1, curr_sps->vui_parameters.max_dec_frame_buffering);
       }
 
       if(j > iMax_1)

@@ -131,7 +131,7 @@ static int16_t read_mvd_CABAC(mb_t *mb, uint8_t xy, uint8_t list)
 
     if (block_a.available) {
         mb_t *mb_a = &slice->mb_data[block_a.mb_addr];
-        condTermFlagA = iabs(mb_a->mvd[list][block_a.y][block_a.x][xy]);
+        condTermFlagA = abs(mb_a->mvd[list][block_a.y][block_a.x][xy]);
         if (slice->MbaffFrameFlag && xy == 1) {
             if (!mb->mb_field_decoding_flag && mb_a->mb_field_decoding_flag)
                 condTermFlagA *= 2;
@@ -141,7 +141,7 @@ static int16_t read_mvd_CABAC(mb_t *mb, uint8_t xy, uint8_t list)
     }
     if (block_b.available) {
         mb_t *mb_b = &slice->mb_data[block_b.mb_addr];
-        condTermFlagB = iabs(mb_b->mvd[list][block_b.y][block_b.x][xy]);
+        condTermFlagB = abs(mb_b->mvd[list][block_b.y][block_b.x][xy]);
         if (slice->MbaffFrameFlag && xy == 1) {
             if (!mb->mb_field_decoding_flag && mb_b->mb_field_decoding_flag)
                 condTermFlagB *= 2;

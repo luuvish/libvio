@@ -60,15 +60,15 @@ static void fill_wp_params(slice_t *currSlice)
                         currSlice->wbp_weight[0][i][j][comp] =  currSlice->wp_weight[0][i][comp];
                         currSlice->wbp_weight[1][i][j][comp] =  currSlice->wp_weight[1][j][comp];
                     } else if (currSlice->active_pps->weighted_bipred_idc == 2) {
-                        td = iClip3(-128,127,currSlice->listX[LIST_1][j]->poc - currSlice->listX[LIST_0][i]->poc);
+                        td = clip3(-128,127,currSlice->listX[LIST_1][j]->poc - currSlice->listX[LIST_0][i]->poc);
                         if (td == 0 || currSlice->listX[LIST_1][j]->is_long_term || currSlice->listX[LIST_0][i]->is_long_term) {
                             currSlice->wbp_weight[0][i][j][comp] = 32;
                             currSlice->wbp_weight[1][i][j][comp] = 32;
                         } else {
-                            tb = iClip3(-128,127,currSlice->ThisPOC - currSlice->listX[LIST_0][i]->poc);
+                            tb = clip3(-128,127,currSlice->ThisPOC - currSlice->listX[LIST_0][i]->poc);
 
-                            tx = (16384 + iabs(td/2))/td;
-                            DistScaleFactor = iClip3(-1024, 1023, (tx*tb + 32 )>>6);
+                            tx = (16384 + abs(td/2))/td;
+                            DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);
 
                             currSlice->wbp_weight[1][i][j][comp] = DistScaleFactor >> 2;
                             currSlice->wbp_weight[0][i][j][comp] = 64 - currSlice->wbp_weight[1][i][j][comp];
@@ -97,15 +97,15 @@ static void fill_wp_params(slice_t *currSlice)
                                 currSlice->wbp_weight[k+0][i][j][comp] =  currSlice->wp_weight[0][i>>1][comp];
                                 currSlice->wbp_weight[k+1][i][j][comp] =  currSlice->wp_weight[1][j>>1][comp];
                             } else if (currSlice->active_pps->weighted_bipred_idc == 2) {
-                                td = iClip3(-128, 127, currSlice->listX[k+LIST_1][j]->poc - currSlice->listX[k+LIST_0][i]->poc);
+                                td = clip3(-128, 127, currSlice->listX[k+LIST_1][j]->poc - currSlice->listX[k+LIST_0][i]->poc);
                                 if (td == 0 || currSlice->listX[k+LIST_1][j]->is_long_term || currSlice->listX[k+LIST_0][i]->is_long_term) {
                                     currSlice->wbp_weight[k+0][i][j][comp] =   32;
                                     currSlice->wbp_weight[k+1][i][j][comp] =   32;
                                 } else {
-                                    tb = iClip3(-128,127,((k==2)?currSlice->TopFieldOrderCnt:currSlice->BottomFieldOrderCnt) - currSlice->listX[k+LIST_0][i]->poc);
+                                    tb = clip3(-128,127,((k==2)?currSlice->TopFieldOrderCnt:currSlice->BottomFieldOrderCnt) - currSlice->listX[k+LIST_0][i]->poc);
 
-                                    tx = (16384 + iabs(td/2))/td;
-                                    DistScaleFactor = iClip3(-1024, 1023, (tx*tb + 32 )>>6);
+                                    tx = (16384 + abs(td/2))/td;
+                                    DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);
 
                                     currSlice->wbp_weight[k+1][i][j][comp] = DistScaleFactor >> 2;
                                     currSlice->wbp_weight[k+0][i][j][comp] = 64 - currSlice->wbp_weight[k+1][i][j][comp];
@@ -137,17 +137,17 @@ static void compute_colocated(slice_t *currSlice, StorablePicture **listX[6])
                 int prescale, iTRb, iTRp;
 
                 if (j == 0)
-                    iTRb = iClip3( -128, 127, p_Vid->dec_picture->poc - listX[LIST_0 + j][i]->poc );
+                    iTRb = clip3( -128, 127, p_Vid->dec_picture->poc - listX[LIST_0 + j][i]->poc );
                 else if (j == 2)
-                    iTRb = iClip3( -128, 127, p_Vid->dec_picture->top_poc - listX[LIST_0 + j][i]->poc );
+                    iTRb = clip3( -128, 127, p_Vid->dec_picture->top_poc - listX[LIST_0 + j][i]->poc );
                 else
-                    iTRb = iClip3( -128, 127, p_Vid->dec_picture->bottom_poc - listX[LIST_0 + j][i]->poc );
+                    iTRb = clip3( -128, 127, p_Vid->dec_picture->bottom_poc - listX[LIST_0 + j][i]->poc );
 
-                iTRp = iClip3( -128, 127,  listX[LIST_1 + j][0]->poc - listX[LIST_0 + j][i]->poc);
+                iTRp = clip3( -128, 127,  listX[LIST_1 + j][0]->poc - listX[LIST_0 + j][i]->poc);
 
                 if (iTRp != 0) {
-                    prescale = ( 16384 + iabs( iTRp / 2 ) ) / iTRp;
-                    currSlice->mvscale[j][i] = iClip3( -1024, 1023, ( iTRb * prescale + 32 ) >> 6 ) ;
+                    prescale = ( 16384 + abs( iTRp / 2 ) ) / iTRp;
+                    currSlice->mvscale[j][i] = clip3( -1024, 1023, ( iTRb * prescale + 32 ) >> 6 ) ;
                 } else
                     currSlice->mvscale[j][i] = 9999;
             }

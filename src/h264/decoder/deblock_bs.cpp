@@ -7,11 +7,6 @@
 #include "deblock_common.h"
 
 
-static inline int64_t i64_power2(int x)
-{
-    return x > 63 ? 0 : ((int64_t)1 << x);
-}
-
 #define get_x_luma(x) (x & 15)
 #define get_y_luma(y) (y & 15)
 #define get_pos_x_luma(mb,x) (mb->pix_x + (x & 15))
@@ -22,7 +17,7 @@ static inline int64_t i64_power2(int x)
 
 static inline int compare_mvs(const MotionVector *mv0, const MotionVector *mv1, int mvlimit)
 {
-    return ((iabs( mv0->mv_x - mv1->mv_x) >= 4) | (iabs( mv0->mv_y - mv1->mv_y) >= mvlimit));
+    return (abs( mv0->mv_x - mv1->mv_x) >= 4) | (abs( mv0->mv_y - mv1->mv_y) >= mvlimit);
 }
 
 
@@ -88,11 +83,11 @@ void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
         bS = 1;
     if (mixedModeEdgeFlag == 0 && p->ref_pic_list != q->ref_pic_list)
         bS = 1;
-    if (mixedModeEdgeFlag == 0 && Abs(p->mv[0] - q->mv[0]) >= 4)
+    if (mixedModeEdgeFlag == 0 && abs(p->mv[0] - q->mv[0]) >= 4)
         bS = 1;
-    if (mixedModeEdgeFlag == 0 && Abs(p->mv[0] - q->mv[0]) >= 4 && Abs(p->mv[1] - q->mv[1]) >= 4)
+    if (mixedModeEdgeFlag == 0 && abs(p->mv[0] - q->mv[0]) >= 4 && abs(p->mv[1] - q->mv[1]) >= 4)
         bS = 1;
-    if (mixedModeEdgeFlag == 0 && Abs(p->mv[0] - q->mv[1]) >= 4 && Abs(p->mv[1] - q->mv[0]) >= 4)
+    if (mixedModeEdgeFlag == 0 && abs(p->mv[0] - q->mv[1]) >= 4 && abs(p->mv[1] - q->mv[0]) >= 4)
         bS = 1;
 
     bS = 0;
@@ -115,7 +110,7 @@ void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
         for (idx = 0; idx < MB_BLOCK_SIZE; idx += BLOCK_SIZE) {
             blkQ = idx + (edge);
             blkP = idx + (get_x_luma(xQ) >> 2);
-            if ((MbQ->s_cbp[0].blk & (i64_power2(blkQ) | i64_power2(blkP))) != 0)
+            if ((MbQ->s_cbp[0].blk & (((int64_t)1 << blkQ) | ((int64_t)1 << blkP))) != 0)
                 StrValue = 2;
             else
                 StrValue = 0; // if internal edge of certain types, then we already know StrValue should be 0
@@ -132,8 +127,8 @@ void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
     for (idx = 0; idx < MB_BLOCK_SIZE; idx += BLOCK_SIZE) {
         blkQ = idx  + (edge);
         blkP = idx  + (get_x_luma(xQ) >> 2);
-        if ((MbQ->s_cbp[0].blk & i64_power2(blkQ)) != 0 ||
-            (MbP->s_cbp[0].blk & i64_power2(blkP)) != 0)
+        if ((MbQ->s_cbp[0].blk & ((int64_t)1 << blkQ)) != 0 ||
+            (MbP->s_cbp[0].blk & ((int64_t)1 << blkP)) != 0)
             StrValue = 2;
         else { // for everything else, if no coefs, but vector difference >= 1 set Strength=1
             int blk_y  = mb.y + (blkQ >> 2);
@@ -211,7 +206,7 @@ void get_strength_hor(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
         for (idx = 0; idx < BLOCK_SIZE; idx++) {
             blkQ = (yQ + 1) + idx;
             blkP = (get_y_luma(yQ) & 0xFFFC) + idx;
-            if ((MbQ->s_cbp[0].blk & (i64_power2(blkQ) | i64_power2(blkP))) != 0)
+            if ((MbQ->s_cbp[0].blk & (((int64_t)1 << blkQ) | ((int64_t)1 << blkP))) != 0)
                 StrValue = 2;
             else
                 StrValue = 0; // if internal edge of certain types, we already know StrValue should be 0
@@ -229,7 +224,7 @@ void get_strength_hor(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
         blkQ = (yQ + 1) + idx;
         blkP = (get_y_luma(yQ) & 0xFFFC) + idx;
 
-        if (((MbQ->s_cbp[0].blk & i64_power2(blkQ)) != 0) || ((MbP->s_cbp[0].blk & i64_power2(blkP)) != 0))
+        if ((MbQ->s_cbp[0].blk & ((int64_t)1 << blkQ)) != 0 || (MbP->s_cbp[0].blk & ((int64_t)1 << blkP)) != 0)
             StrValue = 2;
         else { // for everything else, if no coefs, but vector difference >= 1 set Strength=1
             int blk_y  = mb.y + (blkQ >> 2);
@@ -324,7 +319,7 @@ void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
                     blkQ = (short) ((idx & 0xFFFC) + (edge >> 2));
                     blkP = (short) ((pixP.y & 0xFFFC) + (pixP.x >> 2));
 
-                    if (((MbQ->s_cbp[0].blk & i64_power2(blkQ)) != 0) || ((MbP->s_cbp[0].blk & i64_power2(blkP)) != 0))
+                    if ((MbQ->s_cbp[0].blk & ((int64_t)1 << blkQ)) != 0 || (MbP->s_cbp[0].blk & ((int64_t)1 << blkP)) != 0)
                         StrValue = 2;
                     else if (edge && ((MbQ->mb_type == 1)  || (MbQ->mb_type == 2)))
                         StrValue = 0; // if internal edge of certain types, we already know StrValue should be 0
@@ -384,7 +379,7 @@ void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
                     ((p->mb_aff_frame_flag || currSlice->field_pic_flag)))) ? 4 : 3;
 
                 if (MbQ->is_intra_block == FALSE && MbP->is_intra_block == FALSE) {
-                    if (((MbQ->s_cbp[0].blk & i64_power2(blkQ)) != 0) || ((MbP->s_cbp[0].blk & i64_power2(blkP)) != 0))
+                    if ((MbQ->s_cbp[0].blk & ((int64_t)1 << blkQ)) != 0 || (MbP->s_cbp[0].blk & ((int64_t)1 << blkP)) != 0)
                         Strength[idx] = 2 ;
                     else {
                         // if no coefs, but vector difference >= 1 set Strength=1
@@ -493,7 +488,7 @@ void get_strength_hor_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
                 blkQ = (short) ((yQ & 0xFFFC) + (xQ >> 2));
                 blkP = (short) ((pixP.y & 0xFFFC) + (pixP.x >> 2));
 
-                if (((MbQ->s_cbp[0].blk & i64_power2(blkQ)) != 0) || ((MbP->s_cbp[0].blk & i64_power2(blkP)) != 0))
+                if ((MbQ->s_cbp[0].blk & ((int64_t)1 << blkQ)) != 0 || (MbP->s_cbp[0].blk & ((int64_t)1 << blkP)) != 0)
                     StrValue = 2;
                 else {
                     // if no coefs, but vector difference >= 1 set Strength=1

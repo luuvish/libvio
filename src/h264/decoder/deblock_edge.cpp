@@ -74,20 +74,6 @@ static mb_t* get_non_aff_neighbor_chroma(mb_t *mb, int xN, int yN, int block_wid
         return NULL;
 }
 
-static inline int Abs(int x)
-{
-  static const int INT_BITS = (sizeof(int) * CHAR_BIT) - 1;
-  int y = x >> INT_BITS;
-  return (x ^ y) - y;
-}
-
-static inline int Clip3(int low, int high, int x)
-{
-  x = imax(x, low);
-  x = imin(x, high);
-
-  return x;
-}
 
 /*!
  *****************************************************************************************
@@ -99,17 +85,17 @@ static void deblock_strong(imgpel *pixP, imgpel *pixQ, int widthP, int widthQ, i
 {
 #define p(i) (pixP[- (i) * widthP])
 #define q(i) (pixQ[  (i) * widthQ])
-    bool filterSamplesFlag = bS != 0 && Abs(p(0) - q(0)) < alpha
-                                     && Abs(p(1) - p(0)) < beta
-                                     && Abs(q(1) - q(0)) < beta;
+    bool filterSamplesFlag = bS != 0 && abs(p(0) - q(0)) < alpha
+                                     && abs(p(1) - p(0)) < beta
+                                     && abs(q(1) - q(0)) < beta;
 
     if (filterSamplesFlag && bS == 4) {
-        int ap = Abs(p(2) - p(0));
-        int aq = Abs(q(2) - q(0));
+        int ap = abs(p(2) - p(0));
+        int aq = abs(q(2) - q(0));
         int p0, p1, p2;
         int q0, q1, q2;
 
-        if (chromaStyleFilteringFlag == 0 && ap < beta && Abs(p(0) - q(0)) < (alpha >> 2) + 2) {
+        if (chromaStyleFilteringFlag == 0 && ap < beta && abs(p(0) - q(0)) < (alpha >> 2) + 2) {
             p0 = (p(2) + 2 * p(1) + 2 * p(0) + 2 * q(0) + q(1) + 4) >> 3;
             p1 = (p(2) + p(1) + p(0) + q(0) + 2) >> 2;
             p2 = (2 * p(3) + 3 * p(2) + p(1) + p(0) + q(0) + 4) >> 3;
@@ -119,7 +105,7 @@ static void deblock_strong(imgpel *pixP, imgpel *pixQ, int widthP, int widthQ, i
             p2 = p(2);
         }
 
-        if (chromaStyleFilteringFlag == 0 && aq < beta && Abs(p(0) - q(0)) < (alpha >> 2) + 2) {
+        if (chromaStyleFilteringFlag == 0 && aq < beta && abs(p(0) - q(0)) < (alpha >> 2) + 2) {
             q0 = (p(1) + 2 * p(0) + 2 * q(0) + 2 * q(1) + q(2) + 4) >> 3;
             q1 = (p(0) + q(0) + q(1) + q(2) + 2) >> 2;
             q2 = (2 * q(3) + 3 * q(2) + q(1) + q(0) + p(0) + 4) >> 3;
@@ -145,9 +131,9 @@ static void deblock_normal(imgpel *pixP, imgpel *pixQ, int widthP, int widthQ, i
 #define p(i) (pixP[- (i) * widthP])
 #define q(i) (pixQ[  (i) * widthQ])
     int  BitDepth = chromaEdgeFlag == 0 ? BitDepthY : BitDepthC;
-    bool filterSamplesFlag = bS != 0 && Abs(p(0) - q(0)) < alpha
-                                     && Abs(p(1) - p(0)) < beta
-                                     && Abs(q(1) - q(0)) < beta;
+    bool filterSamplesFlag = bS != 0 && abs(p(0) - q(0)) < alpha
+                                     && abs(p(1) - p(0)) < beta
+                                     && abs(q(1) - q(0)) < beta;
 
     if (filterSamplesFlag && bS < 4) {
         int tc0, tc, delta;
@@ -160,25 +146,25 @@ static void deblock_normal(imgpel *pixP, imgpel *pixQ, int widthP, int widthQ, i
         else
             tc0 = TABLE_TCO[indexA][bS] * (1 << (BitDepthC - 8));
 
-        ap = Abs(p(2) - p(0));
-        aq = Abs(q(2) - q(0));
+        ap = abs(p(2) - p(0));
+        aq = abs(q(2) - q(0));
         if (chromaStyleFilteringFlag == 0)
             tc = tc0 + (ap < beta ? 1 : 0) + (aq < beta ? 1 : 0);
         else
             tc = tc0 + 1;
-        delta = Clip3(-tc, tc, ((((q(0) - p(0)) << 2) + (p(1) - q(1)) + 4) >> 3));
+        delta = clip3(-tc, tc, ((((q(0) - p(0)) << 2) + (p(1) - q(1)) + 4) >> 3));
 
-#define Clip1(x) (Clip3(0, (1 << BitDepth) - 1, x))
+#define Clip1(x) (clip3(0, (1 << BitDepth) - 1, x))
         p0 = Clip1(p(0) + delta);
         q0 = Clip1(q(0) - delta);
 #undef Clip1
 
         if (chromaStyleFilteringFlag == 0 && ap < beta)
-            p1 = p(1) + Clip3(-tc0, tc0, (p(2) + ((p(0) + q(0) + 1) >> 1) - (p(1) << 1)) >> 1);
+            p1 = p(1) + clip3(-tc0, tc0, (p(2) + ((p(0) + q(0) + 1) >> 1) - (p(1) << 1)) >> 1);
         else
             p1 = p(1);
         if (chromaStyleFilteringFlag == 0 && aq < beta)
-            q1 = q(1) + Clip3(-tc0, tc0, (q(2) + ((p(0) + q(0) + 1) >> 1) - (q(1) << 1)) >> 1);
+            q1 = q(1) + clip3(-tc0, tc0, (q(2) + ((p(0) + q(0) + 1) >> 1) - (q(1) << 1)) >> 1);
         else
             q1 = q(1);
 
@@ -202,8 +188,8 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
 
     qPav = (qPp + qPq + 1) >> 1;
 
-    indexA = Clip3(0, 51, qPav + filterOffsetA);
-    indexB = Clip3(0, 51, qPav + filterOffsetB);
+    indexA = clip3(0, 51, qPav + filterOffsetA);
+    indexB = clip3(0, 51, qPav + filterOffsetB);
 
     if (chromaEdgeFlag == 0) {
         alpha = TABLE_ALPHA[indexA] * (1 << (BitDepthY - 8));
@@ -213,9 +199,9 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
         beta  = TABLE_BETA [indexB] * (1 << (BitDepthC - 8));
     }
 
-    filterSamplesFlag = bS != 0 && Abs(p[0] - q[0]) < alpha
-                                && Abs(p[1] - p[0]) < beta
-                                && Abs(q[1] - q[0]) < beta;
+    filterSamplesFlag = bS != 0 && abs(p[0] - q[0]) < alpha
+                                && abs(p[1] - p[0]) < beta
+                                && abs(q[1] - q[0]) < beta;
 */
     VideoParameters *p_Vid = MbQ->p_Vid;
     sps_t *sps = p_Vid->active_sps;
@@ -294,8 +280,8 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
                 // Average QP of the two blocks
                 int QP = pl? ((MbP->qpc[pl-1] + MbQ->qpc[pl-1] + 1) >> 1) :
                               (MbP->qp + MbQ->qp + 1) >> 1;
-                int indexA = iClip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
-                int indexB = iClip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
+                int indexA = clip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
+                int indexB = clip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
                 int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
                 int Beta   = BETA_TABLE [indexB] * bitdepth_scale;
 
@@ -362,8 +348,8 @@ static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool ch
                 // Average QP of the two blocks
                 int QP = pl? ((MbP->qpc[pl-1] + MbQ->qpc[pl-1] + 1) >> 1)
                             : (MbP->qp + MbQ->qp + 1) >> 1;
-                int indexA = iClip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
-                int indexB = iClip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
+                int indexA = clip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
+                int indexB = clip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
                 int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
                 int Beta   = BETA_TABLE [indexB] * bitdepth_scale;
 

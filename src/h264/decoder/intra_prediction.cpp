@@ -14,13 +14,6 @@ static inline int InverseRasterScan(int index, int dx, int dy, int width, int xy
         return (index / (width / dx)) * dy;
 }
 
-static inline int Clip3(int low, int high, int x)
-{
-    x = imax(x, low);
-    x = imin(x, high);
-    return x;
-}
-
 
 static void neighbouring_samples_4x4(imgpel *pred, bool *available, mb_t *currMB, ColorPlane pl, int xO, int yO)
 {
@@ -728,7 +721,7 @@ static void intra16x16_plane_pred_normal(imgpel *pred, imgpel *pix, bool *availa
     int b = (5 * H + 32) >> 6;
     int c = (5 * V + 32) >> 6;
 
-#define Clip1(x) (Clip3(0, (1 << BitDepth) - 1, x))
+#define Clip1(x) (clip3(0, (1 << BitDepth) - 1, x))
     for (int y = 0; y < 16; y++) {
         for (int x = 0; x < 16; x++) {
             predL(x, y) = Clip1((a + b * (x - 7) + c * (y - 7) + 16) >> 5);
@@ -860,7 +853,7 @@ static void intrapred_chroma_plane(imgpel *pred[2], imgpel pix[2][17*17], bool *
     int c0 = ((34 - 29 * (ChromaArrayType != 1 ? 1 : 0)) * V0 + 32) >> 6;
     int c1 = ((34 - 29 * (ChromaArrayType != 1 ? 1 : 0)) * V1 + 32) >> 6;
 
-#define Clip1(x) (Clip3(0, (1 << BitDepth) - 1, x))
+#define Clip1(x) (clip3(0, (1 << BitDepth) - 1, x))
     for (int y = 0; y < size[1]; y++) {
         for (int x = 0; x < size[0]; x++) {
             predCb(x, y) = Clip1((a0 + b0 * (x - 3 - xCF) + c0 * (y - 3 - yCF) + 16) >> 5);

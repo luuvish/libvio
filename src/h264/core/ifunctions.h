@@ -2,56 +2,32 @@
 #define _IFUNCTIONS_H_
 
 
-#include <math.h>
-#include <limits.h>
+#include <algorithm>
 
+using std::max;
+using std::min;
 
-static inline int imin(int a, int b)
+template<typename T>
+T clip1(T high, T x)
 {
-  return ((a) < (b)) ? (a) : (b);
+    return min(max(0, x), high);
 }
 
-static inline int imax(int a, int b)
+template<typename T>
+T clip3(T low, T high, T x)
 {
-  return ((a) > (b)) ? (a) : (b);
+    return min(max(low, x), high);
 }
 
-static inline int iabs(int x)
-{
-  static const int INT_BITS = (sizeof(int) * CHAR_BIT) - 1;
-  int y = x >> INT_BITS;
-  return (x ^ y) - y;
-}
+#include <cstdlib>
 
+using std::abs;
 
+#include <cmath>
 
-static inline int iClip3(int low, int high, int x)
-{
-  x = imax(x, low);
-  x = imin(x, high);
-
-  return x;
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    calculate Ceil(Log2(uiVal))
- ************************************************************************
- */
-static inline unsigned CeilLog2( unsigned uiVal)
-{
-  unsigned uiTmp = uiVal-1;
-  unsigned uiRet = 0;
-
-  while( uiTmp != 0 )
-  {
-    uiTmp >>= 1;
-    uiRet++;
-  }
-  return uiRet;
-}
+using std::round;
+using std::ceil;
+using std::log2;
 
 
 #endif

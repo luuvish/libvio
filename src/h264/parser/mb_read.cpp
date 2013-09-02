@@ -668,7 +668,7 @@ void macroblock_t::parse_ipred_4x4_modes()
                 intraMxMPredModeB = slice->p_Vid->mb_data[top_block.mb_addr].Intra4x4PredMode[scan[top_block.y * 4 + top_block.x]];
         }
 
-        uint8_t predIntra4x4PredMode = imin(intraMxMPredModeA, intraMxMPredModeB);
+        uint8_t predIntra4x4PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
         if (this->prev_intra4x4_pred_mode_flag[luma4x4BlkIdx])
             this->Intra4x4PredMode[luma4x4BlkIdx] = predIntra4x4PredMode;
         else if (this->rem_intra4x4_pred_mode[luma4x4BlkIdx] < predIntra4x4PredMode)
@@ -723,7 +723,7 @@ void macroblock_t::parse_ipred_8x8_modes()
                 intraMxMPredModeB = slice->p_Vid->mb_data[top_block.mb_addr].Intra4x4PredMode[scan[top_block.y * 4 + top_block.x]];
         }
 
-        uint8_t predIntra8x8PredMode = imin(intraMxMPredModeA, intraMxMPredModeB);
+        uint8_t predIntra8x8PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
         if (this->prev_intra8x8_pred_mode_flag[luma8x8BlkIdx])
             this->Intra8x8PredMode[luma8x8BlkIdx] = predIntra8x8PredMode;
         else if (this->rem_intra8x8_pred_mode[luma8x8BlkIdx] < predIntra8x8PredMode)
@@ -937,7 +937,7 @@ void macroblock_t::update_qp(int qp)
     this->qp_scaled[0] = qp + sps->QpBdOffsetY;
 
     for (int i = 0; i < 2; i++) {
-        this->qpc[i] = iClip3 (-(sps->QpBdOffsetC), 51, this->qp + dec_picture->chroma_qp_offset[i]);
+        this->qpc[i] = clip3 (-(sps->QpBdOffsetC), 51, this->qp + dec_picture->chroma_qp_offset[i]);
         this->qpc[i] = this->qpc[i] < 0 ? this->qpc[i] : QP_SCALE_CR[this->qpc[i]];
         this->qp_scaled[i + 1] = this->qpc[i] + sps->QpBdOffsetC;
     }

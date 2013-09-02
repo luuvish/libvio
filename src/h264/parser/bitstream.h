@@ -37,7 +37,7 @@ struct bitstream_t {
     int         LastAccessUnitExists;
     int         NALUCount;
 
-    void        open (const char* name, type format, unsigned max_size);
+    void        open (const char* name, type format, uint32_t max_size);
     void        close();
     void        reset();
 

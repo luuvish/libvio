@@ -28,11 +28,6 @@ static inline float psnr(int max_sample_sq, int samples, float sse_distortion )
   return (float) (sse_distortion == 0.0 ? 0.0 : (10.0 * log10(max_sample_sq * (double) ((double) samples / sse_distortion))));
 }
 
-static inline int iabs2(int x) 
-{
-  return (x) * (x);
-}
-
 static inline void reset_mbs(mb_t *currMB)
 {
   currMB->slice_nr = -1; 
@@ -657,7 +652,7 @@ void calculate_frame_no(VideoParameters *p_Vid, StorablePicture *p)
   {
     p_Vid->idr_psnr_number = p_Vid->g_nFrame * p_Vid->ref_poc_gap/(p_Inp->poc_scale);
   }
-  p_Vid->psnr_number = imax(p_Vid->psnr_number, p_Vid->idr_psnr_number+psnrPOC);
+  p_Vid->psnr_number = max(p_Vid->psnr_number, p_Vid->idr_psnr_number+psnrPOC);
 
   p_Vid->frame_no = p_Vid->idr_psnr_number + psnrPOC;
 }

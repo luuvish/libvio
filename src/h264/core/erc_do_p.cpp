@@ -606,7 +606,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   int yuv = dec_picture->chroma_format_idc - 1;
 
   sps_t *sps = p_Vid->active_sps;
-  int ref_frame = imax (mv[2], 0); // !!KS: quick fix, we sometimes seem to get negative ref_pic here, so restrict to zero and above
+  int ref_frame = max (mv[2], 0); // !!KS: quick fix, we sometimes seem to get negative ref_pic here, so restrict to zero and above
   int mb_nr = y/16*(sps->PicWidthInMbs)+x/16; ///currSlice->current_mb_nr;
   int **tmp_res = NULL;
   
@@ -703,10 +703,10 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
               i1=(i4+ii)*f1_x + mv[0];
               j1=(j4+jj)*f1_y + mv[1];
 
-              ii0=iClip3 (0, dec_picture->size_x_cr-1, i1/f1_x);
-              jj0=iClip3 (0, dec_picture->size_y_cr-1, j1/f1_y);
-              ii1=iClip3 (0, dec_picture->size_x_cr-1, ((i1+f2_x)/f1_x));
-              jj1=iClip3 (0, dec_picture->size_y_cr-1, ((j1+f2_y)/f1_y));
+              ii0=clip3 (0, dec_picture->size_x_cr-1, i1/f1_x);
+              jj0=clip3 (0, dec_picture->size_y_cr-1, j1/f1_y);
+              ii1=clip3 (0, dec_picture->size_x_cr-1, ((i1+f2_x)/f1_x));
+              jj1=clip3 (0, dec_picture->size_y_cr-1, ((j1+f2_y)/f1_y));
 
               if1=(i1 & f2_x);
               jf1=(j1 & f2_y);
@@ -855,14 +855,14 @@ static int edgeDistortion (int predBlocks[], int currYBlockNum, imgpel *predMB,
           neighbor = currBlock - picSizeX;
           for ( i = 0; i < regionSize; i++ )
           {
-            distortion += iabs((int)(predMB[i] - neighbor[i]));
+            distortion += abs((int)(predMB[i] - neighbor[i]));
           }
           break;
         case 5:
           neighbor = currBlock - 1;
           for ( i = 0; i < regionSize; i++ )
           {
-            distortion += iabs((int)(predMB[i*16] - neighbor[i*picSizeX]));
+            distortion += abs((int)(predMB[i*16] - neighbor[i*picSizeX]));
           }
           break;
         case 6:
@@ -870,7 +870,7 @@ static int edgeDistortion (int predBlocks[], int currYBlockNum, imgpel *predMB,
           currBlockOffset = (regionSize-1)*16;
           for ( i = 0; i < regionSize; i++ )
           {
-            distortion += iabs((int)(predMB[i+currBlockOffset] - neighbor[i]));
+            distortion += abs((int)(predMB[i+currBlockOffset] - neighbor[i]));
           }
           break;
         case 7:
@@ -878,7 +878,7 @@ static int edgeDistortion (int predBlocks[], int currYBlockNum, imgpel *predMB,
           currBlockOffset = regionSize-1;
           for ( i = 0; i < regionSize; i++ )
           {
-            distortion += iabs((int)(predMB[i*16+currBlockOffset] - neighbor[i*picSizeX]));
+            distortion += abs((int)(predMB[i*16+currBlockOffset] - neighbor[i*picSizeX]));
           }
           break;
         }
@@ -1002,10 +1002,10 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
           i1=(i4+ii)*f1_x + mv[0];
           j1=(j4+jj)*f1_y + mv[1];
 
-          ii0=iClip3 (0, dec_picture->size_x_cr-1, i1/f1_x);
-          jj0=iClip3 (0, dec_picture->size_y_cr-1, j1/f1_y);
-          ii1=iClip3 (0, dec_picture->size_x_cr-1, ((i1+f2_x)/f1_x));
-          jj1=iClip3 (0, dec_picture->size_y_cr-1, ((j1+f2_y)/f1_y));
+          ii0=clip3 (0, dec_picture->size_x_cr-1, i1/f1_x);
+          jj0=clip3 (0, dec_picture->size_y_cr-1, j1/f1_y);
+          ii1=clip3 (0, dec_picture->size_x_cr-1, ((i1+f2_x)/f1_x));
+          jj1=clip3 (0, dec_picture->size_y_cr-1, ((j1+f2_y)/f1_y));
 
           if1=(i1 & f2_x);
           jf1=(j1 & f2_y);
@@ -1504,8 +1504,8 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
   }
 
   // set max size
-  p_Vid->ppSliceList[0]->listXsize[0] = (char) imin (p_Vid->ppSliceList[0]->listXsize[0], (int)active_sps->max_num_ref_frames);
-  p_Vid->ppSliceList[0]->listXsize[1] = (char) imin (p_Vid->ppSliceList[0]->listXsize[1], (int)active_sps->max_num_ref_frames);
+  p_Vid->ppSliceList[0]->listXsize[0] = (char) min<int>(p_Vid->ppSliceList[0]->listXsize[0], (int)active_sps->max_num_ref_frames);
+  p_Vid->ppSliceList[0]->listXsize[1] = (char) min<int>(p_Vid->ppSliceList[0]->listXsize[1], (int)active_sps->max_num_ref_frames);
 
   p_Vid->ppSliceList[0]->listXsize[1] = 0;
   // set the unused list entries to NULL

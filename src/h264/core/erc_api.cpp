@@ -462,7 +462,7 @@ void ercWriteMBMODEandMV(mb_t *currMB)
           pRegion->mv[0]  = dec_picture->mv_info[jj][ii].mv[LIST_0].mv_x;
           pRegion->mv[1]  = dec_picture->mv_info[jj][ii].mv[LIST_0].mv_y;
         }
-        currMB->p_Slice->erc_mvperMB      += iabs(pRegion->mv[0]) + iabs(pRegion->mv[1]);
+        currMB->p_Slice->erc_mvperMB      += abs(pRegion->mv[0]) + abs(pRegion->mv[1]);
         pRegion->mv[2]    = dec_picture->mv_info[jj][ii].ref_idx[LIST_0];
       }
     }
@@ -493,7 +493,7 @@ void ercWriteMBMODEandMV(mb_t *currMB)
           dec_picture->mv_info[jj][ii+1].mv[idx].mv_y + 
           dec_picture->mv_info[jj+1][ii].mv[idx].mv_y + 
           dec_picture->mv_info[jj+1][ii+1].mv[idx].mv_y + 2)/4;
-        currMB->p_Slice->erc_mvperMB      += iabs(pRegion->mv[0]) + iabs(pRegion->mv[1]);
+        currMB->p_Slice->erc_mvperMB      += abs(pRegion->mv[0]) + abs(pRegion->mv[1]);
 
         pRegion->mv[2]  = (dec_picture->mv_info[jj][ii].ref_idx[idx]);
       }

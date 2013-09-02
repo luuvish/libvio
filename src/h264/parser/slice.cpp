@@ -205,11 +205,11 @@ void slice_header(slice_t *currSlice)
         if (((sps->pic_height_in_map_units_minus1+1)*(sps->pic_width_in_mbs_minus1+1))%
             (pps->slice_group_change_rate_minus1+1))
             len += 1;
-        len = CeilLog2(len + 1);
+        len = ceil(log2(len + 1));
         currSlice->slice_group_change_cycle = s->u(len, "SH: slice_group_change_cycle");
     }
 
-    currSlice->MapUnitsInSliceGroup0 = imin(currSlice->slice_group_change_cycle * pps->SliceGroupChangeRate, sps->PicSizeInMapUnits);
+    currSlice->MapUnitsInSliceGroup0 = min(currSlice->slice_group_change_cycle * pps->SliceGroupChangeRate, sps->PicSizeInMapUnits);
 }
 
 void ref_pic_list_modification(slice_t *currSlice)

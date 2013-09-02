@@ -259,8 +259,8 @@ void init_lists_p_slice_mvc(slice_t *currSlice)
   }
 #endif
   // set max size
-  currSlice->listXsize[0] = (char) imin (currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
-  currSlice->listXsize[1] = (char) imin (currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
+  currSlice->listXsize[0] = (char) min<int>(currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
+  currSlice->listXsize[1] = (char) min<int>(currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
 
   // set the unused list entries to NULL
   for (i=currSlice->listXsize[0]; i< (MAX_LIST_SIZE) ; i++)
@@ -504,8 +504,8 @@ void init_lists_b_slice_mvc(slice_t *currSlice)
   }
 #endif
   // set max size
-  currSlice->listXsize[0] = (char) imin (currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
-  currSlice->listXsize[1] = (char) imin (currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
+  currSlice->listXsize[0] = (char) min<int>(currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
+  currSlice->listXsize[1] = (char) min<int>(currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
 
   // set the unused list entries to NULL
   for (i=currSlice->listXsize[0]; i< (MAX_LIST_SIZE) ; i++)
