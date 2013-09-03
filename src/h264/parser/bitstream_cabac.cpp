@@ -5,275 +5,157 @@
 #define CTX_UNUSED {0,64}
 
 
-static const char INIT_MB_TYPE_I[1][3][11][2] =
-{
-  //----- model 0 -----
-  {
-    { {  20, -15} , {   2,  54} , {   3,  74} ,  CTX_UNUSED , { -28, 127} , { -23, 104} , {  -6,  53} , {  -1,  54} , {   7,  51} ,  CTX_UNUSED ,  CTX_UNUSED },
-    { {  20, -15} , {   2,  54} , {   3,  74} , {  20, -15} , {   2,  54} , {   3,  74} , { -28, 127} , { -23, 104} , {  -6,  53} , {  -1,  54} , {   7,  51} }, // SI (unused at the moment)
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED }
-  }
+// mb_skip_flag
+// ctxIdx = 11..13
+static const char INIT_SKIP_P[3][1][3][2] = {
+    { { {  23,  33 }, {  23,   2 }, {  21,   0 } } },
+    { { {  22,  25 }, {  34,   0 }, {  16,   0 } } },
+    { { {  29,  16 }, {  25,   0 }, {  14,   0 } } }
 };
-static const char INIT_MB_TYPE_P[3][3][11][2] =
-{
-  //----- model 0 -----
-  {
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED },
-  { {  23,  33} , {  23,   2} , {  21,   0} ,  CTX_UNUSED , {   1,   9} , {   0,  49} , { -37, 118} , {   5,  57} , { -13,  78} , { -11,  65} , {   1,  62} },
-  { {  26,  67} , {  16,  90} , {   9, 104} ,  CTX_UNUSED , { -46, 127} , { -20, 104} , {   1,  67} , {  18,  64} , {   9,  43} , {  29,   0} ,  CTX_UNUSED }
-  },
-  //----- model 1 -----
-  {
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED },
-    { {  22,  25} , {  34,   0} , {  16,   0} ,  CTX_UNUSED , {  -2,   9} , {   4,  41} , { -29, 118} , {   2,  65} , {  -6,  71} , { -13,  79} , {   5,  52} },
-    { {  57,   2} , {  41,  36} , {  26,  69} ,  CTX_UNUSED , { -45, 127} , { -15, 101} , {  -4,  76} , {  26,  34} , {  19,  22} , {  40,   0} ,  CTX_UNUSED }
-  },
-  //----- model 2 -----
-  {
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED },
-    { {  29,  16} , {  25,   0} , {  14,   0} ,  CTX_UNUSED , { -10,  51} , {  -3,  62} , { -27,  99} , {  26,  16} , {  -4,  85} , { -24, 102} , {   5,  57} },
-  { {  54,   0} , {  37,  42} , {  12,  97} ,  CTX_UNUSED , { -32, 127} , { -22, 117} , {  -2,  74} , {  20,  40} , {  20,  10} , {  29,   0} ,  CTX_UNUSED }
-  }
+// ctxIdx = 24..26
+static const char INIT_SKIP_B[3][1][3][2] = {
+    { { {  18,  64 }, {   9,  43 }, {  29,   0 } } },
+    { { {  26,  34 }, {  19,  22 }, {  40,   0 } } },
+    { { {  20,  40 }, {  20,  10 }, {  29,   0 } } }
 };
 
-static const char INIT_B8_TYPE_I[1][2][9][2] =
-{
-  //----- model 0 -----
-  {
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED },
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED }
-  }
+// mb_type
+// ctxIdx = 0..10, 3..10
+static const char INIT_MB_TYPE_I[1][1][11][2] = {
+    { { {  20, -15 }, {   2,  54 }, {   3,  74 },
+        {  20, -15 }, {   2,  54 }, {   3,  74 }, { -28, 127 },
+        { -23, 104 }, {  -6,  53 }, {  -1,  54 }, {   7,  51 } } }
+};
+// ctxIdx = 14..20
+static const char INIT_MB_TYPE_P[3][1][7][2] = {
+    { { {   1,   9 }, {   0,  49 }, { -37, 118 },
+        {   5,  57 }, { -13,  78 }, { -11,  65 }, {   1,  62 } } },
+    { { {  -2,   9 }, {   4,  41 }, { -29, 118 },
+        {   2,  65 }, {  -6,  71 }, { -13,  79 }, {   5,  52 } } },
+    { { { -10,  51 }, {  -3,  62 }, { -27,  99 },
+        {  26,  16 }, {  -4,  85 }, { -24, 102 }, {   5,  57 } } }
+};
+// ctxIdx = 27..35
+static const char INIT_MB_TYPE_B[3][1][9][2] = {
+    { { {  26,  67 }, {  16,  90 }, {   9, 104 }, { -46, 127 }, { -20, 104 },
+        {   1,  67 }, { -13,  78 }, { -11,  65 }, {   1,  62 } } },
+    { { {  57,   2 }, {  41,  36 }, {  26,  69 }, { -45, 127 }, { -15, 101 },
+        {  -4,  76 }, {  -6,  71 }, { -13,  79 }, {   5,  52 } } },
+    { { {  54,   0 }, {  37,  42 }, {  12,  97 }, { -32, 127 }, { -22, 117 },
+        {  -2,  74 }, {  -4,  85 }, { -24, 102 }, {   5,  57 } } }
 };
 
-static const char INIT_B8_TYPE_P[3][2][9][2] =
-{
-  //----- model 0 -----
-  {
-    {  CTX_UNUSED , {  12,  49} ,  CTX_UNUSED , {  -4,  73} , {  17,  50} ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED },
-    { {  -6,  86} , { -17,  95} , {  -6,  61} , {   9,  45} ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED }
-  },
-  //----- model 1 -----
-  {
-    {  CTX_UNUSED , {   9,  50} ,  CTX_UNUSED , {  -3,  70} , {  10,  54} ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED },
-    { {   6,  69} , { -13,  90} , {   0,  52} , {   8,  43} ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED }
-  },
-  //----- model 2 -----
-  {
-    {  CTX_UNUSED , {   6,  57} ,  CTX_UNUSED , { -17,  73} , {  14,  57} ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED },
-    { {  -6,  93} , { -14,  88} , {  -6,  44} , {   4,  55} ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED }
-  }
+// sub_mb_type
+// ctxIdx = 21..23
+static const char INIT_B8_TYPE_P[3][1][3][2] = {
+    { { {  12,  49 }, {  -4,  73 }, {  17,  50 } } },
+    { { {   9,  50 }, {  -3,  70 }, {  10,  54 } } },
+    { { {   6,  57 }, { -17,  73 }, {  14,  57 } } }
+};
+// ctxIdx = 36..39
+static const char INIT_B8_TYPE_B[3][1][4][2] = {
+    { { {  -6,  86 }, { -17,  95 }, {  -6,  61 }, {   9,  45 } } },
+    { { {   6,  69 }, { -13,  90 }, {   0,  52 }, {   8,  43 } } },
+    { { {  -6,  93 }, { -14,  88 }, {  -6,  44 }, {   4,  55 } } }
 };
 
-static const char INIT_MV_RES_I[1][2][10][2] =
-{
-  //----- model 0 -----
-  {
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED },
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED }
-  }
+// mvd_x
+// ctxIdx = 40..46
+static const char INIT_MVD_X_P[3][1][7][2] = {
+    { { {  -3,  69 }, {  -6,  81 }, { -11,  96 },
+        {   6,  55 }, {   7,  67 }, {  -5,  86 }, {   2,  88 } } },
+    { { {  -2,  69 }, {  -5,  82 }, { -10,  96 },
+        {   2,  59 }, {   2,  75 }, {  -3,  87 }, {  -3, 100 } } },
+    { { { -11,  89 }, { -15, 103 }, { -21, 116 },
+        {  19,  57 }, {  20,  58 }, {   4,  84 }, {   6,  96 } } }
+};
+// mvd_y
+// ctxIdx = 47..53
+static const char INIT_MVD_Y_P[3][1][7][2] = {
+    { { {   0,  58 }, {  -3,  76 }, { -10,  94 },
+        {   5,  54 }, {   4,  69 }, {  -3,  81 }, {   0,  88 } } },
+    { { {   1,  56 }, {  -3,  74 }, {  -6,  85 },
+        {   0,  59 }, {  -3,  81 }, {  -7,  86 }, {  -5,  95 } } },
+    { { {   1,  63 }, {  -5,  85 }, { -13, 106 },
+        {   5,  63 }, {   6,  75 }, {  -3,  90 }, {  -1, 101 } } }
 };
 
-static const char INIT_MV_RES_P[3][2][10][2] =
-{
-  //----- model 0 -----
-  {
-    { {  -3,  69} ,  CTX_UNUSED , {  -6,  81} , { -11,  96} ,  CTX_UNUSED , {   0,  58} ,  CTX_UNUSED , {  -3,  76} , { -10,  94} ,  CTX_UNUSED },
-    { {   6,  55} , {   7,  67} , {  -5,  86} , {   2,  88} ,  CTX_UNUSED , {   5,  54} , {   4,  69} , {  -3,  81} , {   0,  88} ,  CTX_UNUSED }
-  },
-  //----- model 1 -----
-  {
-    { {  -2,  69} ,  CTX_UNUSED , {  -5,  82} , { -10,  96} ,  CTX_UNUSED , {   1,  56} ,  CTX_UNUSED , {  -3,  74} , {  -6,  85} ,  CTX_UNUSED },
-    { {   2,  59} , {   2,  75} , {  -3,  87} , {  -3, 100} ,  CTX_UNUSED , {   0,  59} , {  -3,  81} , {  -7,  86} , {  -5,  95} ,  CTX_UNUSED }
-  },
-  //----- model 2 -----
-  {
-    { { -11,  89} ,  CTX_UNUSED , { -15, 103} , { -21, 116} ,  CTX_UNUSED , {   1,  63} ,  CTX_UNUSED , {  -5,  85} , { -13, 106} ,  CTX_UNUSED },
-    { {  19,  57} , {  20,  58} , {   4,  84} , {   6,  96} ,  CTX_UNUSED , {   5,  63} , {   6,  75} , {  -3,  90} , {  -1, 101} ,  CTX_UNUSED }
-  }
+// ref_idx_l0, ref_idx_l1
+// ctxIdx = 54..59
+static const char INIT_REF_NO_P[3][1][6][2] = {
+    { { {  -7,  67 }, {  -5,  74 }, {  -4,  74 }, {  -5,  80 }, {  -7,  72 }, {   1,  58 } } },
+    { { {  -1,  66 }, {  -1,  77 }, {   1,  70 }, {  -2,  86 }, {  -5,  72 }, {   0,  61 } } },
+    { { {   3,  55 }, {  -4,  79 }, {  -2,  75 }, { -12,  97 }, {  -7,  50 }, {   1,  60 } } }
 };
 
-static const char INIT_REF_NO_I[1][2][6][2] =
-{
-  //----- model 0 -----
-  {
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED },
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED }
-  }
+// mb_qp_delta
+// ctxIdx = 60..63
+static const char INIT_DELTA_QP_I[1][1][4][2] = {
+    { { {   0,  41 }, {   0,  63 }, {   0,  63 }, {   0,  63 } } }
 };
 
-static const char INIT_REF_NO_P[3][2][6][2] =
-{
-  //----- model 0 -----
-  {
-    { {  -7,  67} , {  -5,  74} , {  -4,  74} , {  -5,  80} , {  -7,  72} , {   1,  58} },
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED }
-  },
-  //----- model 1 -----
-  {
-    { {  -1,  66} , {  -1,  77} , {   1,  70} , {  -2,  86} , {  -5,  72} , {   0,  61} },
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED }
-  },
-  //----- model 2 -----
-  {
-    { {   3,  55} , {  -4,  79} , {  -2,  75} , { -12,  97} , {  -7,  50} , {   1,  60} },
-    {  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED ,  CTX_UNUSED }
-  }
+// intra_chroma_pred_mode
+// ctxIdx = 64..67
+static const char INIT_CIPR_I[1][1][4][2] = {
+    { { {  -9,  83 }, {   4,  86 }, {   0,  97 }, {  -7,  72 } } }
+};
+
+// prev_intra4x4_pred_mode_flag, rem_intra4x4_pred_mode
+// prev_intra8x8_pred_mode_flag, rem_intra8x8_pred_mode
+// ctxIdx = 68..69
+static const char INIT_IPR_I[1][1][2][2] = {
+    { { {  13,  41 }, {   3,  62 } } }
+};
+
+// mb_field_decoding_flag
+// ctxIdx = 70..72
+static const char INIT_MB_AFF_I[1][1][3][2] = {
+    { { {   0,  11 }, {   1,  55 }, {   0,  69 } } }
+};
+static const char INIT_MB_AFF_P[3][1][3][2] = {
+    { { {   0,  45 }, {  -4,  78 }, {  -3,  96 } } },
+    { { {  13,  15 }, {   7,  51 }, {   2,  80 } } },
+    { { {   7,  34 }, {  -9,  88 }, { -20, 127 } } }
+};
+
+// coded_block_pattern (luma)
+// ctxIdx = 73..76
+static const char INIT_CBP_L_I[1][1][4][2] = {
+    { { { -17, 127 }, { -13, 102 }, {   0,  82 }, {  -7,  74 } } }
+};
+static const char INIT_CBP_L_P[3][1][4][2] = {
+    { { { -27, 126 }, { -28,  98 }, { -25, 101 }, { -23,  67 } } },
+    { { { -39, 127 }, { -18,  91 }, { -17,  96 }, { -26,  81 } } },
+    { { { -36, 127 }, { -17,  91 }, { -14,  95 }, { -25,  84 } } }
+};
+
+// coded_block_pattern (chroma)
+// ctxIdx = 77..84
+static const char INIT_CBP_C_I[1][1][8][2] = {
+    { { { -21, 107 }, { -27, 127 }, { -31, 127 }, { -24, 127 },
+        { -18,  95 }, { -27, 127 }, { -21, 114 }, { -30, 127 } } }
+};
+static const char INIT_CBP_C_P[3][1][8][2] = {
+    { { { -28,  82 }, { -20,  94 }, { -16,  83 }, { -22, 110 },
+        { -21,  91 }, { -18, 102 }, { -13,  93 }, { -29, 127 } } },
+    { { { -35,  98 }, { -24, 102 }, { -23,  97 }, { -27, 119 },
+        { -24,  99 }, { -21, 110 }, { -18, 102 }, { -36, 127 } } },
+    { { { -25,  86 }, { -12,  89 }, { -17,  91 }, { -31, 127 },
+        { -14,  76 }, { -18, 103 }, { -13,  90 }, { -37, 127 } } }
+};
+
+// transform_size_8x8_flag
+// ctxIdx = 399..401
+static const char INIT_TRANSFORM_SIZE_I[1][1][3][2] = {
+    { { {  31,  21 }, {  31,  31 }, {  25,  50 } } }
+};
+static const char INIT_TRANSFORM_SIZE_P[3][1][3][2] = {
+    { { {  12,  40 }, {  11,  51 }, {  14,  59 } } },
+    { { {  25,  32 }, {  21,  49 }, {  21,  54 } } },
+    { { {  21,  33 }, {  19,  50 }, {  17,  61 } } }
 };
 
 
-static const char INIT_TRANSFORM_SIZE_I[1][1][3][2]=
-{
-  //----- model 0 -----
-  {
-    {  {  31,  21} , {  31,  31} , {  25,  50} },
-//    { {   0,  41} , {   0,  63} , {   0,  63} },
-  }
-};
-
-static const char INIT_TRANSFORM_SIZE_P[3][1][3][2]=
-{
-  //----- model 0 -----
-  {
-    {  {  12,  40} , {  11,  51} , {  14,  59} },
-//    { {   0,  41} , {   0,  63} , {   0,  63} },
-  },
-  //----- model 1 -----
-  {
-    {  {  25,  32} , {  21,  49} , {  21,  54} },
-//    { {   0,  41} , {   0,  63} , {   0,  63} },
-  },
-  //----- model 2 -----
-  {
-    {  {  21,  33} , {  19,  50} , {  17,  61} },
-//    { {   0,  41} , {   0,  63} , {   0,  63} },
-  }
-};
-
-static const char INIT_DELTA_QP_I[1][1][4][2]=
-{
-  //----- model 0 -----
-  {
-    { {   0,  41} , {   0,  63} , {   0,  63} , {   0,  63} },
-  }
-};
-static const char INIT_DELTA_QP_P[3][1][4][2]=
-{
-  //----- model 0 -----
-  {
-    { {   0,  41} , {   0,  63} , {   0,  63} , {   0,  63} },
-  },
-  //----- model 1 -----
-  {
-    { {   0,  41} , {   0,  63} , {   0,  63} , {   0,  63} },
-  },
-  //----- model 2 -----
-  {
-    { {   0,  41} , {   0,  63} , {   0,  63} , {   0,  63} },
-  }
-};
-
-static const char INIT_MB_AFF_I[1][1][4][2] =
-{
-  //----- model 0 -----
-  {
-    { {   0,  11} , {   1,  55} , {   0,  69} ,  CTX_UNUSED }
-  }
-};
-static const char INIT_MB_AFF_P[3][1][4][2] =
-{
-  //----- model 0 -----
-  {
-    { {   0,  45} , {  -4,  78} , {  -3,  96} ,  CTX_UNUSED }
-  },
-  //----- model 1 -----
-  {
-    { {  13,  15} , {   7,  51} , {   2,  80} ,  CTX_UNUSED }
-  },
-  //----- model 2 -----
-  {
-    { {   7,  34} , {  -9,  88} , { -20, 127} ,  CTX_UNUSED }
-  }
-};
-
-static const char INIT_IPR_I[1][1][2][2] =
-{
-  //----- model 0 -----
-  {
-    { { 13,  41} , {   3,  62} }
-  }
-};
-
-static const char INIT_IPR_P[3][1][2][2] =
-{
-  //----- model 0 -----
-  {
-    { { 13,  41} , {   3,  62} }
-  },
-  //----- model 1 -----
-  {
-    { { 13,  41} , {   3,  62} }
-  },
-  //----- model 2 -----
-  {
-    { { 13,  41} , {   3,  62} }
-  }
-};
-
-static const char INIT_CIPR_I[1][1][4][2] =
-{
-  //----- model 0 -----
-  {
-    { {  -9,  83} , {   4,  86} , {   0,  97} , {  -7,  72} }
-  }
-};
-
-static const char INIT_CIPR_P[3][1][4][2] =
-{
-  //----- model 0 -----
-  {
-    { {  -9,  83} , {   4,  86} , {   0,  97} , {  -7,  72} }
-  },
-  //----- model 1 -----
-  {
-    { {  -9,  83} , {   4,  86} , {   0,  97} , {  -7,  72} }
-  },
-  //----- model 2 -----
-  {
-    { {  -9,  83} , {   4,  86} , {   0,  97} , {  -7,  72} }
-  }
-};
-
-static const char INIT_CBP_I[1][3][4][2] =
-{
-  //----- model 0 -----
-  {
-    { { -17, 127} , { -13, 102} , {   0,  82} , {  -7,  74} },
-    { { -21, 107} , { -27, 127} , { -31, 127} , { -24, 127} },
-    { { -18,  95} , { -27, 127} , { -21, 114} , { -30, 127} }
-  }
-};
-
-static const char INIT_CBP_P[3][3][4][2] =
-{
-  //----- model 0 -----
-  {
-    { { -27, 126} , { -28,  98} , { -25, 101} , { -23,  67} },
-    { { -28,  82} , { -20,  94} , { -16,  83} , { -22, 110} },
-    { { -21,  91} , { -18, 102} , { -13,  93} , { -29, 127} }
-  },
-  //----- model 1 -----
-  {
-    { { -39, 127} , { -18,  91} , { -17,  96} , { -26,  81} },
-    { { -35,  98} , { -24, 102} , { -23,  97} , { -27, 119} },
-    { { -24,  99} , { -21, 110} , { -18, 102} , { -36, 127} }
-  },
-  //----- model 2 -----
-  {
-    { { -36, 127} , { -17,  91} , { -14,  95} , { -25,  84} },
-    { { -25,  86} , { -12,  89} , { -17,  91} , { -31, 127} },
-    { { -14,  76} , { -18, 103} , { -13,  90} , { -37, 127} }
-  }
-};
 
 static const char INIT_BCBP_I[1][22][4][2] = 
 {
@@ -985,50 +867,66 @@ void cabac_context_t::init(int8_t m, int8_t n, uint8_t SliceQpY)
 
 #define IBIARI_CTX_INIT2(ii,jj,ctx,tab,num,qp) \
 { \
-    for (int i=0; i<ii; ++i) \
-    for (int j=0; j<jj; ++j) { \
-        ctx[i][j].init(tab ## _I[num][i][j][0], tab ## _I[num][i][j][1], qp); \
-    } \
+    for (int i = 0; i < ii; ++i) \
+        for (int j = 0; j < jj; ++j) { \
+            ctx[i][j].init(tab ## _I[num][i][j][0], tab ## _I[num][i][j][1], qp); \
+        } \
 }
 
 #define PBIARI_CTX_INIT2(ii,jj,ctx,tab,num,qp) \
 { \
-    for (int i=0; i<ii; ++i) \
-    for (int j=0; j<jj; ++j) { \
-        ctx[i][j].init(tab ## _P[num][i][j][0], tab ## _P[num][i][j][1], qp); \
-    } \
+    for (int i = 0; i < ii; ++i) \
+        for (int j = 0; j < jj; ++j) { \
+            ctx[i][j].init(tab ## _P[num][i][j][0], tab ## _P[num][i][j][1], qp); \
+        } \
+}
+
+#define BBIARI_CTX_INIT2(ii,jj,ctx,tab,num,qp) \
+{ \
+    for (int i = 0; i < ii; ++i) \
+        for (int j = 0; j < jj; ++j) { \
+            ctx[i][j].init(tab ## _B[num][i][j][0], tab ## _B[num][i][j][1], qp); \
+        } \
 }
 
 
 #define IBIARI_CTX_INIT1(jj,ctx,tab,num,qp) \
 { \
-    for (int j=0; j<jj; ++j) { \
+    for (int j = 0; j < jj; ++j) { \
         ctx[j].init(tab ## _I[num][0][j][0], tab ## _I[num][0][j][1], qp); \
     } \
 }
 
 #define PBIARI_CTX_INIT1(jj,ctx,tab,num,qp) \
 { \
-    for (int j=0; j<jj; ++j) { \
+    for (int j = 0; j < jj; ++j) { \
         ctx[j].init(tab ## _P[num][0][j][0], tab ## _P[num][0][j][1], qp); \
+    } \
+}
+
+#define BBIARI_CTX_INIT1(jj,ctx,tab,num,qp) \
+{ \
+    for (int j = 0; j < jj; ++j) { \
+        ctx[j].init(tab ## _B[num][0][j][0], tab ## _B[num][0][j][1], qp); \
     } \
 }
 
 void cabac_contexts_t::init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t SliceQpY)
 {
+    IBIARI_CTX_INIT1 (                 NUM_DELTA_QP_CTX, this->delta_qp_contexts,       INIT_DELTA_QP,                    0, SliceQpY);
+    IBIARI_CTX_INIT1 (                     NUM_IPR_CTX,  this->ipr_contexts,            INIT_IPR,                         0, SliceQpY);
+    IBIARI_CTX_INIT1 (                     NUM_CIPR_CTX, this->cipr_contexts,           INIT_CIPR,                        0, SliceQpY);
+
     if (slice_type == I_slice || slice_type == SI_slice) {
-        IBIARI_CTX_INIT2 (3,           NUM_MB_TYPE_CTX,  this->mb_type_contexts,        INIT_MB_TYPE,        cabac_init_idc, SliceQpY);
-        IBIARI_CTX_INIT2 (2,           NUM_B8_TYPE_CTX,  this->b8_type_contexts,        INIT_B8_TYPE,        cabac_init_idc, SliceQpY);
-        IBIARI_CTX_INIT2 (2,           NUM_MV_RES_CTX,   this->mv_res_contexts,         INIT_MV_RES,         cabac_init_idc, SliceQpY);
-        IBIARI_CTX_INIT2 (2,           NUM_REF_NO_CTX,   this->ref_no_contexts,         INIT_REF_NO,         cabac_init_idc, SliceQpY);
-        IBIARI_CTX_INIT1 (             NUM_DELTA_QP_CTX, this->delta_qp_contexts,       INIT_DELTA_QP,       cabac_init_idc, SliceQpY);
         IBIARI_CTX_INIT1 (             NUM_MB_AFF_CTX,   this->mb_aff_contexts,         INIT_MB_AFF,         cabac_init_idc, SliceQpY);    
 
-        //--- texture coding contexts ---
-        IBIARI_CTX_INIT1 (       NUM_TRANSFORM_SIZE_CTX, this->transform_size_contexts, INIT_TRANSFORM_SIZE, cabac_init_idc, SliceQpY);
-        IBIARI_CTX_INIT1 (                 NUM_IPR_CTX,  this->ipr_contexts,            INIT_IPR,            cabac_init_idc, SliceQpY);
-        IBIARI_CTX_INIT1 (                 NUM_CIPR_CTX, this->cipr_contexts,           INIT_CIPR,           cabac_init_idc, SliceQpY);
-        IBIARI_CTX_INIT2 (3,               NUM_CBP_CTX,  this->cbp_contexts,            INIT_CBP,            cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT1 (             NUM_MB_TYPE_CTX,  this->mb_type_contexts,        INIT_MB_TYPE,        cabac_init_idc, SliceQpY);
+        if (slice_type == I_slice)
+            IBIARI_CTX_INIT1 (   NUM_TRANSFORM_SIZE_CTX, this->transform_size_contexts, INIT_TRANSFORM_SIZE, cabac_init_idc, SliceQpY);
+
+        IBIARI_CTX_INIT1 (               NUM_CBP_L_CTX,  this->cbp_l_contexts,          INIT_CBP_L,          cabac_init_idc, SliceQpY);
+        IBIARI_CTX_INIT1 (               NUM_CBP_C_CTX,  this->cbp_c_contexts,          INIT_CBP_C,          cabac_init_idc, SliceQpY);
+
         IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_BCBP_CTX, this->bcbp_contexts,           INIT_BCBP,           cabac_init_idc, SliceQpY);
         IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  this->map_contexts[0],         INIT_MAP,            cabac_init_idc, SliceQpY);
         IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  this->map_contexts[1],         INIT_FLD_MAP,        cabac_init_idc, SliceQpY);
@@ -1037,18 +935,25 @@ void cabac_contexts_t::init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t 
         IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ONE_CTX,  this->one_contexts,            INIT_ONE,            cabac_init_idc, SliceQpY);
         IBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ABS_CTX,  this->abs_contexts,            INIT_ABS,            cabac_init_idc, SliceQpY);
     } else {
-        PBIARI_CTX_INIT2 (3,           NUM_MB_TYPE_CTX,  this->mb_type_contexts,        INIT_MB_TYPE,        cabac_init_idc, SliceQpY);
-        PBIARI_CTX_INIT2 (2,           NUM_B8_TYPE_CTX,  this->b8_type_contexts,        INIT_B8_TYPE,        cabac_init_idc, SliceQpY);
-        PBIARI_CTX_INIT2 (2,           NUM_MV_RES_CTX,   this->mv_res_contexts,         INIT_MV_RES,         cabac_init_idc, SliceQpY);
-        PBIARI_CTX_INIT2 (2,           NUM_REF_NO_CTX,   this->ref_no_contexts,         INIT_REF_NO,         cabac_init_idc, SliceQpY);
-        PBIARI_CTX_INIT1 (             NUM_DELTA_QP_CTX, this->delta_qp_contexts,       INIT_DELTA_QP,       cabac_init_idc, SliceQpY);
         PBIARI_CTX_INIT1 (             NUM_MB_AFF_CTX,   this->mb_aff_contexts,         INIT_MB_AFF,         cabac_init_idc, SliceQpY);    
 
-        //--- texture coding contexts ---
+        if (slice_type == P_slice || slice_type == SP_slice) {
+            PBIARI_CTX_INIT1 (       NUM_SKIP_CTX,       this->skip_contexts,           INIT_SKIP,           cabac_init_idc, SliceQpY);
+            PBIARI_CTX_INIT1 (                       7,  this->mb_type_contexts,        INIT_MB_TYPE,        cabac_init_idc, SliceQpY);
+            PBIARI_CTX_INIT1 (       NUM_B8_TYPE_CTX-1,  this->b8_type_contexts,        INIT_B8_TYPE,        cabac_init_idc, SliceQpY);
+        } else {
+            BBIARI_CTX_INIT1 (         NUM_SKIP_CTX,     this->skip_contexts,           INIT_SKIP,           cabac_init_idc, SliceQpY);
+            BBIARI_CTX_INIT1 (                       9,  this->mb_type_contexts,        INIT_MB_TYPE,        cabac_init_idc, SliceQpY);
+            BBIARI_CTX_INIT1 (         NUM_B8_TYPE_CTX,  this->b8_type_contexts,        INIT_B8_TYPE,        cabac_init_idc, SliceQpY);
+        }
+
         PBIARI_CTX_INIT1 (       NUM_TRANSFORM_SIZE_CTX, this->transform_size_contexts, INIT_TRANSFORM_SIZE, cabac_init_idc, SliceQpY);
-        PBIARI_CTX_INIT1 (                 NUM_IPR_CTX,  this->ipr_contexts,            INIT_IPR,            cabac_init_idc, SliceQpY);
-        PBIARI_CTX_INIT1 (                 NUM_CIPR_CTX, this->cipr_contexts,           INIT_CIPR,           cabac_init_idc, SliceQpY);
-        PBIARI_CTX_INIT2 (3,               NUM_CBP_CTX,  this->cbp_contexts,            INIT_CBP,            cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT1 (               NUM_CBP_L_CTX,  this->cbp_l_contexts,          INIT_CBP_L,          cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT1 (               NUM_CBP_C_CTX,  this->cbp_c_contexts,          INIT_CBP_C,          cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT1 (             NUM_REF_NO_CTX,   this->ref_no_contexts,         INIT_REF_NO,         cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT1 (             NUM_MVD_CTX,      this->mvd_x_contexts,          INIT_MVD_X,          cabac_init_idc, SliceQpY);
+        PBIARI_CTX_INIT1 (             NUM_MVD_CTX,      this->mvd_y_contexts,          INIT_MVD_Y,          cabac_init_idc, SliceQpY);
+
         PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_BCBP_CTX, this->bcbp_contexts,           INIT_BCBP,           cabac_init_idc, SliceQpY);
         PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  this->map_contexts[0],         INIT_MAP,            cabac_init_idc, SliceQpY);
         PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_MAP_CTX,  this->map_contexts[1],         INIT_FLD_MAP,        cabac_init_idc, SliceQpY);

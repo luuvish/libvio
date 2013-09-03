@@ -1,5 +1,5 @@
-#ifndef _NALU_H_
-#define _NALU_H_
+#ifndef _DATA_PARTITION_H_
+#define _DATA_PARTITION_H_
 
 
 #include "memalloc.h"
@@ -127,4 +127,4 @@ struct data_partition_t {
 };
 
 
-#endif /* _NALU_H_ */
+#endif /* _DATA_PARTITION_H_ */

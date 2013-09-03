@@ -881,6 +881,10 @@ void macroblock_t::parse_cbp_qp()
     // read CBP if not new intra mode
     if (!IS_I16MB(this)) {
         this->cbp = parse_coded_block_pattern(this);
+        if (pps->entropy_coding_mode_flag) {
+            if (!this->cbp)
+                slice->last_dquant = 0;
+        }
 
         //============= Transform size flag for INTER MBs =============
         //-------------------------------------------------------------
