@@ -209,11 +209,6 @@ typedef struct slice_t {
 
     int                      *qmatrix[12];
 
-    // Cabac
-    int                       coeff[64]; // one more for EOB
-    int                       coeff_ctr;
-    int                       pos;  
-
 
 #if (MVC_EXTENSION_ENABLE)
     int                       listinterviewidx0;

@@ -316,8 +316,6 @@ int read_new_slice(slice_t *currSlice)
     data_partition_t* dp = &currSlice->partArr[0];
 
     currSlice->num_dec_mb        = 0;
-    currSlice->coeff_ctr         = -1;
-    currSlice->pos               = 0;
     currSlice->is_reset_coeff    = 0;
     currSlice->is_reset_coeff_cr = 0;
 

@@ -131,37 +131,54 @@ void cabac_engine_t::renormD()
     }
 }
 
-uint32_t cabac_engine_t::u(cabac_context_t* ctx, int ctx_offset)
+uint32_t cabac_engine_t::u(cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx)
 {
-    uint32_t bins = 0;
-    //int bins = -1;
-
-    if (!this->decode_decision(ctx))
-        return bins;
-
-    ctx += ctx_offset;
-    for (int b = 1; b; bins++)
-        b = this->decode_decision(ctx);
+    uint32_t bins = -1;
+    bool b;
+    for (b = 1; b; ++bins)
+        b = this->decode_decision(ctx + ctxIdxIncs[min<int>(bins + 1, maxBinIdxCtx)]);
     return bins;
 }
 
-uint32_t cabac_engine_t::tu(cabac_context_t* ctx, int ctx_offset, unsigned int max_symbol)
+uint32_t cabac_engine_t::tu(cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx, uint32_t cMax)
 {
-    unsigned int bins = this->decode_decision(ctx);
+    uint32_t bins = -1;
+    bool b;
+    for (b = 1; b && (bins + 1 < cMax); ++bins)
+        b = this->decode_decision(ctx + ctxIdxIncs[min<int>(bins + 1, maxBinIdxCtx)]);
+    bins += b;
+    return bins;
+}
 
-    if (bins == 0 || max_symbol == 0)
-        return bins;
+int32_t cabac_engine_t::ueg(cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx, uint32_t cMax, uint8_t k)
+{
+    int32_t bins = -1;
+    bool b;
+    for (b = 1; b && (bins + 1 < cMax); ++bins)
+        b = this->decode_decision(ctx + ctxIdxIncs[min<int>(bins + 1, maxBinIdxCtx)]);
+    bins += b;
 
-    unsigned int l;
-    ctx += ctx_offset;
-    bins = 0;
-    do {
-        l = this->decode_decision(ctx);
-        ++bins;
-    } while (l != 0 && bins < max_symbol);
+    if (b) {
+        while (this->decode_bypass())
+            bins += (1 << k++);
+        while (k--)
+            bins += (this->decode_bypass() << k);
+    }
+    if (bins != 0) {
+        if (this->decode_bypass())
+            bins = -bins;
+    }
 
-    if (l != 0 && bins == max_symbol)
-        ++bins;
+    return bins;
+}
+
+uint32_t cabac_engine_t::fl(cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx, uint32_t cMax)
+{
+    uint8_t  fixedLength = ceil(log2(cMax + 1));
+    uint8_t  binIdx = 0;
+    uint32_t bins = 0;
+    while (binIdx < fixedLength)
+        bins |= this->decode_decision(ctx + ctxIdxIncs[min<int>(binIdx, maxBinIdxCtx)]) << binIdx++;
     return bins;
 }
 

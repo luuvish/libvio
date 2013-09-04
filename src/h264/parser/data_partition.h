@@ -82,8 +82,10 @@ struct cabac_engine_t {
     bool        decode_terminate();
     void        renormD();
 
-    uint32_t    u (cabac_context_t* ctx, int ctx_offset);
-    uint32_t    tu(cabac_context_t* ctx, int ctx_offset, unsigned int max_symbol);
+    uint32_t    u  (cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx);
+    uint32_t    tu (cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx, uint32_t cMax);
+    int32_t     ueg(cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx, uint32_t cMax, uint8_t k);
+    uint32_t    fl (cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx, uint32_t cMax);
 };
 
 struct data_partition_t {

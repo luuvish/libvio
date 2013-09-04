@@ -12,28 +12,28 @@
 
 // CABAC block types
 typedef enum {
-    LUMA_16DC     =  0,
-    LUMA_16AC     =  1,
-    LUMA_8x8      =  2,
-    LUMA_8x4      =  3,
-    LUMA_4x8      =  4,
-    LUMA_4x4      =  5,
-    CHROMA_DC     =  6,
-    CHROMA_AC     =  7,
-    CHROMA_DC_2x4 =  8,
-    CHROMA_DC_4x4 =  9,
-    CB_16DC       = 10,
-    CB_16AC       = 11,
-    CB_8x8        = 12,
-    CB_8x4        = 13,
-    CB_4x8        = 14,
-    CB_4x4        = 15,
-    CR_16DC       = 16,
-    CR_16AC       = 17,
-    CR_8x8        = 18,
-    CR_8x4        = 19,
-    CR_4x8        = 20,
-    CR_4x4        = 21
+    LUMA_16DC     =  0, // ctxBlockCat =  0
+    LUMA_16AC     =  1, // ctxBlockCat =  1
+    LUMA_8x8      =  2, // ctxBlockCat =  5
+    LUMA_8x4      =  3, // ctxBlockCat =
+    LUMA_4x8      =  4, // ctxBlockCat =
+    LUMA_4x4      =  5, // ctxBlockCat =  2
+    CHROMA_DC     =  6, // ctxBlockCat =  3
+    CHROMA_AC     =  7, // ctxBlockCat =  4
+    CHROMA_DC_2x4 =  8, // ctxBlockCat =
+    CHROMA_DC_4x4 =  9, // ctxBlockCat =
+    CB_16DC       = 10, // ctxBlockCat =  6
+    CB_16AC       = 11, // ctxBlockCat =  7
+    CB_8x8        = 12, // ctxBlockCat =  9
+    CB_8x4        = 13, // ctxBlockCat =
+    CB_4x8        = 14, // ctxBlockCat =
+    CB_4x4        = 15, // ctxBlockCat =  8
+    CR_16DC       = 16, // ctxBlockCat = 10
+    CR_16AC       = 17, // ctxBlockCat = 11
+    CR_8x8        = 18, // ctxBlockCat = 13
+    CR_8x4        = 19, // ctxBlockCat =
+    CR_4x8        = 20, // ctxBlockCat =
+    CR_4x4        = 21  // ctxBlockCat = 12
 } CABACBlockTypes;
 
 struct syntax_element_t {
@@ -55,80 +55,38 @@ static inline int get_bit(int64_t x, int n)
     return (int)(((x >> n) & 1));
 }
 
-static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_context_t* ctx)
+static int read_and_store_CBP_block_bit(mb_t* mb, int type)
 {
-    const uint32_t exp_start = 13;
-    uint32_t symbol = 0;
-    uint32_t binary_symbol = 0;
-    uint32_t l, k = 1;
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
 
-    if (dep_dp->decode_decision(ctx) == 0)
-        return 0;
-
-    do {
-        l = dep_dp->decode_decision(ctx);
-        ++symbol;
-        ++k;
-    } while (l != 0 && k != exp_start);
-
-    if (l == 0)
-        return symbol;
-
-    k = 0;
-    do {
-        l = dep_dp->decode_bypass();
-        if (l == 1) {
-            symbol += (1 << k);
-            ++k;
-        }
-    } while (l != 0);
-
-    while (k--) {
-        if (dep_dp->decode_bypass() == 1)
-            binary_symbol |= (1 << k);
-    }
-
-    return symbol + binary_symbol + 1;
-}
-
-static int read_and_store_CBP_block_bit(mb_t *currMB, cabac_engine_t *dep_dp, int type)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    cabac_contexts_t *mot_ctx = currSlice->mot_ctx;
-    mb_t *mb_data = currSlice->mb_data;
-    int y_ac        = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_8x4 || type==LUMA_4x8 || type==LUMA_4x4
-                      || type==CB_16AC || type==CB_8x8 || type==CB_8x4 || type==CB_4x8 || type==CB_4x4
-                      || type==CR_16AC || type==CR_8x8 || type==CR_8x4 || type==CR_4x8 || type==CR_4x4);
-    int y_dc        = (type==LUMA_16DC || type==CB_16DC || type==CR_16DC); 
-    int u_ac        = (type==CHROMA_AC && !currMB->is_v_block);
-    int v_ac        = (type==CHROMA_AC &&  currMB->is_v_block);
-    int chroma_dc   = (type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4);
-    int u_dc        = (chroma_dc && !currMB->is_v_block);
-    int v_dc        = (chroma_dc &&  currMB->is_v_block);
-    int i           = (y_ac || u_ac || v_ac ? currMB->subblock_x : 0);
-    int j           = (y_ac || u_ac || v_ac ? currMB->subblock_y : 0);
-    int bit         = (y_dc ? 0 : y_ac ? 1 : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 : 35);
-    int default_bit = (currMB->is_intra_block ? 1 : 0);
-    int upper_bit   = default_bit;
-    int left_bit    = default_bit;
-    int cbp_bit     = 1;  // always one for 8x8 mode
-    int ctx;
-    int bit_pos_a   = 0;
-    int bit_pos_b   = 0;
+    int y_dc = (type==LUMA_16DC || type==CB_16DC || type==CR_16DC); 
+    int u_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4) && !mb->is_v_block);
+    int v_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4) &&  mb->is_v_block);
+    int y_ac = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_8x4 || type==LUMA_4x8 || type==LUMA_4x4) ||
+               (type==CB_16AC || type==CB_8x8 || type==CB_8x4 || type==CB_4x8 || type==CB_4x4) ||
+               (type==CR_16AC || type==CR_8x8 || type==CR_8x4 || type==CR_4x8 || type==CR_4x4);
+    int u_ac = (type==CHROMA_AC && !mb->is_v_block);
+    int v_ac = (type==CHROMA_AC &&  mb->is_v_block);
 
     int size_8x8_flag = (type == LUMA_8x8 || type == CB_8x8 || type == CR_8x8);
     int pl = (type == CB_8x8 || type == CB_4x4 || type == CB_4x8 || type == CB_8x4 || type == CB_16AC || type == CB_16DC) ? 1 :
              (type == CR_8x8 || type == CR_4x4 || type == CR_4x8 || type == CR_8x4 || type == CR_16AC || type == CR_16DC) ? 2 : 0;
 
+    int i = (y_ac || u_ac || v_ac ? mb->subblock_x : 0);
+    int j = (y_ac || u_ac || v_ac ? mb->subblock_y : 0);
+    int bit = (y_dc ? 0 : y_ac ? 1 : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 : 35);
+
+    int bit_pos_a = 0;
+    int bit_pos_b = 0;
+
     int mb_size[2][2] = {
         { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
         { sps->MbWidthC, sps->MbHeightC }
     };
-
     PixelPos block_a, block_b;
-    get4x4Neighbour(currMB, i - 1, j, mb_size[y_dc || y_ac ? IS_LUMA : IS_CHROMA], &block_a);
-    get4x4Neighbour(currMB, i, j - 1, mb_size[y_dc || y_ac ? IS_LUMA : IS_CHROMA], &block_b);
+    get4x4Neighbour(mb, i - 1, j, mb_size[y_dc || y_ac ? IS_LUMA : IS_CHROMA], &block_a);
+    get4x4Neighbour(mb, i, j - 1, mb_size[y_dc || y_ac ? IS_LUMA : IS_CHROMA], &block_b);
     if (y_ac || u_ac || v_ac) {
         if (block_a.available)
             bit_pos_a = 4 * block_a.y + block_a.x;
@@ -136,77 +94,96 @@ static int read_and_store_CBP_block_bit(mb_t *currMB, cabac_engine_t *dep_dp, in
             bit_pos_b = 4 * block_b.y + block_b.x;
     }
 
+    int condTermFlagA = (mb->is_intra_block ? 1 : 0);
+    int condTermFlagB = (mb->is_intra_block ? 1 : 0);
     if ((sps->separate_colour_plane_flag || sps->chroma_format_idc != YUV444) && type != LUMA_8x8) {
-        if (block_b.available) {
-            if (mb_data[block_b.mb_addr].mb_type == IPCM)
-                upper_bit = 1;
-            else
-                upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[0].bits, bit + bit_pos_b);
-        }
         if (block_a.available) {
-            if (mb_data[block_a.mb_addr].mb_type == IPCM)
-                left_bit = 1;
+            mb_t* mb_a = &slice->mb_data[block_a.mb_addr];
+            if (mb_a->mb_type == IPCM)
+                condTermFlagA = 1;
             else
-                left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[0].bits, bit + bit_pos_a);
+                condTermFlagA = get_bit(mb_a->s_cbp[0].bits, bit + bit_pos_a);
+        }
+        if (block_b.available) {
+            mb_t* mb_b = &slice->mb_data[block_b.mb_addr];
+            if (mb_b->mb_type == IPCM)
+                condTermFlagB = 1;
+            else
+                condTermFlagB = get_bit(mb_b->s_cbp[0].bits, bit + bit_pos_b);
         }
     } else if (sps->chroma_format_idc == YUV444) {
-        if (block_b.available) {
-            if (!size_8x8_flag || mb_data[block_b.mb_addr].transform_size_8x8_flag) {
-                if (mb_data[block_b.mb_addr].mb_type == IPCM)
-                    upper_bit = 1;
-                else
-                    upper_bit = get_bit(mb_data[block_b.mb_addr].s_cbp[pl].bits, bit + bit_pos_b);
-            }
-        }
         if (block_a.available) {
-            if (!size_8x8_flag || mb_data[block_a.mb_addr].transform_size_8x8_flag) {
-                if (mb_data[block_a.mb_addr].mb_type == IPCM)
-                    left_bit = 1;
+            mb_t* mb_a = &slice->mb_data[block_a.mb_addr];
+            if (!size_8x8_flag || mb_a->transform_size_8x8_flag) {
+                if (mb_a->mb_type == IPCM)
+                    condTermFlagA = 1;
                 else
-                    left_bit = get_bit(mb_data[block_a.mb_addr].s_cbp[pl].bits, bit + bit_pos_a);
+                    condTermFlagA = get_bit(mb_a->s_cbp[pl].bits, bit + bit_pos_a);
+            }
+        }
+        if (block_b.available) {
+            mb_t* mb_b = &slice->mb_data[block_b.mb_addr];
+            if (!size_8x8_flag || mb_b->transform_size_8x8_flag) {
+                if (mb_b->mb_type == IPCM)
+                    condTermFlagB = 1;
+                else
+                    condTermFlagB = get_bit(mb_b->s_cbp[pl].bits, bit + bit_pos_b);
             }
         }
     }
+    int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
 
-    static const short type2ctx_bcbp[] = {
-         0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10,
-        11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20
-    };
+    return ctxIdxInc;
+}
 
-    if (sps->chroma_format_idc == YUV444 || type != LUMA_8x8) {
-        ctx = 2 * upper_bit + left_bit;
-        cbp_bit = dep_dp->decode_decision(mot_ctx->bcbp_contexts[type2ctx_bcbp[type]] + ctx);
-    }
+static void update_cbp(mb_t* mb, int type)
+{
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
 
-    bit = y_dc ?  0 :
-          y_ac ?  1 + j + (i >> 2) :
-          u_dc ? 17 :
-          v_dc ? 18 :
-          u_ac ? 19 + j + (i >> 2) :
-                 35 + j + (i >> 2);
+    int y_dc = (type==LUMA_16DC || type==CB_16DC || type==CR_16DC); 
+    int u_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4) && !mb->is_v_block);
+    int v_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4) &&  mb->is_v_block);
+    int y_ac = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_8x4 || type==LUMA_4x8 || type==LUMA_4x4) ||
+               (type==CB_16AC || type==CB_8x8 || type==CB_8x4 || type==CB_4x8 || type==CB_4x4) ||
+               (type==CR_16AC || type==CR_8x8 || type==CR_8x4 || type==CR_4x8 || type==CR_4x4);
+    int u_ac = (type==CHROMA_AC && !mb->is_v_block);
+    int v_ac = (type==CHROMA_AC &&  mb->is_v_block);
 
-    if (cbp_bit) {
-        if (sps->chroma_format_idc == YUV444) {
-            if (size_8x8_flag)
-                currMB->s_cbp[pl].bits |= ((int64_t)0x33 << bit);
-            else if (type == LUMA_8x4 || type == CB_8x4 || type == CR_8x4)
-                currMB->s_cbp[pl].bits |= ((int64_t)0x03 << bit);
-            else if (type == LUMA_4x8 || type == CB_4x8 || type == CR_4x8)
-                currMB->s_cbp[pl].bits |= ((int64_t)0x11 << bit);
-            else
-                currMB->s_cbp[pl].bits |= ((int64_t)0x01 << bit);
-        } else {
-            if (type == LUMA_8x8)
-                currMB->s_cbp[0].bits |= ((int64_t)0x33 << bit);
-            else if (type == LUMA_8x4)
-                currMB->s_cbp[0].bits |= ((int64_t)0x03 << bit);
-            else if (type == LUMA_4x8)
-                currMB->s_cbp[0].bits |= ((int64_t)0x11 << bit);
-            else
-                currMB->s_cbp[0].bits |= ((int64_t)0x01 << bit);
-        }
-    }
-    return cbp_bit;
+    int pl = (type == CB_8x8 || type == CB_4x4 || type == CB_4x8 || type == CB_8x4 || type == CB_16AC || type == CB_16DC) ? 1 :
+             (type == CR_8x8 || type == CR_4x4 || type == CR_4x8 || type == CR_8x4 || type == CR_16AC || type == CR_16DC) ? 2 : 0;
+    int temp_pl = sps->chroma_format_idc == YUV444 ? pl : 0;
+
+    int i = (y_ac || u_ac || v_ac ? mb->subblock_x : 0);
+    int j = (y_ac || u_ac || v_ac ? mb->subblock_y : 0);
+    int bit = (y_dc ? 0 : y_ac ? 1 : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 : 35)
+            + (y_ac || u_ac || v_ac ? j + i / 4 : 0);
+
+    int cbp = (type == LUMA_8x8 || type == CB_8x8 || type == CR_8x8) ? 0x33 :
+              (type == LUMA_8x4 || type == CB_8x4 || type == CR_8x4) ? 0x03 :
+              (type == LUMA_4x8 || type == CB_4x8 || type == CR_4x8) ? 0x11 : 0x01;
+
+    mb->s_cbp[temp_pl].bits |= ((int64_t)cbp << bit);
+}
+
+static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_context_t* ctx)
+{
+    const uint32_t cMax = 13;
+
+    uint32_t bins = -1;
+    bool b;
+    for (b = 1; b && (bins + 1 < cMax); ++bins)
+        b = dep_dp->decode_decision(ctx);
+    if (!b)
+        return bins;
+
+    uint32_t k = 0;
+    while (dep_dp->decode_bypass())
+        bins += (1 << k++);
+    while (k--)
+        bins += (dep_dp->decode_bypass() << k);
+
+    return bins + 1;
 }
 
 static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
@@ -333,6 +310,7 @@ static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_
     };
 
     slice_t *currSlice = currMB->p_Slice;
+    sps_t* sps = currSlice->active_sps;
 
     bool field = (currSlice->field_pic_flag || currMB->mb_field_decoding_flag);
     const byte *pos2ctx_Map  = pos2ctx_map [field][se->context];
@@ -343,15 +321,32 @@ static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_
     cabac_context_t *abs_ctx = currSlice->mot_ctx->abs_contexts[type2ctx_one[se->context]];
     const short max_type = max_c2[se->context];
 
-    if (currSlice->coeff_ctr < 0) {
-        currSlice->coeff_ctr = read_and_store_CBP_block_bit(currMB, dep_dp, se->context);
+    static int coeff_pos = 0;
+    static int coded_block_flag = -1;
+    static int coeff_val[64];
 
-        if (currSlice->coeff_ctr) {
+    if (coded_block_flag < 0) {
+        coded_block_flag = 1; // always one for 8x8 mode
+        if (sps->chroma_format_idc == YUV444 || se->context != LUMA_8x8) {
+            static const short type2ctx_bcbp[] = {
+                 0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10,
+                11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20
+            };
+
+            cabac_context_t* ctx = currSlice->mot_ctx->bcbp_contexts[type2ctx_bcbp[se->context]];
+            int ctxIdxInc = read_and_store_CBP_block_bit(currMB, se->context);
+
+            coded_block_flag = dep_dp->decode_decision(ctx + ctxIdxInc);
+        }
+        if (coded_block_flag)
+            update_cbp(currMB, se->context);
+
+        if (coded_block_flag) {
             int i;
-            int *coeff = currSlice->coeff;
+            int *coeff = coeff_val;
             int i0     = 0;
             int i1     = maxpos[se->context];
-            currSlice->coeff_ctr = 0;
+            coded_block_flag = 0;
 
             if (!c1isdc[se->context]) {
                 ++i0;
@@ -359,32 +354,33 @@ static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_
             }
 
             for (i = i0; i < i1; ++i) {
-                int c = dep_dp->decode_decision(map_ctx + pos2ctx_Map[i]);
-                *(coeff++) = c;
-                currSlice->coeff_ctr += c;
-                if (c && dep_dp->decode_decision(last_ctx + pos2ctx_Last[i])) {
-                    memset(coeff, 0, (i1 - i) * sizeof(int));
-                    i = i1 + 1;
-                    break;
+                bool significant_coeff_flag = dep_dp->decode_decision(map_ctx + pos2ctx_Map[i]);
+                *(coeff++) = significant_coeff_flag;
+                coded_block_flag += significant_coeff_flag;
+                if (significant_coeff_flag) {
+                    bool last_significant_coeff_flag = dep_dp->decode_decision(last_ctx + pos2ctx_Last[i]);
+                    if (last_significant_coeff_flag) {
+                        memset(coeff, 0, (i1 - i) * sizeof(int));
+                        i = i1 + 1;
+                        break;
+                    }
                 }
             }
             if (i <= i1) {
-                int c = 1;
-                *(coeff++) = c;
-                currSlice->coeff_ctr += c;
+                bool significant_coeff_flag = 1;
+                *(coeff++) = significant_coeff_flag;
+                coded_block_flag += significant_coeff_flag;
             }
 
             i = maxpos[se->context];
-            int *cof = currSlice->coeff + i;
+            int *cof = coeff_val + i;
             int c1 = 1;
             int c2 = 0;
 
             for (; i >= 0; i--) {
-                if (*cof != 0) {
-                    *cof += dep_dp->decode_decision(one_ctx + c1);
-
-                    if (*cof == 2) {
-                        *cof += unary_exp_golomb_level_decode(dep_dp, abs_ctx + c2);
+                if (*cof) {
+                    if (dep_dp->decode_decision(one_ctx + c1)) {
+                        *cof += unary_exp_golomb_level_decode(dep_dp, abs_ctx + c2) + 1;
                         c2 = min<int>(++c2, max_type);
                         c1 = 0;
                     } else if (c1)
@@ -400,15 +396,15 @@ static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_
 
     se->value1 = 0;
     se->value2 = 0;
-    if (currSlice->coeff_ctr) {
-        while (currSlice->coeff[currSlice->pos] == 0) {
-            ++currSlice->pos;
+    if (coded_block_flag) {
+        while (coeff_val[coeff_pos] == 0) {
+            ++coeff_pos;
             ++se->value2;
         }
-        se->value1 = currSlice->coeff[currSlice->pos++];
+        se->value1 = coeff_val[coeff_pos++];
     }
-    if ((currSlice->coeff_ctr)-- == 0) 
-        currSlice->pos = 0;
+    if ((coded_block_flag)-- == 0) 
+        coeff_pos = 0;
 }
 
 

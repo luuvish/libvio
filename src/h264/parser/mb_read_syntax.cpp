@@ -481,9 +481,8 @@ int8_t parse_intra_pred_mode(mb_t* mb)
         if (dep_dp->decode_decision(ctx))
             intra_pred_mode = -1;
         else {
-            intra_pred_mode += dep_dp->decode_decision(ctx + 1);
-            intra_pred_mode += dep_dp->decode_decision(ctx + 1) * 2;
-            intra_pred_mode += dep_dp->decode_decision(ctx + 1) * 4;
+            uint8_t ctxIdxIncs[] = { 0 };
+            intra_pred_mode = dep_dp->fl(ctx + 1, ctxIdxIncs, 0, 7);
         }
     }
 
@@ -507,13 +506,10 @@ uint8_t parse_intra_chroma_pred_mode(mb_t* mb)
 
         int condTermFlagA = mb->mb_left && mb->mb_left->intra_chroma_pred_mode != 0 && mb->mb_left->mb_type != IPCM ? 1 : 0;
         int condTermFlagB = mb->mb_up   && mb->mb_up  ->intra_chroma_pred_mode != 0 && mb->mb_up  ->mb_type != IPCM ? 1 : 0;
-        int ctxIdxInc = condTermFlagA + condTermFlagB;
+        uint8_t ctxIdxInc = condTermFlagA + condTermFlagB;
+        uint8_t ctxIdxIncs[] = { ctxIdxInc, 3, 3 };
 
-        // binIdx[] = { ctxIdxInc, 3, 3 };
-
-        intra_chroma_pred_mode = dep_dp->decode_decision(ctx + ctxIdxInc);
-        if (intra_chroma_pred_mode)
-            intra_chroma_pred_mode = dep_dp->tu(ctx + 3, 0, 1) + 1;
+        intra_chroma_pred_mode = dep_dp->tu(ctx, ctxIdxIncs, 1, 3);
     }
 
     return intra_chroma_pred_mode;
@@ -544,57 +540,17 @@ uint8_t parse_ref_idx(mb_t* mb, uint8_t list)
         else
             ref_idx = dp->ue();
     } else {
-        int ctxIdxInc = ref_idx_ctxIdxInc(mb, list);
-
-        //int binIdx[] = { ctxIdxInc, 4, 5, 5, 5, 5, 5 };
-
         cabac_context_t* ctx = slice->mot_ctx->ref_no_contexts;
-        if (dep_dp->decode_decision(ctx + ctxIdxInc)) {
-            ctxIdxInc = 4;
-            ref_idx = dep_dp->u(ctx + ctxIdxInc, 1) + 1;
-        }
+        uint8_t ctxIdxInc = ref_idx_ctxIdxInc(mb, list);
+        uint8_t ctxIdxIncs[] = { ctxIdxInc, 4, 5 };
+
+        ref_idx = dep_dp->u(ctx, ctxIdxIncs, 2);
     }
 
     return ref_idx;
 }
 
-static uint32_t exp_golomb_decode_eq_prob(cabac_engine_t* dep_dp, int k)
-{
-    uint32_t bins = 0;
-
-    while (dep_dp->decode_bypass())
-        bins += (1 << k++);
-    while (k--)
-        bins += (dep_dp->decode_bypass() << k);
-
-    return bins;
-}
-
-static uint32_t unary_exp_golomb_mv_decode(cabac_engine_t* dep_dp, cabac_context_t* ctx, uint32_t max_bin)
-{
-    if (!dep_dp->decode_decision(ctx))
-        return 0;
-
-    uint32_t exp_start = 8;
-    uint32_t l, k = 1;
-    uint32_t bin = 1;
-    uint32_t symbol = 0;
-
-    ++ctx;
-    do {
-        l = dep_dp->decode_decision(ctx);
-        if (++bin == 2) ctx++;
-        if (bin == max_bin) ctx++;
-        ++symbol;
-        ++k;
-    } while (l != 0 && k != exp_start);
-
-    if (l != 0)
-        symbol += exp_golomb_decode_eq_prob(dep_dp, 3) + 1;
-    return symbol;
-}
-
-int16_t parse_mvd(mb_t* mb, uint8_t xy, uint8_t list)
+int16_t parse_mvd(mb_t* mb, uint8_t list, uint8_t xy)
 {
     slice_t* slice = mb->p_Slice;
     pps_t* pps = slice->active_pps;
@@ -609,14 +565,10 @@ int16_t parse_mvd(mb_t* mb, uint8_t xy, uint8_t list)
     else {
         cabac_context_t* ctx = (xy == 0) ? slice->mot_ctx->mvd_x_contexts
                                          : slice->mot_ctx->mvd_y_contexts;
+        uint8_t ctxIdxInc = mvd_ctxIdxInc(mb, xy, list);
+        uint8_t ctxIdxIncs[] = { ctxIdxInc, 3, 4, 5, 6 };
 
-        int ctxIdxInc = mvd_ctxIdxInc(mb, xy, list);
-
-        if (dep_dp->decode_decision(ctx + ctxIdxInc)) {
-            mvd = unary_exp_golomb_mv_decode(dep_dp, ctx + 3, 3) + 1;
-            if (dep_dp->decode_bypass())
-                mvd = -mvd;
-        }
+        mvd = dep_dp->ueg(ctx, ctxIdxIncs, 4, 9, 3);
     }
 
     return mvd;
@@ -702,21 +654,14 @@ int8_t parse_mb_qp_delta(mb_t* mb)
         mb_qp_delta = dp->se();
     else {
         cabac_context_t* ctx = slice->mot_ctx->delta_qp_contexts;
+        uint8_t ctxIdxInc = slice->last_dquant != 0 ? 1 : 0;
+        uint8_t ctxIdxIncs[] = { ctxIdxInc, 2, 3 };
 
-        int ctxIdxInc = slice->last_dquant != 0 ? 1 : 0;
-
-        mb_qp_delta = dep_dp->decode_decision(ctx + ctxIdxInc);
-
-        //int binIdx[] = { ctxIdxInc, 2, 3, 3, 3, 3, 3 };
-
-        if (mb_qp_delta) {
-            ctxIdxInc = 2;
-            int act_sym = dep_dp->u(ctx + ctxIdxInc, 1) + 1;
-
-            mb_qp_delta = (act_sym + 1) >> 1;
-            if ((act_sym & 1) == 0) // lsb is signed bit
-                mb_qp_delta = -mb_qp_delta;
-        }
+        mb_qp_delta = dep_dp->u(ctx, ctxIdxIncs, 2);
+        if (mb_qp_delta & 1)
+            mb_qp_delta = ((mb_qp_delta + 1) >> 1);
+        else
+            mb_qp_delta = -((mb_qp_delta + 1) >> 1);
     }
 
     return mb_qp_delta;

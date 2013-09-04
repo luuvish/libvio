@@ -13,7 +13,7 @@ bool     parse_transform_size_8x8_flag(macroblock_t* mb);
 int8_t   parse_intra_pred_mode        (macroblock_t* mb);
 uint8_t  parse_intra_chroma_pred_mode (macroblock_t* mb);
 uint8_t  parse_ref_idx                (macroblock_t* mb, uint8_t list);
-int16_t  parse_mvd                    (macroblock_t* mb, uint8_t xy, uint8_t list);
+int16_t  parse_mvd                    (macroblock_t* mb, uint8_t list, uint8_t xy);
 uint8_t  parse_coded_block_pattern    (macroblock_t* mb);
 int8_t   parse_mb_qp_delta            (macroblock_t* mb);
 

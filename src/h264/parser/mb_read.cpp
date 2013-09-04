@@ -855,7 +855,7 @@ void macroblock_t::parse_motion_vector(int list, int step_h4, int step_v4, int i
 
     int16_t curr_mvd[2];
     for (int k = 0; k < 2; ++k)
-        curr_mvd[k] = parse_mvd(this, k, list);
+        curr_mvd[k] = parse_mvd(this, list, k);
 
     MotionVector curr_mv;
     curr_mv.mv_x = curr_mvd[0] + pred_mv.mv_x;
