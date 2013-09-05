@@ -87,9 +87,9 @@ struct cabac_contexts_t {
 };
 
 
-};
-};
-};
+}
+}
+}
 
 
 #endif /* _CABAC_H_ */

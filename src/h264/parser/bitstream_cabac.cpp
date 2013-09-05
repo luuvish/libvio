@@ -1378,6 +1378,6 @@ void cabac_contexts_t::init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t 
 }
 
 
-};
-};
-};
+}
+}
+}

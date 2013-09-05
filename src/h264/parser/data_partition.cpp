@@ -372,6 +372,6 @@ uint32_t data_partition_t::te(const char* name)
 }
 
 
-};
-};
-};
+}
+}
+}

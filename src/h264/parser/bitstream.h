@@ -57,9 +57,9 @@ void close_rtp        (int* p_BitStreamFile);
 int  get_nalu_from_rtp(nalu_t* nalu, int BitStreamFile);
 
 
-};
-};
-};
+}
+}
+}
 
 
 #endif /* _BITSTREAM_H_ */

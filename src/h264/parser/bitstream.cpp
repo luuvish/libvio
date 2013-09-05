@@ -447,6 +447,6 @@ void bitstream_t::CheckZeroByteVCL(nalu_t* nalu)
 }
 
 
-};
-};
-};
+}
+}
+}
