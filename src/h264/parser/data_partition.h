@@ -24,7 +24,7 @@
 #ifndef _DATA_PARTITION_H_
 #define _DATA_PARTITION_H_
 
-
+#include <cstdint>
 #include "memalloc.h"
 
 

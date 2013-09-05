@@ -1025,3 +1025,16 @@ void iTransform(mb_t *currMB, ColorPlane pl, int smb)
     if (smb || (currMB->cbp >> 4))
         currSlice->is_reset_coeff_cr = FALSE;
 }
+
+
+void transform_t::inverse_transform_4x4(mb_t* mb)
+{
+}
+
+void transform_t::inverse_transform_8x8(mb_t* mb)
+{
+}
+
+void transform_t::inverse_transform_16x16(mb_t* mb)
+{
+}

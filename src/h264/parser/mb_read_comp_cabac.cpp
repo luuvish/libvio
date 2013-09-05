@@ -3,8 +3,8 @@
 #include "bitstream_cabac.h"
 #include "data_partition.h"
 #include "macroblock.h"
-#include "mb_read.h"
 #include "neighbour.h"
+#include "quantization.h"
 #include "transform.h"
 
 #include "mb_read_syntax.h"
@@ -12,6 +12,8 @@
 
 using arrow::video::h264::cabac_context_t;
 using arrow::video::h264::cabac_engine_t;
+
+static quantization_t quantization;
 
 
 // CABAC block types
@@ -417,9 +419,6 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
 
-    const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
-    const byte (*pos_scan8x8)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
-
     if (IS_I16MB(currMB) && !currMB->dpl_flag) {
         data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? 1 : 0];
         syntax_element_t currSE;
@@ -433,9 +432,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
             if (level != 0) {
                 coef_ctr += currSE.value2 + 1;
                 //coeffLevel[startIdx + coef_ctr] = level;
-                int i0 = pos_scan4x4[coef_ctr][0];
-                int j0 = pos_scan4x4[coef_ctr][1];
-                currSlice->cof[0][j0 * 4][i0 * 4] = level;
+                quantization.coeff_luma_dc(currMB, (ColorPlane)0, 0, 0, coef_ctr, level);
             }
         }
 
@@ -444,13 +441,6 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
     }
 
     if (!currMB->transform_size_8x8_flag) {
-        int qp_per = currMB->qp_scaled[pl] / 6;
-        int qp_rem = currMB->qp_scaled[pl] % 6;
-        int transform_pl = sps->separate_colour_plane_flag ? currSlice->colour_plane_id : pl;
-        int (*InvLevelScale4x4)[4] = currMB->is_intra_block ?
-            currSlice->InvLevelScale4x4_Intra[transform_pl][qp_rem] :
-            currSlice->InvLevelScale4x4_Inter[transform_pl][qp_rem];
-
         data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
         syntax_element_t currSE;
         if (pl == PLANE_Y || sps->separate_colour_plane_flag)
@@ -460,7 +450,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
         else
             currSE.context = IS_I16MB(currMB) ? CR_16AC : CR_4x4;
 
-        int start_scan = IS_I16MB (currMB)? 1 : 0;
+        int start_scan = IS_I16MB(currMB)? 1 : 0;
 
         for (int i8x8 = 0; i8x8 < 4; i8x8++) {
             if (currMB->cbp & (1 << i8x8)) {
@@ -480,27 +470,14 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                         level = currSE.value1;
                         if (level != 0) {
                             coef_ctr += currSE.value2 + 1;
-                            currMB->s_cbp[pl].blk |= (int64_t)(0x01 << (j * 4 + i));
-                            int i0 = pos_scan4x4[coef_ctr][0];
-                            int j0 = pos_scan4x4[coef_ctr][1];
 
-                            if (!currMB->TransformBypassModeFlag)
-                                currSlice->cof[pl][j * 4 + j0][i * 4 + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0]) << qp_per, 4);
-                            else
-                                currSlice->cof[pl][j * 4 + j0][i * 4 + i0] = level;
+                            quantization.coeff_luma_ac(currMB, pl, i, j, coef_ctr, level);
                         }
                     }
                 }
             }
         }
     } else {
-        int qp_per = currMB->qp_scaled[pl] / 6;
-        int qp_rem = currMB->qp_scaled[pl] % 6;
-        int transform_pl = sps->separate_colour_plane_flag ? currSlice->colour_plane_id : pl;
-        int (*InvLevelScale8x8)[8] = currMB->is_intra_block ?
-            currSlice->InvLevelScale8x8_Intra[transform_pl][qp_rem] :
-            currSlice->InvLevelScale8x8_Inter[transform_pl][qp_rem];
-
         data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
         syntax_element_t currSE;
         if (pl == PLANE_Y || sps->separate_colour_plane_flag)
@@ -525,14 +502,10 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                     level = currSE.value1;
                     if (level != 0) {
                         coef_ctr += currSE.value2 + 1;
-                        currMB->s_cbp[pl].blk |= (int64_t)(0x33 << (block_y * 4 + block_x));
-                        int i0 = pos_scan8x8[coef_ctr][0];
-                        int j0 = pos_scan8x8[coef_ctr][1];
 
-                        if (!currMB->TransformBypassModeFlag)
-                            currSlice->cof[pl][block_y * 4 + j0][block_x * 4 + i0] = rshift_rnd_sf((level * InvLevelScale8x8[j0][i0]) << qp_per, 6);
-                        else
-                            currSlice->cof[pl][block_y * 4 + j0][block_x * 4 + i0] = level;
+                        int x0 = block_x + (coef_ctr % 2);
+                        int y0 = block_y + (coef_ctr % 4) / 2;
+                        quantization.coeff_luma_ac(currMB, pl, x0, y0, coef_ctr / 4, level);
                     }
                 }
             }
@@ -560,22 +533,10 @@ static void read_tc_chroma(mb_t *currMB)
                 readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
                 level = currSE.value1;
 
-                int i0, j0;
                 if (level != 0) {
                     coef_ctr += currSE.value2 + 1;
                     assert(coef_ctr < NumC8x8 * 4);
-                    if (sps->ChromaArrayType == 1) {
-                        i0 = coef_ctr % 2;
-                        j0 = coef_ctr / 2;
-                        currMB->s_cbp[0].blk |= (int64_t)(0xf << (iCbCr * 4 + 16));
-                    }
-                    if (sps->ChromaArrayType == 2) {
-                        i0 = FIELD_SCAN[coef_ctr][0];
-                        j0 = FIELD_SCAN[coef_ctr][1];
-                        currMB->s_cbp[0].blk |= (int64_t)(0xff << (iCbCr * 8 + 16));
-                    }
-                    if (coef_ctr < NumC8x8 * 4)
-                        currSlice->cof[iCbCr + 1][j0 * 4][i0 * 4] = level;
+                    quantization.coeff_chroma_dc(currMB, (ColorPlane)(iCbCr+1), 0, 0, coef_ctr, level);
                 }
             }
 
@@ -598,19 +559,8 @@ static void read_tc_chroma(mb_t *currMB)
         currSE.context = CHROMA_AC;
 
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            const byte (*pos_scan4x4)[2] = !currSlice->field_pic_flag && !currMB->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
-            int qp_per_uv = currMB->qp_scaled[iCbCr + 1] / 6;
-            int qp_rem_uv = currMB->qp_scaled[iCbCr + 1] % 6;
-
+            currMB->is_v_block = iCbCr;
             for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
-                currMB->is_v_block = iCbCr;
-
-                int (*InvLevelScale4x4)[4] = NULL;
-                if (!currMB->TransformBypassModeFlag)
-                    InvLevelScale4x4 = currMB->is_intra_block ?
-                        currSlice->InvLevelScale4x4_Intra[iCbCr + 1][qp_rem_uv] :
-                        currSlice->InvLevelScale4x4_Inter[iCbCr + 1][qp_rem_uv];
-
                 for (int i4x4 = 0; i4x4 < 4; i4x4++) {
                     int i = (i4x4 % 2);
                     int j = (i4x4 / 2) + (i8x8 * 2);
@@ -625,15 +575,9 @@ static void read_tc_chroma(mb_t *currMB)
                         level = currSE.value1;
 
                         if (level != 0) {
-                            currMB->s_cbp[0].blk |= (int64_t)(0x1 << (i8x8 * 4 + i4x4 + 16));
                             coef_ctr += currSE.value2 + 1;
-                            int i0 = pos_scan4x4[coef_ctr][0];
-                            int j0 = pos_scan4x4[coef_ctr][1];
 
-                            if (!currMB->TransformBypassModeFlag)
-                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = rshift_rnd_sf((level * InvLevelScale4x4[j0][i0]) << qp_per_uv, 4);
-                            else
-                                currSlice->cof[iCbCr + 1][j * 4 + j0][i * 4 + i0] = level;
+                            quantization.coeff_chroma_ac(currMB, (ColorPlane)(iCbCr+1), i, j, coef_ctr, level);
                         }
                     }
                 }
@@ -666,7 +610,6 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
     syntax_element_t currSE;
     currSE.context = LUMA_16DC;
 
-    const byte (*pos_scan4x4)[2] = !slice->field_pic_flag && !this->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
     int coef_ctr = -1;
     int level = 1;
     for (int k = 0; k < 17 && level != 0; ++k) {
@@ -675,9 +618,7 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
         if (level != 0) {
             coef_ctr += currSE.value2 + 1;
             coeffLevel[startIdx + coef_ctr] = level;
-            int i0 = pos_scan4x4[coef_ctr][0];
-            int j0 = pos_scan4x4[coef_ctr][1];
-            slice->cof[0][j0 << 2][i0 << 2] = level;
+            quantization.coeff_luma_dc(this, (ColorPlane)0, 0, 0, coef_ctr, level);
         }
     }
 

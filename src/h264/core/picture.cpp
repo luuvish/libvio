@@ -15,7 +15,6 @@
 #include "neighbour.h"
 #include "memalloc.h"
 #include "macroblock.h"
-#include "mb_read.h"
 
 #include "intra_prediction.h"
 #include "deblock.h"
@@ -23,8 +22,6 @@
 #include "erc_api.h"
 #include "dpb.h"
 
-
-#define MAX_QP          51
 
 static inline int is_BL_profile(unsigned int profile_idc) 
 {

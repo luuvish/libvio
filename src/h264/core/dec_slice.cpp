@@ -15,7 +15,6 @@
 #include "neighbour.h"
 #include "memalloc.h"
 #include "macroblock.h"
-#include "mb_read.h"
 
 #include "intra_prediction.h"
 #include "deblock.h"

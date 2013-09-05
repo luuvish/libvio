@@ -1,5 +1,5 @@
-#ifndef _LOOPFILTER_H_
-#define _LOOPFILTER_H_
+#ifndef _DEBLOCK_H_
+#define _DEBLOCK_H_
 
 
 #include "global.h"
@@ -13,4 +13,10 @@ void pic_deblock(VideoParameters *p_Vid, StorablePicture *p);
 void change_plane_JV(VideoParameters *p_Vid, int nplane, struct slice_t *pSlice);
 
 
-#endif //_LOOPFILTER_H_
+struct deblock_t {
+	void init();
+	void deblock();
+};
+
+
+#endif /* _DEBLOCK_H_ */

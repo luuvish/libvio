@@ -34,11 +34,13 @@ enum {
     Intra_Chroma_Plane
 };
 
+struct macroblock_t;
+
 struct intra_prediction_t {
-    void intra_pred_4x4(mb_t *currMB, ColorPlane pl, int ioff, int joff);
-    void intra_pred_8x8(mb_t *currMB, ColorPlane pl, int ioff, int joff);
-    void intra_pred_16x16(mb_t *currMB, ColorPlane pl, int ioff, int joff);
-    void intra_pred_chroma(mb_t *currMB);
+    void intra_pred_4x4   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
+    void intra_pred_8x8   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
+    void intra_pred_16x16 (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
+    void intra_pred_chroma(macroblock_t* mb);
 };
 
 

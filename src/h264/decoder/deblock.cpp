@@ -7,17 +7,16 @@
 #include "deblock_common.h"
 
 
-static const char chroma_edge[2][4][4] = //[dir][edge][yuv_format]
-{ { {-4, 0, 0, 0},
-    {-4,-4,-4, 4},
-    {-4, 4, 4, 8},
-    {-4,-4,-4, 12}},
-
-  { {-4, 0,  0,  0},
-    {-4,-4,  4,  4},
-    {-4, 4,  8,  8},
-    {-4,-4, 12, 12}}};
-
+static const char chroma_edge[2][4][4] = { //[dir][edge][yuv_format]
+    {{ -4,  0,  0,  0 },
+     { -4, -4, -4,  4 },
+     { -4,  4,  4,  8 },
+     { -4, -4, -4, 12 }},
+    {{ -4,  0,  0,  0 },
+     { -4, -4,  4,  4 },
+     { -4,  4,  8,  8 },
+     { -4, -4, 12, 12 }}
+};
 
 
 // likely already set - see testing via asserts

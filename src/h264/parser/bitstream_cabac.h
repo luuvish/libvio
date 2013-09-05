@@ -24,6 +24,8 @@
 #ifndef _CABAC_H_
 #define _CABAC_H_
 
+#include <cstdint>
+
 
 namespace arrow {
 namespace video {

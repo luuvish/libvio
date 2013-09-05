@@ -598,3 +598,8 @@ void perform_mc(mb_t *currMB, ColorPlane pl, StorablePicture *dec_picture, int p
         }
     }
 }
+
+
+void inter_prediction_t::motion_compensation(mb_t *mb)
+{
+}
