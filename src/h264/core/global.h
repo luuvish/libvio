@@ -20,6 +20,10 @@
 #include "parset.h"
 #include "bitstream.h"
 
+
+using arrow::video::h264::bitstream_t;
+
+
 typedef enum {
   CM_UNKNOWN = -1,
   CM_YUV     =  0,
@@ -296,7 +300,7 @@ typedef struct video_par {
 #endif
     int p_ref;
 
-    struct bitstream_t bitstream;
+    bitstream_t bitstream;
 
 
 

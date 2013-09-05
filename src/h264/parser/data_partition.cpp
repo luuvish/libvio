@@ -1,8 +1,36 @@
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : data_partition.cpp
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
+
 #include <stdio.h>
 
 #include "memalloc.h"
 #include "bitstream_cabac.h"
 #include "data_partition.h"
+
+
+namespace arrow {
+namespace video {
+namespace h264  {
 
 
 // Table 9-44 Specification of rangeTabLPS depending on pStateIdx and qCodIRangeIdx
@@ -342,3 +370,8 @@ uint32_t data_partition_t::te(const char* name)
 {
     return 0;
 }
+
+
+};
+};
+};

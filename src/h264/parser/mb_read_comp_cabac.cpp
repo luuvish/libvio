@@ -10,6 +10,10 @@
 #include "mb_read_syntax.h"
 
 
+using arrow::video::h264::cabac_context_t;
+using arrow::video::h264::cabac_engine_t;
+
+
 // CABAC block types
 typedef enum {
     LUMA_16DC     =  0, // ctxBlockCat =  0
@@ -447,6 +451,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
             currSlice->InvLevelScale4x4_Intra[transform_pl][qp_rem] :
             currSlice->InvLevelScale4x4_Inter[transform_pl][qp_rem];
 
+        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
         syntax_element_t currSE;
         if (pl == PLANE_Y || sps->separate_colour_plane_flag)
             currSE.context = IS_I16MB(currMB) ? LUMA_16AC : LUMA_4x4;
@@ -458,11 +463,10 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
         int start_scan = IS_I16MB (currMB)? 1 : 0;
 
         for (int i8x8 = 0; i8x8 < 4; i8x8++) {
-            int block_x = (i8x8 % 2) * 2;
-            int block_y = (i8x8 / 2) * 2;
-
-            for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                if (currMB->cbp & (1 << i8x8)) {
+            if (currMB->cbp & (1 << i8x8)) {
+                for (int i4x4 = 0; i4x4 < 4; i4x4++) {
+                    int block_x = (i8x8 % 2) * 2;
+                    int block_y = (i8x8 / 2) * 2;
                     int i = block_x + (i4x4 % 2);
                     int j = block_y + (i4x4 / 2);
 
@@ -472,8 +476,6 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
                     int coef_ctr = start_scan - 1;
                     int level = 1;
                     for (int k = start_scan; k < 17 && level != 0; ++k) {
-                        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
-
                         readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
                         level = currSE.value1;
                         if (level != 0) {
@@ -499,6 +501,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
             currSlice->InvLevelScale8x8_Intra[transform_pl][qp_rem] :
             currSlice->InvLevelScale8x8_Inter[transform_pl][qp_rem];
 
+        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
         syntax_element_t currSE;
         if (pl == PLANE_Y || sps->separate_colour_plane_flag)
             currSE.context = LUMA_8x8;
@@ -508,18 +511,16 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
             currSE.context = CR_8x8;  
 
         for (int i8x8 = 0; i8x8 < 4; i8x8++) {
-            int block_x = (i8x8 % 2) * 2;
-            int block_y = (i8x8 / 2) * 2;
-
             if (currMB->cbp & (1 << i8x8)) {
+                int block_x = (i8x8 % 2) * 2;
+                int block_y = (i8x8 / 2) * 2;
+
                 currMB->subblock_x = block_x * 4;
                 currMB->subblock_y = block_y * 4;
 
                 int coef_ctr = -1;
                 int level = 1;
                 for (int k = 0; k < 65 && level != 0; ++k) {
-                    data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
-
                     readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
                     level = currSE.value1;
                     if (level != 0) {

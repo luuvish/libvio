@@ -25,8 +25,13 @@
 #define _BITSTREAM_H_
 
 
-struct annex_b_t;
+namespace arrow {
+namespace video {
+namespace h264  {
+
+
 struct nalu_t;
+struct annex_b_t;
 
 struct bitstream_t {
     enum class type { ANNEX_B, RTP };
@@ -50,6 +55,11 @@ struct bitstream_t {
 void open_rtp         (const char* fn, int* p_BitStreamFile);
 void close_rtp        (int* p_BitStreamFile);
 int  get_nalu_from_rtp(nalu_t* nalu, int BitStreamFile);
+
+
+};
+};
+};
 
 
 #endif /* _BITSTREAM_H_ */

@@ -20,7 +20,6 @@
 #define MB_BLOCK_PARTITIONS   16 // (BLOCK_MULTIPLE * BLOCK_MULTIPLE)
 
 
-
 void macroblock_t::init(slice_t *slice)
 {
     this->p_Slice = slice;

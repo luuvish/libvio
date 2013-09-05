@@ -1,8 +1,37 @@
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : data_partition.h
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
+
 #ifndef _DATA_PARTITION_H_
 #define _DATA_PARTITION_H_
 
 
 #include "memalloc.h"
+
+
+namespace arrow {
+namespace video {
+namespace h264  {
+
 
 //! Data Partitioning Modes
 typedef enum {
@@ -126,6 +155,11 @@ struct data_partition_t {
     uint32_t    ce(const char* name="");
     uint32_t    me(const char* name="");
     uint32_t    te(const char* name="");
+};
+
+
+};
+};
 };
 
 

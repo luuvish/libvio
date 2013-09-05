@@ -1,5 +1,33 @@
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : cabac.cpp
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
+
 #include "slice.h"
 #include "bitstream_cabac.h"
+
+
+namespace arrow {
+namespace video {
+namespace h264  {
 
 
 #define CTX_UNUSED {0,64}
@@ -1348,3 +1376,8 @@ void cabac_contexts_t::init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t 
         PBIARI_CTX_INIT2 (NUM_BLOCK_TYPES, NUM_ABS_CTX,  this->abs_contexts,            INIT_ABS,            cabac_init_idc, SliceQpY);
     }
 }
+
+
+};
+};
+};

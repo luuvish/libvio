@@ -1,5 +1,33 @@
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : cabac.h
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
+
 #ifndef _CABAC_H_
 #define _CABAC_H_
+
+
+namespace arrow {
+namespace video {
+namespace h264  {
 
 
 struct cabac_context_t {
@@ -54,6 +82,11 @@ struct cabac_contexts_t {
     cabac_context_t abs_contexts              [NUM_BLOCK_TYPES][NUM_ABS_CTX];
 
     void init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t SliceQpY);
+};
+
+
+};
+};
 };
 
 

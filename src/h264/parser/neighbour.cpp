@@ -5,6 +5,10 @@
 #include "dpb.h"
 #include "neighbour.h"
 
+
+using namespace arrow::video::h264;
+
+
 /*!
  ************************************************************************
  * \brief

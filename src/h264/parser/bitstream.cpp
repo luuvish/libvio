@@ -12,7 +12,7 @@
  *
  * ===========================================================================
  *
- *  File      : bitstream.cc
+ *  File      : bitstream.cpp
  *  Author(s) : Luuvish
  *  Version   : 1.0
  *  Revision  :
@@ -29,6 +29,11 @@
 #include "memalloc.h" 
 #include "bitstream.h"
 #include "data_partition.h"
+
+
+namespace arrow {
+namespace video {
+namespace h264  {
 
 
 struct annex_b_t {
@@ -440,3 +445,8 @@ void bitstream_t::CheckZeroByteVCL(nalu_t* nalu)
         printf("warning: zero_byte shall exist\n");
         //because it is not a very serious problem, we do not exit here
 }
+
+
+};
+};
+};

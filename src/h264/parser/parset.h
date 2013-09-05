@@ -2,10 +2,20 @@
 #define _PARSET_H_
 
 
+namespace arrow {
+namespace video {
+namespace h264 {
 struct nalu_t;
 struct data_partition_t;
+};
+};
+};
 struct video_par;
 struct slice_t;
+
+
+using arrow::video::h264::nalu_t;
+using arrow::video::h264::data_partition_t;
 
 
 #define MAXSPS  32

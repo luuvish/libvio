@@ -21,6 +21,9 @@
 #define IS_DIRECT(MB)   ((MB)->mb_type==0     && (slice->slice_type == B_SLICE ))
 
 
+using arrow::video::h264::cabac_engine_t;
+
+
 // Table 7-11 mb_t types for I slices
 const uint8_t mb_types_i_slice[26][5] = {
     { I_NxN        , Intra_8x8  , NA,  0,  0 },
