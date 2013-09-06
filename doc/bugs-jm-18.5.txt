@@ -27,3 +27,6 @@
 
 8. readMB_typeInfo_CABAC_i_slice()
     SI_slice일 때, I slice type의 predictor가 I4MB와 I8MB type이 아닐 때 a,b가 1 이어야 함. I8MB인 경우가 빠짐.
+
+9. read_CBP_and_coeffs_from_NAL_CAVLC_420(), read_CBP_and_coeffs_from_NAL_CAVLC_422()
+    Chroma DC/AC일 경우 deblock을 하지 않으므로 currMB->s_cbp[0].blk를 세팅할 필요 없음.

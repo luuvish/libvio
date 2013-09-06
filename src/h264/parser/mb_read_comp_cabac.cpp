@@ -42,24 +42,8 @@ typedef enum {
     CR_4x4        = 21  // ctxBlockCat = 12
 } CABACBlockTypes;
 
-struct syntax_element_t {
-    int value1;  //!< numerical value of syntax element
-    int value2;  //!< for blocked symbols, e.g. run/level
-    int context; //!< CABAC context
-};
-
 
 #define IS_I16MB(MB)    ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
-
-static inline int rshift_rnd_sf(int x, int a)
-{
-    return ((x + (1 << (a-1) )) >> a);
-}
-
-static inline int get_bit(int64_t x, int n)
-{
-    return (int)(((x >> n) & 1));
-}
 
 static int read_and_store_CBP_block_bit(mb_t* mb, int type)
 {
@@ -108,14 +92,14 @@ static int read_and_store_CBP_block_bit(mb_t* mb, int type)
             if (mb_a->mb_type == IPCM)
                 condTermFlagA = 1;
             else
-                condTermFlagA = get_bit(mb_a->s_cbp[0].bits, bit + bit_pos_a);
+                condTermFlagA = (mb_a->s_cbp[0].bits >> (bit + bit_pos_a)) & 1;
         }
         if (block_b.available) {
             mb_t* mb_b = &slice->mb_data[block_b.mb_addr];
             if (mb_b->mb_type == IPCM)
                 condTermFlagB = 1;
             else
-                condTermFlagB = get_bit(mb_b->s_cbp[0].bits, bit + bit_pos_b);
+                condTermFlagB = (mb_b->s_cbp[0].bits >> (bit + bit_pos_b)) & 1;
         }
     } else if (sps->chroma_format_idc == YUV444) {
         if (block_a.available) {
@@ -124,7 +108,7 @@ static int read_and_store_CBP_block_bit(mb_t* mb, int type)
                 if (mb_a->mb_type == IPCM)
                     condTermFlagA = 1;
                 else
-                    condTermFlagA = get_bit(mb_a->s_cbp[pl].bits, bit + bit_pos_a);
+                    condTermFlagA = (mb_a->s_cbp[pl].bits >> (bit + bit_pos_a)) & 1;
             }
         }
         if (block_b.available) {
@@ -133,7 +117,7 @@ static int read_and_store_CBP_block_bit(mb_t* mb, int type)
                 if (mb_b->mb_type == IPCM)
                     condTermFlagB = 1;
                 else
-                    condTermFlagB = get_bit(mb_b->s_cbp[pl].bits, bit + bit_pos_b);
+                    condTermFlagB = (mb_b->s_cbp[pl].bits >> (bit + bit_pos_b)) & 1;
             }
         }
     }
@@ -191,6 +175,12 @@ static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_cont
 
     return bins + 1;
 }
+
+struct syntax_element_t {
+    int value1;  //!< numerical value of syntax element
+    int value2;  //!< for blocked symbols, e.g. run/level
+    int context; //!< CABAC context
+};
 
 static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
@@ -440,72 +430,36 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
             itrans_2(currMB, pl);
     }
 
-    if (!currMB->transform_size_8x8_flag) {
-        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
-        syntax_element_t currSE;
-        if (pl == PLANE_Y || sps->separate_colour_plane_flag)
-            currSE.context = IS_I16MB(currMB) ? LUMA_16AC : LUMA_4x4;
-        else if (pl == PLANE_U)
-            currSE.context = IS_I16MB(currMB) ? CB_16AC : CB_4x4;
-        else
-            currSE.context = IS_I16MB(currMB) ? CR_16AC : CR_4x4;
+    data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
+    syntax_element_t currSE;
+    if (pl == PLANE_Y || sps->separate_colour_plane_flag)
+        currSE.context = currMB->transform_size_8x8_flag ? LUMA_8x8 : IS_I16MB(currMB) ? LUMA_16AC : LUMA_4x4;
+    else if (pl == PLANE_U)
+        currSE.context = currMB->transform_size_8x8_flag ? CB_8x8 : IS_I16MB(currMB) ? CB_16AC : CB_4x4;
+    else
+        currSE.context = currMB->transform_size_8x8_flag ? CR_8x8 : IS_I16MB(currMB) ? CR_16AC : CR_4x4;
 
-        int start_scan = IS_I16MB(currMB)? 1 : 0;
+    int start_scan = IS_I16MB(currMB)? 1 : 0;
+    int max4x4 = currMB->transform_size_8x8_flag ? 1 : 4;
+    int maxK   = 16 * (5 - max4x4) + 1;
 
-        for (int i8x8 = 0; i8x8 < 4; i8x8++) {
-            if (currMB->cbp & (1 << i8x8)) {
-                for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                    int block_x = (i8x8 % 2) * 2;
-                    int block_y = (i8x8 / 2) * 2;
-                    int i = block_x + (i4x4 % 2);
-                    int j = block_y + (i4x4 / 2);
+    for (int i8x8 = 0; i8x8 < 4; i8x8++) {
+        if (currMB->cbp & (1 << i8x8)) {
+            for (int i4x4 = 0; i4x4 < max4x4; i4x4++) {
+                int i = (i8x8 % 2) * 2 + (i4x4 % 2);
+                int j = (i8x8 / 2) * 2 + (i4x4 / 2);
 
-                    currMB->subblock_x = i * 4;
-                    currMB->subblock_y = j * 4;
+                currMB->subblock_x = i * 4;
+                currMB->subblock_y = j * 4;
 
-                    int coef_ctr = start_scan - 1;
-                    int level = 1;
-                    for (int k = start_scan; k < 17 && level != 0; ++k) {
-                        readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
-                        level = currSE.value1;
-                        if (level != 0) {
-                            coef_ctr += currSE.value2 + 1;
-
-                            quantization.coeff_luma_ac(currMB, pl, i, j, coef_ctr, level);
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
-        syntax_element_t currSE;
-        if (pl == PLANE_Y || sps->separate_colour_plane_flag)
-            currSE.context = LUMA_8x8;
-        else if (pl == PLANE_U)
-            currSE.context = CB_8x8;
-        else
-            currSE.context = CR_8x8;  
-
-        for (int i8x8 = 0; i8x8 < 4; i8x8++) {
-            if (currMB->cbp & (1 << i8x8)) {
-                int block_x = (i8x8 % 2) * 2;
-                int block_y = (i8x8 / 2) * 2;
-
-                currMB->subblock_x = block_x * 4;
-                currMB->subblock_y = block_y * 4;
-
-                int coef_ctr = -1;
+                int coef_ctr = start_scan - 1;
                 int level = 1;
-                for (int k = 0; k < 65 && level != 0; ++k) {
+                for (int k = start_scan; k < maxK && level != 0; ++k) {
                     readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
                     level = currSE.value1;
                     if (level != 0) {
                         coef_ctr += currSE.value2 + 1;
-
-                        int x0 = block_x + (coef_ctr % 2);
-                        int y0 = block_y + (coef_ctr % 4) / 2;
-                        quantization.coeff_luma_ac(currMB, pl, x0, y0, coef_ctr / 4, level);
+                        quantization.coeff_luma_ac(currMB, pl, i, j, coef_ctr, level);
                     }
                 }
             }
@@ -532,11 +486,10 @@ static void read_tc_chroma(mb_t *currMB)
             for (int k = 0; k < NumC8x8 * 4 + 1 && level != 0; ++k) {
                 readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
                 level = currSE.value1;
-
                 if (level != 0) {
                     coef_ctr += currSE.value2 + 1;
                     assert(coef_ctr < NumC8x8 * 4);
-                    quantization.coeff_chroma_dc(currMB, (ColorPlane)(iCbCr+1), 0, 0, coef_ctr, level);
+                    quantization.coeff_chroma_dc(currMB, (ColorPlane)(iCbCr + 1), 0, 0, coef_ctr, level);
                 }
             }
 
@@ -573,11 +526,9 @@ static void read_tc_chroma(mb_t *currMB)
                     for (int k = 0; k < 16 && level != 0; ++k) {
                         readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
                         level = currSE.value1;
-
                         if (level != 0) {
                             coef_ctr += currSE.value2 + 1;
-
-                            quantization.coeff_chroma_ac(currMB, (ColorPlane)(iCbCr+1), i, j, coef_ctr, level);
+                            quantization.coeff_chroma_ac(currMB, (ColorPlane)(iCbCr + 1), i, j, coef_ctr, level);
                         }
                     }
                 }

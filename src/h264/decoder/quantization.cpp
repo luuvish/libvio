@@ -8,14 +8,14 @@
 #include "quantization.h"
 
 
-int Flat_4x4_16[16] = {
+static int Flat_4x4_16[16] = {
     16, 16, 16, 16,
     16, 16, 16, 16,
     16, 16, 16, 16,
     16, 16, 16, 16
 };
 
-int Flat_8x8_16[64] = {
+static int Flat_8x8_16[64] = {
     16, 16, 16, 16, 16, 16, 16, 16,
     16, 16, 16, 16, 16, 16, 16, 16,
     16, 16, 16, 16, 16, 16, 16, 16,
@@ -28,14 +28,14 @@ int Flat_8x8_16[64] = {
 
 // Table 7-3 Specification of default scaling lists Default_4x4_Intra and Default_4x4_Inter
 
-int Default_4x4_Intra[16] = {
+static int Default_4x4_Intra[16] = {
      6, 13, 20, 28,
     13, 20, 28, 32,
     20, 28, 32, 37,
     28, 32, 37, 42
 };
 
-int Default_4x4_Inter[16] = {
+static int Default_4x4_Inter[16] = {
     10, 14, 20, 24,
     14, 20, 24, 27,
     20, 24, 27, 30,
@@ -44,7 +44,7 @@ int Default_4x4_Inter[16] = {
 
 // Table 7-4 Specification of default scaling lists Default_8x8_Intra and Default_8x8_Inter
 
-int Default_8x8_Intra[64] = {
+static int Default_8x8_Intra[64] = {
      6, 10, 13, 16, 18, 23, 25, 27,
     10, 11, 16, 18, 23, 25, 27, 29,
     13, 16, 18, 23, 25, 27, 29, 31,
@@ -55,7 +55,7 @@ int Default_8x8_Intra[64] = {
     27, 29, 31, 33, 36, 38, 40, 42
 };
 
-int Default_8x8_Inter[64] = {
+static int Default_8x8_Inter[64] = {
      9, 13, 15, 17, 19, 21, 22, 24,
     13, 13, 17, 19, 21, 22, 24, 25,
     15, 17, 19, 21, 22, 24, 25, 27,
@@ -280,60 +280,84 @@ void assign_quant_params(slice_t *currSlice)
 }
 
 
-//! single scan pattern
-static const uint8_t SNGL_SCAN[16][2] = {
-    { 0, 0 }, { 1, 0 }, { 0, 1 }, { 0, 2 },
-    { 1, 1 }, { 2, 0 }, { 3, 0 }, { 2, 1 },
-    { 1, 2 }, { 0, 3 }, { 1, 3 }, { 2, 2 },
-    { 3, 1 }, { 3, 2 }, { 2, 3 }, { 3, 3 }
-};
-
-//! field scan pattern
-static const uint8_t FIELD_SCAN[16][2] = {
-    { 0, 0 }, { 0, 1 }, { 1, 0 }, { 0, 2 },
-    { 0, 3 }, { 1, 1 }, { 1, 2 }, { 1, 3 },
-    { 2, 0 }, { 2, 1 }, { 2, 2 }, { 2, 3 },
-    { 3, 0 }, { 3, 1 }, { 3, 2 }, { 3, 3 }
-};
-
-
-//! single scan pattern
-static const uint8_t SNGL_SCAN8x8[64][2] = {
-    { 0, 0 }, { 1, 0 }, { 0, 1 }, { 0, 2 }, { 1, 1 }, { 2, 0 }, { 3, 0 }, { 2, 1 },
-    { 1, 2 }, { 0, 3 }, { 0, 4 }, { 1, 3 }, { 2, 2 }, { 3, 1 }, { 4, 0 }, { 5, 0 },
-    { 4, 1 }, { 3, 2 }, { 2, 3 }, { 1, 4 }, { 0, 5 }, { 0, 6 }, { 1, 5 }, { 2, 4 },
-    { 3, 3 }, { 4, 2 }, { 5, 1 }, { 6, 0 }, { 7, 0 }, { 6, 1 }, { 5, 2 }, { 4, 3 },
-    { 3, 4 }, { 2, 5 }, { 1, 6 }, { 0, 7 }, { 1, 7 }, { 2, 6 }, { 3, 5 }, { 4, 4 },
-    { 5, 3 }, { 6, 2 }, { 7, 1 }, { 7, 2 }, { 6, 3 }, { 5, 4 }, { 4, 5 }, { 3, 6 },
-    { 2, 7 }, { 3, 7 }, { 4, 6 }, { 5, 5 }, { 6, 4 }, { 7, 3 }, { 7, 4 }, { 6, 5 },
-    { 5, 6 }, { 4, 7 }, { 5, 7 }, { 6, 6 }, { 7, 5 }, { 7, 6 }, { 6, 7 }, { 7, 7 }
-};
-
-//! field scan pattern
-static const uint8_t FIELD_SCAN8x8[64][2] = {
-    { 0, 0 }, { 0, 1 }, { 0, 2 }, { 1, 0 }, { 1, 1 }, { 0, 3 }, { 0, 4 }, { 1, 2 },
-    { 2, 0 }, { 1, 3 }, { 0, 5 }, { 0, 6 }, { 0, 7 }, { 1, 4 }, { 2, 1 }, { 3, 0 },
-    { 2, 2 }, { 1, 5 }, { 1, 6 }, { 1, 7 }, { 2, 3 }, { 3, 1 }, { 4, 0 }, { 3, 2 },
-    { 2, 4 }, { 2, 5 }, { 2, 6 }, { 2, 7 }, { 3, 3 }, { 4, 1 }, { 5, 0 }, { 4, 2 },
-    { 3, 4 }, { 3, 5 }, { 3, 6 }, { 3, 7 }, { 4, 3 }, { 5, 1 }, { 6, 0 }, { 5, 2 },
-    { 4, 4 }, { 4, 5 }, { 4, 6 }, { 4, 7 }, { 5, 3 }, { 6, 1 }, { 6, 2 }, { 5, 4 },
-    { 5, 5 }, { 5, 6 }, { 5, 7 }, { 6, 3 }, { 7, 0 }, { 7, 1 }, { 6, 4 }, { 6, 5 },
-    { 6, 6 }, { 6, 7 }, { 7, 2 }, { 7, 3 }, { 7, 4 }, { 7, 5 }, { 7, 6 }, { 7, 7 }
-};
-
 static inline int rshift_rnd_sf(int x, int a)
 {
     return ((x + (1 << (a-1) )) >> a);
 }
 
+int quantization_t::inverse_quantize(mb_t* mb, bool uv, ColorPlane pl, int i0, int j0, int levarr)
+{
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
+
+    int qp_per = mb->qp_scaled[pl] / 6;
+    int qp_rem = mb->qp_scaled[pl] % 6;
+    int transform_pl = sps->separate_colour_plane_flag ? slice->colour_plane_id : pl;
+
+    if (uv) {
+        int (*InvLevelScale4x4)[4] = mb->is_intra_block ?
+            slice->InvLevelScale4x4_Intra[pl][qp_rem] :
+            slice->InvLevelScale4x4_Inter[pl][qp_rem];
+        levarr = rshift_rnd_sf((levarr * InvLevelScale4x4[j0][i0]) << qp_per, 4);
+    } else if (!mb->transform_size_8x8_flag) {
+        int (*InvLevelScale4x4)[4] = mb->is_intra_block ?
+            slice->InvLevelScale4x4_Intra[transform_pl][qp_rem] :
+            slice->InvLevelScale4x4_Inter[transform_pl][qp_rem];
+        levarr = rshift_rnd_sf((levarr * InvLevelScale4x4[j0][i0]) << qp_per, 4);
+    } else {
+        int (*InvLevelScale8x8)[8] = mb->is_intra_block ?
+            slice->InvLevelScale8x8_Intra[transform_pl][qp_rem] :
+            slice->InvLevelScale8x8_Inter[transform_pl][qp_rem];
+        levarr = rshift_rnd_sf((levarr * InvLevelScale8x8[j0][i0]) << qp_per, 6);
+    }
+
+    return levarr;
+}
+
+
+// Table 8-13 Specification of mapping of idx to Cij for zig-zag and field scan
+
+static const uint8_t ZIGZAG_SCAN_4x4[2][16][2] = {
+    {{ 0, 0 }, { 1, 0 }, { 0, 1 }, { 0, 2 },
+     { 1, 1 }, { 2, 0 }, { 3, 0 }, { 2, 1 },
+     { 1, 2 }, { 0, 3 }, { 1, 3 }, { 2, 2 },
+     { 3, 1 }, { 3, 2 }, { 2, 3 }, { 3, 3 }},
+    {{ 0, 0 }, { 0, 1 }, { 1, 0 }, { 0, 2 },
+     { 0, 3 }, { 1, 1 }, { 1, 2 }, { 1, 3 },
+     { 2, 0 }, { 2, 1 }, { 2, 2 }, { 2, 3 },
+     { 3, 0 }, { 3, 1 }, { 3, 2 }, { 3, 3 }}
+};
+
+// Table 8-14 Specification of mapping of idx to Cij for 8x8 zig-zag and 8x8 field scan
+
+static const uint8_t ZIGZAG_SCAN_8x8[2][64][2] = {
+    {{ 0, 0 }, { 1, 0 }, { 0, 1 }, { 0, 2 }, { 1, 1 }, { 2, 0 }, { 3, 0 }, { 2, 1 },
+     { 1, 2 }, { 0, 3 }, { 0, 4 }, { 1, 3 }, { 2, 2 }, { 3, 1 }, { 4, 0 }, { 5, 0 },
+     { 4, 1 }, { 3, 2 }, { 2, 3 }, { 1, 4 }, { 0, 5 }, { 0, 6 }, { 1, 5 }, { 2, 4 },
+     { 3, 3 }, { 4, 2 }, { 5, 1 }, { 6, 0 }, { 7, 0 }, { 6, 1 }, { 5, 2 }, { 4, 3 },
+     { 3, 4 }, { 2, 5 }, { 1, 6 }, { 0, 7 }, { 1, 7 }, { 2, 6 }, { 3, 5 }, { 4, 4 },
+     { 5, 3 }, { 6, 2 }, { 7, 1 }, { 7, 2 }, { 6, 3 }, { 5, 4 }, { 4, 5 }, { 3, 6 },
+     { 2, 7 }, { 3, 7 }, { 4, 6 }, { 5, 5 }, { 6, 4 }, { 7, 3 }, { 7, 4 }, { 6, 5 },
+     { 5, 6 }, { 4, 7 }, { 5, 7 }, { 6, 6 }, { 7, 5 }, { 7, 6 }, { 6, 7 }, { 7, 7 }},
+    {{ 0, 0 }, { 0, 1 }, { 0, 2 }, { 1, 0 }, { 1, 1 }, { 0, 3 }, { 0, 4 }, { 1, 2 },
+     { 2, 0 }, { 1, 3 }, { 0, 5 }, { 0, 6 }, { 0, 7 }, { 1, 4 }, { 2, 1 }, { 3, 0 },
+     { 2, 2 }, { 1, 5 }, { 1, 6 }, { 1, 7 }, { 2, 3 }, { 3, 1 }, { 4, 0 }, { 3, 2 },
+     { 2, 4 }, { 2, 5 }, { 2, 6 }, { 2, 7 }, { 3, 3 }, { 4, 1 }, { 5, 0 }, { 4, 2 },
+     { 3, 4 }, { 3, 5 }, { 3, 6 }, { 3, 7 }, { 4, 3 }, { 5, 1 }, { 6, 0 }, { 5, 2 },
+     { 4, 4 }, { 4, 5 }, { 4, 6 }, { 4, 7 }, { 5, 3 }, { 6, 1 }, { 6, 2 }, { 5, 4 },
+     { 5, 5 }, { 5, 6 }, { 5, 7 }, { 6, 3 }, { 7, 0 }, { 7, 1 }, { 6, 4 }, { 6, 5 },
+     { 6, 6 }, { 6, 7 }, { 7, 2 }, { 7, 3 }, { 7, 4 }, { 7, 5 }, { 7, 6 }, { 7, 7 }}
+};
+
 void quantization_t::coeff_luma_dc(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
 {
     slice_t *slice = mb->p_Slice;
 
-    const uint8_t (*pos_scan4x4)[2] = !slice->field_pic_flag && !mb->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
+    bool field = slice->field_pic_flag || mb->mb_field_decoding_flag;
+    const uint8_t (*zigzag_scan_4x4)[2] = ZIGZAG_SCAN_4x4[field];
 
-    int i0 = pos_scan4x4[runarr][0];
-    int j0 = pos_scan4x4[runarr][1];
+    int i0 = zigzag_scan_4x4[runarr][0];
+    int j0 = zigzag_scan_4x4[runarr][1];
 
     slice->cof[pl][j0 * 4][i0 * 4] = levarr;
 }
@@ -341,43 +365,26 @@ void quantization_t::coeff_luma_dc(mb_t* mb, ColorPlane pl, int x0, int y0, int 
 void quantization_t::coeff_luma_ac(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
 {
     slice_t* slice = mb->p_Slice;
-    sps_t* sps = slice->active_sps;
 
-    const uint8_t (*pos_scan4x4)[2] = !slice->field_pic_flag && !mb->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
-    const uint8_t (*pos_scan8x8)[2] = !slice->field_pic_flag && !mb->mb_field_decoding_flag ? SNGL_SCAN8x8 : FIELD_SCAN8x8;
+    bool field = slice->field_pic_flag || mb->mb_field_decoding_flag;
+    const uint8_t (*zigzag_scan_4x4)[2] = ZIGZAG_SCAN_4x4[field];
+    const uint8_t (*zigzag_scan_8x8)[2] = ZIGZAG_SCAN_8x8[field];
 
-    int qp_per = mb->qp_scaled[pl] / 6;
-    int qp_rem = mb->qp_scaled[pl] % 6;
-    int transform_pl = sps->separate_colour_plane_flag ? slice->colour_plane_id : pl;
-    int (*InvLevelScale4x4)[4] = mb->is_intra_block ?
-        slice->InvLevelScale4x4_Intra[transform_pl][qp_rem] :
-        slice->InvLevelScale4x4_Inter[transform_pl][qp_rem];
-    int (*InvLevelScale8x8)[8] = mb->is_intra_block ?
-        slice->InvLevelScale8x8_Intra[transform_pl][qp_rem] :
-        slice->InvLevelScale8x8_Inter[transform_pl][qp_rem];
+    int i0, j0;
 
     if (!mb->transform_size_8x8_flag) {
+        i0 = zigzag_scan_4x4[runarr][0];
+        j0 = zigzag_scan_4x4[runarr][1];
         mb->s_cbp[pl].blk |= ((int64_t)0x01 << (y0 * 4 + x0));
-        int i0 = pos_scan4x4[runarr][0];
-        int j0 = pos_scan4x4[runarr][1];
-
-        if (!mb->TransformBypassModeFlag)
-            slice->cof[pl][y0 * 4 + j0][x0 * 4 + i0] = rshift_rnd_sf((levarr * InvLevelScale4x4[j0][i0]) << qp_per, 4);
-        else
-            slice->cof[pl][y0 * 4 + j0][x0 * 4 + i0] = levarr;
     } else {
-        int x1 = x0 & ~1;
-        int y1 = y0 & ~1;
-        mb->s_cbp[pl].blk |= ((int64_t)0x33 << (y1 * 4 + x1));
-        int i4x4 = (y0 % 2) * 2 + (x0 % 2);
-        int i0 = pos_scan8x8[runarr * 4 + i4x4][0];
-        int j0 = pos_scan8x8[runarr * 4 + i4x4][1];
-
-        if (!mb->TransformBypassModeFlag)
-            slice->cof[pl][y1 * 4 + j0][x1 * 4 + i0] = rshift_rnd_sf((levarr * InvLevelScale8x8[j0][i0]) << qp_per, 6);
-        else
-            slice->cof[pl][y1 * 4 + j0][x1 * 4 + i0] = levarr;
+        i0 = zigzag_scan_8x8[runarr][0];
+        j0 = zigzag_scan_8x8[runarr][1];
+        mb->s_cbp[pl].blk |= ((int64_t)0x33 << (y0 * 4 + x0));
     }
+
+    if (!mb->TransformBypassModeFlag)
+        levarr = this->inverse_quantize(mb, false, pl, i0, j0, levarr);
+    slice->cof[pl][y0 * 4 + j0][x0 * 4 + i0] = levarr;
 }
 
 void quantization_t::coeff_chroma_dc(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
@@ -388,14 +395,12 @@ void quantization_t::coeff_chroma_dc(mb_t* mb, ColorPlane pl, int x0, int y0, in
     int i0, j0;
 
     if (sps->ChromaArrayType == 1) {
-        mb->s_cbp[0].blk |= ((int64_t)0x0f << (pl * 4 + 12));
         i0 = runarr % 2;
         j0 = runarr / 2;
     }
     if (sps->ChromaArrayType == 2) {
-        mb->s_cbp[0].blk |= ((int64_t)0xff << (pl * 8 + 8));
-        i0 = FIELD_SCAN[runarr][0];
-        j0 = FIELD_SCAN[runarr][1];
+        i0 = ZIGZAG_SCAN_4x4[1][runarr][0];
+        j0 = ZIGZAG_SCAN_4x4[1][runarr][1];
     }
 
     slice->cof[pl][j0 * 4][i0 * 4] = levarr;
@@ -405,22 +410,13 @@ void quantization_t::coeff_chroma_ac(mb_t* mb, ColorPlane pl, int x0, int y0, in
 {
     slice_t* slice = mb->p_Slice;
 
-    const uint8_t (*pos_scan4x4)[2] = !slice->field_pic_flag && !mb->mb_field_decoding_flag ? SNGL_SCAN : FIELD_SCAN;
+    bool field = slice->field_pic_flag || mb->mb_field_decoding_flag;
+    const uint8_t (*zigzag_scan_4x4)[2] = ZIGZAG_SCAN_4x4[field];
 
-    int qp_per = mb->qp_scaled[pl] / 6;
-    int qp_rem = mb->qp_scaled[pl] % 6;
-    int (*InvLevelScale4x4)[4] = mb->is_intra_block ?
-        slice->InvLevelScale4x4_Intra[pl][qp_rem] :
-        slice->InvLevelScale4x4_Inter[pl][qp_rem];
-
-    int i8x8 = y0 & ~1;
-    int i4x4 = (y0 % 2) * 2 + (x0 % 2);
-    mb->s_cbp[0].blk |= ((int64_t)0x01 << (i8x8 * 4 + i4x4 + 16));
-    int i0 = pos_scan4x4[runarr][0];
-    int j0 = pos_scan4x4[runarr][1];
+    int i0 = zigzag_scan_4x4[runarr][0];
+    int j0 = zigzag_scan_4x4[runarr][1];
 
     if (!mb->TransformBypassModeFlag)
-        slice->cof[pl][y0 * 4 + j0][x0 * 4 + i0] = rshift_rnd_sf((levarr * InvLevelScale4x4[j0][i0]) << qp_per, 4);
-    else
-        slice->cof[pl][y0 * 4 + j0][x0 * 4 + i0] = levarr;
+        levarr = this->inverse_quantize(mb, true, pl, i0, j0, levarr);
+    slice->cof[pl][y0 * 4 + j0][x0 * 4 + i0] = levarr;
 }

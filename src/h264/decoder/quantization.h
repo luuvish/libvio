@@ -69,6 +69,8 @@ struct quantization_t {
     void coeff_luma_ac  (macroblock_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr);
     void coeff_chroma_dc(macroblock_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr);
     void coeff_chroma_ac(macroblock_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr);
+
+    int  inverse_quantize(macroblock_t* mb, bool uv, ColorPlane pl, int i0, int j0, int levarr);
 };
 
 

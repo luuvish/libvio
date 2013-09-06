@@ -360,7 +360,7 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
         currMB->read_coeff_4x4_CAVLC(16, nC, levelVal, runVal, &numcoeff);
 
         int coeffNum = -1;
-    //    for (int k = numcoeff - 1; k >= 0; k--) {
+        //for (int k = numcoeff - 1; k >= 0; k--) {
         for (int k = 0; k < numcoeff; ++k) {
             if (levelVal[k] != 0) {
                 coeffNum += runVal[k] + 1;
@@ -376,36 +376,29 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
     int start_scan = IS_I16MB(currMB) ? 1 : 0;
 
     for (int i8x8 = 0; i8x8 < 4; i8x8++) {
-        int block_x = (i8x8 % 2) * 2;
-        int block_y = (i8x8 / 2) * 2;
+        for (int i4x4 = 0; i4x4 < 4; i4x4++) {
+            int i = (i8x8 % 2) * 2 + (i4x4 % 2);
+            int j = (i8x8 / 2) * 2 + (i4x4 / 2);
 
-        if (currMB->cbp & (1 << i8x8)) {
-            for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                int i = block_x + (i4x4 % 2);
-                int j = block_y + (i4x4 / 2);
-
-                int levarr[16] = {0}, runarr[16] = {0}, numcoeff;
+            if (currMB->cbp & (1 << i8x8)) {
+                int levelVal[16] = {0}, runVal[16] = {0}, numcoeff;
                 int nC = predict_nnz(currMB, pl, i * 4, j * 4);
-                currMB->read_coeff_4x4_CAVLC(16 - start_scan, nC, levarr, runarr, &numcoeff);
+                currMB->read_coeff_4x4_CAVLC(16 - start_scan, nC, levelVal, runVal, &numcoeff);
                 currMB->nz_coeff[pl][j][i] = numcoeff;
 
-                int coef_ctr = start_scan - 1;
-
-                for (int k = 0; k < numcoeff; ++k) {
+                int coeffNum = start_scan - 1;
                 //for (int k = numcoeff - 1; k >= 0; k--) {
-                    if (levarr[k] != 0) {
-                        coef_ctr += runarr[k] + 1;
-
-                        quantization.coeff_luma_ac(currMB, pl, i, j, coef_ctr, levarr[k]);
+                for (int k = 0; k < numcoeff; ++k) {
+                    if (levelVal[k] != 0) {
+                        coeffNum += runVal[k] + 1;
+                        int x0 = !currMB->transform_size_8x8_flag ? i : (i & ~1);
+                        int y0 = !currMB->transform_size_8x8_flag ? j : (j & ~1);
+                        int c0 = !currMB->transform_size_8x8_flag ? coeffNum : coeffNum * 4 + i4x4;
+                        quantization.coeff_luma_ac(currMB, pl, x0, y0, c0, levelVal[k]);
                     }
                 }
-            }
-        }
-        if (!(currMB->cbp & (1 << i8x8))) {
-            currMB->nz_coeff[pl][block_y + 0][block_x + 0] = 0;
-            currMB->nz_coeff[pl][block_y + 0][block_x + 1] = 0;
-            currMB->nz_coeff[pl][block_y + 1][block_x + 0] = 0;
-            currMB->nz_coeff[pl][block_y + 1][block_x + 1] = 0;
+            } else
+                currMB->nz_coeff[pl][j][i] = 0;
         }
     }
 }
@@ -423,11 +416,10 @@ static void read_tc_chroma(mb_t *currMB)
             currMB->read_coeff_4x4_CAVLC(NumC8x8 * 4, nC, levelVal, runVal, &numcoeff);
 
             int coeffNum = -1;
-            for (int k = 0; k < numcoeff; ++k) {
             //for (int k = numcoeff - 1; k >= 0; k--) {
+            for (int k = 0; k < numcoeff; ++k) {
                 if (levelVal[k] != 0) {
                     coeffNum += runVal[k] + 1;
-
                     quantization.coeff_chroma_dc(currMB, (ColorPlane)(iCbCr+1), 0, 0, coeffNum, levelVal[k]);
                 }
             }
@@ -445,32 +437,30 @@ static void read_tc_chroma(mb_t *currMB)
         }
     }
 
-    if (currMB->cbp > 31) {
-        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
-                for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                    int i = (i4x4 % 2);
-                    int j = (i4x4 / 2) + (i8x8 * 2);
+    for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
+        for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
+            for (int i4x4 = 0; i4x4 < 4; i4x4++) {
+                int i = (i4x4 % 2);
+                int j = (i4x4 / 2) + (i8x8 * 2);
 
-                    int levarr[16], runarr[16], numcoeff;
+                if (currMB->cbp > 31) {
+                    int levelVal[16], runVal[16], numcoeff;
                     int nC = predict_nnz(currMB, iCbCr + 1, i * 4, j * 4);
-                    currMB->read_coeff_4x4_CAVLC(15, nC, levarr, runarr, &numcoeff);
+                    currMB->read_coeff_4x4_CAVLC(15, nC, levelVal, runVal, &numcoeff);
                     currMB->nz_coeff[iCbCr + 1][j][i] = numcoeff;
 
-                    int coef_ctr = 0;
+                    int coeffNum = 0;
                     //for (int k = numcoeff - 1; k >= 0; k--) {
                     for (int k = 0; k < numcoeff; ++k) {
-                        if (levarr[k] != 0) {
-                            coef_ctr += runarr[k] + 1;
-
-                            quantization.coeff_chroma_ac(currMB, (ColorPlane)(iCbCr+1), i, j, coef_ctr, levarr[k]);
+                        if (levelVal[k] != 0) {
+                            coeffNum += runVal[k] + 1;
+                            quantization.coeff_chroma_ac(currMB, (ColorPlane)(iCbCr+1), i, j, coeffNum, levelVal[k]);
                         }
                     }
-                }
+                } else
+                    currMB->nz_coeff[iCbCr + 1][j][i] = 0;
             }
         }
-    } else {
-        memset(currMB->nz_coeff[1][0], 0, 2 * 16 * sizeof(uint8_t));
     }
 }
 
