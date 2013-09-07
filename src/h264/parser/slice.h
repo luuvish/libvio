@@ -7,12 +7,12 @@
 
 #define MAX_NUM_REF_IDX 32
 
-namespace arrow { namespace video { namespace h264 {
+namespace vio { namespace h264 {
 struct cabac_contexts_t;
-}}}
+}}
 struct macroblock_t;
 
-using arrow::video::h264::cabac_contexts_t;
+using vio::h264::cabac_contexts_t;
 
 
 enum {

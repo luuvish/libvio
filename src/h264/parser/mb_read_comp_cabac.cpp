@@ -10,36 +10,26 @@
 #include "mb_read_syntax.h"
 
 
-using arrow::video::h264::cabac_context_t;
-using arrow::video::h264::cabac_engine_t;
-
-static quantization_t quantization;
+using vio::h264::cabac_context_t;
+using vio::h264::cabac_engine_t;
 
 
-// CABAC block types
 typedef enum {
     LUMA_16DC     =  0, // ctxBlockCat =  0
     LUMA_16AC     =  1, // ctxBlockCat =  1
-    LUMA_8x8      =  2, // ctxBlockCat =  5
-    LUMA_8x4      =  3, // ctxBlockCat =
-    LUMA_4x8      =  4, // ctxBlockCat =
-    LUMA_4x4      =  5, // ctxBlockCat =  2
-    CHROMA_DC     =  6, // ctxBlockCat =  3
-    CHROMA_AC     =  7, // ctxBlockCat =  4
-    CHROMA_DC_2x4 =  8, // ctxBlockCat =
-    CHROMA_DC_4x4 =  9, // ctxBlockCat =
-    CB_16DC       = 10, // ctxBlockCat =  6
-    CB_16AC       = 11, // ctxBlockCat =  7
-    CB_8x8        = 12, // ctxBlockCat =  9
-    CB_8x4        = 13, // ctxBlockCat =
-    CB_4x8        = 14, // ctxBlockCat =
-    CB_4x4        = 15, // ctxBlockCat =  8
-    CR_16DC       = 16, // ctxBlockCat = 10
-    CR_16AC       = 17, // ctxBlockCat = 11
-    CR_8x8        = 18, // ctxBlockCat = 13
-    CR_8x4        = 19, // ctxBlockCat =
-    CR_4x8        = 20, // ctxBlockCat =
-    CR_4x4        = 21  // ctxBlockCat = 12
+    LUMA_4x4      =  2, // ctxBlockCat =  2
+    CHROMA_DC     =  3, // ctxBlockCat =  3
+    CHROMA_AC     =  4, // ctxBlockCat =  4
+    LUMA_8x8      =  5, // ctxBlockCat =  5 =
+    CHROMA_DC_2x4 =  6, // ctxBlockCat =
+    CB_16DC       =  7, // ctxBlockCat =  6
+    CB_16AC       =  8, // ctxBlockCat =  7
+    CB_4x4        =  9, // ctxBlockCat =  8
+    CB_8x8        = 10, // ctxBlockCat =  9 =
+    CR_16DC       = 11, // ctxBlockCat = 10
+    CR_16AC       = 12, // ctxBlockCat = 11
+    CR_4x4        = 13, // ctxBlockCat = 12
+    CR_8x8        = 14  // ctxBlockCat = 13 =
 } CABACBlockTypes;
 
 
@@ -51,17 +41,17 @@ static int read_and_store_CBP_block_bit(mb_t* mb, int type)
     sps_t* sps = slice->active_sps;
 
     int y_dc = (type==LUMA_16DC || type==CB_16DC || type==CR_16DC); 
-    int u_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4) && !mb->is_v_block);
-    int v_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4) &&  mb->is_v_block);
-    int y_ac = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_8x4 || type==LUMA_4x8 || type==LUMA_4x4) ||
-               (type==CB_16AC || type==CB_8x8 || type==CB_8x4 || type==CB_4x8 || type==CB_4x4) ||
-               (type==CR_16AC || type==CR_8x8 || type==CR_8x4 || type==CR_4x8 || type==CR_4x4);
+    int u_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4) && !mb->is_v_block);
+    int v_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4) &&  mb->is_v_block);
+    int y_ac = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_4x4) ||
+               (type==CB_16AC || type==CB_8x8 || type==CB_4x4) ||
+               (type==CR_16AC || type==CR_8x8 || type==CR_4x4);
     int u_ac = (type==CHROMA_AC && !mb->is_v_block);
     int v_ac = (type==CHROMA_AC &&  mb->is_v_block);
 
     int size_8x8_flag = (type == LUMA_8x8 || type == CB_8x8 || type == CR_8x8);
-    int pl = (type == CB_8x8 || type == CB_4x4 || type == CB_4x8 || type == CB_8x4 || type == CB_16AC || type == CB_16DC) ? 1 :
-             (type == CR_8x8 || type == CR_4x4 || type == CR_4x8 || type == CR_8x4 || type == CR_16AC || type == CR_16DC) ? 2 : 0;
+    int pl = (type == CB_8x8 || type == CB_4x4 || type == CB_16AC || type == CB_16DC) ? 1 :
+             (type == CR_8x8 || type == CR_4x4 || type == CR_16AC || type == CR_16DC) ? 2 : 0;
 
     int i = (y_ac || u_ac || v_ac ? mb->subblock_x : 0);
     int j = (y_ac || u_ac || v_ac ? mb->subblock_y : 0);
@@ -132,16 +122,16 @@ static void update_cbp(mb_t* mb, int type)
     sps_t* sps = slice->active_sps;
 
     int y_dc = (type==LUMA_16DC || type==CB_16DC || type==CR_16DC); 
-    int u_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4) && !mb->is_v_block);
-    int v_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4 || type==CHROMA_DC_4x4) &&  mb->is_v_block);
-    int y_ac = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_8x4 || type==LUMA_4x8 || type==LUMA_4x4) ||
-               (type==CB_16AC || type==CB_8x8 || type==CB_8x4 || type==CB_4x8 || type==CB_4x4) ||
-               (type==CR_16AC || type==CR_8x8 || type==CR_8x4 || type==CR_4x8 || type==CR_4x4);
+    int u_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4) && !mb->is_v_block);
+    int v_dc = ((type==CHROMA_DC || type==CHROMA_DC_2x4) &&  mb->is_v_block);
+    int y_ac = (type==LUMA_16AC || type==LUMA_8x8 || type==LUMA_4x4) ||
+               (type==CB_16AC || type==CB_8x8 || type==CB_4x4) ||
+               (type==CR_16AC || type==CR_8x8 || type==CR_4x4);
     int u_ac = (type==CHROMA_AC && !mb->is_v_block);
     int v_ac = (type==CHROMA_AC &&  mb->is_v_block);
 
-    int pl = (type == CB_8x8 || type == CB_4x4 || type == CB_4x8 || type == CB_8x4 || type == CB_16AC || type == CB_16DC) ? 1 :
-             (type == CR_8x8 || type == CR_4x4 || type == CR_4x8 || type == CR_8x4 || type == CR_16AC || type == CR_16DC) ? 2 : 0;
+    int pl = (type == CB_8x8 || type == CB_4x4 || type == CB_16AC || type == CB_16DC) ? 1 :
+             (type == CR_8x8 || type == CR_4x4 || type == CR_16AC || type == CR_16DC) ? 2 : 0;
     int temp_pl = sps->chroma_format_idc == YUV444 ? pl : 0;
 
     int i = (y_ac || u_ac || v_ac ? mb->subblock_x : 0);
@@ -149,9 +139,7 @@ static void update_cbp(mb_t* mb, int type)
     int bit = (y_dc ? 0 : y_ac ? 1 : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 : 35)
             + (y_ac || u_ac || v_ac ? j + i / 4 : 0);
 
-    int cbp = (type == LUMA_8x8 || type == CB_8x8 || type == CR_8x8) ? 0x33 :
-              (type == LUMA_8x4 || type == CB_8x4 || type == CR_8x4) ? 0x03 :
-              (type == LUMA_4x8 || type == CB_4x8 || type == CR_4x8) ? 0x11 : 0x01;
+    int cbp = (type == LUMA_8x8 || type == CB_8x8 || type == CR_8x8) ? 0x33 : 0x01;
 
     mb->s_cbp[temp_pl].bits |= ((int64_t)cbp << bit);
 }
@@ -184,26 +172,31 @@ struct syntax_element_t {
 
 static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_t *dep_dp)
 {
-    static const short maxpos[] = {
-        15, 14, 63, 31, 31, 15,  3, 14,  7, 15, 15,
-        14, 63, 31, 31, 15, 15, 14, 63, 31, 31, 15
+    static const short maxpos[22] = {
+        15, 14, 15,  3, 14, 63,  7,
+        15, 14, 15, 63, 15, 14, 15, 63
     };
-    static const short c1isdc[] = {
-         1,  0,  1,  1,  1,  1,  1,  0,  1,  1,  1,
-         0,  1,  1,  1,  1,  1,  0,  1,  1,  1,  1
+    static const short c1isdc[22] = {
+         1,  0,  1,  1,  0,  1,  1,
+         1,  0,  1,  1,  1,  0,  1,  1
     };
-    static const short max_c2[] = {
-         4,  4,  4,  4,  4,  4,  3,  4,  3,  3,  4,
-         4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4
+    static const short max_c2[22] = {
+         4,  4,  4,  3,  4,  4,  3,
+         4,  4,  4,  4,  4,  4,  4,  4
     }; // 9
 
-    static const short type2ctx_map[] = {
-         0,  1,  2,  3,  4,  5,  6,  7,  6,  6, 10,
-        11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
+    static const short type2ctx_bcbp[22] = {
+         0,  1,  4,  5,  6,  2,  5,
+        10, 11, 14, 12, 16, 17, 20, 18
+    };
+
+    static const short type2ctx_map[22] = {
+         0,  1,  5,  6,  7,  2,  6,
+        10, 11, 15, 12, 16, 17, 21, 18
     }; // 8
-    static const short type2ctx_one[] = {
-         0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10,
-        11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20
+    static const short type2ctx_one[22] = {
+         0,  1,  4,  5,  6,  2,  5,
+        10, 11, 14, 12, 16, 17, 20, 18
     }; // 7
 
     //===== position -> ctx for MAP =====
@@ -214,9 +207,11 @@ static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_
          7,  6, 11, 12, 13, 11,  6,  7,  8,  9, 14, 10,  9,  8,  6, 11,
         12, 13, 11,  6,  9, 14, 10,  9, 11, 12, 13, 11 ,14, 10, 12, 14
     }; // 15 CTX
-    static const uint8_t pos2ctx_map8x4[] = {
-        0,  1,  2,  3,  4,  5,  7,  8,  9, 10, 11,  9,  8,  6,  7,  8,
-        9, 10, 11,  9,  8,  6, 12,  8,  9, 10, 11,  9, 13, 13, 14, 14
+    static const uint8_t pos2ctx_map8x8i[] = {
+        0,  1,  1,  2,  2,  3,  3,  4,  5,  6,  7,  7,  7,  8,  4,  5,
+        6,  9, 10, 10,  8, 11, 12, 11,  9,  9, 10, 10,  8, 11, 12, 11,
+        9,  9, 10, 10,  8, 11, 12, 11,  9,  9, 10, 10,  8, 13, 13,  9,
+        9, 10, 10,  8, 13, 13,  9,  9, 10, 10, 14, 14, 14, 14, 14, 14
     }; // 15 CTX
     static const uint8_t pos2ctx_map4x4[] = {
         0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 14
@@ -224,50 +219,24 @@ static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_
     static const uint8_t pos2ctx_map2x4c[] = {
         0,  0,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
     }; // 15 CTX
-    static const uint8_t pos2ctx_map4x4c[] = {
-        0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2
-    }; // 15 CTX
-
-    //--- interlace scan ----
-    //taken from ABT
-    static const uint8_t pos2ctx_map8x8i[] = {
-        0,  1,  1,  2,  2,  3,  3,  4,  5,  6,  7,  7,  7,  8,  4,  5,
-        6,  9, 10, 10,  8, 11, 12, 11,  9,  9, 10, 10,  8, 11, 12, 11,
-        9,  9, 10, 10,  8, 11, 12, 11,  9,  9, 10, 10,  8, 13, 13,  9,
-        9, 10, 10,  8, 13, 13,  9,  9, 10, 10, 14, 14, 14, 14, 14, 14
-    }; // 15 CTX
-    static const uint8_t pos2ctx_map8x4i[] = {
-        0,  1,  2,  3,  4,  5,  6,  3,  4,  5,  6,  3,  4,  7,  6,  8,
-        9,  7,  6,  8,  9, 10, 11, 12, 12, 10, 11, 13, 13, 14, 14, 14
-    }; // 15 CTX
-    static const uint8_t pos2ctx_map4x8i[] = {
-        0,  1,  1,  1,  2,  3,  3,  4,  4,  4,  5,  6,  2,  7,  7,  8,
-        8,  8,  5,  6,  9, 10, 10, 11, 11, 11, 12, 13, 13, 14, 14, 14
-    }; // 15 CTX
 
     static const uint8_t *pos2ctx_map[2][22] = {
         { pos2ctx_map4x4,  pos2ctx_map4x4,
-          pos2ctx_map8x8,  pos2ctx_map8x4,
-          pos2ctx_map8x4,  pos2ctx_map4x4,
+          pos2ctx_map4x4,  pos2ctx_map4x4,  
+          pos2ctx_map4x4,  pos2ctx_map8x8,
+          pos2ctx_map2x4c,
           pos2ctx_map4x4,  pos2ctx_map4x4,
-          pos2ctx_map2x4c, pos2ctx_map4x4c, 
+          pos2ctx_map4x4,  pos2ctx_map8x8,
           pos2ctx_map4x4,  pos2ctx_map4x4,
-          pos2ctx_map8x8,  pos2ctx_map8x4,
-          pos2ctx_map8x4,  pos2ctx_map4x4,
-          pos2ctx_map4x4,  pos2ctx_map4x4,
-          pos2ctx_map8x8,  pos2ctx_map8x4,
-          pos2ctx_map8x4,  pos2ctx_map4x4 },
+          pos2ctx_map4x4,  pos2ctx_map8x8 },
         { pos2ctx_map4x4,  pos2ctx_map4x4,
-          pos2ctx_map8x8i, pos2ctx_map8x4i,
-          pos2ctx_map4x8i, pos2ctx_map4x4,
           pos2ctx_map4x4,  pos2ctx_map4x4,
-          pos2ctx_map2x4c, pos2ctx_map4x4c,
+          pos2ctx_map4x4,  pos2ctx_map8x8i,
+          pos2ctx_map2x4c,
           pos2ctx_map4x4,  pos2ctx_map4x4,
-          pos2ctx_map8x8i, pos2ctx_map8x4i,
-          pos2ctx_map8x4i, pos2ctx_map4x4,
+          pos2ctx_map4x4,  pos2ctx_map8x8i,
           pos2ctx_map4x4,  pos2ctx_map4x4,
-          pos2ctx_map8x8i, pos2ctx_map8x4i,
-          pos2ctx_map8x4i, pos2ctx_map4x4 }
+          pos2ctx_map4x4,  pos2ctx_map8x8i }
     };
 
     //===== position -> ctx for LAST =====
@@ -277,38 +246,28 @@ static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_
         3,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  4,  4,  4,
         5,  5,  5,  5,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  8
     }; //  9 CTX
-    static const uint8_t pos2ctx_last8x4[] = {
-        0,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,
-        3,  3,  3,  3,  4,  4,  4,  4,  5,  5,  6,  6,  7,  7,  8,  8
-    }; //  9 CTX
     static const uint8_t pos2ctx_last4x4[] = {
         0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15
     }; // 15 CTX
     static const uint8_t pos2ctx_last2x4c[] = {
         0,  0,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2
     }; // 15 CTX
-    static const uint8_t pos2ctx_last4x4c[] = {
-        0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2
-    }; // 15 CTX
 
     static const uint8_t *pos2ctx_last[22] = {
         pos2ctx_last4x4,  pos2ctx_last4x4,
-        pos2ctx_last8x8,  pos2ctx_last8x4,
-        pos2ctx_last8x4,  pos2ctx_last4x4,
         pos2ctx_last4x4,  pos2ctx_last4x4,
-        pos2ctx_last2x4c, pos2ctx_last4x4c,
+        pos2ctx_last4x4,  pos2ctx_last8x8,  
+        pos2ctx_last2x4c,
         pos2ctx_last4x4,  pos2ctx_last4x4,
-        pos2ctx_last8x8,  pos2ctx_last8x4,
-        pos2ctx_last8x4,  pos2ctx_last4x4,
+        pos2ctx_last4x4,  pos2ctx_last8x8,
         pos2ctx_last4x4,  pos2ctx_last4x4,
-        pos2ctx_last8x8,  pos2ctx_last8x4,
-        pos2ctx_last8x4,  pos2ctx_last4x4
+        pos2ctx_last4x4,  pos2ctx_last8x8
     };
 
     slice_t *currSlice = currMB->p_Slice;
     sps_t* sps = currSlice->active_sps;
 
-    bool field = (currSlice->field_pic_flag || currMB->mb_field_decoding_flag);
+    bool field = currSlice->field_pic_flag || currMB->mb_field_decoding_flag;
     const byte *pos2ctx_Map  = pos2ctx_map [field][se->context];
     const byte *pos2ctx_Last = pos2ctx_last[se->context];
     cabac_context_t *map_ctx  = currSlice->mot_ctx->map_contexts [field][type2ctx_map[se->context]];
@@ -324,11 +283,6 @@ static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_
     if (coded_block_flag < 0) {
         coded_block_flag = 1; // always one for 8x8 mode
         if (sps->chroma_format_idc == YUV444 || se->context != LUMA_8x8) {
-            static const short type2ctx_bcbp[] = {
-                 0,  1,  2,  3,  3,  4,  5,  6,  5,  5, 10,
-                11, 12, 13, 13, 14, 16, 17, 18, 19, 19, 20
-            };
-
             cabac_context_t* ctx = currSlice->mot_ctx->bcbp_contexts[type2ctx_bcbp[se->context]];
             int ctxIdxInc = read_and_store_CBP_block_bit(currMB, se->context);
 
@@ -403,63 +357,79 @@ static void readRunLevel_CABAC(mb_t *currMB, syntax_element_t *se, cabac_engine_
         coeff_pos = 0;
 }
 
-
-static void read_tc_luma(mb_t *currMB, ColorPlane pl)
+void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
+                                        uint8_t maxNumCoeff, ColorPlane pl, int bx, int by)
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
+}
 
-    if (IS_I16MB(currMB) && !currMB->dpl_flag) {
-        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? 1 : 0];
+
+void macroblock_t::residual_luma_cabac(ColorPlane pl)
+{
+    slice_t* slice = this->p_Slice;
+    sps_t* sps = slice->active_sps;
+
+    int CodedBlockPatternLuma = this->cbp & 15;
+
+    if (IS_I16MB(this) && !this->dpl_flag) {
+        // residual_block(i16x16DClevel, 0, 15, 16);
+
+        data_partition_t *dP = &slice->partArr[slice->dp_mode ? 1 : 0];
         syntax_element_t currSE;
         currSE.context = LUMA_16DC;
 
         int coef_ctr = -1;
         int level = 1;
         for (int k = 0; k < 17 && level != 0; ++k) {
-            readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
+            readRunLevel_CABAC(this, &currSE, &dP->de_cabac);
             level = currSE.value1;
             if (level != 0) {
                 coef_ctr += currSE.value2 + 1;
                 //coeffLevel[startIdx + coef_ctr] = level;
-                quantization.coeff_luma_dc(currMB, (ColorPlane)0, 0, 0, coef_ctr, level);
+                quantization.coeff_luma_dc(this, (ColorPlane)0, 0, 0, coef_ctr, level);
             }
         }
 
-        if (!currMB->TransformBypassModeFlag)
-            itrans_2(currMB, pl);
+        transform.inverse_luma_dc(this, pl);
     }
 
-    data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
+    data_partition_t *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
     syntax_element_t currSE;
     if (pl == PLANE_Y || sps->separate_colour_plane_flag)
-        currSE.context = currMB->transform_size_8x8_flag ? LUMA_8x8 : IS_I16MB(currMB) ? LUMA_16AC : LUMA_4x4;
+        currSE.context = this->transform_size_8x8_flag ? LUMA_8x8 : IS_I16MB(this) ? LUMA_16AC : LUMA_4x4;
     else if (pl == PLANE_U)
-        currSE.context = currMB->transform_size_8x8_flag ? CB_8x8 : IS_I16MB(currMB) ? CB_16AC : CB_4x4;
+        currSE.context = this->transform_size_8x8_flag ? CB_8x8 : IS_I16MB(this) ? CB_16AC : CB_4x4;
     else
-        currSE.context = currMB->transform_size_8x8_flag ? CR_8x8 : IS_I16MB(currMB) ? CR_16AC : CR_4x4;
+        currSE.context = this->transform_size_8x8_flag ? CR_8x8 : IS_I16MB(this) ? CR_16AC : CR_4x4;
 
-    int start_scan = IS_I16MB(currMB)? 1 : 0;
-    int max4x4 = currMB->transform_size_8x8_flag ? 1 : 4;
+    int start_scan = IS_I16MB(this)? 1 : 0;
+    int max4x4 = this->transform_size_8x8_flag ? 1 : 4;
     int maxK   = 16 * (5 - max4x4) + 1;
 
     for (int i8x8 = 0; i8x8 < 4; i8x8++) {
-        if (currMB->cbp & (1 << i8x8)) {
+        if (CodedBlockPatternLuma & (1 << i8x8)) {
             for (int i4x4 = 0; i4x4 < max4x4; i4x4++) {
+                //if (!this->transform_size_8x8_flag || !pps->entropy_coding_mode_flag)
+                    //if (IS_I16MB(this))
+                        // residual_block(i16x16AClevel[i8x8 * 4 + i4x4], max(0, startIdx - 1), endIdx - 1, 15);
+                    //else
+                        // residual_block(level4x4[i8x8 * 4 + i4x4], startIdx, endIdx, 16);
+                //else
+                    // residual_block(level8x8[i8x8], 4 * startIdx, 4 * endIdx + 3, 64);
+
                 int i = (i8x8 % 2) * 2 + (i4x4 % 2);
                 int j = (i8x8 / 2) * 2 + (i4x4 / 2);
 
-                currMB->subblock_x = i * 4;
-                currMB->subblock_y = j * 4;
+                this->subblock_x = i * 4;
+                this->subblock_y = j * 4;
 
                 int coef_ctr = start_scan - 1;
                 int level = 1;
                 for (int k = start_scan; k < maxK && level != 0; ++k) {
-                    readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
+                    readRunLevel_CABAC(this, &currSE, &dP->de_cabac);
                     level = currSE.value1;
                     if (level != 0) {
                         coef_ctr += currSE.value2 + 1;
-                        quantization.coeff_luma_ac(currMB, pl, i, j, coef_ctr, level);
+                        quantization.coeff_luma_ac(this, pl, i, j, coef_ctr, level);
                     }
                 }
             }
@@ -467,112 +437,68 @@ static void read_tc_luma(mb_t *currMB, ColorPlane pl)
     }
 }
 
-static void read_tc_chroma(mb_t *currMB)
+void macroblock_t::residual_chroma_cabac()
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
+    slice_t* slice = this->p_Slice;
+    sps_t* sps = slice->active_sps;
+
     int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
 
-    if (currMB->cbp > 15) {      
-        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
-        syntax_element_t currSE;
-        currSE.context = sps->ChromaArrayType == 1 ? CHROMA_DC : CHROMA_DC_2x4;
+    int CodedBlockPatternChroma = this->cbp / 16;
 
+    if (CodedBlockPatternChroma & 3) {      
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            currMB->is_v_block = iCbCr * 2;
+            // residual_block(ChromaDCLevel[iCbCr], 0, 4 * NumC8x8 - 1, 4 * NumC8x8);
+
+            data_partition_t *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
+            syntax_element_t currSE;
+            currSE.context = sps->ChromaArrayType == 1 ? CHROMA_DC : CHROMA_DC_2x4;
+            this->is_v_block = iCbCr * 2;
 
             int coef_ctr = -1;
             int level = 1;
             for (int k = 0; k < NumC8x8 * 4 + 1 && level != 0; ++k) {
-                readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
+                readRunLevel_CABAC(this, &currSE, &dP->de_cabac);
                 level = currSE.value1;
                 if (level != 0) {
                     coef_ctr += currSE.value2 + 1;
                     assert(coef_ctr < NumC8x8 * 4);
-                    quantization.coeff_chroma_dc(currMB, (ColorPlane)(iCbCr + 1), 0, 0, coef_ctr, level);
+                    quantization.coeff_chroma_dc(this, (ColorPlane)(iCbCr + 1), 0, 0, coef_ctr, level);
                 }
             }
 
-            if (sps->ChromaArrayType == 1) {
-                int smb = (currSlice->slice_type == SP_SLICE && !currMB->is_intra_block) ||
-                          (currSlice->slice_type == SI_SLICE && currMB->mb_type == SI4MB);
-                if (!smb && !currMB->TransformBypassModeFlag)
-                    itrans_420(currMB, (ColorPlane)(iCbCr + 1));
-            }
-            if (sps->ChromaArrayType == 2) {
-                if (!currMB->TransformBypassModeFlag)
-                    itrans_422(currMB, (ColorPlane)(iCbCr + 1));
-            }
+            transform.inverse_chroma_dc(this, (ColorPlane)(iCbCr + 1));
         }
     }
 
-    if (currMB->cbp > 31) {
-        data_partition_t *dP = &currSlice->partArr[currSlice->dp_mode ? (currMB->is_intra_block ? 1 : 2) : 0];
-        syntax_element_t currSE;
-        currSE.context = CHROMA_AC;
-
+    if (CodedBlockPatternChroma & 2) {
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            currMB->is_v_block = iCbCr;
             for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
                 for (int i4x4 = 0; i4x4 < 4; i4x4++) {
+                    // residual_block(ChromaACLevel[iCbCr][i8x8 * 4 + i4x4], max(0, startIdx - 1), endIdx - 1, 15);
+
                     int i = (i4x4 % 2);
                     int j = (i4x4 / 2) + (i8x8 * 2);
 
-                    currMB->subblock_x = i * 4;
-                    currMB->subblock_y = j * 4;
+                    data_partition_t *dP = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
+                    syntax_element_t currSE;
+                    currSE.context = CHROMA_AC;
+                    this->is_v_block = iCbCr;
+                    this->subblock_x = i * 4;
+                    this->subblock_y = j * 4;
 
                     int coef_ctr = 0;
                     int level = 1;
                     for (int k = 0; k < 16 && level != 0; ++k) {
-                        readRunLevel_CABAC(currMB, &currSE, &dP->de_cabac);
+                        readRunLevel_CABAC(this, &currSE, &dP->de_cabac);
                         level = currSE.value1;
                         if (level != 0) {
                             coef_ctr += currSE.value2 + 1;
-                            quantization.coeff_chroma_ac(currMB, (ColorPlane)(iCbCr + 1), i, j, coef_ctr, level);
+                            quantization.coeff_chroma_ac(this, (ColorPlane)(iCbCr + 1), i, j, coef_ctr, level);
                         }
                     }
                 }
             }
         }
     }
-}
-
-
-void macroblock_t::read_CBP_and_coeffs_from_NAL_CABAC()
-{
-    slice_t *slice = this->p_Slice;
-    sps_t *sps = slice->active_sps;
-
-    read_tc_luma(this, PLANE_Y);
-    if (sps->chroma_format_idc == YUV420 || sps->chroma_format_idc == YUV422)
-        read_tc_chroma(this);
-    if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag) {
-        read_tc_luma(this, PLANE_U);
-        read_tc_luma(this, PLANE_V);
-    }
-}
-
-void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
-                                        uint8_t maxNumCoeff, ColorPlane pl, int bx, int by)
-{
-    slice_t *slice = this->p_Slice;
-
-    data_partition_t *dP = &slice->partArr[slice->dp_mode ? 1 : 0];
-    syntax_element_t currSE;
-    currSE.context = LUMA_16DC;
-
-    int coef_ctr = -1;
-    int level = 1;
-    for (int k = 0; k < 17 && level != 0; ++k) {
-        readRunLevel_CABAC(this, &currSE, &dP->de_cabac);
-        level = currSE.value1;
-        if (level != 0) {
-            coef_ctr += currSE.value2 + 1;
-            coeffLevel[startIdx + coef_ctr] = level;
-            quantization.coeff_luma_dc(this, (ColorPlane)0, 0, 0, coef_ctr, level);
-        }
-    }
-
-    if (!this->TransformBypassModeFlag)
-        itrans_2(this, pl);
 }

@@ -25,9 +25,8 @@
 #include "bitstream_cabac.h"
 
 
-namespace arrow {
-namespace video {
-namespace h264  {
+namespace vio  {
+namespace h264 {
 
 
 #define CTX_UNUSED {0,64}
@@ -1378,6 +1377,5 @@ void cabac_contexts_t::init(uint8_t slice_type, uint8_t cabac_init_idc, uint8_t 
 }
 
 
-}
 }
 }

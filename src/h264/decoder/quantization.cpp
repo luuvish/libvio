@@ -8,6 +8,9 @@
 #include "quantization.h"
 
 
+quantization_t quantization;
+
+
 static int Flat_4x4_16[16] = {
     16, 16, 16, 16,
     16, 16, 16, 16,

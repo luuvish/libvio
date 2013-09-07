@@ -10,6 +10,9 @@
 #include "intra_prediction.h"
 
 
+transform_t transform;
+
+
 // Macro defines
 #define Q_BITS          15
 #define DQ_BITS          6
@@ -682,7 +685,7 @@ void itrans16x16(mb_t *currMB, ColorPlane pl)
 }
 
 
-void itrans_2(mb_t *currMB, ColorPlane pl)
+static void itrans_2(mb_t *currMB, ColorPlane pl)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
@@ -715,7 +718,7 @@ void itrans_2(mb_t *currMB, ColorPlane pl)
     free_mem2Dint(M4);
 }
 
-void itrans_420(mb_t *currMB, ColorPlane pl)
+static void itrans_420(mb_t *currMB, ColorPlane pl)
 {
     slice_t *currSlice = currMB->p_Slice;
 
@@ -743,7 +746,7 @@ void itrans_420(mb_t *currMB, ColorPlane pl)
     cof[4][4] = ((M4[3] * invLevelScale) << qp_per) >> 5;
 }
 
-void itrans_422(mb_t *currMB, ColorPlane pl)
+static void itrans_422(mb_t *currMB, ColorPlane pl)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
@@ -1026,6 +1029,29 @@ void iTransform(mb_t *currMB, ColorPlane pl, int smb)
         currSlice->is_reset_coeff_cr = FALSE;
 }
 
+
+void transform_t::inverse_luma_dc(mb_t* mb, ColorPlane pl)
+{
+    if (!mb->TransformBypassModeFlag)
+        itrans_2(mb, pl);
+}
+
+void transform_t::inverse_chroma_dc(mb_t* mb, ColorPlane pl)
+{
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
+
+    if (sps->ChromaArrayType == 1) {
+        int smb = (slice->slice_type == SP_slice && !mb->is_intra_block) ||
+                  (slice->slice_type == SI_slice && mb->mb_type == SI4MB);
+        if (!smb && !mb->TransformBypassModeFlag)
+            itrans_420(mb, pl);
+    }
+    if (sps->ChromaArrayType == 2) {
+        if (!mb->TransformBypassModeFlag)
+            itrans_422(mb, pl);
+    }
+}
 
 void transform_t::inverse_transform_4x4(mb_t* mb)
 {

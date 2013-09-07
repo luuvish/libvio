@@ -25,9 +25,8 @@
 #define _BITSTREAM_H_
 
 
-namespace arrow {
-namespace video {
-namespace h264  {
+namespace vio  {
+namespace h264 {
 
 
 struct nalu_t;
@@ -57,7 +56,6 @@ void close_rtp        (int* p_BitStreamFile);
 int  get_nalu_from_rtp(nalu_t* nalu, int BitStreamFile);
 
 
-}
 }
 }
 

@@ -102,8 +102,7 @@
 #include "data_partition.h"
 
 
-namespace arrow {
-namespace video {
+namespace vio  {
 namespace h264 {
 
 
@@ -401,6 +400,5 @@ int RTPReadPacket(RTPpacket_t *p, int bitstream)
 }
 
 
-}
 }
 }

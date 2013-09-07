@@ -28,9 +28,8 @@
 #include "data_partition.h"
 
 
-namespace arrow {
-namespace video {
-namespace h264  {
+namespace vio  {
+namespace h264 {
 
 
 // Table 9-44 Specification of rangeTabLPS depending on pStateIdx and qCodIRangeIdx
@@ -372,6 +371,5 @@ uint32_t data_partition_t::te(const char* name)
 }
 
 
-}
 }
 }

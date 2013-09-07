@@ -31,9 +31,8 @@
 #include "data_partition.h"
 
 
-namespace arrow {
-namespace video {
-namespace h264  {
+namespace vio  {
+namespace h264 {
 
 
 struct annex_b_t {
@@ -447,6 +446,5 @@ void bitstream_t::CheckZeroByteVCL(nalu_t* nalu)
 }
 
 
-}
 }
 }

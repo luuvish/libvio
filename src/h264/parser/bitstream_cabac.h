@@ -27,9 +27,8 @@
 #include <cstdint>
 
 
-namespace arrow {
-namespace video {
-namespace h264  {
+namespace vio  {
+namespace h264 {
 
 
 struct cabac_context_t {
@@ -87,7 +86,6 @@ struct cabac_contexts_t {
 };
 
 
-}
 }
 }
 

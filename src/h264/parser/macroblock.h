@@ -252,8 +252,10 @@ struct macroblock_t {
     void        residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
                                      uint8_t maxNumCoeff, ColorPlane pl, int bx, int by);
 
-    void        read_CBP_and_coeffs_from_NAL_CAVLC();
-    void        read_CBP_and_coeffs_from_NAL_CABAC();
+    void        residual_luma_cavlc  (ColorPlane pl);
+    void        residual_luma_cabac  (ColorPlane pl);
+    void        residual_chroma_cavlc();
+    void        residual_chroma_cabac();
 
     uint8_t     parse_coeff_token(int nC);
     uint8_t     parse_total_zeros(int yuv, int tzVlcIndex);

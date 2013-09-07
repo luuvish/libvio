@@ -17,8 +17,8 @@
 #include "mb_read_syntax.h"
 
 
-using arrow::video::h264::cabac_context_t;
-using arrow::video::h264::cabac_engine_t;
+using vio::h264::cabac_context_t;
+using vio::h264::cabac_engine_t;
 
 
 static int ref_idx_ctxIdxInc(mb_t* mb, uint8_t list)

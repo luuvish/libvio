@@ -21,7 +21,7 @@
 #include "bitstream.h"
 
 
-using arrow::video::h264::bitstream_t;
+using vio::h264::bitstream_t;
 
 
 typedef enum {

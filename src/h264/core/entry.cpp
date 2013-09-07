@@ -25,7 +25,7 @@
 #include "dpb.h"
 
 
-using namespace arrow::video::h264;
+using namespace vio::h264;
 
 
 /*!

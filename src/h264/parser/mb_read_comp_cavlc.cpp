@@ -11,8 +11,6 @@
 
 #define IS_I16MB(MB) ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
 
-static quantization_t quantization;
-
 
 // Table 9-5 coeff_token mapping to TotalCoeff(coeff_token) and TrailingOnes(coeff_token)
 static const uint8_t coeff_token_length[5][4][17] = {
@@ -349,91 +347,102 @@ void macroblock_t::read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
     *number_coefficients = TotalCoeff;
 }
 
-static void read_tc_luma(mb_t *currMB, ColorPlane pl)
+void macroblock_t::residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
+                                        uint8_t maxNumCoeff, ColorPlane pl, int bx, int by)
 {
-    if (IS_I16MB(currMB) && !currMB->dpl_flag) {
-        //int16_t i16x16DClevel[16];
-        //currMB->residual_block_cavlc(i16x16DClevel, 0, 15, 16, pl, 0, 0);
+}
+
+
+// residual_luma(i16x16DClevel, i16x16AClevel, level4x4, level8x8, startIdx, endIdx)
+void macroblock_t::residual_luma_cavlc(ColorPlane pl)
+{
+    int CodedBlockPatternLuma = this->cbp & 15;
+
+    if (IS_I16MB(this) && !this->dpl_flag) {
+        // residual_block(i16x16DClevel, 0, 15, 16);
 
         int levelVal[16], runVal[16], numcoeff;
-        int nC = predict_nnz(currMB, pl, 0 * 4, 0 * 4);
-        currMB->read_coeff_4x4_CAVLC(16, nC, levelVal, runVal, &numcoeff);
+        int nC = predict_nnz(this, pl, 0 * 4, 0 * 4);
+        this->read_coeff_4x4_CAVLC(16, nC, levelVal, runVal, &numcoeff);
 
         int coeffNum = -1;
         //for (int k = numcoeff - 1; k >= 0; k--) {
         for (int k = 0; k < numcoeff; ++k) {
             if (levelVal[k] != 0) {
                 coeffNum += runVal[k] + 1;
-                //coeffLevel[startIdx + coeffNum] = levelVal[k];
-                quantization.coeff_luma_dc(currMB, pl, 0, 0, coeffNum, levelVal[k]);
+                //coeffLevel[start_scan + coeffNum] = levelVal[k];
+                quantization.coeff_luma_dc(this, pl, 0, 0, coeffNum, levelVal[k]);
             }
         }
 
-        if (!currMB->TransformBypassModeFlag)
-            itrans_2(currMB, pl);
+        transform.inverse_luma_dc(this, pl);
     }
 
-    int start_scan = IS_I16MB(currMB) ? 1 : 0;
+    int start_scan = IS_I16MB(this) ? 1 : 0;
 
     for (int i8x8 = 0; i8x8 < 4; i8x8++) {
         for (int i4x4 = 0; i4x4 < 4; i4x4++) {
             int i = (i8x8 % 2) * 2 + (i4x4 % 2);
             int j = (i8x8 / 2) * 2 + (i4x4 / 2);
 
-            if (currMB->cbp & (1 << i8x8)) {
+            if (CodedBlockPatternLuma & (1 << i8x8)) {
+                //if (!this->transform_size_8x8_flag || !pps->entropy_coding_mode_flag)
+                    //if (IS_I16MB(this))
+                        // residual_block(i16x16AClevel[i8x8 * 4 + i4x4], max(0, startIdx - 1), endIdx - 1, 15);
+                    //else
+                        // residual_block(level4x4[i8x8 * 4 + i4x4], startIdx, endIdx, 16);
+                //else
+                    // residual_block(level8x8[i8x8], 4 * startIdx, 4 * endIdx + 3, 64);
+
                 int levelVal[16] = {0}, runVal[16] = {0}, numcoeff;
-                int nC = predict_nnz(currMB, pl, i * 4, j * 4);
-                currMB->read_coeff_4x4_CAVLC(16 - start_scan, nC, levelVal, runVal, &numcoeff);
-                currMB->nz_coeff[pl][j][i] = numcoeff;
+                int nC = predict_nnz(this, pl, i * 4, j * 4);
+                this->read_coeff_4x4_CAVLC(16 - start_scan, nC, levelVal, runVal, &numcoeff);
+                this->nz_coeff[pl][j][i] = numcoeff;
 
                 int coeffNum = start_scan - 1;
                 //for (int k = numcoeff - 1; k >= 0; k--) {
                 for (int k = 0; k < numcoeff; ++k) {
                     if (levelVal[k] != 0) {
                         coeffNum += runVal[k] + 1;
-                        int x0 = !currMB->transform_size_8x8_flag ? i : (i & ~1);
-                        int y0 = !currMB->transform_size_8x8_flag ? j : (j & ~1);
-                        int c0 = !currMB->transform_size_8x8_flag ? coeffNum : coeffNum * 4 + i4x4;
-                        quantization.coeff_luma_ac(currMB, pl, x0, y0, c0, levelVal[k]);
+                        int x0 = !this->transform_size_8x8_flag ? i : (i & ~1);
+                        int y0 = !this->transform_size_8x8_flag ? j : (j & ~1);
+                        int c0 = !this->transform_size_8x8_flag ? coeffNum : coeffNum * 4 + i4x4;
+                        quantization.coeff_luma_ac(this, pl, x0, y0, c0, levelVal[k]);
                     }
                 }
             } else
-                currMB->nz_coeff[pl][j][i] = 0;
+                this->nz_coeff[pl][j][i] = 0;
         }
     }
 }
 
-static void read_tc_chroma(mb_t *currMB)
+void macroblock_t::residual_chroma_cavlc()
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
+    slice_t* slice = this->p_Slice;
+    sps_t* sps = slice->active_sps;
+
     int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
 
-    if (currMB->cbp > 15) {
+    int CodedBlockPatternChroma = this->cbp / 16;
+
+    if (CodedBlockPatternChroma & 3) {
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
+            // residual_block(ChromaDCLevel[iCbCr], 0, 4 * NumC8x8 - 1, 4 * NumC8x8);
+
             int levelVal[16], runVal[16], numcoeff;
             int nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
-            currMB->read_coeff_4x4_CAVLC(NumC8x8 * 4, nC, levelVal, runVal, &numcoeff);
+            this->read_coeff_4x4_CAVLC(NumC8x8 * 4, nC, levelVal, runVal, &numcoeff);
 
             int coeffNum = -1;
             //for (int k = numcoeff - 1; k >= 0; k--) {
             for (int k = 0; k < numcoeff; ++k) {
                 if (levelVal[k] != 0) {
                     coeffNum += runVal[k] + 1;
-                    quantization.coeff_chroma_dc(currMB, (ColorPlane)(iCbCr+1), 0, 0, coeffNum, levelVal[k]);
+                    quantization.coeff_chroma_dc(this, (ColorPlane)(iCbCr+1), 0, 0, coeffNum, levelVal[k]);
                 }
             }
 
-            if (sps->ChromaArrayType == 1) {
-                int smb = (currSlice->slice_type == SP_SLICE && !currMB->is_intra_block) ||
-                          (currSlice->slice_type == SI_SLICE && currMB->mb_type == SI4MB);
-                if (!smb && !currMB->TransformBypassModeFlag)
-                    itrans_420(currMB, (ColorPlane)(iCbCr + 1));
-            }
-            if (sps->ChromaArrayType == 2) {
-                if (!currMB->TransformBypassModeFlag)
-                    itrans_422(currMB, (ColorPlane)(iCbCr + 1));
-            }
+            transform.inverse_chroma_dc(this, (ColorPlane)(iCbCr + 1));
         }
     }
 
@@ -443,58 +452,25 @@ static void read_tc_chroma(mb_t *currMB)
                 int i = (i4x4 % 2);
                 int j = (i4x4 / 2) + (i8x8 * 2);
 
-                if (currMB->cbp > 31) {
+                if (CodedBlockPatternChroma & 2) {
+                    // residual_block(ChromaACLevel[iCbCr][i8x8 * 4 + i4x4], max(0, startIdx - 1), endIdx - 1, 15);
+
                     int levelVal[16], runVal[16], numcoeff;
-                    int nC = predict_nnz(currMB, iCbCr + 1, i * 4, j * 4);
-                    currMB->read_coeff_4x4_CAVLC(15, nC, levelVal, runVal, &numcoeff);
-                    currMB->nz_coeff[iCbCr + 1][j][i] = numcoeff;
+                    int nC = predict_nnz(this, iCbCr + 1, i * 4, j * 4);
+                    this->read_coeff_4x4_CAVLC(15, nC, levelVal, runVal, &numcoeff);
+                    this->nz_coeff[iCbCr + 1][j][i] = numcoeff;
 
                     int coeffNum = 0;
                     //for (int k = numcoeff - 1; k >= 0; k--) {
                     for (int k = 0; k < numcoeff; ++k) {
                         if (levelVal[k] != 0) {
                             coeffNum += runVal[k] + 1;
-                            quantization.coeff_chroma_ac(currMB, (ColorPlane)(iCbCr+1), i, j, coeffNum, levelVal[k]);
+                            quantization.coeff_chroma_ac(this, (ColorPlane)(iCbCr+1), i, j, coeffNum, levelVal[k]);
                         }
                     }
                 } else
-                    currMB->nz_coeff[iCbCr + 1][j][i] = 0;
+                    this->nz_coeff[iCbCr + 1][j][i] = 0;
             }
-        }
-    }
-}
-
-
-void macroblock_t::read_CBP_and_coeffs_from_NAL_CAVLC()
-{
-    slice_t *slice = this->p_Slice;
-    sps_t *sps = slice->active_sps;
-
-    read_tc_luma(this, PLANE_Y);
-    if (sps->chroma_format_idc == YUV420 || sps->chroma_format_idc == YUV422)
-        read_tc_chroma(this);
-    if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag) {
-        read_tc_luma(this, PLANE_U);
-        read_tc_luma(this, PLANE_V);
-    }
-}
-
-void macroblock_t::residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
-                                        uint8_t maxNumCoeff, ColorPlane pl, int bx, int by)
-{
-    int levelVal[16], runVal[16], numcoeff;
-    int nC = predict_nnz(this, pl, bx * 4, by * 4);
-    //this->nz_coeff[pl][by][bx] = 0;
-    this->read_coeff_4x4_CAVLC(16, nC, levelVal, runVal, &numcoeff);
-    this->nz_coeff[pl][by][bx] = numcoeff;
-
-    int coeffNum = -1;
-//    for (int k = numcoeff - 1; k >= 0; k--) {
-    for (int k = 0; k < numcoeff; ++k) {
-        if (levelVal[k] != 0) {
-            coeffNum += runVal[k] + 1;
-            coeffLevel[startIdx + coeffNum] = levelVal[k];
-            quantization.coeff_luma_dc(this, pl, 0, 0, coeffNum, levelVal[k]);
         }
     }
 }

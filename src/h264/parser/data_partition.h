@@ -28,9 +28,8 @@
 #include "memalloc.h"
 
 
-namespace arrow {
-namespace video {
-namespace h264  {
+namespace vio  {
+namespace h264 {
 
 
 //! Data Partitioning Modes
@@ -158,7 +157,6 @@ struct data_partition_t {
 };
 
 
-}
 }
 }
 

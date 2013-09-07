@@ -73,5 +73,7 @@ struct quantization_t {
     int  inverse_quantize(macroblock_t* mb, bool uv, ColorPlane pl, int i0, int j0, int levarr);
 };
 
+extern quantization_t quantization;
+
 
 #endif /* _QUANTIZATION_H_ */

@@ -27,17 +27,19 @@ void Inv_Residual_trans_Chroma(macroblock_t* mb, int uv);
 void itrans4x4   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
 void itrans8x8   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
 void itrans16x16 (macroblock_t* mb, ColorPlane pl);
-void itrans_2    (macroblock_t* mb, ColorPlane pl);
-void itrans_420  (macroblock_t* mb, ColorPlane pl);
-void itrans_422  (macroblock_t* mb, ColorPlane pl);
 void iTransform  (macroblock_t* mb, ColorPlane pl, int smb);
 
 
 struct transform_t {
+	void inverse_luma_dc        (macroblock_t* mb, ColorPlane pl);
+	void inverse_chroma_dc      (macroblock_t* mb, ColorPlane pl);
+
 	void inverse_transform_4x4  (macroblock_t* mb);
 	void inverse_transform_8x8  (macroblock_t* mb);
 	void inverse_transform_16x16(macroblock_t* mb);
 };
+
+extern transform_t transform;
 
 
 #endif /* _TRANSFORM_H_ */

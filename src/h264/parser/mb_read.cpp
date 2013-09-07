@@ -1,3 +1,5 @@
+#include <functional>
+
 #include <math.h>
 
 #include "global.h"
@@ -20,7 +22,7 @@
 #define IS_DIRECT(MB)   ((MB)->mb_type==0     && (slice->slice_type == B_SLICE ))
 
 
-using arrow::video::h264::cabac_engine_t;
+using vio::h264::cabac_engine_t;
 
 
 // Table 7-11 mb_t types for I slices
@@ -948,18 +950,47 @@ void macroblock_t::update_qp(int qp)
         this->qp_scaled[i + 1] = this->qpc[i] + sps->QpBdOffsetC;
     }
 
-    this->TransformBypassModeFlag = (this->qp_scaled[0] == 0 && sps->qpprime_y_zero_transform_bypass_flag);
+    this->TransformBypassModeFlag = (sps->qpprime_y_zero_transform_bypass_flag && this->qp_scaled[0] == 0);
 }
 
 
 void macroblock_t::residual(uint8_t startIdx, uint8_t endIdx)
 {
-    pps_t *pps = this->p_Slice->active_pps;
+    slice_t* slice = this->p_Slice;
+    sps_t* sps = slice->active_sps;
+    pps_t* pps = slice->active_pps;
 
-    if (!pps->entropy_coding_mode_flag)
-        this->read_CBP_and_coeffs_from_NAL_CAVLC();
-    else
-        this->read_CBP_and_coeffs_from_NAL_CABAC();
+    auto residual_luma = !pps->entropy_coding_mode_flag ?
+        std::mem_fn(&macroblock_t::residual_luma_cavlc) :
+        std::mem_fn(&macroblock_t::residual_luma_cabac);
+    auto residual_chroma = !pps->entropy_coding_mode_flag ?
+        std::mem_fn(&macroblock_t::residual_chroma_cavlc) :
+        std::mem_fn(&macroblock_t::residual_chroma_cabac);
+
+    residual_luma(this, PLANE_Y);
+    //residual_luma(this, i16x16DClevel, i16x16AClevel, level4x4, level8x8, startIdx, endIdx);
+    //Intra16x16DCLevel = i16x16DClevel;
+    //Intra16x16ACLevel = i16x16AClevel;
+    //LumaLevel4x4 = level4x4;
+    //LumaLevel8x8 = level8x8;
+    if (sps->ChromaArrayType == 1 || sps->ChromaArrayType == 2)
+        residual_chroma(this);
+        //ChromaDCLevel = i16x16DClevel;
+        //ChromaACLevel = i16x16AClevel;
+    else if (sps->ChromaArrayType == 3) {
+        residual_luma(this, PLANE_U);
+        //residual_luma(this, i16x16DClevel, i16x16AClevel, level4x4, level8x8, startIdx, endIdx);
+        //CbIntra16x16DCLevel = i16x16DClevel;
+        //CbIntra16x16ACLevel = i16x16AClevel;
+        //CbLevel4x4 = level4x4;
+        //CbLevel8x8 = level8x8;
+        residual_luma(this, PLANE_V);
+        //residual_luma(this, i16x16DClevel, i16x16AClevel, level4x4, level8x8, startIdx, endIdx);
+        //CrIntra16x16DCLevel = i16x16DClevel;
+        //CrIntra16x16ACLevel = i16x16AClevel;
+        //CrLevel4x4 = level4x4;
+        //CrLevel8x8 = level8x8;
+    }
 }
 
 void macroblock_t::residual_luma(uint8_t i16x16DClevel, uint8_t i16x16AClevel,
