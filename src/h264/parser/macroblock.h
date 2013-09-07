@@ -184,7 +184,6 @@ struct macroblock_t {
     bool        TransformBypassModeFlag;
 
     uint8_t     nz_coeff[3][4][4];
-    //int         cof[3][16][16];
 
 
     short       mvd[2][BLOCK_MULTIPLE][BLOCK_MULTIPLE][2]; //!< indices correspond to [forw,backw][block_y][block_x][x,y]
@@ -237,25 +236,13 @@ struct macroblock_t {
     void        interpret_mb_mode();
     void        update_qp(int qp);
 
-    void        residual       (uint8_t startIdx, uint8_t endIdx);
-    void        residual_luma  (uint8_t i16x16DClevel, uint8_t i16x16AClevel,
-                                uint8_t level4x4, uint8_t level8x8,
-                                uint8_t startIdx, uint8_t endIdx);
-    void        residual_chroma(uint8_t i16x16DClevel, uint8_t i16x16AClevel,
-                                uint8_t level4x4, uint8_t level8x8,
-                                uint8_t startIdx, uint8_t endIdx);
-
-    void        residual_block      (int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
-                                     uint8_t maxNumCoeff);
-    void        residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
-                                     uint8_t maxNumCoeff, ColorPlane pl, int bx, int by);
-    void        residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx,
-                                     uint8_t maxNumCoeff, ColorPlane pl, int bx, int by);
-
-    void        residual_luma_cavlc  (ColorPlane pl);
-    void        residual_luma_cabac  (ColorPlane pl);
-    void        residual_chroma_cavlc();
-    void        residual_chroma_cabac();
+    void        residual       ();
+    void        residual_luma  (ColorPlane pl);
+    void        residual_chroma();
+    void        residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
+                                     ColorPlane pl, bool chroma, bool ac, int blkIdx);
+    void        residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
+                                     ColorPlane pl, bool chroma, bool ac, int blkIdx);
 
     uint8_t     parse_coeff_token(int nC);
     uint8_t     parse_total_zeros(int yuv, int tzVlcIndex);
