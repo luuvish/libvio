@@ -133,7 +133,6 @@ struct macroblock_t {
     int        qpc[2];                //!< QP chroma
     int        qp_scaled[MAX_PLANE];  //!< QP scaled for all comps.
     Boolean    is_intra_block;
-    Boolean    is_v_block;
     Boolean    DeblockCall;
 
     short      slice_nr;
