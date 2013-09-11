@@ -551,8 +551,8 @@ static const uint8_t *pos2ctx_last[22] = {
 
 static const uint8_t ctxBlockCat[2][4][14] = {
     {{  0,  0,  0,  0,  0, 44, 20, 20, 20, 44, 32, 32, 32, 44 },  // coded_block_flag
-     {  0,  0,  0,  0,  0, 75, 90, 90, 90,180,135,135,135,195 },  // significant_coeff_flag
-     {  0,  0,  0,  0,  0, 75, 90, 90, 90,180,135,135,135,195 },  // last_significant_coeff_flag
+     {  0,  0,  0,  0,  0, 61, 76, 76, 76,164,120,120,120,179 },  // significant_coeff_flag
+     {  0,  0,  0,  0,  0, 61, 76, 76, 76,164,120,120,120,179 },  // last_significant_coeff_flag
      {  0,  0,  0,  0,  0, 44, 20, 20, 20, 44, 32, 32, 32, 44 }}, // coeff_abs_level_minus1
     {{  0,  4,  8, 12, 16,  0,  0,  4,  8,  4,  0,  4,  8,  8 },  // coded_block_flag
      {  0, 15, 29, 44, 47,  0,  0, 15, 29,  0,  0, 15, 29,  0 },  // significant_coeff_flag
@@ -565,8 +565,12 @@ static const short type2ctx_bcbp[22] = {
     20, 24, 28, 48, 32, 36, 40, 52
 };
 static const short type2ctx_map[22] = {
-      0,  15,  30,  45,  60,  75,  45,
-     90, 105, 120, 180, 135, 150, 165, 195
+      0,  15-1,  29,  44,  47-1,  61,  44,
+     76,  91-1, 105, 164, 120, 135-1, 149, 179
+};
+static const short type2ctx_one[22] = {
+      0,  10,  20,  30,  40,  50,  30,
+     80,  90, 100,  60, 110, 120, 130,  70
 };
 
 // Table 9-42 Specification of ctxBlockCat for the different blocks
@@ -579,11 +583,6 @@ static const short c1isdc[22] = {
      1,  0,  1,  1,  0,  1,  1,
      1,  0,  1,  1,  1,  0,  1,  1
 };
-
-static const short type2ctx_one[22] = {
-     0,  1,  4,  5,  6,  2,  5,
-    10, 11, 14, 12, 16, 17, 20, 18
-}; // 7
 
 typedef enum {
     LUMA_16DC     =  0, // ctxBlockCat =  0
@@ -694,8 +693,8 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
         *(coeff++) = significant_coeff_flag;
     }
 
-    cabac_context_t* one_ctx = slice->mot_ctx->one_contexts[type2ctx_one[context]];
-    cabac_context_t* abs_ctx = slice->mot_ctx->abs_contexts[type2ctx_one[context]];
+    cabac_context_t* one_ctx = slice->mot_ctx->one_contexts + type2ctx_one[context];
+    cabac_context_t* abs_ctx = slice->mot_ctx->one_contexts + type2ctx_one[context] + 5;
     const short max_type = 4 - (chroma && !ac);
 
     ii = maxpos[context];
