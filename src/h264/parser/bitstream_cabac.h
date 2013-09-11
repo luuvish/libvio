@@ -54,9 +54,9 @@ struct cabac_context_t {
 #define NUM_MVD_CTX             7
 
 #define NUM_BLOCK_TYPES        22
-#define NUM_BCBP_CTX            4
-#define NUM_MAP_CTX            15
-#define NUM_LAST_CTX           15
+#define NUM_BCBP_CTX       (4*14)
+#define NUM_MAP_CTX       (15*14)
+#define NUM_LAST_CTX      (15*14)
 #define NUM_ONE_CTX             5
 #define NUM_ABS_CTX             5
 
@@ -76,9 +76,9 @@ struct cabac_contexts_t {
     cabac_context_t mvd_x_contexts            [NUM_MVD_CTX];
     cabac_context_t mvd_y_contexts            [NUM_MVD_CTX];
 
-    cabac_context_t bcbp_contexts             [NUM_BLOCK_TYPES][NUM_BCBP_CTX];
-    cabac_context_t map_contexts           [2][NUM_BLOCK_TYPES][NUM_MAP_CTX];
-    cabac_context_t last_contexts          [2][NUM_BLOCK_TYPES][NUM_LAST_CTX];
+    cabac_context_t bcbp_contexts             [NUM_BCBP_CTX];
+    cabac_context_t map_contexts           [2][NUM_MAP_CTX];
+    cabac_context_t last_contexts          [2][NUM_LAST_CTX];
     cabac_context_t one_contexts              [NUM_BLOCK_TYPES][NUM_ONE_CTX];
     cabac_context_t abs_contexts              [NUM_BLOCK_TYPES][NUM_ABS_CTX];
 

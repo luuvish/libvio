@@ -480,33 +480,6 @@ static void update_coded_block_flag(mb_t* mb, int pl, bool chroma, bool ac, int 
 }
 
 
-static const short maxpos[22] = {
-    15, 14, 15,  3, 14, 63,  7,
-    15, 14, 15, 63, 15, 14, 15, 63
-};
-static const short c1isdc[22] = {
-     1,  0,  1,  1,  0,  1,  1,
-     1,  0,  1,  1,  1,  0,  1,  1
-};
-static const short max_c2[22] = {
-     4,  4,  4,  3,  4,  4,  3,
-     4,  4,  4,  4,  4,  4,  4,  4
-}; // 9
-
-static const short type2ctx_bcbp[22] = {
-     0,  1,  4,  5,  6,  2,  5,
-    10, 11, 14, 12, 16, 17, 20, 18
-};
-
-static const short type2ctx_map[22] = {
-     0,  1,  5,  6,  7,  2,  6,
-    10, 11, 15, 12, 16, 17, 21, 18
-}; // 8
-static const short type2ctx_one[22] = {
-     0,  1,  4,  5,  6,  2,  5,
-    10, 11, 14, 12, 16, 17, 20, 18
-}; // 7
-
 
 // Table 9-43 Mapping of scanning position to ctxIdxInc for ctxBlockCat == 5, 9, or 13
 
@@ -573,6 +546,45 @@ static const uint8_t *pos2ctx_last[22] = {
     pos2ctx_last4x4,  pos2ctx_last8x8
 };
 
+// Table 9-40 Assignment of ctxIdxBlockCatOffset to ctxBlockCat for syntax elements coded_block_flag,
+//            significant_coeff_flag, last_significant_coeff_flag, and coeff_abs_level_minus1
+
+static const uint8_t ctxBlockCat[2][4][14] = {
+    {{  0,  0,  0,  0,  0, 44, 20, 20, 20, 44, 32, 32, 32, 44 },  // coded_block_flag
+     {  0,  0,  0,  0,  0, 75, 90, 90, 90,180,135,135,135,195 },  // significant_coeff_flag
+     {  0,  0,  0,  0,  0, 75, 90, 90, 90,180,135,135,135,195 },  // last_significant_coeff_flag
+     {  0,  0,  0,  0,  0, 44, 20, 20, 20, 44, 32, 32, 32, 44 }}, // coeff_abs_level_minus1
+    {{  0,  4,  8, 12, 16,  0,  0,  4,  8,  4,  0,  4,  8,  8 },  // coded_block_flag
+     {  0, 15, 29, 44, 47,  0,  0, 15, 29,  0,  0, 15, 29,  0 },  // significant_coeff_flag
+     {  0, 15, 29, 44, 47,  0,  0, 15, 29,  0,  0, 15, 29,  0 },  // last_significant_coeff_flag
+     {  0, 10, 20, 30, 39,  0,  0, 10, 20,  0,  0, 10, 20,  0 }}  // coeff_abs_level_minus1
+};
+
+static const short type2ctx_bcbp[22] = {
+     0,  4,  8, 12, 16, 44, 12,
+    20, 24, 28, 48, 32, 36, 40, 52
+};
+static const short type2ctx_map[22] = {
+      0,  15,  30,  45,  60,  75,  45,
+     90, 105, 120, 180, 135, 150, 165, 195
+};
+
+// Table 9-42 Specification of ctxBlockCat for the different blocks
+
+static const short maxpos[22] = {
+    15, 14, 15,  3, 14, 63,  7,
+    15, 14, 15, 63, 15, 14, 15, 63
+};
+static const short c1isdc[22] = {
+     1,  0,  1,  1,  0,  1,  1,
+     1,  0,  1,  1,  1,  0,  1,  1
+};
+
+static const short type2ctx_one[22] = {
+     0,  1,  4,  5,  6,  2,  5,
+    10, 11, 14, 12, 16, 17, 20, 18
+}; // 7
+
 typedef enum {
     LUMA_16DC     =  0, // ctxBlockCat =  0
     LUMA_16AC     =  1, // ctxBlockCat =  1
@@ -621,21 +633,6 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
 
     data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
 
-    int i = chroma ? blkIdx % 2 : ((blkIdx / 4) % 2) * 2 + (blkIdx % 4) % 2;
-    int j = chroma ? blkIdx / 2 : ((blkIdx / 4) / 2) * 2 + (blkIdx % 4) / 2;
-
-    int start_scan = 0;
-    if (!chroma && ac)
-        start_scan = IS_I16MB(this) ? 1 : 0;
-
-    int coef_ctr = -1;
-    if (!chroma && ac)
-        coef_ctr = start_scan - 1;
-    if (chroma && ac)
-        coef_ctr = 0;
-    int level = 1;
-    int runVal[64], levelVal[64], runIdx = 0;
-
     int context;
     if (!chroma) {
         if (!ac)
@@ -655,20 +652,9 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
             context = CHROMA_AC;
     }
 
-    bool field = slice->field_pic_flag || this->mb_field_decoding_flag;
-    const byte *pos2ctx_Map  = pos2ctx_map [field][context];
-    const byte *pos2ctx_Last = pos2ctx_last[context];
-    cabac_context_t *map_ctx  = slice->mot_ctx->map_contexts [field][type2ctx_map[context]];
-    cabac_context_t *last_ctx = slice->mot_ctx->last_contexts[field][type2ctx_map[context]];
-    cabac_context_t *one_ctx = slice->mot_ctx->one_contexts[type2ctx_one[context]];
-    cabac_context_t *abs_ctx = slice->mot_ctx->abs_contexts[type2ctx_one[context]];
-    const short max_type = max_c2[context];
-
-    int coeff_val[64];
-
     int coded_block_flag = 1; // always one for 8x8 mode
     if (sps->chroma_format_idc == YUV444 || context != LUMA_8x8) {
-        cabac_context_t* ctx = slice->mot_ctx->bcbp_contexts[type2ctx_bcbp[context]];
+        cabac_context_t* ctx = slice->mot_ctx->bcbp_contexts + type2ctx_bcbp[context];
         int ctxIdxInc = coded_block_flag_ctxIdxInc(this, pl, chroma, ac, blkIdx);
 
         coded_block_flag = dp->de_cabac.decode_decision(ctx + ctxIdxInc);
@@ -676,94 +662,81 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
     if (coded_block_flag)
         update_coded_block_flag(this, pl, chroma, ac, blkIdx);
 
-    if (coded_block_flag) {
-        int i;
-        int *coeff = coeff_val;
-        int i0     = 0;
-        int i1     = maxpos[context];
-        coded_block_flag = 0;
+    if (!coded_block_flag)
+        return;
 
-        if (!c1isdc[context]) {
-            ++i0;
-            ++i1;
-        }
+    bool field = slice->field_pic_flag || this->mb_field_decoding_flag;
+    const uint8_t* pos2ctx_Map  = pos2ctx_map [field][context];
+    const uint8_t* pos2ctx_Last = pos2ctx_last[context];
+    cabac_context_t* map_ctx  = slice->mot_ctx->map_contexts [field] + type2ctx_map[context];
+    cabac_context_t* last_ctx = slice->mot_ctx->last_contexts[field] + type2ctx_map[context];
 
-        for (i = i0; i < i1; ++i) {
-            bool significant_coeff_flag = dp->de_cabac.decode_decision(map_ctx + pos2ctx_Map[i]);
-            *(coeff++) = significant_coeff_flag;
-            coded_block_flag += significant_coeff_flag;
-            if (significant_coeff_flag) {
-                bool last_significant_coeff_flag = dp->de_cabac.decode_decision(last_ctx + pos2ctx_Last[i]);
-                if (last_significant_coeff_flag) {
-                    memset(coeff, 0, (i1 - i) * sizeof(int));
-                    i = i1 + 1;
-                    break;
-                }
+    int coeff_val[64];
+    int* coeff = coeff_val;
+    int i0 = !c1isdc[context];
+    int i1 = !c1isdc[context] + maxpos[context];
+    int ii;
+
+    for (ii = i0; ii < i1; ++ii) {
+        bool significant_coeff_flag = dp->de_cabac.decode_decision(map_ctx + pos2ctx_Map[ii]);
+        *(coeff++) = significant_coeff_flag;
+        if (significant_coeff_flag) {
+            bool last_significant_coeff_flag = dp->de_cabac.decode_decision(last_ctx + pos2ctx_Last[ii]);
+            if (last_significant_coeff_flag) {
+                memset(coeff, 0, (i1 - ii) * sizeof(int));
+                ii = i1 + 1;
+                break;
             }
-        }
-        if (i <= i1) {
-            bool significant_coeff_flag = 1;
-            *(coeff++) = significant_coeff_flag;
-            coded_block_flag += significant_coeff_flag;
-        }
-
-        i = maxpos[context];
-        int *cof = coeff_val + i;
-        int c1 = 1;
-        int c2 = 0;
-
-        for (; i >= 0; i--) {
-            if (*cof) {
-                if (dp->de_cabac.decode_decision(one_ctx + c1)) {
-                    *cof += unary_exp_golomb_level_decode(&dp->de_cabac, abs_ctx + c2) + 1;
-                    c2 = min<int>(++c2, max_type);
-                    c1 = 0;
-                } else if (c1)
-                    c1 = min<int>(++c1, 4);
-
-                if (dp->de_cabac.decode_bypass())
-                    *cof = - *cof;
-            }
-            cof--;
         }
     }
-
-    runIdx = 0;
-    int coeff_pos = 0;
-    while (coded_block_flag >= 0) {
-        runVal  [runIdx] = 0;
-        levelVal[runIdx] = 0;
-        if (coded_block_flag) {
-            while (coeff_val[coeff_pos] == 0) {
-                ++coeff_pos;
-                ++runVal[runIdx];
-            }
-            levelVal[runIdx] = coeff_val[coeff_pos++];
-            runIdx++;
-        }
-        --coded_block_flag;
+    if (ii <= i1) {
+        bool significant_coeff_flag = 1;
+        *(coeff++) = significant_coeff_flag;
     }
 
-    runIdx = 0;
-    for (int k = start_scan; k < maxNumCoeff + 1 && level != 0; ++k) {
-        level = levelVal[runIdx];
-        if (level != 0) {
-            coef_ctr += runVal[runIdx] + 1;
+    cabac_context_t* one_ctx = slice->mot_ctx->one_contexts[type2ctx_one[context]];
+    cabac_context_t* abs_ctx = slice->mot_ctx->abs_contexts[type2ctx_one[context]];
+    const short max_type = 4 - (chroma && !ac);
+
+    ii = maxpos[context];
+    int* cof = coeff_val + ii;
+    int c1 = 1;
+    int c2 = 0;
+
+    int coef_ctr = (chroma || IS_I16MB(this)) && ac ? 1 : 0;
+
+    int i = chroma ? blkIdx % 2 : ((blkIdx / 4) % 2) * 2 + (blkIdx % 4) % 2;
+    int j = chroma ? blkIdx / 2 : ((blkIdx / 4) / 2) * 2 + (blkIdx % 4) / 2;
+
+    for (; ii >= 0; ii--) {
+        if (*cof) {
+            if (dp->de_cabac.decode_decision(one_ctx + c1))
+                *cof += unary_exp_golomb_level_decode(&dp->de_cabac, abs_ctx + c2) + 1;
+
+            if (*cof > 1) {
+                c2 = min<int>(++c2, max_type);
+                c1 = 0;
+            } else if (c1)
+                c1 = min<int>(++c1, 4);
+
+            if (dp->de_cabac.decode_bypass())
+                *cof = - *cof;
+
             if (!ac)
-                assert(coef_ctr < maxNumCoeff);
+                assert(coef_ctr + ii < maxNumCoeff);
             if (!chroma) {
                 if (!ac)
-                    quantization.coeff_luma_dc(this, pl, i, j, coef_ctr, level);
+                    quantization.coeff_luma_dc(this, pl, i, j, coef_ctr + ii, *cof);
                 else
-                    quantization.coeff_luma_ac(this, pl, i, j, coef_ctr, level);
+                    quantization.coeff_luma_ac(this, pl, i, j, coef_ctr + ii, *cof);
             } else {
                 if (!ac)
-                    quantization.coeff_chroma_dc(this, pl, i, j, coef_ctr, level);
+                    quantization.coeff_chroma_dc(this, pl, i, j, coef_ctr + ii, *cof);
                 else
-                    quantization.coeff_chroma_ac(this, pl, i, j, coef_ctr, level);
+                    quantization.coeff_chroma_ac(this, pl, i, j, coef_ctr + ii, *cof);
             }
         }
-        runIdx++;
+        cof--;
     }
 }
 
