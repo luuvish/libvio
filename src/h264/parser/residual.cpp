@@ -12,6 +12,8 @@
 
 using vio::h264::cabac_context_t;
 using vio::h264::cabac_engine_t;
+using vio::h264::transform_t;
+using vio::h264::transform;
 
 
 #define IS_I16MB(MB) ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
@@ -368,18 +370,18 @@ void macroblock_t::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, u
             //coeffLevel[start_scan + coeffNum] = levelVal[k];
             if (!chroma) {
                 if (!ac)
-                    quantization.coeff_luma_dc(this, pl, i, j, coeffNum, levelVal[k]);
+                    slice->quantization.coeff_luma_dc(this, pl, i, j, coeffNum, levelVal[k]);
                 else {
                     int x0 = !this->transform_size_8x8_flag ? i : (i & ~1);
                     int y0 = !this->transform_size_8x8_flag ? j : (j & ~1);
                     int c0 = !this->transform_size_8x8_flag ? coeffNum : coeffNum * 4 + (blkIdx % 4);
-                    quantization.coeff_luma_ac(this, pl, x0, y0, c0, levelVal[k]);
+                    slice->quantization.coeff_luma_ac(this, pl, x0, y0, c0, levelVal[k]);
                 }
             } else {
                 if (!ac)
-                    quantization.coeff_chroma_dc(this, pl, i, j, coeffNum, levelVal[k]);
+                    slice->quantization.coeff_chroma_dc(this, pl, i, j, coeffNum, levelVal[k]);
                 else
-                    quantization.coeff_chroma_ac(this, pl, i, j, coeffNum, levelVal[k]);
+                    slice->quantization.coeff_chroma_ac(this, pl, i, j, coeffNum, levelVal[k]);
             }
         }
     }
@@ -694,14 +696,14 @@ void macroblock_t::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, u
             //    assert(startIdx + ii < numCoeff);
             if (!chroma) {
                 if (!ac)
-                    quantization.coeff_luma_dc(this, pl, i, j, ii, *coeff);
+                    slice->quantization.coeff_luma_dc(this, pl, i, j, ii, *coeff);
                 else
-                    quantization.coeff_luma_ac(this, pl, i, j, ii, *coeff);
+                    slice->quantization.coeff_luma_ac(this, pl, i, j, ii, *coeff);
             } else {
                 if (!ac)
-                    quantization.coeff_chroma_dc(this, pl, i, j, ii, *coeff);
+                    slice->quantization.coeff_chroma_dc(this, pl, i, j, ii, *coeff);
                 else
-                    quantization.coeff_chroma_ac(this, pl, i, j, ii, *coeff);
+                    slice->quantization.coeff_chroma_ac(this, pl, i, j, ii, *coeff);
             }
         }
         coeff--;

@@ -110,7 +110,7 @@ typedef struct cbp_s {
     int64_t bits;
 } CBPStructure;
 
-//! mb_t
+
 struct macroblock_t {
     slice_t*   p_Slice;                    //!< pointer to the current slice
     video_par* p_Vid;                      //!< pointer to VideoParameters
@@ -191,7 +191,6 @@ struct macroblock_t {
 
     char        b8mode[4];
     char        b8pdir[4];
-    char        ipmode_DPCM;
 
 
     short       DFDisableIdc;

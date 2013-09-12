@@ -20,6 +20,7 @@
 #define IS_DIRECT(MB)   ((MB)->mb_type==0     && (slice->slice_type == B_SLICE ))
 
 
+using namespace vio::h264;
 using vio::h264::cabac_engine_t;
 
 
@@ -618,8 +619,8 @@ void macroblock_t::parse_ipred_modes()
     if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
         this->intra_chroma_pred_mode = parse_intra_chroma_pred_mode(this);
 
-        assert(this->intra_chroma_pred_mode >= Intra_Chroma_DC ||
-               this->intra_chroma_pred_mode <= Intra_Chroma_Plane);
+        assert(this->intra_chroma_pred_mode >= intra_prediction_t::Intra_Chroma_DC ||
+               this->intra_chroma_pred_mode <= intra_prediction_t::Intra_Chroma_Plane);
     }
 }
 
@@ -655,8 +656,8 @@ void macroblock_t::parse_ipred_4x4_modes()
         bool dcPredModePredictedFlag = !left_block.available || !top_block.available;
 
         int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
-        uint8_t intraMxMPredModeA = Intra_4x4_DC;
-        uint8_t intraMxMPredModeB = Intra_4x4_DC;
+        uint8_t intraMxMPredModeA = intra_prediction_t::Intra_4x4_DC;
+        uint8_t intraMxMPredModeB = intra_prediction_t::Intra_4x4_DC;
         if (!dcPredModePredictedFlag) {
             uint8_t left_mb_type = slice->p_Vid->mb_data[left_block.mb_addr].mb_type;
             uint8_t top_mb_type  = slice->p_Vid->mb_data[top_block.mb_addr ].mb_type;
@@ -710,8 +711,8 @@ void macroblock_t::parse_ipred_8x8_modes()
         bool dcPredModePredictedFlag = !left_block.available || !top_block.available;
 
         int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
-        uint8_t intraMxMPredModeA = Intra_8x8_DC;
-        uint8_t intraMxMPredModeB = Intra_8x8_DC;
+        uint8_t intraMxMPredModeA = intra_prediction_t::Intra_8x8_DC;
+        uint8_t intraMxMPredModeB = intra_prediction_t::Intra_8x8_DC;
         if (!dcPredModePredictedFlag) {
             uint8_t left_mb_type = slice->p_Vid->mb_data[left_block.mb_addr].mb_type;
             uint8_t top_mb_type  = slice->p_Vid->mb_data[top_block.mb_addr ].mb_type;

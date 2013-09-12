@@ -151,7 +151,7 @@ static int parse_idr(slice_t *currSlice)
         currSlice->p_Dpb = p_Vid->p_Dpb_layer[currSlice->view_id];
 #endif
 
-    assign_quant_params (currSlice);        
+    currSlice->quantization.assign_quant_params (currSlice);        
 
     // if primary slice is replaced with redundant slice, set the correct image type
     if (currSlice->redundant_pic_cnt && p_Vid->Is_primary_correct == 0 && p_Vid->Is_redundant_correct)
@@ -217,7 +217,7 @@ static int parse_dpa(slice_t *currSlice)
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[currSlice->view_id];
 #endif
 
-    assign_quant_params (currSlice);        
+    currSlice->quantization.assign_quant_params (currSlice);        
 
 
     if (is_new_picture(p_Vid->dec_picture, currSlice, p_Vid->old_slice)) {

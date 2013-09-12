@@ -11,6 +11,8 @@
 #define NO_INTRA_PMODE  9
 
 
+using namespace vio::h264;
+
 intra_prediction_t intra_prediction;
 
 //! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
@@ -26,7 +28,7 @@ static void mb_pred_skip(mb_t *currMB, ColorPlane curr_plane)
 
     perform_mc(currMB, curr_plane, dec_picture, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
-    iTransform(currMB, curr_plane, currSlice->slice_type == SP_slice);
+    transform.inverse_transform_inter(currMB, curr_plane, currSlice->slice_type == SP_slice);
 }
 
 static void mb_pred_p_inter(mb_t *currMB, ColorPlane curr_plane)
@@ -53,7 +55,7 @@ static void mb_pred_p_inter(mb_t *currMB, ColorPlane curr_plane)
         }
     }
 
-    iTransform(currMB, curr_plane, currSlice->slice_type == SP_slice);
+    transform.inverse_transform_inter(currMB, curr_plane, currSlice->slice_type == SP_slice);
     if (currMB->cbp != 0)
         currSlice->is_reset_coeff = FALSE;
 }
@@ -101,7 +103,7 @@ static void mb_pred_b_direct(mb_t *currMB, ColorPlane curr_plane)
         }
     }
 
-    iTransform(currMB, curr_plane, currSlice->slice_type == SP_slice); 
+    transform.inverse_transform_inter(currMB, curr_plane, currSlice->slice_type == SP_slice); 
     if (currMB->cbp != 0)
         currSlice->is_reset_coeff = FALSE;
 }
@@ -144,7 +146,7 @@ static void mb_pred_b_inter8x8(mb_t *currMB, ColorPlane curr_plane)
         }
     }
 
-    iTransform(currMB, curr_plane, currSlice->slice_type == SP_slice);
+    transform.inverse_transform_inter(currMB, curr_plane, currSlice->slice_type == SP_slice);
     if (currMB->cbp != 0)
         currSlice->is_reset_coeff = FALSE;
 }
@@ -192,8 +194,6 @@ static void mb_pred_intra(mb_t *currMB, ColorPlane curr_plane)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    StorablePicture *dec_picture = currSlice->dec_picture;
-    imgpel **currImg = curr_plane == PLANE_Y ? dec_picture->imgY : dec_picture->imgUV[curr_plane-1];
 
     int blockoffset = currMB->mb_type == I4MB ? 1
                     : currMB->mb_type == I8MB ? 4 : 16;
@@ -209,28 +209,12 @@ static void mb_pred_intra(mb_t *currMB, ColorPlane curr_plane)
         else if (currMB->mb_type == I16MB)
             intra_prediction.intra_pred_16x16(currMB, curr_plane, ioff, joff);
 
-        if (currMB->TransformBypassModeFlag) {
-            if (currMB->mb_type == I4MB)
-                Inv_Residual_trans_4x4(currMB, curr_plane, ioff, joff);
-            else if (currMB->mb_type == I8MB)
-                Inv_Residual_trans_8x8(currMB, curr_plane, ioff, joff);
-            else if (currMB->mb_type == I16MB)
-                Inv_Residual_trans_16x16(currMB, curr_plane, ioff, joff);
-        } else {
-            if (currMB->mb_type == I4MB)
-                itrans4x4(currMB, curr_plane, ioff, joff);
-            else if (currMB->mb_type == I8MB)
-                itrans8x8(currMB, curr_plane, ioff, joff);
-            else if (currMB->mb_type == I16MB)
-                itrans16x16(currMB, curr_plane);
-        }
-
         if (currMB->mb_type == I4MB)
-            copy_image_data_4x4(&currImg[currMB->pix_y + joff], &currSlice->mb_rec[curr_plane][joff], currMB->pix_x + ioff, ioff);
+            transform.inverse_transform_4x4(currMB, curr_plane, ioff, joff);
         else if (currMB->mb_type == I8MB)
-            copy_image_data_8x8(&currImg[currMB->pix_y + joff], &currSlice->mb_rec[curr_plane][joff], currMB->pix_x + ioff, ioff);
+            transform.inverse_transform_8x8(currMB, curr_plane, ioff, joff);
         else if (currMB->mb_type == I16MB)
-            copy_image_data_16x16(&currImg[currMB->pix_y + joff], &currSlice->mb_rec[curr_plane][joff], currMB->pix_x + ioff, ioff);
+            transform.inverse_transform_16x16(currMB, curr_plane, ioff, joff);
     }
 
     if (currMB->mb_type == I16MB || currMB->cbp != 0)
@@ -239,22 +223,8 @@ static void mb_pred_intra(mb_t *currMB, ColorPlane curr_plane)
     if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
         intra_prediction.intra_pred_chroma(currMB);
 
-        for (int uv = 0; uv < 2; uv++) {
-            imgpel **curUV = dec_picture->imgUV[uv];
-
-            if (currMB->TransformBypassModeFlag)
-                Inv_Residual_trans_Chroma(currMB, uv);
-            else {
-                for (int joff = 0; joff < sps->MbHeightC; joff += 4) {
-                    for (int ioff = 0; ioff < sps->MbWidthC; ioff += 4)
-                        itrans4x4(currMB, (ColorPlane)(uv + 1), ioff, joff);
-                }
-            }
-            for (int joff = 0; joff < sps->MbHeightC; joff += 4) {
-                for (int ioff = 0; ioff < sps->MbWidthC; ioff += 4)
-                    copy_image_data_4x4(&curUV[currMB->pix_c_y + joff], &(currSlice->mb_rec[uv + 1][joff]), currMB->pix_c_x + ioff, ioff);
-            }
-        }
+        for (int uv = 0; uv < 2; uv++)
+            transform.inverse_transform_chroma(currMB, (ColorPlane)(uv + 1));
         if (currMB->cbp >> 4)
             currSlice->is_reset_coeff_cr = FALSE;
     }
@@ -341,8 +311,6 @@ static void decode_one_component(mb_t *currMB, ColorPlane curr_plane)
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
     VideoParameters *p_Vid = currSlice->p_Vid;
-
-    currMB->ipmode_DPCM = NO_INTRA_PMODE; 
 
     if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag) {
         if (!currMB->is_intra_block) {

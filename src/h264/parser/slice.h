@@ -5,6 +5,9 @@
 #include "global.h"
 #include "parset.h"
 
+#include "quantization.h"
+
+
 #define MAX_NUM_REF_IDX 32
 
 namespace vio { namespace h264 {
@@ -13,6 +16,7 @@ struct cabac_contexts_t;
 struct macroblock_t;
 
 using vio::h264::cabac_contexts_t;
+using vio::h264::quantization_t;
 
 
 enum {
@@ -205,13 +209,8 @@ typedef struct slice_t {
     imgpel                  **tmp_block_l2; // InterPrediction()
     imgpel                  **tmp_block_l3; // InterPrediction()
 
-    // Scaling matrix info
-    int                       InvLevelScale4x4_Intra[3][6][4][4];
-    int                       InvLevelScale4x4_Inter[3][6][4][4];
-    int                       InvLevelScale8x8_Intra[3][6][8][8];
-    int                       InvLevelScale8x8_Inter[3][6][8][8];
 
-    int                      *qmatrix[12];
+    quantization_t            quantization;
 
 
 #if (MVC_EXTENSION_ENABLE)

@@ -1,9 +1,36 @@
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : intra_prediction.cpp
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
+
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
 #include "intra_prediction.h"
 #include "neighbour.h"
 #include "image.h"
+
+
+namespace vio  {
+namespace h264 {
 
 
 static inline int InverseRasterScan(int index, int dx, int dy, int width, int xy)
@@ -868,76 +895,61 @@ static void intrapred_chroma_plane(imgpel *pred[2], imgpel pix[2][17*17], bool *
 #undef predCb
 #undef predCr
 
-/*!
- ***********************************************************************
- * \brief
- *    makes and returns 4x4 intra prediction blocks 
- *
- * \return
- *    DECODING_OK   decoding of intra prediction mode was successful            \n
- *    SEARCH_SYNC   search next sync element as errors while decoding occured
- ***********************************************************************
- */
-void intra_prediction_t::intra_pred_4x4(mb_t *currMB, ColorPlane pl, int ioff, int joff)
-{
-    int block_pos[4][4] = {
-        {  0,  1,  4,  5 },
-        {  2,  3,  6,  7 },
-        {  8,  9, 12, 13 },
-        { 10, 11, 14, 15 }
-    };
-    uint8_t predmode = currMB->Intra4x4PredMode[block_pos[joff/4][ioff/4]];
-    currMB->ipmode_DPCM = predmode; //For residual DPCM
 
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
+void intra_prediction_t::intra_pred_4x4(mb_t* mb, ColorPlane pl, int ioff, int joff)
+{
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
     int BitDepth = pl ? sps->BitDepthC : sps->BitDepthY;
-    imgpel *pred = &currSlice->mb_pred[pl][joff][ioff];
+    imgpel* pred = &slice->mb_pred[pl][joff][ioff];
     imgpel pix[9 * 9];
     bool available[4];
-    neighbouring_samples_4x4(pix, available, currMB, pl, ioff, joff);
+    neighbouring_samples_4x4(pix, available, mb, pl, ioff, joff);
 
-    switch (predmode) {
+    int i4x4 = ((joff/4) / 2) * 8  + ((joff/4) % 2) * 2 + ((ioff/4) / 2) * 4 + ((ioff/4) % 2);
+    uint8_t pred_mode = mb->Intra4x4PredMode[i4x4];
+
+    switch (pred_mode) {
     case Intra_4x4_Vertical:
         if (!available[1])
-            printf ("warning: Intra_4x4_Vertical prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_4x4_Vertical prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_4x4_Horizontal:
         if (!available[0])
-            printf ("warning: Intra_4x4_Horizontal prediction mode not allowed at mb %d\n",(int) currSlice->current_mb_nr);
+            printf ("warning: Intra_4x4_Horizontal prediction mode not allowed at mb %d\n",(int) slice->current_mb_nr);
         break;
     case Intra_4x4_DC:
         break;
     case Intra_4x4_Diagonal_Down_Left:
         if (!available[1])
-            printf ("warning: Intra_4x4_Diagonal_Down_Left prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_4x4_Diagonal_Down_Left prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_4x4_Diagonal_Down_Right:
         if (!available[3])
-            printf ("warning: Intra_4x4_Diagonal_Down_Right prediction mode not allowed at mb %d\n",(int) currSlice->current_mb_nr);
+            printf ("warning: Intra_4x4_Diagonal_Down_Right prediction mode not allowed at mb %d\n",(int) slice->current_mb_nr);
         break;
     case Intra_4x4_Vertical_Right:
         if (!available[3])
-            printf ("warning: Intra_4x4_Vertical_Right prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_4x4_Vertical_Right prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_4x4_Horizontal_Down:  
         if (!available[3])
-            printf ("warning: Intra_4x4_Horizontal_Down prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_4x4_Horizontal_Down prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_4x4_Vertical_Left:
         if (!available[1])
-            printf ("warning: Intra_4x4_Vertical_Left prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_4x4_Vertical_Left prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_4x4_Horizontal_Up:
         if (!available[0])
-            printf ("warning: Intra_4x4_Horizontal_Up prediction mode not allowed at mb %d\n",(int) currSlice->current_mb_nr);
+            printf ("warning: Intra_4x4_Horizontal_Up prediction mode not allowed at mb %d\n",(int) slice->current_mb_nr);
         break;
     default:
-        printf("Error: illegal intra_4x4 prediction mode: %d\n", (int) predmode);
+        printf("Error: illegal intra_4x4 prediction mode: %d\n", (int) pred_mode);
         break;
     }
 
-    switch (predmode) {
+    switch (pred_mode) {
     case Intra_4x4_Vertical:
         intra4x4_vert_pred_normal(pred, pix, available);
         break;
@@ -968,74 +980,60 @@ void intra_prediction_t::intra_pred_4x4(mb_t *currMB, ColorPlane pl, int ioff, i
     }
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Make intra 8x8 prediction according to all 9 prediction modes.
- *    The routine uses left and upper neighbouring points from
- *    previous coded blocks to do this (if available). Notice that
- *    inaccessible neighbouring points are signalled with a negative
- *    value in the predmode array .
- *
- *  \par Input:
- *     Starting point of current 8x8 block image position
- *
- ************************************************************************
- */
-void intra_prediction_t::intra_pred_8x8(mb_t *currMB, ColorPlane pl, int ioff, int joff)
+void intra_prediction_t::intra_pred_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
-    uint8_t predmode = currMB->Intra8x8PredMode[joff/8 * 2 + ioff/8];
-    currMB->ipmode_DPCM = predmode;  //For residual DPCM
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
 
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
     int BitDepth = pl ? sps->BitDepthC : sps->BitDepthY;
-    imgpel *pred = &currSlice->mb_pred[pl][joff][ioff];
+    imgpel* pred = &slice->mb_pred[pl][joff][ioff];
     imgpel pix[17 * 17];
     bool available[4];
-    neighbouring_samples_8x8(pix, available, currMB, pl, ioff, joff);
+    neighbouring_samples_8x8(pix, available, mb, pl, ioff, joff);
 
-    switch (predmode) {
+    uint8_t pred_mode = mb->Intra8x8PredMode[joff/8 * 2 + ioff/8];
+
+    switch (pred_mode) {
     case Intra_8x8_Vertical:
         if (!available[1])
-            printf ("warning: Intra_8x8_Vertical prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_8x8_Vertical prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_8x8_Horizontal:
         if (!available[0])
-            printf ("warning: Intra_8x8_Horizontal prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_8x8_Horizontal prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_8x8_DC:
         break;
     case Intra_8x8_Diagonal_Down_Left:
         if (!available[1])
-            printf ("warning: Intra_8x8_Diagonal_Down_Left prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_8x8_Diagonal_Down_Left prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_8x8_Diagonal_Down_Right:
         if (!available[3])
-            printf ("warning: Intra_8x8_Diagonal_Down_Right prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_8x8_Diagonal_Down_Right prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_8x8_Vertical_Right:
         if (!available[3])
-            printf ("warning: Intra_8x8_Vertical_Right prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_8x8_Vertical_Right prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_8x8_Horizontal_Down:  
         if (!available[3])
-            printf ("warning: Intra_8x8_Horizontal_Down prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_8x8_Horizontal_Down prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_8x8_Vertical_Left:
         if (!available[1])
-            printf ("warning: Intra_4x4_Vertical_Left prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_4x4_Vertical_Left prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     case Intra_8x8_Horizontal_Up:
         if (!available[0])
-            printf ("warning: Intra_8x8_Horizontal_Up prediction mode not allowed at mb %d\n", (int) currSlice->current_mb_nr);
+            printf ("warning: Intra_8x8_Horizontal_Up prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
         break;
     default:
-        printf("Error: illegal intra_8x8 prediction mode: %d\n", (int) predmode);
+        printf("Error: illegal intra_8x8 prediction mode: %d\n", (int) pred_mode);
         break;
     }
 
-    switch (predmode) {
+    switch (pred_mode) {
     case Intra_8x8_Vertical:
         intra8x8_vert_pred(pred, pix, available);
         break;
@@ -1066,29 +1064,18 @@ void intra_prediction_t::intra_pred_8x8(mb_t *currMB, ColorPlane pl, int ioff, i
     }
 }
 
-/*!
- ***********************************************************************
- * \brief
- *    makes and returns 16x16 intra prediction blocks 
- *
- * \return
- *    DECODING_OK   decoding of intra prediction mode was successful            \n
- *    SEARCH_SYNC   search next sync element as errors while decoding occured
- ***********************************************************************
- */
-void intra_prediction_t::intra_pred_16x16(mb_t *currMB, ColorPlane pl, int ioff, int joff)
+void intra_prediction_t::intra_pred_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
-    currMB->ipmode_DPCM = currMB->Intra16x16PredMode;
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
 
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
     int BitDepth = pl ? sps->BitDepthC : sps->BitDepthY;
-    imgpel *pred = &currSlice->mb_pred[pl][0][0];
+    imgpel* pred = &slice->mb_pred[pl][0][0];
     imgpel pix[17 * 17];
     bool available[4];
-    neighbouring_samples_16x16(pix, available, currMB, pl, 0, 0);
+    neighbouring_samples_16x16(pix, available, mb, pl, 0, 0);
 
-    switch (currMB->Intra16x16PredMode) {
+    switch (mb->Intra16x16PredMode) {
     case Intra_16x16_Vertical:
         if (!available[1])
             error ("invalid 16x16 intra pred Mode VERT_PRED_16",500);
@@ -1104,11 +1091,11 @@ void intra_prediction_t::intra_pred_16x16(mb_t *currMB, ColorPlane pl, int ioff,
             error ("invalid 16x16 intra pred Mode PLANE_16",500);
         break;
     default:
-        printf("illegal 16x16 intra prediction mode input: %d\n",currMB->Intra16x16PredMode);
+        printf("illegal 16x16 intra prediction mode input: %d\n", mb->Intra16x16PredMode);
         return;
     }
 
-    switch (currMB->Intra16x16PredMode) {
+    switch (mb->Intra16x16PredMode) {
     case Intra_16x16_Vertical:
         intra16x16_vert_pred_normal(pred, pix, available);
         break;
@@ -1124,31 +1111,24 @@ void intra_prediction_t::intra_pred_16x16(mb_t *currMB, ColorPlane pl, int ioff,
     }
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Chroma Intra prediction. Note that many operations can be moved
- *    outside since they are repeated for both components for no reason.
- ************************************************************************
- */
-void intra_prediction_t::intra_pred_chroma(mb_t *currMB)
+void intra_prediction_t::intra_pred_chroma(mb_t* mb)
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
 
     int BitDepth = sps->BitDepthC;
-    imgpel *pred[2];
+    imgpel* pred[2];
     int size[2];
     imgpel pix[2][17 * 17];
     bool available[2][4];
-    pred[0] = &currSlice->mb_pred[1][0][0];
-    pred[1] = &currSlice->mb_pred[2][0][0];
+    pred[0] = &slice->mb_pred[1][0][0];
+    pred[1] = &slice->mb_pred[2][0][0];
     size[0] = sps->MbWidthC;
     size[1] = sps->MbHeightC;
-    neighbouring_samples_chroma(pix[0], available[0], currMB, PLANE_U, 0, 0);
-    neighbouring_samples_chroma(pix[1], available[1], currMB, PLANE_V, 0, 0);
+    neighbouring_samples_chroma(pix[0], available[0], mb, PLANE_U, 0, 0);
+    neighbouring_samples_chroma(pix[1], available[1], mb, PLANE_V, 0, 0);
 
-    switch (currMB->intra_chroma_pred_mode) {
+    switch (mb->intra_chroma_pred_mode) {
     case Intra_Chroma_DC:  
         break;
     case Intra_Chroma_Horizontal: 
@@ -1167,7 +1147,7 @@ void intra_prediction_t::intra_pred_chroma(mb_t *currMB)
         error("illegal chroma intra prediction mode", 600);
     }
 
-    switch (currMB->intra_chroma_pred_mode) {
+    switch (mb->intra_chroma_pred_mode) {
     case Intra_Chroma_DC:  
         intrapred_chroma_dc(pred, pix, available[0], size, BitDepth);
         break;
@@ -1181,4 +1161,8 @@ void intra_prediction_t::intra_pred_chroma(mb_t *currMB)
         intrapred_chroma_plane(pred, pix, available[0], size, BitDepth);
         break;
     }
+}
+
+
+}
 }

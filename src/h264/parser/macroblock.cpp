@@ -19,6 +19,9 @@
 #define MB_BLOCK_PARTITIONS   16 // (BLOCK_MULTIPLE * BLOCK_MULTIPLE)
 
 
+using namespace vio::h264;
+
+
 void macroblock_t::init(slice_t *slice)
 {
     this->p_Slice = slice;
@@ -54,7 +57,7 @@ void macroblock_t::init(slice_t *slice)
     this->mb_skip_flag   = 0;
     this->mb_type        = 0;
     this->cbp            = 0;    
-    this->intra_chroma_pred_mode = Intra_Chroma_DC;
+    this->intra_chroma_pred_mode = intra_prediction_t::Intra_Chroma_DC;
 
     // Save the slice number of this macroblock. When the macroblock below
     // is coded it will use this to decide if prediction for above is possible
