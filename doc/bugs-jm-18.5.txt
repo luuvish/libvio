@@ -30,3 +30,6 @@
 
 9. read_CBP_and_coeffs_from_NAL_CAVLC_420(), read_CBP_and_coeffs_from_NAL_CAVLC_422()
     Chroma DC/AC일 경우 deblock을 하지 않으므로 currMB->s_cbp[0].blk를 세팅할 필요 없음.
+
+10. init_contexts()
+    INIT_FLD_MAP_I/P[], INIT_FLD_LAST_I/P[] ctxBlockCat > 5 이상의 table이 없음.

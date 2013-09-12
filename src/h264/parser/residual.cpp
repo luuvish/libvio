@@ -270,8 +270,7 @@ uint8_t macroblock_t::parse_run_before(uint8_t zerosLeft)
     return -1;
 }
 
-// residual_block_cavlc(coeffLevel, startIdx, endIdx, maxNumCoeff)
-void macroblock_t::residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
+void macroblock_t::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
                                         ColorPlane pl, bool chroma, bool ac, int blkIdx)
 {
     slice_t* slice = this->p_Slice;
@@ -282,21 +281,12 @@ void macroblock_t::residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx
     int i = chroma ? blkIdx % 2 : ((blkIdx / 4) % 2) * 2 + (blkIdx % 4) % 2;
     int j = chroma ? blkIdx / 2 : ((blkIdx / 4) / 2) * 2 + (blkIdx % 4) / 2;
 
-    int start_scan = 0;
-    if (!chroma && ac)
-        start_scan = IS_I16MB(this) ? 1 : 0;
-
-    int levelVal[16], runVal[16], numcoeff;
+    int levelVal[16], runVal[16];
     int nC;
     if (chroma && !ac)
         nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
     else
         nC = predict_nnz(this, pl, i * 4, j * 4);
-
-    maxNumCoeff -= start_scan;
-
-    //memset(levelVal, 0, maxNumCoeff * sizeof(int));
-    //memset(runVal,   0, maxNumCoeff * sizeof(int));
 
     uint8_t coeff_token  = this->parse_coeff_token(nC);
     uint8_t TotalCoeff   = coeff_token >> 2;
@@ -367,18 +357,12 @@ void macroblock_t::residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx
 //        runVal[TotalCoeff - 1] = zerosLeft;
     }
 
-    numcoeff = TotalCoeff;
-
     if (ac)
-        this->nz_coeff[pl][j][i] = numcoeff;
+        this->nz_coeff[pl][j][i] = TotalCoeff;
 
-    int coeffNum = -1;
-    if (!chroma && ac)
-        coeffNum = start_scan - 1;
-    if (chroma && ac)
-        coeffNum = 0;
-    //for (int k = numcoeff - 1; k >= 0; k--) {
-    for (int k = 0; k < numcoeff; ++k) {
+    int coeffNum = startIdx - 1;
+    //for (int k = TotalCoeff - 1; k >= 0; k--) {
+    for (int k = 0; k < TotalCoeff; ++k) {
         if (levelVal[k] != 0) {
             coeffNum += runVal[k] + 1;
             //coeffLevel[start_scan + coeffNum] = levelVal[k];
@@ -565,8 +549,8 @@ static const short type2ctx_bcbp[22] = {
     20, 24, 28, 48, 32, 36, 40, 52
 };
 static const short type2ctx_map[22] = {
-      0,  15-1,  29,  44,  47-1,  61,  44,
-     76,  91-1, 105, 164, 120, 135-1, 149, 179
+      0,  15,  29,  44,  47,  61,  44,
+     76,  91, 105, 164, 120, 135, 149, 179
 };
 static const short type2ctx_one[22] = {
       0,  10,  20,  30,  40,  50,  30,
@@ -574,15 +558,6 @@ static const short type2ctx_one[22] = {
 };
 
 // Table 9-42 Specification of ctxBlockCat for the different blocks
-
-static const short maxpos[22] = {
-    15, 14, 15,  3, 14, 63,  7,
-    15, 14, 15, 63, 15, 14, 15, 63
-};
-static const short c1isdc[22] = {
-     1,  0,  1,  1,  0,  1,  1,
-     1,  0,  1,  1,  1,  0,  1,  1
-};
 
 typedef enum {
     LUMA_16DC     =  0, // ctxBlockCat =  0
@@ -602,16 +577,19 @@ typedef enum {
     CR_8x8        = 14  // ctxBlockCat = 13 =
 } CABACBlockTypes;
 
-static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_context_t* ctx)
+static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_context_t* ctx, int* ctxIdxIncs)
 {
     const uint32_t cMax = 13;
+
+    if (!dep_dp->decode_decision(ctx + ctxIdxIncs[0]))
+        return 0;
 
     uint32_t bins = -1;
     bool b;
     for (b = 1; b && (bins + 1 < cMax); ++bins)
-        b = dep_dp->decode_decision(ctx);
+        b = dep_dp->decode_decision(ctx + ctxIdxIncs[1]);
     if (!b)
-        return bins;
+        return bins + 1;
 
     uint32_t k = 0;
     while (dep_dp->decode_bypass())
@@ -619,12 +597,11 @@ static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_cont
     while (k--)
         bins += (dep_dp->decode_bypass() << k);
 
-    return bins + 1;
+    return bins + 1 + 1;
 }
 
 
-// residual_block_cabac(coeffLevel, startIdx, endIdx, maxNumCoeff)
-void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
+void macroblock_t::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
                                         ColorPlane pl, bool chroma, bool ac, int blkIdx)
 {
     slice_t* slice = this->p_Slice;
@@ -670,76 +647,67 @@ void macroblock_t::residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx
     cabac_context_t* map_ctx  = slice->mot_ctx->map_contexts [field] + type2ctx_map[context];
     cabac_context_t* last_ctx = slice->mot_ctx->last_contexts[field] + type2ctx_map[context];
 
-    int coeff_val[64];
-    int* coeff = coeff_val;
-    int i0 = !c1isdc[context];
-    int i1 = !c1isdc[context] + maxpos[context];
-    int ii;
+    int coeff_val[64], *coeff;
+    int numCoeff = endIdx + 1;
+    int ii = startIdx;
+    coeff = coeff_val;// + startIdx;
 
-    for (ii = i0; ii < i1; ++ii) {
+    ii = 0;
+    while (ii < numCoeff - 1) {
         bool significant_coeff_flag = dp->de_cabac.decode_decision(map_ctx + pos2ctx_Map[ii]);
         *(coeff++) = significant_coeff_flag;
         if (significant_coeff_flag) {
             bool last_significant_coeff_flag = dp->de_cabac.decode_decision(last_ctx + pos2ctx_Last[ii]);
-            if (last_significant_coeff_flag) {
-                memset(coeff, 0, (i1 - ii) * sizeof(int));
-                ii = i1 + 1;
-                break;
-            }
+            if (last_significant_coeff_flag)
+                numCoeff = ii + 1;
         }
-    }
-    if (ii <= i1) {
-        bool significant_coeff_flag = 1;
-        *(coeff++) = significant_coeff_flag;
+        ii++;
     }
 
     cabac_context_t* one_ctx = slice->mot_ctx->one_contexts + type2ctx_one[context];
-    cabac_context_t* abs_ctx = slice->mot_ctx->one_contexts + type2ctx_one[context] + 5;
-    const short max_type = 4 - (chroma && !ac);
 
-    ii = maxpos[context];
-    int* cof = coeff_val + ii;
-    int c1 = 1;
-    int c2 = 0;
+    coeff = coeff_val + numCoeff - 1;
+    *coeff = 1;
 
-    int coef_ctr = (chroma || IS_I16MB(this)) && ac ? 1 : 0;
+    int numDecodAbsLevelEq1 = 0;
+    int numDecodAbsLevelGt1 = 0;
 
     int i = chroma ? blkIdx % 2 : ((blkIdx / 4) % 2) * 2 + (blkIdx % 4) % 2;
     int j = chroma ? blkIdx / 2 : ((blkIdx / 4) / 2) * 2 + (blkIdx % 4) / 2;
 
-    for (; ii >= 0; ii--) {
-        if (*cof) {
-            if (dp->de_cabac.decode_decision(one_ctx + c1))
-                *cof += unary_exp_golomb_level_decode(&dp->de_cabac, abs_ctx + c2) + 1;
+    for (ii = numCoeff - 1 + startIdx; ii >= startIdx; ii--) {
+        if (*coeff) {
+            int ctxIdxIncs[] = {
+                (numDecodAbsLevelGt1 != 0 ? 0 : min(4, 1 + numDecodAbsLevelEq1)),
+                5 + min(4 - (ctxBlockCat == CHROMA_DC ? 1 : 0), numDecodAbsLevelGt1)
+            };
+            int32_t coeff_abs_level_minus1 = unary_exp_golomb_level_decode(&dp->de_cabac, one_ctx, ctxIdxIncs);
+            bool    coeff_sign_flag = dp->de_cabac.decode_bypass();
+            int32_t coeffLevel = (coeff_abs_level_minus1 + 1) * (1 - 2 * coeff_sign_flag);
 
-            if (*cof > 1) {
-                c2 = min<int>(++c2, max_type);
-                c1 = 0;
-            } else if (c1)
-                c1 = min<int>(++c1, 4);
+            *coeff = coeffLevel;
 
-            if (dp->de_cabac.decode_bypass())
-                *cof = - *cof;
+            numDecodAbsLevelEq1 += (coeff_abs_level_minus1 == 0);
+            numDecodAbsLevelGt1 += (coeff_abs_level_minus1 != 0);
 
-            if (!ac)
-                assert(coef_ctr + ii < maxNumCoeff);
+            //if (!ac)
+            //    assert(startIdx + ii < numCoeff);
             if (!chroma) {
                 if (!ac)
-                    quantization.coeff_luma_dc(this, pl, i, j, coef_ctr + ii, *cof);
+                    quantization.coeff_luma_dc(this, pl, i, j, ii, *coeff);
                 else
-                    quantization.coeff_luma_ac(this, pl, i, j, coef_ctr + ii, *cof);
+                    quantization.coeff_luma_ac(this, pl, i, j, ii, *coeff);
             } else {
                 if (!ac)
-                    quantization.coeff_chroma_dc(this, pl, i, j, coef_ctr + ii, *cof);
+                    quantization.coeff_chroma_dc(this, pl, i, j, ii, *coeff);
                 else
-                    quantization.coeff_chroma_ac(this, pl, i, j, coef_ctr + ii, *cof);
+                    quantization.coeff_chroma_ac(this, pl, i, j, ii, *coeff);
             }
         }
-        cof--;
+        coeff--;
     }
 }
 
-// residual_luma(i16x16DClevel, i16x16AClevel, level4x4, level8x8, 0, 15)
 void macroblock_t::residual_luma(ColorPlane pl)
 {
     slice_t* slice = this->p_Slice;
@@ -752,8 +720,7 @@ void macroblock_t::residual_luma(ColorPlane pl)
         std::mem_fn(&macroblock_t::residual_block_cabac);
 
     if (IS_I16MB(this) && !this->dpl_flag) {
-        // residual_block(i16x16DClevel, 0, 15, 16);
-        residual_block(this, nullptr, 0, 15, 16, pl, false, false, 0);
+        residual_block(this, LUMA_16DC, 0, 15, 16, pl, false, false, 0);
 
         transform.inverse_luma_dc(this, pl);
     }
@@ -762,11 +729,10 @@ void macroblock_t::residual_luma(ColorPlane pl)
         if (!this->transform_size_8x8_flag || !pps->entropy_coding_mode_flag) {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
                 if (CodedBlockPatternLuma & (1 << i8x8)) {
-                    //if (IS_I16MB(this))
-                        // residual_block(i16x16AClevel[i8x8 * 4 + i4x4], max(0, startIdx - 1), endIdx - 1, 15);
-                    //else
-                        // residual_block(level4x4[i8x8 * 4 + i4x4], startIdx, endIdx, 16);
-                    residual_block(this, nullptr, 0, 0, 16, pl, false, true, i8x8 * 4 + i4x4);
+                    if (IS_I16MB(this))
+                        residual_block(this, LUMA_16AC, 1, 14, 15, pl, false, true, i8x8 * 4 + i4x4);
+                    else
+                        residual_block(this, LUMA_4x4, 0, 15, 16, pl, false, true, i8x8 * 4 + i4x4);
                 } else {
                     if (!pps->entropy_coding_mode_flag) {
                         int i = (i8x8 % 2) * 2 + (i4x4 % 2);
@@ -776,8 +742,7 @@ void macroblock_t::residual_luma(ColorPlane pl)
                 }
             }
         } else if (CodedBlockPatternLuma & (1 << i8x8))
-            // residual_block(level8x8[i8x8], 4 * startIdx, 4 * endIdx + 3, 64);
-            residual_block(this, nullptr, 0, 0, 64, pl, false, true, i8x8 * 4);
+            residual_block(this, LUMA_8x8, 0, 63, 64, pl, false, true, i8x8 * 4);
         else {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
                 if (!pps->entropy_coding_mode_flag) {
@@ -806,8 +771,7 @@ void macroblock_t::residual_chroma()
 
     if (CodedBlockPatternChroma & 3) {
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            // residual_block(ChromaDCLevel[iCbCr], 0, 4 * NumC8x8 - 1, 4 * NumC8x8);
-            residual_block(this, nullptr, 0, 4 * NumC8x8 - 1, 4 * NumC8x8, (ColorPlane)(iCbCr+1), true, false, 0);
+            residual_block(this, CHROMA_DC, 0, 4 * NumC8x8 - 1, 4 * NumC8x8, (ColorPlane)(iCbCr+1), true, false, 0);
 
             transform.inverse_chroma_dc(this, (ColorPlane)(iCbCr + 1));
         }
@@ -816,10 +780,9 @@ void macroblock_t::residual_chroma()
     for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
         for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                if (CodedBlockPatternChroma & 2) {
-                    // residual_block(ChromaACLevel[iCbCr][i8x8 * 4 + i4x4], max(0, startIdx - 1), endIdx - 1, 15);
-                    residual_block(this, nullptr, 0, 0, 15, (ColorPlane)(iCbCr+1), true, true, i8x8 * 4 + i4x4);
-                } else {
+                if (CodedBlockPatternChroma & 2)
+                    residual_block(this, CHROMA_AC, 1, 14, 15, (ColorPlane)(iCbCr+1), true, true, i8x8 * 4 + i4x4);
+                else {
                     if (!pps->entropy_coding_mode_flag) {
                         int i = (i4x4 % 2);
                         int j = (i4x4 / 2) + (i8x8 * 2);

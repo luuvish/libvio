@@ -238,17 +238,14 @@ struct macroblock_t {
     void        residual       ();
     void        residual_luma  (ColorPlane pl);
     void        residual_chroma();
-    void        residual_block_cavlc(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
+    void        residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
                                      ColorPlane pl, bool chroma, bool ac, int blkIdx);
-    void        residual_block_cabac(int16_t coeffLevel[16], uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
+    void        residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
                                      ColorPlane pl, bool chroma, bool ac, int blkIdx);
 
     uint8_t     parse_coeff_token(int nC);
     uint8_t     parse_total_zeros(int yuv, int tzVlcIndex);
     uint8_t     parse_run_before(uint8_t zerosLeft);
-    void        read_coeff_4x4_CAVLC(int maxNumCoeff, int nC,
-                                     int levelVal[16], int runVal[16], int *number_coefficients);
-
 };
 
 using mb_t = macroblock_t;

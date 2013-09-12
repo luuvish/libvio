@@ -53,7 +53,6 @@ struct cabac_context_t {
 #define NUM_REF_NO_CTX          6
 #define NUM_MVD_CTX             7
 
-#define NUM_BLOCK_TYPES        22
 #define NUM_BCBP_CTX       (4*14)
 #define NUM_MAP_CTX       (15*14)
 #define NUM_LAST_CTX      (15*14)
