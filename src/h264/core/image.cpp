@@ -123,10 +123,6 @@ static void copy_dec_picture_JV( VideoParameters *p_Vid, StorablePicture *dst, S
   dst->top_poc              = src->top_poc;
   dst->bottom_poc           = src->bottom_poc;
   dst->frame_poc            = src->frame_poc;
-  dst->qp                   = src->qp;
-  dst->slice_qp_delta       = src->slice_qp_delta;
-  dst->chroma_qp_offset[0]  = src->chroma_qp_offset[0];
-  dst->chroma_qp_offset[1]  = src->chroma_qp_offset[1];
 
   dst->poc                  = src->poc;
 
@@ -274,10 +270,6 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
   dec_picture->top_poc=currSlice->TopFieldOrderCnt;
   dec_picture->bottom_poc=currSlice->BottomFieldOrderCnt;
   dec_picture->frame_poc=currSlice->framepoc;
-  dec_picture->qp = currSlice->SliceQpY;
-  dec_picture->slice_qp_delta = currSlice->slice_qp_delta;
-  dec_picture->chroma_qp_offset[0] = pps->chroma_qp_index_offset;
-  dec_picture->chroma_qp_offset[1] = pps->second_chroma_qp_index_offset;
   dec_picture->iCodingType = !currSlice->field_pic_flag ? (currSlice->MbaffFrameFlag? FRAME_MB_PAIR_CODING:FRAME_CODING): FIELD_CODING;
   dec_picture->layer_id = currSlice->layer_id;
 #if (MVC_EXTENSION_ENABLE)

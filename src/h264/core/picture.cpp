@@ -402,7 +402,7 @@ static void status_picture(VideoParameters *p_Vid, StorablePicture **dec_picture
     int slice_type        = (*dec_picture)->slice_type;
     int frame_poc         = (*dec_picture)->frame_poc;  
     int refpic            = (*dec_picture)->used_for_reference;
-    int qp                = (*dec_picture)->qp;
+    int qp                = 0;
     int pic_num           = (*dec_picture)->PicNum;
     int is_idr            = (*dec_picture)->idr_flag;
     int chroma_format_idc = (*dec_picture)->chroma_format_idc;

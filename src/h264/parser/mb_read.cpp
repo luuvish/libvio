@@ -799,9 +799,7 @@ void macroblock_t::parse_ref_pic_idx(int list)
 
             if ((this->b8pdir[k] == list || this->b8pdir[k] == BI_PRED) &&
                 this->b8mode[k] != 0) {
-                this->subblock_x = i0 << 2;
-                this->subblock_y = j0 << 2;
-                uint8_t refframe = parse_ref_idx(this, list);
+                uint8_t refframe = parse_ref_idx(this, list, i0, j0);
                 for (int j = 0; j < step_v0; j++) {
                     for (int i = 0; i < step_h0; i++)
                         mv_info[this->block_y + j0 + j][this->block_x + i0 + i].ref_idx[list] = refframe;
@@ -848,9 +846,6 @@ void macroblock_t::parse_motion_vector(int list, int step_h4, int step_v4, int i
     //int step_h4 = sub_mb_types[this->sub_mb_type[kk]][3];
     //int step_v4 = sub_mb_types[this->sub_mb_type[kk]][4];
 
-    this->subblock_x = i * 4;
-    this->subblock_y = j * 4;
-
     PixelPos block[4]; // neighbor blocks
     MotionVector pred_mv;
     get_neighbors(this, block, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4);
@@ -858,7 +853,7 @@ void macroblock_t::parse_motion_vector(int list, int step_h4, int step_v4, int i
 
     int16_t curr_mvd[2];
     for (int k = 0; k < 2; ++k)
-        curr_mvd[k] = parse_mvd(this, list, k);
+        curr_mvd[k] = parse_mvd(this, list, i, j, k);
 
     MotionVector curr_mv;
     curr_mv.mv_x = curr_mvd[0] + pred_mv.mv_x;
@@ -934,19 +929,31 @@ void macroblock_t::parse_cbp_qp()
     this->update_qp(slice->SliceQpY);
 }
 
+// Table 8-15 Specification of QPc as a function of qPi
+
+static const uint8_t QP_SCALE_CR[52] = {
+     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12,
+    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+    26, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 34, 35,
+    35, 36, 36, 37, 37, 37, 38, 38, 38, 39, 39, 39, 39
+};
 
 void macroblock_t::update_qp(int qp)
 {
-    VideoParameters *p_Vid = this->p_Vid;
-    sps_t *sps = p_Vid->active_sps;
-    StorablePicture *dec_picture = this->p_Slice->dec_picture;
-    this->qp = qp;
+    VideoParameters* p_Vid = this->p_Vid;
+    sps_t* sps = p_Vid->active_sps;
+    pps_t* pps = p_Vid->active_pps;
+    int QpOffset[2] = { pps->chroma_qp_index_offset, pps->second_chroma_qp_index_offset };
+
+    this->QpY          = qp;
     this->qp_scaled[0] = qp + sps->QpBdOffsetY;
 
     for (int i = 0; i < 2; i++) {
-        this->qpc[i] = clip3 (-(sps->QpBdOffsetC), 51, this->qp + dec_picture->chroma_qp_offset[i]);
-        this->qpc[i] = this->qpc[i] < 0 ? this->qpc[i] : QP_SCALE_CR[this->qpc[i]];
-        this->qp_scaled[i + 1] = this->qpc[i] + sps->QpBdOffsetC;
+        int8_t qpi = clip3(-(sps->QpBdOffsetC), 51, this->QpY + QpOffset[i]);
+        int8_t qpc = qpi < 30 ? qpi : QP_SCALE_CR[qpi];
+
+        this->QpC[i]           = qpc;
+        this->qp_scaled[i + 1] = qpc + sps->QpBdOffsetC;
     }
 
     this->TransformBypassModeFlag = (sps->qpprime_y_zero_transform_bypass_flag && this->qp_scaled[0] == 0);

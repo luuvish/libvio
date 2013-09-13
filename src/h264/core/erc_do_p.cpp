@@ -1132,9 +1132,6 @@ static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoPar
   dst->frame_crop_bottom_offset = src->frame_crop_bottom_offset;
   dst->frame_crop_top_offset = src->frame_crop_top_offset;
 
-  dst->qp = src->qp;
-  dst->slice_qp_delta = src->slice_qp_delta;
-
   dec_picture = src;
 
   // Conceals the missing frame by frame copy concealment

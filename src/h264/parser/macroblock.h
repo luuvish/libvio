@@ -126,24 +126,18 @@ struct macroblock_t {
     int        pix_c_x;
     int        pix_c_y;
 
-    int        subblock_x;
-    int        subblock_y;
+    macroblock_t* mb_up;   //!< pointer to neighboring MB (CABAC)
+    macroblock_t* mb_left; //!< pointer to neighboring MB (CABAC)
 
-    int        qp;                    //!< QP luma
-    int        qpc[2];                //!< QP chroma
-    int        qp_scaled[MAX_PLANE];  //!< QP scaled for all comps.
+    macroblock_t* mbup;   // neighbors for loopfilter
+    macroblock_t* mbleft; // neighbors for loopfilter
+
     Boolean    is_intra_block;
     Boolean    DeblockCall;
 
     short      slice_nr;
     char       ei_flag;             //!< error indicator flag that enables concealment
     char       dpl_flag;            //!< error indicator flag that signals a missing data partition
-
-    macroblock_t* mb_up;   //!< pointer to neighboring MB (CABAC)
-    macroblock_t* mb_left; //!< pointer to neighboring MB (CABAC)
-
-    macroblock_t* mbup;   // neighbors for loopfilter
-    macroblock_t* mbleft; // neighbors for loopfilter
 
     // some storage of macroblock syntax elements for global access
     bool        mb_skip_flag;
@@ -179,7 +173,9 @@ struct macroblock_t {
     uint8_t     SubMbPredMode  [4];
     uint8_t     SubMbPartWidth [4];
     uint8_t     SubMbPartHeight[4];
-    uint8_t     QpY;
+    int8_t      QpY;
+    int8_t      QpC[2];
+    uint8_t     qp_scaled[MAX_PLANE];
     bool        TransformBypassModeFlag;
 
     uint8_t     nz_coeff[3][4][4];

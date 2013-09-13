@@ -2040,10 +2040,6 @@ StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePictur
   p_stored_pic->PicNum     = p_pic->PicNum;
   p_stored_pic->frame_num   = p_pic->frame_num;
   p_stored_pic->coded_frame = 1;
-  p_stored_pic->qp = p_pic->qp;
-  p_stored_pic->slice_qp_delta = p_pic->slice_qp_delta;
-  p_stored_pic->chroma_qp_offset[0] = p_pic->chroma_qp_offset[0];
-  p_stored_pic->chroma_qp_offset[1] = p_pic->chroma_qp_offset[1];
 
   p_stored_pic->slice_type = p_pic->slice_type;
   p_stored_pic->idr_flag = p_pic->idr_flag;

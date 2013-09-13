@@ -81,9 +81,6 @@ typedef struct storable_picture
   int         frame_crop_right_offset;
   int         frame_crop_top_offset;
   int         frame_crop_bottom_offset;
-  int         qp;
-  int         chroma_qp_offset[2];
-  int         slice_qp_delta;
   struct DecRefPicMarking_s *dec_ref_pic_marking_buffer;                    //!< stores the memory management control operations
 
   // picture error concealment

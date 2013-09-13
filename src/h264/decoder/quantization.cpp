@@ -331,7 +331,7 @@ void quantization_t::inverse_itrans_422(mb_t* mb, ColorPlane pl, int** M4)
 
     int **cof = slice->cof[pl];
 
-    int qp_scaled = mb->qpc[pl - 1] + 3 + sps->QpBdOffsetC;
+    int qp_scaled = mb->qp_scaled[pl];
     int qp_per = qp_scaled / 6;
     int qp_rem = qp_scaled % 6;
     int (*InvLevelScale4x4)[4] = mb->is_intra_block ?

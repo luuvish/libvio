@@ -7,10 +7,6 @@
 #include "inter_prediction.h"
 
 
-// number of intra prediction modes
-#define NO_INTRA_PMODE  9
-
-
 using namespace vio::h264;
 
 intra_prediction_t intra_prediction;

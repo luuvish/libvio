@@ -21,14 +21,14 @@ using vio::h264::cabac_context_t;
 using vio::h264::cabac_engine_t;
 
 
-static int ref_idx_ctxIdxInc(mb_t* mb, uint8_t list)
+static int ref_idx_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
 {
     slice_t* slice = mb->p_Slice;
 
     PixelPos block_a, block_b;
     int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-    get4x4Neighbour(mb, mb->subblock_x - 1, mb->subblock_y    , mb_size, &block_a);
-    get4x4Neighbour(mb, mb->subblock_x,     mb->subblock_y - 1, mb_size, &block_b);
+    get4x4Neighbour(mb, x0 * 4 - 1, y0 * 4, mb_size, &block_a);
+    get4x4Neighbour(mb, x0 * 4, y0 * 4 - 1, mb_size, &block_b);
 
     int condTermFlagA = 0;
     int condTermFlagB = 0;
@@ -64,22 +64,22 @@ static int ref_idx_ctxIdxInc(mb_t* mb, uint8_t list)
     return ctxIdxInc;
 }
 
-static int mvd_ctxIdxInc(mb_t* mb, uint8_t xy, uint8_t list)
+static int mvd_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, bool comp)
 {
     slice_t* slice = mb->p_Slice;
 
     PixelPos block_a, block_b;
     int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-    get4x4NeighbourBase(mb, mb->subblock_x - 1, mb->subblock_y    , mb_size, &block_a);
-    get4x4NeighbourBase(mb, mb->subblock_x    , mb->subblock_y - 1, mb_size, &block_b);
+    get4x4NeighbourBase(mb, x0 * 4 - 1, y0 * 4, mb_size, &block_a);
+    get4x4NeighbourBase(mb, x0 * 4, y0 * 4 - 1, mb_size, &block_b);
 
     int absMvdCompA = 0;
     int absMvdCompB = 0;
 
     if (block_a.available) {
         mb_t* mb_a = &slice->mb_data[block_a.mb_addr];
-        absMvdCompA = abs(mb_a->mvd[list][block_a.y][block_a.x][xy]);
-        if (slice->MbaffFrameFlag && xy == 1) {
+        absMvdCompA = abs(mb_a->mvd[list][block_a.y][block_a.x][comp]);
+        if (slice->MbaffFrameFlag && comp) {
             if (!mb->mb_field_decoding_flag && mb_a->mb_field_decoding_flag)
                 absMvdCompA *= 2;
             else if (mb->mb_field_decoding_flag && !mb_a->mb_field_decoding_flag)
@@ -88,8 +88,8 @@ static int mvd_ctxIdxInc(mb_t* mb, uint8_t xy, uint8_t list)
     }
     if (block_b.available) {
         mb_t* mb_b = &slice->mb_data[block_b.mb_addr];
-        absMvdCompB = abs(mb_b->mvd[list][block_b.y][block_b.x][xy]);
-        if (slice->MbaffFrameFlag && xy == 1) {
+        absMvdCompB = abs(mb_b->mvd[list][block_b.y][block_b.x][comp]);
+        if (slice->MbaffFrameFlag && comp) {
             if (!mb->mb_field_decoding_flag && mb_b->mb_field_decoding_flag)
                 absMvdCompB *= 2;
             else if (mb->mb_field_decoding_flag && !mb_b->mb_field_decoding_flag)
@@ -518,7 +518,7 @@ uint8_t parse_intra_chroma_pred_mode(mb_t* mb)
     return intra_chroma_pred_mode;
 }
 
-uint8_t parse_ref_idx(mb_t* mb, uint8_t list)
+uint8_t parse_ref_idx(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
 {
     slice_t* slice = mb->p_Slice;
     pps_t* pps = slice->active_pps;
@@ -544,7 +544,7 @@ uint8_t parse_ref_idx(mb_t* mb, uint8_t list)
             ref_idx = dp->ue();
     } else {
         cabac_context_t* ctx = slice->mot_ctx->ref_no_contexts;
-        uint8_t ctxIdxInc = ref_idx_ctxIdxInc(mb, list);
+        uint8_t ctxIdxInc = ref_idx_ctxIdxInc(mb, list, x0, y0);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 4, 5 };
 
         ref_idx = dep_dp->u(ctx, ctxIdxIncs, 2);
@@ -553,7 +553,7 @@ uint8_t parse_ref_idx(mb_t* mb, uint8_t list)
     return ref_idx;
 }
 
-int16_t parse_mvd(mb_t* mb, uint8_t list, uint8_t xy)
+int16_t parse_mvd(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, uint8_t comp)
 {
     slice_t* slice = mb->p_Slice;
     pps_t* pps = slice->active_pps;
@@ -566,9 +566,9 @@ int16_t parse_mvd(mb_t* mb, uint8_t list, uint8_t xy)
     if (!pps->entropy_coding_mode_flag) 
         mvd = dp->se();
     else {
-        cabac_context_t* ctx = (xy == 0) ? slice->mot_ctx->mvd_x_contexts
+        cabac_context_t* ctx = (comp == 0) ? slice->mot_ctx->mvd_x_contexts
                                          : slice->mot_ctx->mvd_y_contexts;
-        uint8_t ctxIdxInc = mvd_ctxIdxInc(mb, xy, list);
+        uint8_t ctxIdxInc = mvd_ctxIdxInc(mb, list, x0, y0, comp);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 3, 4, 5, 6 };
 
         mvd = dep_dp->ueg(ctx, ctxIdxIncs, 4, 9, 3);

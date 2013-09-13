@@ -278,8 +278,8 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
                 }
 
                 // Average QP of the two blocks
-                int QP = pl? ((MbP->qpc[pl-1] + MbQ->qpc[pl-1] + 1) >> 1) :
-                              (MbP->qp + MbQ->qp + 1) >> 1;
+                int QP = pl? ((MbP->QpC[pl-1] + MbQ->QpC[pl-1] + 1) >> 1) :
+                              (MbP->QpY + MbQ->QpY + 1) >> 1;
                 int indexA = clip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
                 int indexB = clip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
                 int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
@@ -346,8 +346,8 @@ static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool ch
                 }
 
                 // Average QP of the two blocks
-                int QP = pl? ((MbP->qpc[pl-1] + MbQ->qpc[pl-1] + 1) >> 1)
-                            : (MbP->qp + MbQ->qp + 1) >> 1;
+                int QP = pl? ((MbP->QpC[pl-1] + MbQ->QpC[pl-1] + 1) >> 1)
+                            : (MbP->QpY + MbQ->QpY + 1) >> 1;
                 int indexA = clip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
                 int indexB = clip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
                 int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
