@@ -63,23 +63,23 @@ typedef enum {
 //! Frame packing arrangement Information
 typedef struct {
     unsigned int  frame_packing_arrangement_id;
-    Boolean       frame_packing_arrangement_cancel_flag;
+    bool          frame_packing_arrangement_cancel_flag;
     unsigned char frame_packing_arrangement_type;
-    Boolean       quincunx_sampling_flag;
+    bool          quincunx_sampling_flag;
     unsigned char content_interpretation_type;
-    Boolean       spatial_flipping_flag;
-    Boolean       frame0_flipped_flag;
-    Boolean       field_views_flag;
-    Boolean       current_frame_is_frame0_flag;
-    Boolean       frame0_self_contained_flag;
-    Boolean       frame1_self_contained_flag;
+    bool          spatial_flipping_flag;
+    bool          frame0_flipped_flag;
+    bool          field_views_flag;
+    bool          current_frame_is_frame0_flag;
+    bool          frame0_self_contained_flag;
+    bool          frame1_self_contained_flag;
     unsigned char frame0_grid_position_x;
     unsigned char frame0_grid_position_y;
     unsigned char frame1_grid_position_x;
     unsigned char frame1_grid_position_y;
     unsigned char frame_packing_arrangement_reserved_byte;
     unsigned int  frame_packing_arrangement_repetition_period;
-    Boolean       frame_packing_arrangement_extension_flag;
+    bool          frame_packing_arrangement_extension_flag;
 } frame_packing_arrangement_information_struct;
 
 /*!
@@ -1143,7 +1143,7 @@ void interpret_picture_timing_info( byte* payload, int size, VideoParameters *p_
   int cpb_removal_len = 24;
   int dpb_output_len  = 24;
 
-  Boolean CpbDpbDelaysPresentFlag;
+  bool CpbDpbDelaysPresentFlag;
 
   data_partition_t* buf;
 
@@ -1159,9 +1159,9 @@ void interpret_picture_timing_info( byte* payload, int size, VideoParameters *p_
   buf->frame_bitoffset = 0;
 
   // CpbDpbDelaysPresentFlag can also be set "by some means not specified in this Recommendation | International Standard"
-  CpbDpbDelaysPresentFlag =  (Boolean) (active_sps->vui_parameters_present_flag
-                              && (   (active_sps->vui_parameters.nal_hrd_parameters_present_flag != 0)
-                                   ||(active_sps->vui_parameters.vcl_hrd_parameters_present_flag != 0)));
+  CpbDpbDelaysPresentFlag = active_sps->vui_parameters_present_flag &&
+      (active_sps->vui_parameters.nal_hrd_parameters_present_flag != 0 ||
+       active_sps->vui_parameters.vcl_hrd_parameters_present_flag != 0);
 
   if (CpbDpbDelaysPresentFlag )
   {
@@ -1300,7 +1300,7 @@ void interpret_frame_packing_arrangement_info( byte* payload, int size, VideoPar
 
   seiFramePackingArrangement.frame_packing_arrangement_id = (unsigned int) buf->ue( "SEI: frame_packing_arrangement_id");
   seiFramePackingArrangement.frame_packing_arrangement_cancel_flag = buf->u(1, "SEI: frame_packing_arrangement_cancel_flag");
-  if ( seiFramePackingArrangement.frame_packing_arrangement_cancel_flag == FALSE )
+  if ( !seiFramePackingArrangement.frame_packing_arrangement_cancel_flag )
   {
     seiFramePackingArrangement.frame_packing_arrangement_type = (unsigned char) buf->u(7, "SEI: frame_packing_arrangement_type");
     seiFramePackingArrangement.quincunx_sampling_flag         = buf->u(1, "SEI: quincunx_sampling_flag");
@@ -1311,7 +1311,7 @@ void interpret_frame_packing_arrangement_info( byte* payload, int size, VideoPar
     seiFramePackingArrangement.current_frame_is_frame0_flag   = buf->u(1, "SEI: current_frame_is_frame0_flag");
     seiFramePackingArrangement.frame0_self_contained_flag     = buf->u(1, "SEI: frame0_self_contained_flag");
     seiFramePackingArrangement.frame1_self_contained_flag     = buf->u(1, "SEI: frame1_self_contained_flag");
-    if ( seiFramePackingArrangement.quincunx_sampling_flag == FALSE && seiFramePackingArrangement.frame_packing_arrangement_type != 5 )
+    if ( !seiFramePackingArrangement.quincunx_sampling_flag && seiFramePackingArrangement.frame_packing_arrangement_type != 5 )
     {
       seiFramePackingArrangement.frame0_grid_position_x = (unsigned char)buf->u(4, "SEI: frame0_grid_position_x");
       seiFramePackingArrangement.frame0_grid_position_y = (unsigned char)buf->u(4, "SEI: frame0_grid_position_y");
@@ -1424,7 +1424,7 @@ void interpret_tone_mapping( byte* payload, int size, VideoParameters *p_Vid )
     if (seiToneMappingTmp.tone_map_id== 0) 
     {
       int j;
-      p_Vid->seiToneMapping->seiHasTone_mapping = TRUE;
+      p_Vid->seiToneMapping->seiHasTone_mapping = 1;
       p_Vid->seiToneMapping->tone_map_repetition_period = seiToneMappingTmp.tone_map_repetition_period;
       p_Vid->seiToneMapping->coded_data_bit_depth = seiToneMappingTmp.coded_data_bit_depth;
       p_Vid->seiToneMapping->sei_bit_depth = seiToneMappingTmp.sei_bit_depth;
@@ -1502,7 +1502,7 @@ void tone_map (imgpel** imgX, imgpel* lut, int size_x, int size_y)
 
 void init_tone_mapping_sei(ToneMappingSEI *seiToneMapping) 
 {
-  seiToneMapping->seiHasTone_mapping = FALSE;
+  seiToneMapping->seiHasTone_mapping = 0;
   seiToneMapping->count = 0;
 }
 
@@ -1511,7 +1511,7 @@ void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping)
 
   if(seiToneMapping->tone_map_repetition_period == 0)
   {
-    seiToneMapping->seiHasTone_mapping = FALSE;
+    seiToneMapping->seiHasTone_mapping = 0;
     seiToneMapping->count = 0;
   }
   else if (seiToneMapping->tone_map_repetition_period>1)
@@ -1519,7 +1519,7 @@ void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping)
     seiToneMapping->count++;
     if (seiToneMapping->count>=seiToneMapping->tone_map_repetition_period) 
     {
-      seiToneMapping->seiHasTone_mapping = FALSE;
+      seiToneMapping->seiHasTone_mapping = 0;
       seiToneMapping->count = 0;
     }
   }

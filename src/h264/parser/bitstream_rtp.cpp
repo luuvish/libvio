@@ -183,8 +183,8 @@ void close_rtp(int *p_BitStreamFile)
 
 int get_nalu_from_rtp(nalu_t *nalu, int BitStreamFile)
 {
-    static uint16 first_call = 1;  //!< triggers sequence number initialization on first call
-    static uint16 old_seq = 0;     //!< store the last RTP sequence number for loss detection
+    static uint16_t first_call = 1;  //!< triggers sequence number initialization on first call
+    static uint16_t old_seq = 0;     //!< store the last RTP sequence number for loss detection
 
     RTPpacket_t *p;
     int ret;
@@ -203,10 +203,10 @@ int get_nalu_from_rtp(nalu_t *nalu, int BitStreamFile)
     if (ret > 0) { // we got a packet ( -1=error, 0=end of file )
         if (first_call) {
             first_call = 0;
-            old_seq = (uint16)(p->seq - 1);
+            old_seq = (uint16_t)(p->seq - 1);
         }
 
-        nalu->lost_packets = (uint16)(p->seq - (old_seq + 1));
+        nalu->lost_packets = (uint16_t)(p->seq - (old_seq + 1));
         old_seq = p->seq;
 
         assert(p->paylen < nalu->max_size);
@@ -277,7 +277,7 @@ int DecomposeRTPpacket(RTPpacket_t *p)
     p->pt = (p->packet[1] >> 0) & 0x7F;
 
     memcpy(&p->seq, &p->packet[2], 2);
-    p->seq = ntohs((uint16)p->seq);
+    p->seq = ntohs((uint16_t)p->seq);
 
     memcpy(&p->timestamp, &p->packet[4], 4); // change to shifts for unified byte sex
     p->timestamp = ntohl(p->timestamp);

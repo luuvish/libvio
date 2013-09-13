@@ -196,7 +196,7 @@ static void img2buf_endian (imgpel** imgX, unsigned char* buf, int size_x, int s
 {
   int i,j;
   unsigned char  ui8;
-  uint16 tmp16, ui16;
+  uint16_t tmp16, ui16;
   unsigned long  tmp32, ui32;
 
   //int twidth  = size_x - crop_left - crop_right;
@@ -219,8 +219,8 @@ static void img2buf_endian (imgpel** imgX, unsigned char* buf, int size_x, int s
       for(i=crop_top;i<size_y-crop_bottom;i++)
         for(j=crop_left;j<size_x-crop_right;j++)
         {
-          tmp16 = (uint16) (imgX[i][j]);
-          ui16  = (uint16) ((tmp16 >> 8) | ((tmp16&0xFF)<<8));
+          tmp16 = (uint16_t) (imgX[i][j]);
+          ui16  = (uint16_t) ((tmp16 >> 8) | ((tmp16&0xFF)<<8));
           memcpy(buf+((j-crop_left+((i-crop_top)*iOutStride))*2),&(ui16), 2);
         }
         break;

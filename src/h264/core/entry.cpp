@@ -196,7 +196,7 @@ static int parse_dpa(slice_t *currSlice)
     currSlice->dpB_NotPresent = 1;
     currSlice->dpC_NotPresent = 1;
 
-    currSlice->idr_flag    = FALSE;
+    currSlice->idr_flag    = 0;
     currSlice->nal_ref_idc = nalu->nal_ref_idc;
     currSlice->dp_mode     = PAR_DP_3;
     currSlice->max_part_nr = 3;
@@ -369,12 +369,12 @@ process_nalu:
             break;
 
         case NALU_TYPE_DPB:
-            if (p_Inp->silent == FALSE)
+            if (!p_Inp->silent)
                 printf ("found data partition B without matching DP A, discarding\n");
             break;
 
         case NALU_TYPE_DPC:
-            if (p_Inp->silent == FALSE)
+            if (!p_Inp->silent)
                 printf ("found data partition C without matching DP A, discarding\n");
             break;
 
@@ -415,19 +415,19 @@ process_nalu:
             if (p_Inp->DecodeAllLayers== 1)
                 ProcessSubsetSPS(p_Vid, nalu);
             else {
-                if (p_Inp->silent == FALSE)
+                if (!p_Inp->silent)
                     printf ("Found Subsequence SPS NALU. Ignoring.\n");
             }
             break;
 
         case NALU_TYPE_SLC_EXT:
-            if (p_Inp->DecodeAllLayers == 0 &&  (p_Inp->silent == FALSE))
+            if (p_Inp->DecodeAllLayers == 0 && !p_Inp->silent)
                 printf ("Found SVC extension NALU (%d). Ignoring.\n", (int) nalu->nal_unit_type);
             break;
 #endif
 
         default:
-            if (p_Inp->silent == FALSE)
+            if (!p_Inp->silent)
                 printf ("Found NALU type %d, len %d undefined, ignore NALU, moving on\n", (int) nalu->nal_unit_type, (int) nalu->len);
             break;
         }

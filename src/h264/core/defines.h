@@ -15,27 +15,13 @@
 #define MVC_INIT_VIEW_ID          -1
 #define MAX_VIEW_NUM              1024   
 
-typedef unsigned char  byte;     //!< byte type definition
-typedef unsigned char  uint8;    //!< type definition for unsigned char (same as byte, 8 bits)
-typedef unsigned short uint16;   //!< type definition for unsigned short (16 bits)
-typedef unsigned int   uint32;   //!< type definition for unsigned int (32 bits)
+typedef uint8_t  byte;
+typedef uint16_t imgpel;
 
-typedef          char  int8;
-typedef          short int16;
-typedef          int   int32;
-
-typedef uint16 imgpel;
-
-enum {
-  FALSE,
-  TRUE
-};
-#define Boolean int
-
-#define MAX_NUM_SLICES     50
+#define MAX_NUM_SLICES         50
 #define MAX_REFERENCE_PICTURES 32               //!< H.264 allows 32 fields
-#define MAX_CODED_FRAME_SIZE 8000000         //!< bytes for one frame
-#define MAX_NUM_DECSLICES  16
+#define MAX_CODED_FRAME_SIZE   8000000         //!< bytes for one frame
+#define MAX_NUM_DECSLICES      16
 #define MCBUF_LUMA_PAD_X        32
 #define MCBUF_LUMA_PAD_Y        12
 #define MCBUF_CHROMA_PAD_X      16
@@ -66,26 +52,6 @@ typedef enum {
 #define MB_BLOCK_SIZE         16
 #define BLOCK_MULTIPLE         4 // (MB_BLOCK_SIZE/BLOCK_SIZE)
 
-//  Available MB modes
-typedef enum {
-  PSKIP        =  0,
-  BSKIP_DIRECT =  0,
-  P16x16       =  1,
-  P16x8        =  2,
-  P8x16        =  3,
-  SMB8x8       =  4,
-  SMB8x4       =  5,
-  SMB4x8       =  6,
-  SMB4x4       =  7,
-  P8x8         =  8,
-  I4MB         =  9,
-  I16MB        = 10,
-  IBLOCK       = 11,
-  SI4MB        = 12,
-  I8MB         = 13,
-  IPCM         = 14,
-  MAXMODE      = 15
-} MBModeTypes;
 
 enum {
   EOS = 1,    //!< End Of Sequence

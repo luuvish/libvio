@@ -23,7 +23,7 @@ static inline int is_long_ref(StorablePicture *s)
 
 void idr_memory_management(dpb_t *p_Dpb, StorablePicture* p)
 {
-  	uint32 i;
+  	uint32_t i;
 
   	if (p->no_output_of_prior_pics_flag) {
     	// free all stored pictures
@@ -1114,7 +1114,7 @@ static void adaptive_memory_management(dpb_t *p_Dpb, StorablePicture* p)
 
 static void sliding_window_memory_management(dpb_t *p_Dpb, StorablePicture* p)
 {
-  	uint32 i;
+  	uint32_t i;
 
   	assert(!p->idr_flag);
 

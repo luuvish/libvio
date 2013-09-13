@@ -52,8 +52,8 @@ static void mb_pred_p_inter(mb_t *currMB, ColorPlane curr_plane)
     }
 
     transform.inverse_transform_inter(currMB, curr_plane, currSlice->slice_type == SP_slice);
-    if (currMB->cbp != 0)
-        currSlice->is_reset_coeff = FALSE;
+    if (currMB->CodedBlockPatternLuma != 0 || currMB->CodedBlockPatternChroma != 0)
+        currSlice->is_reset_coeff = false;
 }
 
 static void mb_pred_b_direct(mb_t *currMB, ColorPlane curr_plane)
@@ -100,8 +100,8 @@ static void mb_pred_b_direct(mb_t *currMB, ColorPlane curr_plane)
     }
 
     transform.inverse_transform_inter(currMB, curr_plane, currSlice->slice_type == SP_slice); 
-    if (currMB->cbp != 0)
-        currSlice->is_reset_coeff = FALSE;
+    if (currMB->CodedBlockPatternLuma != 0 || currMB->CodedBlockPatternChroma != 0)
+        currSlice->is_reset_coeff = false;
 }
 
 static void mb_pred_b_inter8x8(mb_t *currMB, ColorPlane curr_plane)
@@ -143,8 +143,8 @@ static void mb_pred_b_inter8x8(mb_t *currMB, ColorPlane curr_plane)
     }
 
     transform.inverse_transform_inter(currMB, curr_plane, currSlice->slice_type == SP_slice);
-    if (currMB->cbp != 0)
-        currSlice->is_reset_coeff = FALSE;
+    if (currMB->CodedBlockPatternLuma != 0 || currMB->CodedBlockPatternChroma != 0)
+        currSlice->is_reset_coeff = false;
 }
 
 
@@ -178,12 +178,12 @@ static void mb_pred_ipcm(mb_t *currMB)
     currMB->mb_skip_flag = 0;
 
     //for deblocking filter CABAC
-    currMB->s_cbp[0].blk = 0xFFFF;
+    currMB->cbp_blks[0] = 0xFFFF;
 
     //For CABAC decoding of Dquant
     currSlice->last_dquant = 0;
-    currSlice->is_reset_coeff = FALSE;
-    currSlice->is_reset_coeff_cr = FALSE;
+    currSlice->is_reset_coeff = false;
+    currSlice->is_reset_coeff_cr = false;
 }
 
 static void mb_pred_intra(mb_t *currMB, ColorPlane curr_plane)
@@ -213,16 +213,16 @@ static void mb_pred_intra(mb_t *currMB, ColorPlane curr_plane)
             transform.inverse_transform_16x16(currMB, curr_plane, ioff, joff);
     }
 
-    if (currMB->mb_type == I16MB || currMB->cbp != 0)
-        currSlice->is_reset_coeff = FALSE;
+    if (currMB->mb_type == I16MB || currMB->CodedBlockPatternLuma != 0 || currMB->CodedBlockPatternChroma != 0)
+        currSlice->is_reset_coeff = false;
 
     if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
         intra_prediction.intra_pred_chroma(currMB);
 
         for (int uv = 0; uv < 2; uv++)
             transform.inverse_transform_chroma(currMB, (ColorPlane)(uv + 1));
-        if (currMB->cbp >> 4)
-            currSlice->is_reset_coeff_cr = FALSE;
+        if (currMB->CodedBlockPatternChroma)
+            currSlice->is_reset_coeff_cr = false;
     }
 }
 
@@ -364,7 +364,7 @@ void macroblock_t::decode()
         decode_one_component(this, PLANE_U);
         decode_one_component(this, PLANE_V);
 
-        slice->is_reset_coeff    = FALSE;
-        slice->is_reset_coeff_cr = FALSE;
+        slice->is_reset_coeff    = false;
+        slice->is_reset_coeff_cr = false;
     }
 }

@@ -435,11 +435,11 @@ void quantization_t::coeff_luma_ac(mb_t* mb, ColorPlane pl, int x0, int y0, int 
     if (!mb->transform_size_8x8_flag) {
         i0 = zigzag_scan_4x4[runarr][0];
         j0 = zigzag_scan_4x4[runarr][1];
-        mb->s_cbp[pl].blk |= ((int64_t)0x01 << (y0 * 4 + x0));
+        mb->cbp_blks[pl] |= ((uint64_t)0x01 << (y0 * 4 + x0));
     } else {
         i0 = zigzag_scan_8x8[runarr][0];
         j0 = zigzag_scan_8x8[runarr][1];
-        mb->s_cbp[pl].blk |= ((int64_t)0x33 << (y0 * 4 + x0));
+        mb->cbp_blks[pl] |= ((uint64_t)0x33 << (y0 * 4 + x0));
     }
 
     if (!mb->TransformBypassModeFlag)

@@ -78,7 +78,8 @@ static int mvd_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, bool co
 
     if (block_a.available) {
         mb_t* mb_a = &slice->mb_data[block_a.mb_addr];
-        absMvdCompA = abs(mb_a->mvd[list][block_a.y][block_a.x][comp]);
+        auto mvd = list == 0 ? mb_a->mvd_l0 : mb_a->mvd_l1;
+        absMvdCompA = abs(mvd[block_a.y][block_a.x][comp]);
         if (slice->MbaffFrameFlag && comp) {
             if (!mb->mb_field_decoding_flag && mb_a->mb_field_decoding_flag)
                 absMvdCompA *= 2;
@@ -88,7 +89,8 @@ static int mvd_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, bool co
     }
     if (block_b.available) {
         mb_t* mb_b = &slice->mb_data[block_b.mb_addr];
-        absMvdCompB = abs(mb_b->mvd[list][block_b.y][block_b.x][comp]);
+        auto mvd = list == 0 ? mb_b->mvd_l0 : mb_b->mvd_l1;
+        absMvdCompB = abs(mvd[block_b.y][block_b.x][comp]);
         if (slice->MbaffFrameFlag && comp) {
             if (!mb->mb_field_decoding_flag && mb_b->mb_field_decoding_flag)
                 absMvdCompB *= 2;
@@ -103,34 +105,34 @@ static int mvd_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, bool co
     return ctxIdxInc;
 }
 
-static int cbp_ctxIdxInc(mb_t* mb, int mb_x, int mb_y, uint8_t coded_block_pattern)
+static int cbp_ctxIdxInc(mb_t* mb, uint8_t x0, uint8_t y0, uint8_t coded_block_pattern)
 {
     slice_t* slice = mb->p_Slice;
 
     PixelPos block_a, block_b;
     int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-    get4x4Neighbour(mb, (mb_x << 2) - 1, (mb_y << 2), mb_size, &block_a);
-    get4x4Neighbour(mb, (mb_x << 2), (mb_y << 2) - 1, mb_size, &block_b);
+    get4x4Neighbour(mb, x0 * 4 - 1, y0 * 4, mb_size, &block_a);
+    get4x4Neighbour(mb, x0 * 4, y0 * 4 - 1, mb_size, &block_b);
 
     int cbp_a = 0x3F, cbp_b = 0x3F;
     int cbp_a_idx = 0, cbp_b_idx = 0;
-    if (mb_x == 0) {
+    if (x0 == 0) {
         if (block_a.available && slice->mb_data[block_a.mb_addr].mb_type != IPCM) {
-            cbp_a = slice->mb_data[block_a.mb_addr].cbp;
-            cbp_a_idx = 2 * (block_a.y >> 1) + 1;
+            cbp_a = slice->mb_data[block_a.mb_addr].CodedBlockPatternLuma;
+            cbp_a_idx = 2 * (block_a.y / 2) + 1;
         }
     } else {
         cbp_a = coded_block_pattern;
-        cbp_a_idx = mb_y;
+        cbp_a_idx = y0;
     }
-    if (mb_y == 0) {
+    if (y0 == 0) {
         if (block_b.available && slice->mb_data[block_b.mb_addr].mb_type != IPCM) {
-            cbp_b = slice->mb_data[block_b.mb_addr].cbp;
-            cbp_b_idx = 2 + (mb_x >> 1);
+            cbp_b = slice->mb_data[block_b.mb_addr].CodedBlockPatternLuma;
+            cbp_b_idx = (x0 / 2) + 2;
         }
     } else {
         cbp_b = coded_block_pattern;
-        cbp_b_idx = mb_x >> 1;
+        cbp_b_idx = (x0 / 2);
     }
 
     int condTermFlagA = (cbp_a & (1 << cbp_a_idx)) == 0 ? 1 : 0;
@@ -626,13 +628,13 @@ uint8_t parse_coded_block_pattern(mb_t* mb)
 
         if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
             cabac_context_t* ctx = slice->mot_ctx->cbp_c_contexts;
-            int condTermFlagA = mb->mb_left && (mb->mb_left->mb_type == IPCM || mb->mb_left->cbp > 15) ? 1 : 0;
-            int condTermFlagB = mb->mb_up   && (mb->mb_up  ->mb_type == IPCM || mb->mb_up  ->cbp > 15) ? 1 : 0;
+            int condTermFlagA = mb->mb_left && (mb->mb_left->mb_type == IPCM || mb->mb_left->CodedBlockPatternChroma) ? 1 : 0;
+            int condTermFlagB = mb->mb_up   && (mb->mb_up  ->mb_type == IPCM || mb->mb_up  ->CodedBlockPatternChroma) ? 1 : 0;
             int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
 
             if (dep_dp->decode_decision(ctx + ctxIdxInc)) {
-                condTermFlagA = mb->mb_left && (mb->mb_left->mb_type == IPCM || (mb->mb_left->cbp >> 4) == 2) ? 1 : 0;
-                condTermFlagB = mb->mb_up   && (mb->mb_up  ->mb_type == IPCM || (mb->mb_up  ->cbp >> 4) == 2) ? 1 : 0;
+                condTermFlagA = mb->mb_left && (mb->mb_left->mb_type == IPCM || mb->mb_left->CodedBlockPatternChroma == 2) ? 1 : 0;
+                condTermFlagB = mb->mb_up   && (mb->mb_up  ->mb_type == IPCM || mb->mb_up  ->CodedBlockPatternChroma == 2) ? 1 : 0;
                 ctxIdxInc = condTermFlagA + 2 * condTermFlagB + 4;
 
                 coded_block_pattern += dep_dp->decode_decision(ctx + ctxIdxInc) ? 32 : 16;

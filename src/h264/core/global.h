@@ -62,12 +62,12 @@ typedef struct image_data
   imgpel **top_data_buf[2][MAX_PLANE];     //!< pointers to top field data
   imgpel **bot_data_buf[2][MAX_PLANE];     //!< pointers to bottom field data
   
-  //! Optional data (could also add uint8 data in case imgpel is of type uint16)
+  //! Optional data (could also add uint8 data in case imgpel is of type uint16_t)
   //! These can be useful for enabling input/conversion of content of different types
   //! while keeping optimal processing size.
-  uint16 **frm_uint16[MAX_PLANE];   //!< optional frame Data for uint16
-  uint16 **top_uint16[MAX_PLANE];   //!< optional pointers to top field data
-  uint16 **bot_uint16[MAX_PLANE];   //!< optional pointers to bottom field data
+  uint16_t **frm_uint16[MAX_PLANE];   //!< optional frame Data for uint16_t
+  uint16_t **top_uint16[MAX_PLANE];   //!< optional pointers to top field data
+  uint16_t **bot_uint16[MAX_PLANE];   //!< optional pointers to bottom field data
 
   int frm_stride[MAX_PLANE];
   int top_stride[MAX_PLANE];

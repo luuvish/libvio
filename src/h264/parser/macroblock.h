@@ -104,27 +104,42 @@ enum {
     B_Bi_4x4
 };
 
-//! cbp structure
-typedef struct cbp_s {
-    int64_t blk;
-    int64_t bits;
-} CBPStructure;
+
+enum {
+    PSKIP        =  0,
+    BSKIP_DIRECT =  0,
+    P16x16       =  1,
+    P16x8        =  2,
+    P8x16        =  3,
+    SMB8x8       =  4,
+    SMB8x4       =  5,
+    SMB4x8       =  6,
+    SMB4x4       =  7,
+    P8x8         =  8,
+    I4MB         =  9,
+    I16MB        = 10,
+    IBLOCK       = 11,
+    SI4MB        = 12,
+    I8MB         = 13,
+    IPCM         = 14,
+    MAXMODE      = 15
+};
 
 
 struct macroblock_t {
-    slice_t*   p_Slice;                    //!< pointer to the current slice
-    video_par* p_Vid;                      //!< pointer to VideoParameters
-    inp_par*   p_Inp;
-    int        mbAddrX;                    //!< current MB address
-    int        mbAddrA, mbAddrB, mbAddrC, mbAddrD;
-    Boolean    mbAvailA, mbAvailB, mbAvailC, mbAvailD;
-    BlockPos   mb;
-    int        block_x;
-    int        block_y;
-    int        pix_x;
-    int        pix_y;
-    int        pix_c_x;
-    int        pix_c_y;
+    slice_t*    p_Slice;
+    video_par*  p_Vid;
+    inp_par*    p_Inp;
+    int         mbAddrX;
+    int         mbAddrA, mbAddrB, mbAddrC, mbAddrD;
+    bool        mbAvailA, mbAvailB, mbAvailC, mbAvailD;
+    BlockPos    mb;
+    int         block_x;
+    int         block_y;
+    int         pix_x;
+    int         pix_y;
+    int         pix_c_x;
+    int         pix_c_y;
 
     macroblock_t* mb_up;   //!< pointer to neighboring MB (CABAC)
     macroblock_t* mb_left; //!< pointer to neighboring MB (CABAC)
@@ -132,31 +147,25 @@ struct macroblock_t {
     macroblock_t* mbup;   // neighbors for loopfilter
     macroblock_t* mbleft; // neighbors for loopfilter
 
-    Boolean    is_intra_block;
-    Boolean    DeblockCall;
+    bool        is_intra_block;
+    uint8_t     DeblockCall;
 
-    short      slice_nr;
-    char       ei_flag;             //!< error indicator flag that enables concealment
-    char       dpl_flag;            //!< error indicator flag that signals a missing data partition
+    short       slice_nr;
+    char        ei_flag;
+    char        dpl_flag;
 
-    // some storage of macroblock syntax elements for global access
+
     bool        mb_skip_flag;
     bool        mb_field_decoding_flag;
     uint8_t     mb_type;
     bool        transform_size_8x8_flag;
-    uint8_t     coded_block_pattern;
     int8_t      mb_qp_delta;
 
-    bool        prev_intra4x4_pred_mode_flag[16];
-    uint8_t     rem_intra4x4_pred_mode      [16];
-    bool        prev_intra8x8_pred_mode_flag[ 4];
-    uint8_t     rem_intra8x8_pred_mode      [ 4];
     uint8_t     intra_chroma_pred_mode;
-
     uint8_t     ref_idx_l0 [4];
     uint8_t     ref_idx_l1 [4];
-    uint32_t    mvd_l0     [4][4][2];
-    uint32_t    mvd_l1     [4][4][2];
+    int16_t     mvd_l0     [4][4][2];
+    int16_t     mvd_l1     [4][4][2];
     uint8_t     sub_mb_type[4];
 
     bool        noSubMbPartSizeLessThan8x8Flag;
@@ -165,7 +174,7 @@ struct macroblock_t {
     uint8_t     MbPartWidth;
     uint8_t     MbPartHeight;
     uint8_t     Intra4x4PredMode[16];
-    uint8_t     Intra8x8PredMode[4];
+    uint8_t     Intra8x8PredMode[ 4];
     uint8_t     Intra16x16PredMode;
     uint8_t     CodedBlockPatternLuma;
     uint8_t     CodedBlockPatternChroma;
@@ -178,12 +187,9 @@ struct macroblock_t {
     uint8_t     qp_scaled[MAX_PLANE];
     bool        TransformBypassModeFlag;
 
-    uint8_t     nz_coeff[3][4][4];
-
-
-    short       mvd[2][BLOCK_MULTIPLE][BLOCK_MULTIPLE][2]; //!< indices correspond to [forw,backw][block_y][block_x][x,y]
-    int         cbp;
-    CBPStructure s_cbp[3];
+    uint8_t     nz_coeff[3][4][4]; // cavlc
+    uint64_t    cbp_bits[3];       // cabac
+    uint64_t    cbp_blks[3];       // deblock
 
     char        b8mode[4];
     char        b8pdir[4];
@@ -201,8 +207,6 @@ struct macroblock_t {
     bool        mixedModeEdgeFlag;
     byte        strength_ver[4][4];  // bS
     byte        strength_hor[4][16]; // bS
-
-    bool        NoMbPartLessThan8x8Flag;
 
     void        create(slice_t *slice);
     void        init(slice_t *slice);

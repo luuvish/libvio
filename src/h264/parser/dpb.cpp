@@ -70,7 +70,7 @@ static int is_used_for_reference(FrameStore* fs)
  */
 void get_smallest_poc(dpb_t *p_Dpb, int *poc,int * pos)
 {
-  uint32 i;
+  uint32_t i;
 
   if (p_Dpb->used_size<1)
   {
@@ -97,7 +97,7 @@ void get_smallest_poc(dpb_t *p_Dpb, int *poc,int * pos)
  */
 int remove_unused_frame_from_dpb(dpb_t *p_Dpb)
 {
-  uint32 i;
+  uint32_t i;
 
   // check for frames that were already output and no longer used for reference
   for (i = 0; i < p_Dpb->used_size; i++)
@@ -1119,7 +1119,7 @@ int output_one_frame_from_dpb(dpb_t *p_Dpb)
 void flush_dpb(dpb_t *p_Dpb)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
-  uint32 i;
+  uint32_t i;
 
   if(!p_Dpb->init_done)
     return;

@@ -978,7 +978,7 @@ void transform_t::iMBtrans4x4(mb_t *currMB, ColorPlane pl, int smb)
             int block8x8 = (y / 8) * 2 + (x / 8);
             if (smb || currMB->TransformBypassModeFlag)
                 itrans_4x4(this, currMB, pl, x, y);
-            else if (currMB->cbp & (1 << block8x8))
+            else if (currMB->CodedBlockPatternLuma & (1 << block8x8))
                 this->itrans4x4(currMB, pl, x, y);
             else
                 icopy4x4(currMB, pl, x, y);
@@ -991,7 +991,7 @@ void transform_t::iMBtrans8x8(mb_t *currMB, ColorPlane pl, int smb=0)
     for (int y = 0; y < 16; y += 8) {
         for (int x = 0; x < 16; x += 8) {
             int block8x8 = (y / 8) * 2 + (x / 8);
-            if (currMB->cbp & (1 << block8x8))
+            if (currMB->CodedBlockPatternLuma & (1 << block8x8))
                 this->itrans8x8(currMB, pl, x, y);
             else
                 icopy8x8(currMB, pl, x, y);
@@ -1093,7 +1093,7 @@ void transform_t::inverse_transform_inter(mb_t* mb, ColorPlane pl, int smb)
     StorablePicture* dec_picture = slice->dec_picture;
     imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
 
-    if (smb || (mb->cbp & 15)) {
+    if (smb || mb->CodedBlockPatternLuma) {
         if (!mb->transform_size_8x8_flag) // 4x4 inverse transform
             iMBtrans4x4(mb, pl, smb); 
         else // 8x8 inverse transform
@@ -1103,8 +1103,8 @@ void transform_t::inverse_transform_inter(mb_t* mb, ColorPlane pl, int smb)
         copy_image_data_16x16(&curr_img[mb->pix_y], slice->mb_pred[pl], mb->pix_x, 0);
     }
 
-    if (smb || (mb->cbp & 15))
-        slice->is_reset_coeff = FALSE;
+    if (smb || mb->CodedBlockPatternLuma)
+        slice->is_reset_coeff = false;
 
     if (sps->chroma_format_idc == YUV400 || sps->chroma_format_idc == YUV444)
         return;
@@ -1120,7 +1120,7 @@ void transform_t::inverse_transform_inter(mb_t* mb, ColorPlane pl, int smb)
         if (smb)
             itrans_sp_cr(mb, uv);
 
-        if (smb || (mb->cbp >> 4)) {
+        if (smb || mb->CodedBlockPatternChroma) {
             for (int joff = 0; joff < sps->MbHeightC; joff += BLOCK_SIZE) {
                 for (int ioff = 0; ioff < sps->MbWidthC ;ioff += BLOCK_SIZE)
                     itrans_4x4(this, mb, (ColorPlane)(uv + 1), ioff, joff);
@@ -1130,8 +1130,8 @@ void transform_t::inverse_transform_inter(mb_t* mb, ColorPlane pl, int smb)
             copy_image_data(curUV, mb_pred, mb->pix_c_x, 0, sps->MbWidthC, sps->MbHeightC);
     }
 
-    if (smb || (mb->cbp >> 4))
-        slice->is_reset_coeff_cr = FALSE;
+    if (smb || mb->CodedBlockPatternChroma)
+        slice->is_reset_coeff_cr = false;
 }
 
 

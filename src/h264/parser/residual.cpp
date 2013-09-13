@@ -429,14 +429,14 @@ static int coded_block_flag_ctxIdxInc(mb_t* mb, int pl, bool chroma, bool ac, in
         if (mb_a->mb_type == IPCM)
             condTermFlagA = 1;
         else
-            condTermFlagA = (mb_a->s_cbp[temp_pl].bits >> (bit + bit_pos_a)) & 1;
+            condTermFlagA = (mb_a->cbp_bits[temp_pl] >> (bit + bit_pos_a)) & 1;
     }
     if (block_b.available) {
         mb_t* mb_b = &slice->mb_data[block_b.mb_addr];
         if (mb_b->mb_type == IPCM)
             condTermFlagB = 1;
         else
-            condTermFlagB = (mb_b->s_cbp[temp_pl].bits >> (bit + bit_pos_b)) & 1;
+            condTermFlagB = (mb_b->cbp_bits[temp_pl] >> (bit + bit_pos_b)) & 1;
     }
     int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
 
@@ -462,7 +462,7 @@ static void update_coded_block_flag(mb_t* mb, int pl, bool chroma, bool ac, int 
     int cbp = (mb->transform_size_8x8_flag && !chroma && ac ? 0x33 : 0x01);
     int bit = (y_dc ? 0 : y_ac ? 1 : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 : 35) + (ac ? j * 4 + i : 0);
 
-    mb->s_cbp[temp_pl].bits |= ((int64_t)cbp << bit);
+    mb->cbp_bits[temp_pl] |= ((uint64_t)cbp << bit);
 }
 
 
@@ -715,8 +715,6 @@ void macroblock_t::residual_luma(ColorPlane pl)
     slice_t* slice = this->p_Slice;
     pps_t* pps = slice->active_pps;
 
-    int CodedBlockPatternLuma = this->cbp & 15;
-
     auto residual_block = !pps->entropy_coding_mode_flag ?
         std::mem_fn(&macroblock_t::residual_block_cavlc) :
         std::mem_fn(&macroblock_t::residual_block_cabac);
@@ -730,7 +728,7 @@ void macroblock_t::residual_luma(ColorPlane pl)
     for (int i8x8 = 0; i8x8 < 4; i8x8++) {
         if (!this->transform_size_8x8_flag || !pps->entropy_coding_mode_flag) {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                if (CodedBlockPatternLuma & (1 << i8x8)) {
+                if (this->CodedBlockPatternLuma & (1 << i8x8)) {
                     if (IS_I16MB(this))
                         residual_block(this, LUMA_16AC, 1, 14, 15, pl, false, true, i8x8 * 4 + i4x4);
                     else
@@ -743,7 +741,7 @@ void macroblock_t::residual_luma(ColorPlane pl)
                     }
                 }
             }
-        } else if (CodedBlockPatternLuma & (1 << i8x8))
+        } else if (this->CodedBlockPatternLuma & (1 << i8x8))
             residual_block(this, LUMA_8x8, 0, 63, 64, pl, false, true, i8x8 * 4);
         else {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
@@ -765,13 +763,11 @@ void macroblock_t::residual_chroma()
 
     int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
 
-    int CodedBlockPatternChroma = this->cbp / 16;
-
     auto residual_block = !pps->entropy_coding_mode_flag ?
         std::mem_fn(&macroblock_t::residual_block_cavlc) :
         std::mem_fn(&macroblock_t::residual_block_cabac);
 
-    if (CodedBlockPatternChroma & 3) {
+    if (this->CodedBlockPatternChroma & 3) {
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
             residual_block(this, CHROMA_DC, 0, 4 * NumC8x8 - 1, 4 * NumC8x8, (ColorPlane)(iCbCr+1), true, false, 0);
 
@@ -782,7 +778,7 @@ void macroblock_t::residual_chroma()
     for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
         for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                if (CodedBlockPatternChroma & 2)
+                if (this->CodedBlockPatternChroma & 2)
                     residual_block(this, CHROMA_AC, 1, 14, 15, (ColorPlane)(iCbCr+1), true, true, i8x8 * 4 + i4x4);
                 else {
                     if (!pps->entropy_coding_mode_flag) {

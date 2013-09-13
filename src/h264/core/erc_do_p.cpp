@@ -1119,7 +1119,7 @@ static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoPar
 
   dst->slice_type = src->slice_type = p_Vid->conceal_slice_type;
 
-  dst->idr_flag = FALSE; //since we do not want to clears the ref list
+  dst->idr_flag = 0; //since we do not want to clears the ref list
 
   dst->no_output_of_prior_pics_flag = src->no_output_of_prior_pics_flag;
   dst->long_term_reference_flag = src->long_term_reference_flag;
@@ -1328,7 +1328,7 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
     if(p_Vid->IDR_concealment_flag == 1)
     {
       picture->slice_type = I_SLICE;
-      picture->idr_flag = TRUE;
+      picture->idr_flag = 1;
       flush_dpb(p_Dpb);
       picture->top_poc= 0;
       picture->bottom_poc=picture->top_poc;

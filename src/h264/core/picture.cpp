@@ -184,18 +184,18 @@ void UseParameterSet (slice_t *currSlice)
     pps_t *pps = &p_Vid->PicParSet[PicParsetId];
     sps_t *sps = &p_Vid->SeqParSet[pps->seq_parameter_set_id];
 
-    if (pps->Valid != TRUE)
+    if (!pps->Valid)
         printf ("Trying to use an invalid (uninitialized) Picture Parameter Set with ID %d, expect the unexpected...\n", PicParsetId);
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->svc_extension_flag == -1) {
-        if (sps->Valid != TRUE)
+        if (!sps->Valid)
             printf ("PicParset %d references an invalid (uninitialized) Sequence Parameter Set with ID %d, expect the unexpected...\n", 
         PicParsetId, (int) pps->seq_parameter_set_id);
     } else {
         // Set SPS to the subset SPS parameters
         p_Vid->active_subset_sps = p_Vid->SubsetSeqParSet + pps->seq_parameter_set_id;
         sps = &(p_Vid->active_subset_sps->sps);
-        if (p_Vid->SubsetSeqParSet[pps->seq_parameter_set_id].Valid != TRUE)
+        if (!p_Vid->SubsetSeqParSet[pps->seq_parameter_set_id].Valid)
             printf ("PicParset %d references an invalid (uninitialized) Subset Sequence Parameter Set with ID %d, expect the unexpected...\n", 
                     PicParsetId, (int) pps->seq_parameter_set_id);
     }
@@ -410,7 +410,7 @@ static void status_picture(VideoParameters *p_Vid, StorablePicture **dec_picture
     // report
     char cslice_type[9];  
 
-    if (p_Inp->silent == FALSE) {
+    if (!p_Inp->silent) {
         if (structure == TOP_FIELD || structure == FRAME) {
             if (slice_type == I_SLICE && is_idr) // IDR picture
                 strcpy(cslice_type,"IDR");
@@ -454,7 +454,7 @@ static void status_picture(VideoParameters *p_Vid, StorablePicture **dec_picture
 
         sprintf(yuvFormat,"%s", yuv_types[chroma_format_idc]);
 
-        if (p_Inp->silent == FALSE) {
+        if (!p_Inp->silent) {
             SNRParameters   *snr = p_Vid->snr;
             if (p_Vid->p_ref != -1)
                 fprintf(stdout,"%05d(%s%5d %5d %5d %8.4f %8.4f %8.4f  %s %7d\n",

@@ -9,7 +9,7 @@
 
 #if (ENABLE_OUTPUT_TONEMAPPING)
 typedef struct tone_mapping_struct_s {
-    Boolean       seiHasTone_mapping;
+    bool          seiHasTone_mapping;
     unsigned int  tone_map_repetition_period;
     unsigned char coded_data_bit_depth;
     unsigned char sei_bit_depth;

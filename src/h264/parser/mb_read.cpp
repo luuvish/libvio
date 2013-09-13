@@ -312,7 +312,8 @@ static void skip_macroblock(mb_t *currMB)
     zeroMotionLeft  = !mb[0].available ? 1 : a_ref_idx==0 && a_mv->mv_x == 0 && a_mv_y==0 ? 1 : 0;
     zeroMotionAbove = !mb[1].available ? 1 : b_ref_idx==0 && b_mv->mv_x == 0 && b_mv_y==0 ? 1 : 0;
 
-    currMB->cbp = 0;
+    currMB->CodedBlockPatternLuma   = 0;
+    currMB->CodedBlockPatternChroma = 0;
     reset_coeffs(currMB);
 
     if (zeroMotionAbove || zeroMotionLeft) {
@@ -377,8 +378,9 @@ void macroblock_t::parse()
                 this->ei_flag = 0;
         }
 
-        this->mb_type = !this->mb_skip_flag;
-        this->cbp     = !this->mb_skip_flag;
+        this->mb_type                 = !this->mb_skip_flag;
+        this->CodedBlockPatternLuma   = !this->mb_skip_flag;
+        this->CodedBlockPatternChroma = 0;
 
         if (slice->MbaffFrameFlag && CurrMbAddr % 2 == 0) {
             if (pps->entropy_coding_mode_flag) {
@@ -462,7 +464,7 @@ void macroblock_t::parse()
     this->interpret_mb_mode();
 
     if (slice->slice_type != B_slice)
-        this->NoMbPartLessThan8x8Flag = 1;
+        this->noSubMbPartSizeLessThan8x8Flag = 1;
     slice->dec_picture->motion.mb_field_decoding_flag[this->mbAddrX] = this->mb_field_decoding_flag;
 
     if (this->mb_type == IPCM)
@@ -480,7 +482,7 @@ void macroblock_t::parse_i_pcm()
 {
     slice_t *slice = this->p_Slice;
 
-    this->NoMbPartLessThan8x8Flag = 1;
+    this->noSubMbPartSizeLessThan8x8Flag = 1;
     this->transform_size_8x8_flag = 0;
 
     //--- init macroblock data ---
@@ -508,12 +510,12 @@ void macroblock_t::parse_skip()
         slice->intra_block[this->mbAddrX] = 0;
 
     if (slice->slice_type == B_slice) {
-        this->NoMbPartLessThan8x8Flag = sps->direct_8x8_inference_flag;
+        this->noSubMbPartSizeLessThan8x8Flag = sps->direct_8x8_inference_flag;
         init_macroblock_direct(this);
 
         if (slice->mb_skip_run >= 0) {
             if (pps->entropy_coding_mode_flag) {
-                slice->is_reset_coeff = TRUE;
+                slice->is_reset_coeff = true;
                 slice->mb_skip_run = -1;
             } else
                 reset_coeffs(this);
@@ -534,7 +536,7 @@ void macroblock_t::parse_intra()
     pps_t *pps = slice->active_pps;
 
     if (this->mb_type != I4MB)
-        this->NoMbPartLessThan8x8Flag = 1;
+        this->noSubMbPartSizeLessThan8x8Flag = 1;
 
     this->transform_size_8x8_flag = 0;
     if (this->mb_type == I4MB && pps->transform_8x8_mode_flag) {
@@ -566,7 +568,7 @@ void macroblock_t::parse_inter()
     sps_t *sps = slice->active_sps;
     pps_t *pps = slice->active_pps;
 
-    this->NoMbPartLessThan8x8Flag = 1;
+    this->noSubMbPartSizeLessThan8x8Flag = 1;
     this->transform_size_8x8_flag = 0;
     if (this->mb_type == P8x8) {
         for (int mbPartIdx = 0; mbPartIdx < 4; mbPartIdx++) {
@@ -588,8 +590,8 @@ void macroblock_t::parse_inter()
                 this->b8pdir[mbPartIdx] = p_v2pd[val];
             }
 
-            //set NoMbPartLessThan8x8Flag for P8x8 mode
-            this->NoMbPartLessThan8x8Flag &= 
+            //set noSubMbPartSizeLessThan8x8Flag for P8x8 mode
+            this->noSubMbPartSizeLessThan8x8Flag &= 
                 (this->b8mode[mbPartIdx] == 0 && sps->direct_8x8_inference_flag) ||
                 (this->b8mode[mbPartIdx] == 4);
         }
@@ -634,8 +636,8 @@ void macroblock_t::parse_ipred_4x4_modes()
         int by = ((luma4x4BlkIdx / 4) / 2) * 8 + ((luma4x4BlkIdx % 4) / 2) * 4;
         int val = parse_intra_pred_mode(this);
 
-        this->prev_intra4x4_pred_mode_flag[luma4x4BlkIdx] = val == -1;
-        this->rem_intra4x4_pred_mode      [luma4x4BlkIdx] = val;
+        bool    prev_intra4x4_pred_mode_flag = val == -1;
+        uint8_t rem_intra4x4_pred_mode       = val;
 
         int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
         PixelPos left_block, top_block;
@@ -672,12 +674,12 @@ void macroblock_t::parse_ipred_4x4_modes()
         }
 
         uint8_t predIntra4x4PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
-        if (this->prev_intra4x4_pred_mode_flag[luma4x4BlkIdx])
+        if (prev_intra4x4_pred_mode_flag)
             this->Intra4x4PredMode[luma4x4BlkIdx] = predIntra4x4PredMode;
-        else if (this->rem_intra4x4_pred_mode[luma4x4BlkIdx] < predIntra4x4PredMode)
-            this->Intra4x4PredMode[luma4x4BlkIdx] = this->rem_intra4x4_pred_mode[luma4x4BlkIdx];
+        else if (rem_intra4x4_pred_mode < predIntra4x4PredMode)
+            this->Intra4x4PredMode[luma4x4BlkIdx] = rem_intra4x4_pred_mode;
         else
-            this->Intra4x4PredMode[luma4x4BlkIdx] = this->rem_intra4x4_pred_mode[luma4x4BlkIdx] + 1;
+            this->Intra4x4PredMode[luma4x4BlkIdx] = rem_intra4x4_pred_mode + 1;
 
         //if ((luma4x4BlkIdx % 4) == 0)
         //    this->Intra8x8PredMode[luma4x4BlkIdx / 4] = this->Intra4x4PredMode[luma4x4BlkIdx];
@@ -694,8 +696,8 @@ void macroblock_t::parse_ipred_8x8_modes()
         int by = (luma8x8BlkIdx / 2) * 8;
         int val = parse_intra_pred_mode(this);
 
-        this->prev_intra8x8_pred_mode_flag[luma8x8BlkIdx] = val == -1;
-        this->rem_intra8x8_pred_mode      [luma8x8BlkIdx] = val;
+        bool    prev_intra8x8_pred_mode_flag = val == -1;
+        uint8_t rem_intra8x8_pred_mode       = val;
 
         int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
         PixelPos left_block, top_block;
@@ -727,12 +729,12 @@ void macroblock_t::parse_ipred_8x8_modes()
         }
 
         uint8_t predIntra8x8PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
-        if (this->prev_intra8x8_pred_mode_flag[luma8x8BlkIdx])
+        if (prev_intra8x8_pred_mode_flag)
             this->Intra8x8PredMode[luma8x8BlkIdx] = predIntra8x8PredMode;
-        else if (this->rem_intra8x8_pred_mode[luma8x8BlkIdx] < predIntra8x8PredMode)
-            this->Intra8x8PredMode[luma8x8BlkIdx] = this->rem_intra8x8_pred_mode[luma8x8BlkIdx];
+        else if (rem_intra8x8_pred_mode < predIntra8x8PredMode)
+            this->Intra8x8PredMode[luma8x8BlkIdx] = rem_intra8x8_pred_mode;
         else
-            this->Intra8x8PredMode[luma8x8BlkIdx] = this->rem_intra8x8_pred_mode[luma8x8BlkIdx] + 1;
+            this->Intra8x8PredMode[luma8x8BlkIdx] = rem_intra8x8_pred_mode + 1;
 
         //this->Intra4x4PredMode[luma8x8BlkIdx * 4    ] = this->Intra8x8PredMode[luma8x8BlkIdx];
         //this->Intra4x4PredMode[luma8x8BlkIdx * 4 + 1] = this->Intra8x8PredMode[luma8x8BlkIdx];
@@ -864,8 +866,9 @@ void macroblock_t::parse_motion_vector(int list, int step_h4, int step_v4, int i
     for (int jj = 0; jj < step_v4 / 4; ++jj) {
         for (int ii = 0; ii < step_h4 / 4; ++ii) {
             mv_info[jj + j4][ii + i4].mv[list] = curr_mv;
-            this->mvd[list][jj + j][ii + i][0] = curr_mvd[0];
-            this->mvd[list][jj + j][ii + i][1] = curr_mvd[1];
+            auto mvd = list == 0 ? this->mvd_l0 : this->mvd_l1;
+            mvd[jj + j][ii + i][0] = curr_mvd[0];
+            mvd[jj + j][ii + i][1] = curr_mvd[1];
         }
     }
 }
@@ -878,9 +881,11 @@ void macroblock_t::parse_cbp_qp()
 
     // read CBP if not new intra mode
     if (!IS_I16MB(this)) {
-        this->cbp = parse_coded_block_pattern(this);
+        uint8_t coded_block_pattern = parse_coded_block_pattern(this);
+        this->CodedBlockPatternLuma   = coded_block_pattern % 16;
+        this->CodedBlockPatternChroma = coded_block_pattern / 16;
         if (pps->entropy_coding_mode_flag) {
-            if (!this->cbp)
+            if (!this->CodedBlockPatternLuma && !this->CodedBlockPatternChroma)
                 slice->last_dquant = 0;
         }
 
@@ -889,9 +894,9 @@ void macroblock_t::parse_cbp_qp()
         int need_transform_size_flag =
             ((this->mb_type >= 1 && this->mb_type <= 3) ||
              (IS_DIRECT(this) && sps->direct_8x8_inference_flag) ||
-             this->NoMbPartLessThan8x8Flag) &&
+             this->noSubMbPartSizeLessThan8x8Flag) &&
             (this->mb_type != I8MB) && (this->mb_type != I4MB) &&
-            (this->cbp & 15) && pps->transform_8x8_mode_flag;
+            (this->CodedBlockPatternLuma) && pps->transform_8x8_mode_flag;
 
         if (need_transform_size_flag)
             this->transform_size_8x8_flag = parse_transform_size_8x8_flag(this);
@@ -900,7 +905,7 @@ void macroblock_t::parse_cbp_qp()
     //=====   DQUANT   =====
     //----------------------
     // Delta quant only if nonzero coeffs
-    if (IS_I16MB(this) || this->cbp != 0) {
+    if (IS_I16MB(this) || this->CodedBlockPatternLuma != 0 || this->CodedBlockPatternChroma != 0) {
         this->mb_qp_delta = parse_mb_qp_delta(this);
 
         if (pps->entropy_coding_mode_flag)        
@@ -921,8 +926,10 @@ void macroblock_t::parse_cbp_qp()
                 this->dpl_flag = 1;
             }
             check_dp_neighbors(this);
-            if (this->dpl_flag)
-                this->cbp = 0;
+            if (this->dpl_flag) {
+                this->CodedBlockPatternLuma   = 0;
+                this->CodedBlockPatternChroma = 0;
+            }
         }
     }
 

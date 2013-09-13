@@ -88,7 +88,7 @@ static void Report(VideoParameters *p_Vid)
   // normalize time
   p_Vid->tot_time /= p_Vid->tot_time;
 
-  if (p_Inp->silent == FALSE)
+  if (!p_Inp->silent)
   {
     fprintf(stdout,"-------------------- Average SNR all frames ------------------------------\n");
     fprintf(stdout," SNR Y(dB)           : %5.2f\n",snr->snra[0]);
@@ -153,7 +153,7 @@ static void Report(VideoParameters *p_Vid)
 
   if (active_pps)
   {
-    if (active_pps->entropy_coding_mode_flag == (Boolean) CAVLC)
+    if (active_pps->entropy_coding_mode_flag)
       fprintf(p_log," CAVLC|");
     else
       fprintf(p_log," CABAC|");
@@ -288,7 +288,7 @@ static void alloc_video_params(VideoParameters **p_Vid)
     (*p_Vid)->old_slice->pps_id                    = INT_MAX;
     (*p_Vid)->old_slice->frame_num                 = INT_MAX;
     (*p_Vid)->old_slice->nal_ref_idc               = INT_MAX;
-    (*p_Vid)->old_slice->idr_flag                  = FALSE;
+    (*p_Vid)->old_slice->idr_flag                  = 0;
 
     (*p_Vid)->old_slice->pic_oder_cnt_lsb          = UINT_MAX;
     (*p_Vid)->old_slice->delta_pic_oder_cnt_bottom = INT_MAX;

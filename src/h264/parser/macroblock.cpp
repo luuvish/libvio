@@ -56,7 +56,8 @@ void macroblock_t::init(slice_t *slice)
     // reset mode info
     this->mb_skip_flag   = 0;
     this->mb_type        = 0;
-    this->cbp            = 0;    
+    this->CodedBlockPatternLuma   = 0;
+    this->CodedBlockPatternChroma = 0;
     this->intra_chroma_pred_mode = intra_prediction_t::Intra_Chroma_DC;
 
     // Save the slice number of this macroblock. When the macroblock below
@@ -66,14 +67,14 @@ void macroblock_t::init(slice_t *slice)
     CheckAvailabilityOfNeighbors(this);
 
     // Reset syntax element entries in MB struct
-    if (slice->slice_type != I_SLICE) {
-        if (slice->slice_type != B_SLICE)
-            memset(this->mvd[0][0][0], 0, MB_BLOCK_PARTITIONS * 2 * sizeof(short));
-        else
-            memset(this->mvd[0][0][0], 0, 2 * MB_BLOCK_PARTITIONS * 2 * sizeof(short));
+    if (slice->slice_type != I_slice) {
+        memset(this->mvd_l0[0][0], 0, MB_BLOCK_PARTITIONS * 2 * sizeof(int16_t));
+        if (slice->slice_type == B_slice)
+            memset(this->mvd_l1[0][0], 0, MB_BLOCK_PARTITIONS * 2 * sizeof(int16_t));
     }
 
-    memset(this->s_cbp, 0, 3 * sizeof(CBPStructure));
+    memset(this->cbp_blks, 0, 3 * sizeof(uint64_t));
+    memset(this->cbp_bits, 0, 3 * sizeof(uint64_t));
 
     // initialize slice->mb_rres
     if (!slice->is_reset_coeff) {
@@ -180,22 +181,25 @@ static void interpret_mb_mode_P(mb_t *currMB)
         currMB->mb_type = P8x8;
         currMB->p_Slice->allrefzero = (mbmode == 5);
     } else if (mbmode == 6) {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         currMB->mb_type = I4MB;
         memset(currMB->b8mode, IBLOCK, 4 * sizeof(char));
         memset(currMB->b8pdir,     -1, 4 * sizeof(char));
     } else if (mbmode == 31) {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         currMB->mb_type = IPCM;
-        currMB->cbp = -1;
+        currMB->CodedBlockPatternLuma   = 15;
+        currMB->CodedBlockPatternChroma =  3;
         currMB->Intra16x16PredMode = 0;
 
         memset(currMB->b8mode, 0, 4 * sizeof(char));
         memset(currMB->b8pdir,-1, 4 * sizeof(char));
     } else {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         currMB->mb_type = I16MB;
-        currMB->cbp = ICBPTAB[((mbmode-7))>>2];
+        uint8_t coded_block_pattern = ICBPTAB[((mbmode-7))>>2];
+        currMB->CodedBlockPatternLuma   = coded_block_pattern % 16;
+        currMB->CodedBlockPatternChroma = coded_block_pattern / 16;
         currMB->Intra16x16PredMode = ((mbmode-7)) & 0x03;
         memset(currMB->b8mode, 0, 4 * sizeof(char));
         memset(currMB->b8pdir,-1, 4 * sizeof(char));
@@ -214,22 +218,25 @@ static void interpret_mb_mode_I(mb_t *currMB)
     short mbmode = currMB->mb_type;
 
     if (mbmode == 0) {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         currMB->mb_type = I4MB;
         memset(currMB->b8mode,IBLOCK,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
     } else if (mbmode == 25) {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         currMB->mb_type=IPCM;
-        currMB->cbp= -1;
+        currMB->CodedBlockPatternLuma   = 15;
+        currMB->CodedBlockPatternChroma =  3;
         currMB->Intra16x16PredMode = 0;
 
         memset(currMB->b8mode, 0,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
     } else {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         currMB->mb_type = I16MB;
-        currMB->cbp= ICBPTAB[(mbmode-1)>>2];
+        uint8_t coded_block_pattern = ICBPTAB[(mbmode-1)>>2];
+        currMB->CodedBlockPatternLuma   = coded_block_pattern % 16;
+        currMB->CodedBlockPatternChroma = coded_block_pattern / 16;
         currMB->Intra16x16PredMode = (mbmode-1) & 0x03;
         memset(currMB->b8mode, 0, 4 * sizeof(char));
         memset(currMB->b8pdir,-1, 4 * sizeof(char));
@@ -261,17 +268,19 @@ static void interpret_mb_mode_B(mb_t *currMB)
         memset(currMB->b8mode, 0, 4 * sizeof(char));
         memset(currMB->b8pdir, 2, 4 * sizeof(char));
     } else if (mbtype == 23) { // intra4x4
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         mbmode = I4MB;
         memset(currMB->b8mode, IBLOCK,4 * sizeof(char));
         memset(currMB->b8pdir, -1,4 * sizeof(char));
     } else if ((mbtype > 23) && (mbtype < 48) ) { // intra16x16
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         mbmode = I16MB;
         memset(currMB->b8mode,  0, 4 * sizeof(char));
         memset(currMB->b8pdir, -1, 4 * sizeof(char));
 
-        currMB->cbp     = (int) ICBPTAB[(mbtype-24)>>2];
+        uint8_t coded_block_pattern = ICBPTAB[(mbtype-24)>>2];
+        currMB->CodedBlockPatternLuma   = coded_block_pattern % 16;
+        currMB->CodedBlockPatternChroma = coded_block_pattern / 16;
         currMB->Intra16x16PredMode = (mbtype-24) & 0x03;
     } else if (mbtype == 22) { // 8x8(+split)
         mbmode = P8x8;       // b8mode and pdir is transmitted in additional codewords
@@ -280,12 +289,13 @@ static void interpret_mb_mode_B(mb_t *currMB)
         memset(currMB->b8mode, 1,4 * sizeof(char));
         memset(currMB->b8pdir, offset2pdir16x16[mbtype], 4 * sizeof(char));
     } else if(mbtype == 48) {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         mbmode=IPCM;
         memset(currMB->b8mode, 0,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
 
-        currMB->cbp= -1;
+        currMB->CodedBlockPatternLuma   = 15;
+        currMB->CodedBlockPatternChroma =  3;
         currMB->Intra16x16PredMode = 0;
     } else if ((mbtype & 0x01) == 0) { // 16x8
         mbmode = 2;
@@ -314,26 +324,29 @@ static void interpret_mb_mode_SI(mb_t *currMB)
     short mbmode = currMB->mb_type;
 
     if (mbmode == 0) {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         currMB->mb_type = SI4MB;
         memset(currMB->b8mode,IBLOCK,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
     } else if (mbmode == 1) {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         currMB->mb_type = I4MB;
         memset(currMB->b8mode,IBLOCK,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
     } else if (mbmode == 26) {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         currMB->mb_type = IPCM;
-        currMB->cbp = -1;
+        currMB->CodedBlockPatternLuma   = 15;
+        currMB->CodedBlockPatternChroma =  3;
         currMB->Intra16x16PredMode = 0;
         memset(currMB->b8mode,0,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));
     } else {
-        currMB->is_intra_block = TRUE;
+        currMB->is_intra_block = true;
         currMB->mb_type = I16MB;
-        currMB->cbp = ICBPTAB[(mbmode - 2) >> 2];
+        uint8_t coded_block_pattern = ICBPTAB[(mbmode - 2) >> 2];
+        currMB->CodedBlockPatternLuma   = coded_block_pattern % 16;
+        currMB->CodedBlockPatternChroma = coded_block_pattern / 16;
         currMB->Intra16x16PredMode = (mbmode - 2) & 0x03;
         memset(currMB->b8mode,0,4 * sizeof(char));
         memset(currMB->b8pdir,-1,4 * sizeof(char));

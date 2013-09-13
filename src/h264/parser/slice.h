@@ -196,8 +196,8 @@ typedef struct slice_t {
     int                       dpB_NotPresent;    //!< non-zero, if data partition B is lost
     int                       dpC_NotPresent;    //!< non-zero, if data partition C is lost
 
-    Boolean                   is_reset_coeff;
-    Boolean                   is_reset_coeff_cr;
+    bool                      is_reset_coeff;
+    bool                      is_reset_coeff_cr;
     imgpel                 ***mb_pred; // IntraPrediction()
     imgpel                 ***mb_rec;
     int                    ***mb_rres;

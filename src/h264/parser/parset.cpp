@@ -349,7 +349,7 @@ void seq_parameter_set_rbsp(data_partition_t *s, sps_t *sps)
     if (sps->vui_parameters_present_flag)
         vui_parameters(s, &sps->vui_parameters);
 
-    sps->Valid = TRUE;
+    sps->Valid = true;
 }
 
 static const byte ZZ_SCAN[16] = {
@@ -490,7 +490,7 @@ void pic_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, pps_t *
     }
     assert(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12);
 
-    pps->Valid = TRUE;
+    pps->Valid = true;
 }
 
 
@@ -809,7 +809,7 @@ static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_
   memcpy (&subset_sps->sps, sps, sizeof (sps_t));
 
   assert (subset_sps != NULL);
-  subset_sps->Valid = FALSE;
+  subset_sps->Valid = false;
 
     if (subset_sps->sps.profile_idc == 83 || subset_sps->sps.profile_idc == 86) {
 
@@ -836,7 +836,7 @@ static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_
     }
 
     if (subset_sps->sps.Valid)
-        subset_sps->Valid = TRUE;
+        subset_sps->Valid = true;
 
     delete sps;
     return 0;
@@ -1042,9 +1042,9 @@ void SubsetSPSConsistencyCheck (sub_sps_t *subset_sps)
 
 void MakePPSavailable (VideoParameters *p_Vid, int id, pps_t *pps)
 {
-  assert (pps->Valid == TRUE);
+  assert (pps->Valid);
 
-  if (p_Vid->PicParSet[id].Valid == TRUE && p_Vid->PicParSet[id].slice_group_id != NULL)
+  if (p_Vid->PicParSet[id].Valid && p_Vid->PicParSet[id].slice_group_id)
     free (p_Vid->PicParSet[id].slice_group_id);
 
   memcpy (&p_Vid->PicParSet[id], pps, sizeof (pps_t));
@@ -1061,17 +1061,17 @@ void CleanUpPPS(VideoParameters *p_Vid)
 
   for (i=0; i<MAXPPS; i++)
   {
-    if (p_Vid->PicParSet[i].Valid == TRUE && p_Vid->PicParSet[i].slice_group_id != NULL)
+    if (p_Vid->PicParSet[i].Valid && p_Vid->PicParSet[i].slice_group_id)
       free (p_Vid->PicParSet[i].slice_group_id);
 
-    p_Vid->PicParSet[i].Valid = FALSE;
+    p_Vid->PicParSet[i].Valid = false;
   }
 }
 
 
 void MakeSPSavailable (VideoParameters *p_Vid, int id, sps_t *sps)
 {
-  assert (sps->Valid == TRUE);
+  assert (sps->Valid);
   memcpy (&p_Vid->SeqParSet[id], sps, sizeof (sps_t));
 }
 
