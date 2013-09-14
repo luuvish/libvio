@@ -4,6 +4,7 @@
 
 #include "global.h"
 #include "parset.h"
+#include "dpb.h"
 
 #include "quantization.h"
 
@@ -43,12 +44,12 @@ typedef struct DecRefPicMarking_s
 typedef struct slice_t {
     struct video_par         *p_Vid;
     struct inp_par           *p_Inp;
-    pps_t *active_pps;
-    sps_t *active_sps;
-    int                       svc_extension_flag;
+    pps_t*      active_pps;
+    sps_t*      active_sps;
+    int         svc_extension_flag;
 
     // dpb pointer
-    struct decoded_picture_buffer_t *p_Dpb;
+    dpb_t*      p_Dpb;
 
 
     //slice property;
@@ -226,7 +227,6 @@ typedef struct slice_t {
     int                       erc_mvperMB;
     struct macroblock_t     *mb_data;
     struct storable_picture  *dec_picture;
-    char                     *intra_block;
     char                      chroma_vector_adjustment[6][32];
 
     bool        init();

@@ -449,8 +449,8 @@ void perform_mc(mb_t *currMB, ColorPlane pl, StorablePicture *dec_picture, int p
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
 
-    int i4 = currMB->block_x + i;
-    int j4 = currMB->block_y + j;
+    int i4 = currMB->mb.x * 4 + i;
+    int j4 = currMB->mb.y * 4 + j;
     int ioff = (i << 2);
     int joff = (j << 2);
     int chroma_format_idc = dec_picture->chroma_format_idc;
@@ -491,9 +491,9 @@ void perform_mc(mb_t *currMB, ColorPlane pl, StorablePicture *dec_picture, int p
 
     int block_y_aff;
     if (currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag)
-        block_y_aff = (currMB->block_y - 4 * (currMB->mbAddrX % 2)) / 2;
+        block_y_aff = (currMB->mb.y * 4 - 4 * (currMB->mbAddrX % 2)) / 2;
     else
-        block_y_aff = currMB->block_y;
+        block_y_aff = currMB->mb.y * 4;
 
     check_motion_vector_range(l0_mv_array, currSlice);
     vec1_x = i4 * mv_mul + l0_mv_array->mv_x;

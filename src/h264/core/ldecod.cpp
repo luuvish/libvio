@@ -245,8 +245,6 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
     {
       free(cps->mb_data_JV[i]);
       cps->mb_data_JV[i] = NULL;
-      free (cps->intra_block_JV[i]);
-      cps->intra_block_JV[i] = NULL;
     }   
   }
   else
@@ -255,11 +253,6 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
     {
       free(cps->mb_data);
       cps->mb_data = NULL;
-    }
-    if(cps->intra_block)
-    {
-      free (cps->intra_block);
-      cps->intra_block = NULL;
     }
   }
   if(cps->PicPos)

@@ -36,3 +36,6 @@
 
 11. read_CBP_and_coeffs_from_NAL_CAVLC_422(), read_CBP_and_coeffs_from_NAL_CABAC_422()
     chroma dc inverse quantization을 할 때, qpc + bitdepth_chroma_qp_scale에 3을 추가로 더함. 422일 때만 왜 더하는지 모르겠음.
+
+12. concealIPCMcoeffs()
+    for (k = 0; k < 2; ++k), cof[plane]에서 plane 1,2를 초기화하지 않고 0,1를 초기화 함.

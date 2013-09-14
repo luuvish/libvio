@@ -111,13 +111,6 @@ typedef enum
 
 typedef enum
 {
-  CAVLC,
-  CABAC
-} SymbolMode;
-
-
-typedef enum
-{
   FRAME,
   TOP_FIELD,
   BOTTOM_FIELD
@@ -214,17 +207,17 @@ typedef struct coding_par {
 
     struct macroblock_t *mb_data;               //!< array containing all MBs of a whole frame
     struct macroblock_t *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
-    char  *intra_block;
-    char  *intra_block_JV[MAX_PLANE];
     BlockPos *PicPos;  
 } CodingParameters;
 
+struct decoded_picture_buffer_t;
+
 typedef struct layer_par {
-    int                              layer_id;
-    struct video_par                *p_Vid;
-    CodingParameters                *p_Cps;
-    sps_t                           *p_SPS;
-    struct decoded_picture_buffer_t *p_Dpb;
+    int               layer_id;
+    struct video_par* p_Vid;
+    CodingParameters* p_Cps;
+    sps_t*            p_SPS;
+    decoded_picture_buffer_t* p_Dpb;
 } LayerParameters;
 
 
@@ -307,9 +300,9 @@ typedef struct video_par {
     OldSliceParams               *old_slice;
     SNRParameters                *snr;
 
-    struct decoded_picture_buffer_t *p_Dpb_layer[MAX_NUM_DPB_LAYERS];
-    CodingParameters                *p_EncodePar[MAX_NUM_DPB_LAYERS];
-    LayerParameters                 *p_LayerPar [MAX_NUM_DPB_LAYERS];
+    decoded_picture_buffer_t* p_Dpb_layer[MAX_NUM_DPB_LAYERS];
+    CodingParameters* p_EncodePar[MAX_NUM_DPB_LAYERS];
+    LayerParameters*  p_LayerPar [MAX_NUM_DPB_LAYERS];
 
     bool global_init_done[2];
 
@@ -377,8 +370,6 @@ typedef struct video_par {
     // global picture format dependent buffers, memory allocation in decod.c
     struct macroblock_t *mb_data;               //!< array containing all MBs of a whole frame
     struct macroblock_t *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
-    char  *intra_block;
-    char  *intra_block_JV[MAX_PLANE];
     BlockPos *PicPos;
 
 

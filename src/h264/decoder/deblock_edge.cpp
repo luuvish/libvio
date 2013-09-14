@@ -225,7 +225,7 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
     int *mb_size = mb_size_xy[chromaEdgeFlag == 0 ? IS_LUMA : IS_CHROMA];
 
     //if (MbQ->DFDisableIdc == 0) {
-    if (MbP || MbQ->DFDisableIdc == 0) {
+    if (MbP || MbQ->p_Slice->disable_deblocking_filter_idc == 0) {
 
         int edge_x = verticalEdgeFlag ? edge : 0;
         int edge_y = verticalEdgeFlag ? 0 : edge;
@@ -240,8 +240,8 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
             yQ = (edge < MB_BLOCK_SIZE ? edge - 1: 0);
         }
 
-        imgpel *imgQ = chromaEdgeFlag == 0 ? &Img[MbQ->pix_y + edge_y][MbQ->pix_x + edge_x]
-                                           : &Img[MbQ->pix_c_y + edge_y][MbQ->pix_c_x + edge_x];
+        imgpel *imgQ = chromaEdgeFlag == 0 ? &Img[MbQ->mb.y * 16 + edge_y][MbQ->mb.x * 16 + edge_x]
+                                           : &Img[MbQ->mb.y * sps->MbHeightC + edge_y][MbQ->mb.x * sps->MbWidthC + edge_x];
         imgpel *imgP = &imgQ[-step_x];
 
         for (int pel = 0; pel < PelNum; pel++) {
@@ -280,8 +280,8 @@ static void deblock_mb(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaSt
                 // Average QP of the two blocks
                 int QP = pl? ((MbP->QpC[pl-1] + MbQ->QpC[pl-1] + 1) >> 1) :
                               (MbP->QpY + MbQ->QpY + 1) >> 1;
-                int indexA = clip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
-                int indexB = clip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
+                int indexA = clip3(0, MAX_QP, QP + MbQ->p_Slice->FilterOffsetA);
+                int indexB = clip3(0, MAX_QP, QP + MbQ->p_Slice->FilterOffsetB);
                 int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
                 int Beta   = BETA_TABLE [indexB] * bitdepth_scale;
 
@@ -318,7 +318,7 @@ static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool ch
     };
     int *mb_size = mb_size_xy[chromaEdgeFlag == 0 ? IS_LUMA : IS_CHROMA];
 
-    if (MbQ->DFDisableIdc == 0) {
+    if (MbQ->p_Slice->disable_deblocking_filter_idc == 0) {
         for (int pel = 0; pel < PelNum; ++pel) {
             if (verticalEdgeFlag) {
                 getAffNeighbour(MbQ, edge - 1, pel, mb_size, &pixP);     
@@ -348,8 +348,8 @@ static void deblock_mb_mbaff(bool verticalEdgeFlag, bool chromaEdgeFlag, bool ch
                 // Average QP of the two blocks
                 int QP = pl? ((MbP->QpC[pl-1] + MbQ->QpC[pl-1] + 1) >> 1)
                             : (MbP->QpY + MbQ->QpY + 1) >> 1;
-                int indexA = clip3(0, MAX_QP, QP + MbQ->DFAlphaC0Offset);
-                int indexB = clip3(0, MAX_QP, QP + MbQ->DFBetaOffset);
+                int indexA = clip3(0, MAX_QP, QP + MbQ->p_Slice->FilterOffsetA);
+                int indexB = clip3(0, MAX_QP, QP + MbQ->p_Slice->FilterOffsetB);
                 int Alpha  = ALPHA_TABLE[indexA] * bitdepth_scale;
                 int Beta   = BETA_TABLE [indexB] * bitdepth_scale;
 

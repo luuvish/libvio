@@ -30,7 +30,7 @@ static inline float psnr(int max_sample_sq, int samples, float sse_distortion )
 
 static inline void reset_mbs(mb_t *currMB)
 {
-  currMB->slice_nr = -1; 
+  currMB->slice_nr = -1;
   currMB->ei_flag  =  1;
   currMB->dpl_flag =  0;
 }
@@ -47,15 +47,12 @@ static void setup_buffers(VideoParameters *p_Vid, int layer_id)
      for( i=0; i<MAX_PLANE; i++ )
      {
        p_Vid->mb_data_JV[i] = cps->mb_data_JV[i];
-       p_Vid->intra_block_JV[i] = cps->intra_block_JV[i];
      }
      p_Vid->mb_data = NULL;
-     p_Vid->intra_block = NULL;
     }
     else
     {
       p_Vid->mb_data = cps->mb_data;
-      p_Vid->intra_block = cps->intra_block;
     }
     p_Vid->PicPos = cps->PicPos;
     p_Vid->img2buf = cps->img2buf;
@@ -185,7 +182,6 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
   int nplane;
   StorablePicture *dec_picture = NULL;
   sps_t *sps = p_Vid->active_sps;
-  pps_t *pps = p_Vid->active_pps;
   dpb_t *p_Dpb = currSlice->p_Dpb;
 
   int PicSizeInMbs = sps->PicWidthInMbs * (sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag));
@@ -306,24 +302,15 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
     p_Vid->type = P_SLICE;  // concealed element
   }
 
-  // Set the slice_nr member of each MB to -1, to ensure correct when packet loss occurs
   // TO set mb_t Map (mark all MBs as 'have to be concealed')
   if(sps->separate_colour_plane_flag)
   {
     for( nplane=0; nplane<MAX_PLANE; ++nplane )
     {      
       mb_t *currMB = p_Vid->mb_data_JV[nplane];
-      char *intra_block = p_Vid->intra_block_JV[nplane];
       for(i=0; i < PicSizeInMbs; ++i)
       {
         reset_mbs(currMB++);
-      }
-      if(pps->constrained_intra_pred_flag)
-      {
-        for (i=0; i<PicSizeInMbs; ++i)
-        {
-          intra_block[i] = 1;
-        }
       }
     }
   }
@@ -332,13 +319,6 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
     mb_t *currMB = p_Vid->mb_data;
     for(i=0; i<PicSizeInMbs; ++i)
       reset_mbs(currMB++);
-    if(pps->constrained_intra_pred_flag)
-    {
-      for (i=0; i<PicSizeInMbs; ++i)
-      {
-        p_Vid->intra_block[i] = 1;
-      }
-    }
   }  
 
   dec_picture->slice_type = p_Vid->type;

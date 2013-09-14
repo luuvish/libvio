@@ -9,10 +9,8 @@
 
 #define get_x_luma(x) (x & 15)
 #define get_y_luma(y) (y & 15)
-#define get_pos_x_luma(mb,x) (mb->pix_x + (x & 15))
-#define get_pos_y_luma(mb,y) (mb->pix_y + (y & 15))
-#define get_pos_x_chroma(mb,x,max) (mb->pix_c_x + (x & max))
-#define get_pos_y_chroma(mb,y,max) (mb->pix_c_y + (y & max))
+#define get_pos_x_luma(m,xx) (m->mb.x * 16 + (xx & 15))
+#define get_pos_y_luma(m,yy) (m->mb.y * 16 + (yy & 15))
 
 
 static inline int compare_mvs(const MotionVector *mv0, const MotionVector *mv1, int mvlimit)
@@ -297,7 +295,7 @@ void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
             blkP = (short) ((pixP.y & 0xFFFC) + (pixP.x >> 2));
 
             MbP = &(p_Vid->mb_data[pixP.mb_addr]);
-            MbQ->mixedModeEdgeFlag = (byte) (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag);
+            MbQ->mixedModeEdgeFlag = (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag);
 
             Strength[idx] = (edge == 0) ? 4 : 3;
         }
@@ -307,7 +305,7 @@ void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
         MbP = &(p_Vid->mb_data[pixP.mb_addr]);
         // Neighboring Frame MBs
         if (!MbQ->mb_field_decoding_flag && !MbP->mb_field_decoding_flag) {
-            MbQ->mixedModeEdgeFlag = (byte) (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag); 
+            MbQ->mixedModeEdgeFlag = (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag); 
             if (MbQ->is_intra_block || MbP->is_intra_block) {
                 //printf("idx %d %d %d %d %d\n", idx, pixP.x, pixP.y, pixP.pos_x, pixP.pos_y);
                 // Start with Strength=3. or Strength=4 for Mb-edge
@@ -371,7 +369,7 @@ void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
                 blkP = (short) ((pixP.y & 0xFFFC) + (pixP.x >> 2));
 
                 MbP = &(p_Vid->mb_data[pixP.mb_addr]);
-                MbQ->mixedModeEdgeFlag = (byte) (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag); 
+                MbQ->mixedModeEdgeFlag = (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag); 
 
                 // Start with Strength=3. or Strength=4 for Mb-edge
                 Strength[idx] = (edge == 0 && (((!p->mb_aff_frame_flag && !currSlice->field_pic_flag) ||
@@ -465,7 +463,7 @@ void get_strength_hor_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
             blkP = (short) ((pixP.y & 0xFFFC) + (pixP.x >> 2));
 
             MbP = &(p_Vid->mb_data[pixP.mb_addr]);
-            MbQ->mixedModeEdgeFlag = (byte) (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag);
+            MbQ->mixedModeEdgeFlag = (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag);
 
             StrValue = (edge == 0 && (!MbP->mb_field_decoding_flag && !MbQ->mb_field_decoding_flag)) ? 4 : 3;
       
@@ -474,7 +472,7 @@ void get_strength_hor_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
     } else {
         getAffNeighbour(MbQ, 0, yQ - 1, mb_size, &pixP);
         MbP = &(p_Vid->mb_data[pixP.mb_addr]);
-        MbQ->mixedModeEdgeFlag = (byte) (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag); 
+        MbQ->mixedModeEdgeFlag = (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag); 
 
         // Set intra mode deblocking
         if (MbQ->is_intra_block || MbP->is_intra_block) {

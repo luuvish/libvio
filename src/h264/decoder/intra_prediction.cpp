@@ -81,12 +81,12 @@ static void neighbouring_samples_4x4(imgpel *pred, bool *available, mb_t *currMB
     pix_c.available = pix_c.available && !((xO==4) && ((yO==4)||(yO==12)));
 
     if (constrained_intra_pred_flag) {
-        available[0] = pix_a.available ? currSlice->intra_block[pix_a.mb_addr] : 0;
+        available[0] = pix_a.available ? currSlice->mb_data[pix_a.mb_addr].is_intra_block : 0;
         for (int i = 0; i < 4; i++)
-            available[0] &= pix_x[i].available ? currSlice->intra_block[pix_x[i].mb_addr] : 0;
-        available[1] = pix_b.available ? currSlice->intra_block[pix_b.mb_addr] : 0;
-        available[2] = pix_c.available ? currSlice->intra_block[pix_c.mb_addr] : 0;
-        available[3] = pix_d.available ? currSlice->intra_block[pix_d.mb_addr] : 0;
+            available[0] &= pix_x[i].available ? currSlice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
+        available[1] = pix_b.available ? currSlice->mb_data[pix_b.mb_addr].is_intra_block : 0;
+        available[2] = pix_c.available ? currSlice->mb_data[pix_c.mb_addr].is_intra_block : 0;
+        available[3] = pix_d.available ? currSlice->mb_data[pix_d.mb_addr].is_intra_block : 0;
     } else {
         available[0] = pix_a.available;
         available[1] = pix_b.available;
@@ -161,12 +161,12 @@ static void neighbouring_samples_8x8(imgpel *pred, bool *available, mb_t *currMB
     pix_c.available = pix_c.available && !(xO == 8 && yO == 8);
 
     if (constrained_intra_pred_flag) {
-        available[0] = pix_a.available ? currSlice->intra_block[pix_a.mb_addr] : 0;
+        available[0] = pix_a.available ? currSlice->mb_data[pix_a.mb_addr].is_intra_block : 0;
         for (int i = 0; i < 8; i++)
-            available[0] &= pix_x[i].available ? currSlice->intra_block[pix_x[i].mb_addr] : 0;
-        available[1] = pix_b.available ? currSlice->intra_block[pix_b.mb_addr] : 0;
-        available[2] = pix_c.available ? currSlice->intra_block[pix_c.mb_addr] : 0;
-        available[3] = pix_d.available ? currSlice->intra_block[pix_d.mb_addr] : 0;
+            available[0] &= pix_x[i].available ? currSlice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
+        available[1] = pix_b.available ? currSlice->mb_data[pix_b.mb_addr].is_intra_block : 0;
+        available[2] = pix_c.available ? currSlice->mb_data[pix_c.mb_addr].is_intra_block : 0;
+        available[3] = pix_d.available ? currSlice->mb_data[pix_d.mb_addr].is_intra_block : 0;
     } else {
         available[0] = pix_a.available;
         available[1] = pix_b.available;
@@ -271,12 +271,12 @@ static void neighbouring_samples_16x16(imgpel *pred, bool *available, mb_t *curr
     }
 
     if (constrained_intra_pred_flag) {
-        available[0] = pix_a.available ? currSlice->intra_block[pix_a.mb_addr] : 0;
+        available[0] = pix_a.available ? currSlice->mb_data[pix_a.mb_addr].is_intra_block : 0;
         for (int i = 0; i < 16; i++)
-            available[0] &= pix_x[i].available ? currSlice->intra_block[pix_x[i].mb_addr] : 0;
-        available[1] = pix_b.available ? currSlice->intra_block[pix_b.mb_addr] : 0;
+            available[0] &= pix_x[i].available ? currSlice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
+        available[1] = pix_b.available ? currSlice->mb_data[pix_b.mb_addr].is_intra_block : 0;
         available[2] = 0;
-        available[3] = pix_d.available ? currSlice->intra_block[pix_d.mb_addr] : 0;
+        available[3] = pix_d.available ? currSlice->mb_data[pix_d.mb_addr].is_intra_block : 0;
     } else {
         available[0] = pix_a.available;
         available[1] = pix_b.available;
@@ -346,14 +346,14 @@ static void neighbouring_samples_chroma(imgpel *pred, bool *available, mb_t *cur
 
     if (constrained_intra_pred_flag) {
         available[0] = 1;
-        //available[0] = pix_a.available ? currSlice->intra_block[pix_a.mb_addr] : 0;
+        //available[0] = pix_a.available ? currSlice->mb_data[pix_a.mb_addr].is_intra_block : 0;
         for (int i = 0; i < mb_cr_size_y/2; i++)
-            available[0] &= pix_x[i].available ? currSlice->intra_block[pix_x[i].mb_addr] : 0;
-        available[1] = pix_b.available ? currSlice->intra_block[pix_b.mb_addr] : 0;
+            available[0] &= pix_x[i].available ? currSlice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
+        available[1] = pix_b.available ? currSlice->mb_data[pix_b.mb_addr].is_intra_block : 0;
         available[2] = 1;
         for (int i = mb_cr_size_y/2; i < mb_cr_size_y; i++)
-            available[2] &= pix_x[i].available ? currSlice->intra_block[pix_x[i].mb_addr] : 0;
-        available[3] = pix_d.available ? currSlice->intra_block[pix_d.mb_addr] : 0;
+            available[2] &= pix_x[i].available ? currSlice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
+        available[3] = pix_d.available ? currSlice->mb_data[pix_d.mb_addr].is_intra_block : 0;
     } else {
         available[0] = pix_x[0].available; //pix_a.available;
         available[1] = pix_b.available;

@@ -257,7 +257,6 @@ bool slice_t::init()
     else {
         this->mb_data     = p_Vid->mb_data;
         this->dec_picture = p_Vid->dec_picture;
-        this->intra_block = p_Vid->intra_block;
     }
 
     if (this->slice_type == B_SLICE)

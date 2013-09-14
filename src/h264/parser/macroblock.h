@@ -9,101 +9,6 @@ struct slice_t;
 struct video_par;
 struct inp_par;
 
-enum {
-    Intra_4x4 = 0,
-    Intra_8x8,
-    Intra_16x16,
-
-    Pred_L0 = 0,
-    Pred_L1,
-    BiPred,
-    Direct,
-
-    NA = 0
-};
-
-enum {
-    I_NxN = 0,
-    I_16x16_0_0_0,
-    I_16x16_1_0_0,
-    I_16x16_2_0_0,
-    I_16x16_3_0_0,
-    I_16x16_0_1_0,
-    I_16x16_1_1_0,
-    I_16x16_2_1_0,
-    I_16x16_3_1_0,
-    I_16x16_0_2_0,
-    I_16x16_1_2_0,
-    I_16x16_2_2_0,
-    I_16x16_3_2_0,
-    I_16x16_0_0_1,
-    I_16x16_1_0_1,
-    I_16x16_2_0_1,
-    I_16x16_3_0_1,
-    I_16x16_0_1_1,
-    I_16x16_1_1_1,
-    I_16x16_2_1_1,
-    I_16x16_3_1_1,
-    I_16x16_0_2_1,
-    I_16x16_1_2_1,
-    I_16x16_2_2_1,
-    I_16x16_3_2_1,
-    I_PCM,
-
-    P_L0_16x16 = 0,
-    P_L0_L0_16x8,
-    P_L0_L0_8x16,
-    P_8x8,
-    P_8x8ref0,
-    P_Skip,
-
-    B_Direct_16x16 = 0,
-    B_L0_16x16,
-    B_L1_16x16,
-    B_Bi_16x16,
-    B_L0_L0_16x8,
-    B_L0_L0_8x16,
-    B_L1_L1_16x8,
-    B_L1_L1_8x16,
-    B_L0_L1_16x8,
-    B_L0_L1_8x16,
-    B_L1_L0_16x8,
-    B_L1_L0_8x16,
-    B_L0_Bi_16x8,
-    B_L0_Bi_8x16,
-    B_L1_Bi_16x8,
-    B_L1_Bi_8x16,
-    B_Bi_L0_16x8,
-    B_Bi_L0_8x16,
-    B_Bi_L1_16x8,
-    B_Bi_L1_8x16,
-    B_Bi_Bi_16x8,
-    B_Bi_Bi_8x16,
-    B_8x8,
-    B_Skip
-};
-
-enum {
-    P_L0_8x8 = 0,
-    P_L0_8x4,
-    P_L0_4x8,
-    P_L0_4x4,
-
-    B_Direct_8x8 = 0,
-    B_L0_8x8,
-    B_L1_8x8,
-    B_Bi_8x8,
-    B_L0_8x4,
-    B_L0_4x8,
-    B_L1_8x4,
-    B_L1_4x8,
-    B_Bi_8x4,
-    B_Bi_4x8,
-    B_L0_4x4,
-    B_L1_4x4,
-    B_Bi_4x4
-};
-
 
 enum {
     PSKIP        =  0,
@@ -121,25 +26,17 @@ enum {
     IBLOCK       = 11,
     SI4MB        = 12,
     I8MB         = 13,
-    IPCM         = 14,
-    MAXMODE      = 15
+    IPCM         = 14
 };
 
 
 struct macroblock_t {
     slice_t*    p_Slice;
     video_par*  p_Vid;
-    inp_par*    p_Inp;
     int         mbAddrX;
     int         mbAddrA, mbAddrB, mbAddrC, mbAddrD;
     bool        mbAvailA, mbAvailB, mbAvailC, mbAvailD;
     BlockPos    mb;
-    int         block_x;
-    int         block_y;
-    int         pix_x;
-    int         pix_y;
-    int         pix_c_x;
-    int         pix_c_y;
 
     macroblock_t* mb_up;   //!< pointer to neighboring MB (CABAC)
     macroblock_t* mb_left; //!< pointer to neighboring MB (CABAC)
@@ -194,19 +91,14 @@ struct macroblock_t {
     char        b8mode[4];
     char        b8pdir[4];
 
-
-    short       DFDisableIdc;
-    short       DFAlphaC0Offset;
-    short       DFBetaOffset;
-
     bool        fieldMbInFrameFlag;
     bool        filterInternalEdgesFlag;
     bool        filterLeftMbEdgeFlag;
     bool        filterTopMbEdgeFlag;
 
     bool        mixedModeEdgeFlag;
-    byte        strength_ver[4][4];  // bS
-    byte        strength_hor[4][16]; // bS
+    uint8_t     strength_ver[4][4];  // bS
+    uint8_t     strength_hor[4][16]; // bS
 
     void        create(slice_t *slice);
     void        init(slice_t *slice);

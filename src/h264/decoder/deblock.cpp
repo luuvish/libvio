@@ -70,7 +70,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
     mb_t *MbQ = &(p_Vid->mb_data[MbQAddr]) ; // current Mb
 
     // return, if filter is disabled
-    if (MbQ->DFDisableIdc == 1) 
+    if (MbQ->p_Slice->disable_deblocking_filter_idc == 1) 
         MbQ->DeblockCall = 0;
     else {
         int           edge;
@@ -123,7 +123,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
         if (p->mb_aff_frame_flag && mb_y == MB_BLOCK_SIZE && MbQ->mb_field_decoding_flag)
             filterTopMbEdgeFlag = 0;
 
-        if (MbQ->DFDisableIdc == 2) {
+        if (MbQ->p_Slice->disable_deblocking_filter_idc == 2) {
             // don't filter at slice boundaries
             filterLeftMbEdgeFlag = MbQ->mbAvailA;
             // if this the bottom of a frame macroblock pair then always filter the top edge
@@ -309,12 +309,10 @@ void change_plane_JV(VideoParameters *p_Vid, int nplane, slice_t *pSlice)
 {
     p_Vid->mb_data     = p_Vid->mb_data_JV    [nplane];
     p_Vid->dec_picture = p_Vid->dec_picture_JV[nplane];
-    p_Vid->intra_block = p_Vid->intra_block_JV[nplane];
 
     if (pSlice) {
         pSlice->mb_data     = p_Vid->mb_data_JV    [nplane];
         pSlice->dec_picture = p_Vid->dec_picture_JV[nplane];
-        pSlice->intra_block = p_Vid->intra_block_JV[nplane];
     }
 }
 

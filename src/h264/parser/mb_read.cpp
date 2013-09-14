@@ -24,6 +24,102 @@ using namespace vio::h264;
 using vio::h264::cabac_engine_t;
 
 
+enum {
+    Intra_4x4 = 0,
+    Intra_8x8,
+    Intra_16x16,
+
+    Pred_L0 = 0,
+    Pred_L1,
+    BiPred,
+    Direct,
+
+    NA = 0
+};
+
+enum {
+    I_NxN = 0,
+    I_16x16_0_0_0,
+    I_16x16_1_0_0,
+    I_16x16_2_0_0,
+    I_16x16_3_0_0,
+    I_16x16_0_1_0,
+    I_16x16_1_1_0,
+    I_16x16_2_1_0,
+    I_16x16_3_1_0,
+    I_16x16_0_2_0,
+    I_16x16_1_2_0,
+    I_16x16_2_2_0,
+    I_16x16_3_2_0,
+    I_16x16_0_0_1,
+    I_16x16_1_0_1,
+    I_16x16_2_0_1,
+    I_16x16_3_0_1,
+    I_16x16_0_1_1,
+    I_16x16_1_1_1,
+    I_16x16_2_1_1,
+    I_16x16_3_1_1,
+    I_16x16_0_2_1,
+    I_16x16_1_2_1,
+    I_16x16_2_2_1,
+    I_16x16_3_2_1,
+    I_PCM,
+
+    P_L0_16x16 = 0,
+    P_L0_L0_16x8,
+    P_L0_L0_8x16,
+    P_8x8,
+    P_8x8ref0,
+    P_Skip,
+
+    B_Direct_16x16 = 0,
+    B_L0_16x16,
+    B_L1_16x16,
+    B_Bi_16x16,
+    B_L0_L0_16x8,
+    B_L0_L0_8x16,
+    B_L1_L1_16x8,
+    B_L1_L1_8x16,
+    B_L0_L1_16x8,
+    B_L0_L1_8x16,
+    B_L1_L0_16x8,
+    B_L1_L0_8x16,
+    B_L0_Bi_16x8,
+    B_L0_Bi_8x16,
+    B_L1_Bi_16x8,
+    B_L1_Bi_8x16,
+    B_Bi_L0_16x8,
+    B_Bi_L0_8x16,
+    B_Bi_L1_16x8,
+    B_Bi_L1_8x16,
+    B_Bi_Bi_16x8,
+    B_Bi_Bi_8x16,
+    B_8x8,
+    B_Skip
+};
+
+enum {
+    P_L0_8x8 = 0,
+    P_L0_8x4,
+    P_L0_4x8,
+    P_L0_4x4,
+
+    B_Direct_8x8 = 0,
+    B_L0_8x8,
+    B_L1_8x8,
+    B_Bi_8x8,
+    B_L0_8x4,
+    B_L0_4x8,
+    B_L1_8x4,
+    B_L1_4x8,
+    B_Bi_8x4,
+    B_Bi_4x8,
+    B_L0_4x4,
+    B_L1_4x4,
+    B_Bi_4x4
+};
+
+
 // Table 7-11 mb_t types for I slices
 const uint8_t mb_types_i_slice[26][5] = {
     { I_NxN        , Intra_8x8  , NA,  0,  0 },
@@ -119,230 +215,97 @@ const uint8_t sub_mb_types_b_slice[14][5] = {
 };
 
 
-static inline void reset_mv_info(PicMotionParams *mv_info, int slice_no)
+static void init_macroblock(mb_t* mb)
 {
-    mv_info->ref_pic[LIST_0] = NULL;
-    mv_info->ref_pic[LIST_1] = NULL;
-    mv_info->mv     [LIST_0] = zero_mv;
-    mv_info->mv     [LIST_1] = zero_mv;
-    mv_info->ref_idx[LIST_0] = -1;
-    mv_info->ref_idx[LIST_1] = -1;
-    mv_info->slice_no = slice_no;
-}
+    slice_t* slice = mb->p_Slice;
+    PicMotionParams** mv_info = slice->dec_picture->mv_info; 
+    int slice_no = slice->current_slice_nr;
 
-static inline void reset_mv_info_list(PicMotionParams *mv_info, int list, int slice_no)
-{
-    mv_info->ref_pic[list] = NULL;
-    mv_info->mv     [list] = zero_mv;
-    mv_info->ref_idx[list] = -1;
-    mv_info->slice_no = slice_no;
-}
-
-
-static void init_macroblock_basic(mb_t *currMB)
-{
-    int j, i;
-    PicMotionParams **mv_info = &currMB->p_Slice->dec_picture->mv_info[currMB->block_y];
-    int slice_no =  currMB->p_Slice->current_slice_nr;
-    // reset vectors and pred. modes
-    for (j = 0; j < BLOCK_SIZE; ++j) {
-        i = currMB->block_x;
-        reset_mv_info_list(*mv_info + (i++), LIST_1, slice_no);
-        reset_mv_info_list(*mv_info + (i++), LIST_1, slice_no);
-        reset_mv_info_list(*mv_info + (i++), LIST_1, slice_no);
-        reset_mv_info_list(*(mv_info++) + i, LIST_1, slice_no);
-    }
-}
-
-static void init_macroblock_direct(mb_t *currMB)
-{
-    int slice_no = currMB->p_Slice->current_slice_nr;
-    PicMotionParams **mv_info = &currMB->p_Slice->dec_picture->mv_info[currMB->block_y]; 
-    int i, j;
-
-    i = currMB->block_x;
-    for (j = 0; j < BLOCK_SIZE; ++j) {
-        (*mv_info+i)->slice_no = slice_no;
-        (*mv_info+i+1)->slice_no = slice_no;
-        (*mv_info+i+2)->slice_no = slice_no;
-        (*(mv_info++)+i+3)->slice_no = slice_no;
-    }
-}
-
-static void init_macroblock(mb_t *currMB)
-{
-    int j, i;
-    slice_t *currSlice = currMB->p_Slice;
-    PicMotionParams **mv_info = &currSlice->dec_picture->mv_info[currMB->block_y]; 
-    int slice_no = currSlice->current_slice_nr;
-    // reset vectors and pred. modes
-
-    for (j = 0; j < BLOCK_SIZE; ++j) {
-        i = currMB->block_x;
-        reset_mv_info(*mv_info + (i++), slice_no);
-        reset_mv_info(*mv_info + (i++), slice_no);
-        reset_mv_info(*mv_info + (i++), slice_no);
-        reset_mv_info(*(mv_info++) + i, slice_no);
-    }
-}
-
-static void concealIPCMcoeffs(mb_t *currMB)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    int i, j, k;
-
-    for (i = 0; i < 16; ++i) {
-        for (j = 0; j < 16; ++j)
-        currSlice->cof[0][i][j] = (1 << (sps->BitDepthY - 1));
-    }
-
-    if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
-        for (k = 0; k < 2; ++k)
-            for (i = 0; i < sps->MbHeightC; ++i)
-                for (j = 0; j < sps->MbWidthC; ++j)
-                    currSlice->cof[k][i][j] = (1 << (sps->BitDepthC - 1));
+    for (int y = 0; y < BLOCK_SIZE; y++) {
+        for (int x = 0; x < BLOCK_SIZE; x++) {
+            auto mv = &mv_info[mb->mb.y * 4 + y][mb->mb.x * 4 + x];
+            mv->slice_no = slice_no;
+            for (int list = 0; list < 2; list++) {
+                mv->ref_pic[list] = NULL;
+                mv->ref_idx[list] = -1;
+                mv->mv     [list] = zero_mv;
+            }
+        }
     }
 }
 
 
-static void read_IPCM_coeffs_from_NAL(mb_t *currMB)
+static void skip_macroblock(mb_t* mb)
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    pps_t *pps = currSlice->active_pps;
+    slice_t* slice = mb->p_Slice;
+    pps_t* pps = slice->active_pps;
+    int list_offset = slice->MbaffFrameFlag && mb->mb_field_decoding_flag ?
+                      mb->mbAddrX % 2 ? 4 : 2 : 0;
 
-    data_partition_t* dp = &currSlice->partArr[currSlice->dp_mode ? 1 : 0];
-    cabac_engine_t *dep = &dp->de_cabac;
+    int          a_ref_idx = 0;
+    int          b_ref_idx = 0;
+    MotionVector a_mv;
+    MotionVector b_mv;
 
-    if (dp->frame_bitoffset & 7)
-        dp->f(8 - (dp->frame_bitoffset & 7));
+    PixelPos pos[4];
+    get_neighbors(mb, pos, 0, 0, MB_BLOCK_SIZE);
+    if (pos[0].available) {
+        auto mv_info = &slice->dec_picture->mv_info[pos[0].pos_y][pos[0].pos_x];
+        a_ref_idx = mv_info->ref_idx[LIST_0];
+        a_mv      = mv_info->mv     [LIST_0];
 
-    for (int i = 0; i < 16; i++) {
-        for (int j = 0; j < 16; j++)
-            currSlice->cof[0][i][j] = dp->f(sps->BitDepthY);
+        if (slice->MbaffFrameFlag) {
+            auto mb_a = &mb->p_Vid->mb_data[pos[0].mb_addr];
+            if (mb->mb_field_decoding_flag && !mb_a->mb_field_decoding_flag) {
+                a_ref_idx *= 2;
+                a_mv.mv_y /= 2;
+            }
+            if (!mb->mb_field_decoding_flag && mb_a->mb_field_decoding_flag) {
+                a_ref_idx >>= 1;
+                a_mv.mv_y *= 2;
+            }
+        }
     }
+    if (pos[1].available) {
+        auto mv_info = &slice->dec_picture->mv_info[pos[1].pos_y][pos[1].pos_x];
+        b_ref_idx = mv_info->ref_idx[LIST_0];
+        b_mv      = mv_info->mv     [LIST_0];
 
-    if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
-        for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            for (int i = 0; i < sps->MbHeightC; i++) {
-                for (int j = 0; j < sps->MbWidthC; j++)
-                    currSlice->cof[iCbCr + 1][i][j] = dp->f(sps->BitDepthC);
+        if (slice->MbaffFrameFlag) {
+            auto mb_b = &mb->p_Vid->mb_data[pos[1].mb_addr];
+            if (mb->mb_field_decoding_flag && !mb_b->mb_field_decoding_flag) {
+                b_ref_idx *= 2;
+                b_mv.mv_y /= 2;
+            }
+            if (!mb->mb_field_decoding_flag && mb_b->mb_field_decoding_flag) {
+                b_ref_idx >>= 1;
+                b_mv.mv_y *= 2;
             }
         }
     }
 
-    if (pps->entropy_coding_mode_flag)
-        dep->init(dp);
-}
+    mb->CodedBlockPatternLuma   = 0;
+    mb->CodedBlockPatternChroma = 0;
+    if (!pps->entropy_coding_mode_flag)
+        memset(mb->nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
 
+    PicMotionParams** mv_info = slice->dec_picture->mv_info;
+    StorablePicture* cur_pic = slice->listX[list_offset][0];
 
-static inline void reset_coeffs(mb_t *currMB)
-{
-    VideoParameters *p_Vid = currMB->p_Vid;
-    if (!p_Vid->active_pps->entropy_coding_mode_flag)
-        memset(currMB->nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
-}
-
-
-static void skip_macroblock(mb_t *currMB)
-{
+    bool zeroMotionA = !pos[0].available || (a_ref_idx == 0 && a_mv.mv_x == 0 && a_mv.mv_y == 0);
+    bool zeroMotionB = !pos[1].available || (b_ref_idx == 0 && b_mv.mv_x == 0 && b_mv.mv_y == 0);
     MotionVector pred_mv;
-    int zeroMotionAbove;
-    int zeroMotionLeft;
-    PixelPos mb[4];    // neighbor blocks
-    int   i, j;
-    int   a_mv_y = 0;
-    int   a_ref_idx = 0;
-    int   b_mv_y = 0;
-    int   b_ref_idx = 0;
-    int   img_block_y   = currMB->block_y;
-    VideoParameters *p_Vid = currMB->p_Vid;
-    slice_t *currSlice = currMB->p_Slice;
-    int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
-                      currMB->mbAddrX % 2 ? 4 : 2 : 0;
-    StorablePicture *dec_picture = currSlice->dec_picture;
-    MotionVector *a_mv = NULL;
-    MotionVector *b_mv = NULL;
+    if (zeroMotionA || zeroMotionB)
+        pred_mv = zero_mv;
+    else
+        GetMVPredictor(mb, pos, &pred_mv, 0, mv_info, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
-    get_neighbors(currMB, mb, 0, 0, MB_BLOCK_SIZE);
-    if (!currSlice->MbaffFrameFlag) {
-        if (mb[0].available) {
-            a_mv      = &dec_picture->mv_info[mb[0].pos_y][mb[0].pos_x].mv[LIST_0];
-            a_mv_y    = a_mv->mv_y;    
-            a_ref_idx = dec_picture->mv_info[mb[0].pos_y][mb[0].pos_x].ref_idx[LIST_0];
-        }
-        if (mb[1].available) {
-            b_mv      = &dec_picture->mv_info[mb[1].pos_y][mb[1].pos_x].mv[LIST_0];
-            b_mv_y    = b_mv->mv_y;
-            b_ref_idx = dec_picture->mv_info[mb[1].pos_y][mb[1].pos_x].ref_idx[LIST_0];
-        }
-    } else {
-        if (mb[0].available) {
-            a_mv      = &dec_picture->mv_info[mb[0].pos_y][mb[0].pos_x].mv[LIST_0];
-            a_mv_y    = a_mv->mv_y;    
-            a_ref_idx = dec_picture->mv_info[mb[0].pos_y][mb[0].pos_x].ref_idx[LIST_0];
-
-            if (currMB->mb_field_decoding_flag && !p_Vid->mb_data[mb[0].mb_addr].mb_field_decoding_flag) {
-                a_mv_y    /=2;
-                a_ref_idx *=2;
-            }
-            if (!currMB->mb_field_decoding_flag && p_Vid->mb_data[mb[0].mb_addr].mb_field_decoding_flag) {
-                a_mv_y    *=2;
-                a_ref_idx >>=1;
-            }
-        }
-
-        if (mb[1].available) {
-            b_mv      = &dec_picture->mv_info[mb[1].pos_y][mb[1].pos_x].mv[LIST_0];
-            b_mv_y    = b_mv->mv_y;
-            b_ref_idx = dec_picture->mv_info[mb[1].pos_y][mb[1].pos_x].ref_idx[LIST_0];
-
-            if (currMB->mb_field_decoding_flag && !p_Vid->mb_data[mb[1].mb_addr].mb_field_decoding_flag) {
-                b_mv_y    /=2;
-                b_ref_idx *=2;
-            }
-            if (!currMB->mb_field_decoding_flag && p_Vid->mb_data[mb[1].mb_addr].mb_field_decoding_flag) {
-                b_mv_y    *=2;
-                b_ref_idx >>=1;
-            }
-        }
-    }
-
-    zeroMotionLeft  = !mb[0].available ? 1 : a_ref_idx==0 && a_mv->mv_x == 0 && a_mv_y==0 ? 1 : 0;
-    zeroMotionAbove = !mb[1].available ? 1 : b_ref_idx==0 && b_mv->mv_x == 0 && b_mv_y==0 ? 1 : 0;
-
-    currMB->CodedBlockPatternLuma   = 0;
-    currMB->CodedBlockPatternChroma = 0;
-    reset_coeffs(currMB);
-
-    if (zeroMotionAbove || zeroMotionLeft) {
-        PicMotionParams **dec_mv_info = &dec_picture->mv_info[img_block_y];
-        StorablePicture *cur_pic = currSlice->listX[list_offset][0];
-        PicMotionParams *mv_info = NULL;
-    
-        for (j = 0; j < BLOCK_SIZE; ++j) {
-            for (i = currMB->block_x; i < currMB->block_x + BLOCK_SIZE; ++i) {
-                mv_info = &dec_mv_info[j][i];
-                mv_info->ref_pic[LIST_0] = cur_pic;
-                mv_info->mv     [LIST_0] = zero_mv;
-                mv_info->ref_idx[LIST_0] = 0;
-            }
-        }
-    } else {
-        PicMotionParams **dec_mv_info = &dec_picture->mv_info[img_block_y];
-        PicMotionParams *mv_info = NULL;
-        StorablePicture *cur_pic = currSlice->listX[list_offset][0];
-        GetMVPredictor(currMB, mb, &pred_mv, 0, dec_picture->mv_info, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-
-        // Set first block line (position img_block_y)
-        for (j = 0; j < BLOCK_SIZE; ++j) {
-            for (i = currMB->block_x; i < currMB->block_x + BLOCK_SIZE; ++i) {
-                mv_info = &dec_mv_info[j][i];
-                mv_info->ref_pic[LIST_0] = cur_pic;
-                mv_info->mv     [LIST_0] = pred_mv;
-                mv_info->ref_idx[LIST_0] = 0;
-            }
+    for (int y = 0; y < BLOCK_SIZE; y++) {
+        for (int x = 0; x < BLOCK_SIZE; x++) {
+            auto mv = &mv_info[mb->mb.y * 4 + y][mb->mb.x * 4 + x];
+            mv->ref_pic[LIST_0] = cur_pic;
+            mv->ref_idx[LIST_0] = 0;
+            mv->mv     [LIST_0] = pred_mv;
         }
     }
 }
@@ -391,7 +354,7 @@ void macroblock_t::parse()
                     mb_t *currMB;
                     currMB = &slice->mb_data[slice->current_mb_nr];
                     currMB->p_Vid    = slice->p_Vid;
-                    currMB->p_Slice  = slice; 
+                    currMB->p_Slice  = slice;
                     currMB->slice_nr = slice->current_slice_nr;
                     currMB->mb_field_decoding_flag = slice->mb_data[slice->current_mb_nr-1].mb_field_decoding_flag;
                     currMB->mbAddrX  = slice->current_mb_nr;
@@ -480,60 +443,100 @@ void macroblock_t::parse()
 
 void macroblock_t::parse_i_pcm()
 {
-    slice_t *slice = this->p_Slice;
+    slice_t* slice = this->p_Slice;
+    sps_t* sps = slice->active_sps;
+    pps_t* pps = slice->active_pps;
 
     this->noSubMbPartSizeLessThan8x8Flag = 1;
     this->transform_size_8x8_flag = 0;
 
-    //--- init macroblock data ---
     init_macroblock(this);
 
-    //read pcm_alignment_zero_bit and pcm_byte[i]
+    if (slice->dp_mode && slice->dpB_NotPresent) {
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++)
+                slice->cof[0][y][x] = 1 << (sps->BitDepthY - 1);
+        }
 
-    // here dP is assigned with the same dP as SE_MBTYPE, because IPCM syntax is in the
-    // same category as MBTYPE
-    if (slice->dp_mode && slice->dpB_NotPresent)
-        concealIPCMcoeffs(this);
-    else {
-        read_IPCM_coeffs_from_NAL(this);
+        if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
+            for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
+                for (int y = 0; y < sps->MbHeightC; y++) {
+                    for (int x = 0; x < sps->MbWidthC; x++)
+                        slice->cof[iCbCr + 1][y][x] = 1 << (sps->BitDepthC - 1);
+                }
+            }
+        }
+    } else {
+        data_partition_t* dp = &slice->partArr[slice->dp_mode ? 1 : 0];
+
+        if (dp->frame_bitoffset & 7)
+            dp->f(8 - (dp->frame_bitoffset & 7));
+
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++)
+                slice->cof[0][y][x] = dp->f(sps->BitDepthY);
+        }
+
+        if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
+            for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
+                for (int y = 0; y < sps->MbHeightC; y++) {
+                    for (int x = 0; x < sps->MbWidthC; x++)
+                        slice->cof[iCbCr + 1][y][x] = dp->f(sps->BitDepthC);
+                }
+            }
+        }
+
+        if (pps->entropy_coding_mode_flag)
+            dp->de_cabac.init(dp);
     }
 }
 
 void macroblock_t::parse_skip()
 {
-    slice_t *slice = this->p_Slice;
-    sps_t *sps = slice->active_sps;
-    pps_t *pps = slice->active_pps;
+    slice_t* slice = this->p_Slice;
+    sps_t* sps = slice->active_sps;
+    pps_t* pps = slice->active_pps;
+
+    PicMotionParams** mv_info = slice->dec_picture->mv_info;
+    int slice_no = slice->current_slice_nr;
 
     this->transform_size_8x8_flag = 0;
     if (pps->constrained_intra_pred_flag)
-        slice->intra_block[this->mbAddrX] = 0;
+        this->is_intra_block = 0;
+
+    for (int y = 0; y < BLOCK_SIZE; y++) {
+        for (int x = 0; x < BLOCK_SIZE; x++) {
+            auto mv = &mv_info[this->mb.y * 4 + y][this->mb.x * 4 + x];
+            mv->slice_no = slice_no;
+            if (slice->slice_type != B_slice) {
+                mv->ref_pic[LIST_1] = NULL;
+                mv->ref_idx[LIST_1] = -1;
+                mv->mv     [LIST_1] = zero_mv;
+            }
+        }
+    }
 
     if (slice->slice_type == B_slice) {
         this->noSubMbPartSizeLessThan8x8Flag = sps->direct_8x8_inference_flag;
-        init_macroblock_direct(this);
 
         if (slice->mb_skip_run >= 0) {
             if (pps->entropy_coding_mode_flag) {
                 slice->is_reset_coeff = true;
                 slice->mb_skip_run = -1;
             } else
-                reset_coeffs(this);
+                memset(this->nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
         } else {
             this->parse_cbp_qp();
             this->residual();
         }
-    } else {
-        //--- init macroblock data ---
-        init_macroblock_basic(this);
+    } else
         skip_macroblock(this);
-    }
 }
 
 void macroblock_t::parse_intra()
 {
-    slice_t *slice = this->p_Slice;
-    pps_t *pps = slice->active_pps;
+    slice_t* slice = this->p_Slice;
+    pps_t* pps = slice->active_pps;
 
     if (this->mb_type != I4MB)
         this->noSubMbPartSizeLessThan8x8Flag = 1;
@@ -564,9 +567,9 @@ void macroblock_t::parse_inter()
     static const char b_v2b8 [14] = { 0, 4, 4, 4, 5, 6, 5, 6, 5, 6, 7, 7, 7, IBLOCK};
     static const char b_v2pd [14] = { 2, 0, 1, 2, 0, 0, 1, 1, 2, 2, 0, 1, 2, -1};
 
-    slice_t *slice = this->p_Slice;
-    sps_t *sps = slice->active_sps;
-    pps_t *pps = slice->active_pps;
+    slice_t* slice = this->p_Slice;
+    sps_t* sps = slice->active_sps;
+    pps_t* pps = slice->active_pps;
 
     this->noSubMbPartSizeLessThan8x8Flag = 1;
     this->transform_size_8x8_flag = 0;
@@ -598,7 +601,7 @@ void macroblock_t::parse_inter()
     }
 
     if (pps->constrained_intra_pred_flag)
-        slice->intra_block[this->mbAddrX] = 0;
+        this->is_intra_block = 0;
 
     init_macroblock(this);
     this->parse_motion_info();
@@ -610,8 +613,8 @@ void macroblock_t::parse_inter()
 
 void macroblock_t::parse_ipred_modes()
 {
-    slice_t *slice = this->p_Slice;
-    sps_t *sps = slice->active_sps;
+    slice_t* slice = this->p_Slice;
+    sps_t* sps = slice->active_sps;
 
     if (this->mb_type == I8MB)
         this->parse_ipred_8x8_modes();
@@ -628,8 +631,8 @@ void macroblock_t::parse_ipred_modes()
 
 void macroblock_t::parse_ipred_4x4_modes()
 {
-    slice_t *slice = this->p_Slice;
-    pps_t *pps = slice->active_pps;
+    slice_t* slice = this->p_Slice;
+    pps_t* pps = slice->active_pps;
 
     for (int luma4x4BlkIdx = 0; luma4x4BlkIdx < 16; luma4x4BlkIdx++) {
         int bx = ((luma4x4BlkIdx / 4) % 2) * 8 + ((luma4x4BlkIdx % 4) % 2) * 4;
@@ -763,14 +766,12 @@ void macroblock_t::parse_motion_info()
                       this->mbAddrX % 2 ? 4 : 2 : 0;
     StorablePicture **list0 = slice->listX[LIST_0 + list_offset];
     StorablePicture **list1 = slice->listX[LIST_1 + list_offset];
-    PicMotionParams **p_mv_info = &slice->dec_picture->mv_info[this->block_y];
+    PicMotionParams **p_mv_info = slice->dec_picture->mv_info;
     // record reference picture Ids for deblocking decisions
-    PicMotionParams *mv_info;
-    short ref_idx;
     for (int j4 = 0; j4 < 4; j4++) {
-        for (int i4 = this->block_x; i4 < this->block_x + 4; ++i4) {
-            mv_info = &p_mv_info[j4][i4];
-            ref_idx = mv_info->ref_idx[LIST_0];
+        for (int i4 = 0; i4 < 4; ++i4) {
+            auto mv_info = &p_mv_info[this->mb.y * 4 + j4][this->mb.x * 4 + i4];
+            short ref_idx = mv_info->ref_idx[LIST_0];
             mv_info->ref_pic[LIST_0] = (ref_idx >= 0) ? list0[ref_idx] : NULL;
             if (slice->slice_type == B_slice) {
                 ref_idx = mv_info->ref_idx[LIST_1];
@@ -804,7 +805,7 @@ void macroblock_t::parse_ref_pic_idx(int list)
                 uint8_t refframe = parse_ref_idx(this, list, i0, j0);
                 for (int j = 0; j < step_v0; j++) {
                     for (int i = 0; i < step_h0; i++)
-                        mv_info[this->block_y + j0 + j][this->block_x + i0 + i].ref_idx[list] = refframe;
+                        mv_info[this->mb.y * 4 + j0 + j][this->mb.x * 4 + i0 + i].ref_idx[list] = refframe;
                 }
             }
         }
@@ -825,7 +826,7 @@ void macroblock_t::parse_motion_vectors(int list)
             int kk = 2 * (j0 >> 1) + (i0 >> 1);
             int step_h4 = BLOCK_STEP[(int)this->b8mode[kk]][0];
             int step_v4 = BLOCK_STEP[(int)this->b8mode[kk]][1];
-            char cur_ref_idx = mv_info[this->block_y + j0][this->block_x + i0].ref_idx[list];
+            char cur_ref_idx = mv_info[this->mb.y * 4 + j0][this->mb.x * 4 + i0].ref_idx[list];
 
             if ((this->b8pdir[kk] == list || this->b8pdir[kk] == BI_PRED) &&
                 (this->b8mode[kk] != 0)) { //has forward vector
@@ -861,8 +862,8 @@ void macroblock_t::parse_motion_vector(int list, int step_h4, int step_v4, int i
     curr_mv.mv_x = curr_mvd[0] + pred_mv.mv_x;
     curr_mv.mv_y = curr_mvd[1] + pred_mv.mv_y;
 
-    int i4 = this->block_x + i;
-    int j4 = this->block_y + j;
+    int i4 = this->mb.x * 4 + i;
+    int j4 = this->mb.y * 4 + j;
     for (int jj = 0; jj < step_v4 / 4; ++jj) {
         for (int ii = 0; ii < step_h4 / 4; ++ii) {
             mv_info[jj + j4][ii + i4].mv[list] = curr_mv;

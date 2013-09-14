@@ -40,16 +40,6 @@ void macroblock_t::init(slice_t *slice)
         this->mb.y = this->mbAddrX / sps->PicWidthInMbs;
     }
 
-    /* Define pixel/block positions */
-    int mb_x = this->mb.x;
-    int mb_y = this->mb.y;
-    this->block_x     = mb_x << BLOCK_SHIFT;    /* horizontal block position */
-    this->block_y     = mb_y << BLOCK_SHIFT;    /* vertical block position */
-    this->pix_x       = mb_x * 16;              /* horizontal luma pixel position */
-    this->pix_y       = mb_y * 16;              /* vertical luma pixel position */
-    this->pix_c_x     = mb_x * sps->MbWidthC;   /* horizontal chroma pixel position */
-    this->pix_c_y     = mb_y * sps->MbHeightC;  /* vertical chroma pixel position */
-
     this->mb_qp_delta = 0;
     // reset intra mode
     this->is_intra_block = 0;
@@ -91,9 +81,6 @@ void macroblock_t::init(slice_t *slice)
     }
 
     // store filtering parameters for this MB
-    this->DFDisableIdc      = slice->disable_deblocking_filter_idc;
-    this->DFAlphaC0Offset   = slice->FilterOffsetA;
-    this->DFBetaOffset      = slice->FilterOffsetB;
     this->mixedModeEdgeFlag = 0;
 
     pps_t *pps = slice->active_pps;

@@ -69,17 +69,6 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
             no_mem_exit("init_global_buffers: cps->mb_data");
     }
 
-    if (sps->separate_colour_plane_flag) {
-        for (i = 0; i < MAX_PLANE; i++) {
-            if (((cps->intra_block_JV[i]) = (char*) calloc(FrameSizeInMbs, sizeof(char))) == NULL)
-                no_mem_exit("init_global_buffers: cps->intra_block_JV");
-        }
-        cps->intra_block = NULL;
-    } else {
-        if (((cps->intra_block) = (char*) calloc(FrameSizeInMbs, sizeof(char))) == NULL)
-            no_mem_exit("init_global_buffers: cps->intra_block");
-    }
-
     if (((cps->PicPos) = (BlockPos*) calloc(FrameSizeInMbs + 1, sizeof(BlockPos))) == NULL)
         no_mem_exit("init_global_buffers: PicPos");
     PicPos = cps->PicPos;

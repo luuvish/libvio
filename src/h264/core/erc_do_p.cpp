@@ -625,10 +625,6 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   /* Update coordinates of the current concealed macroblock */
   currMB->mb.x = (short) (x/MB_BLOCK_SIZE);
   currMB->mb.y = (short) (y/MB_BLOCK_SIZE);
-  currMB->block_y = currMB->mb.y * BLOCK_SIZE;
-  currMB->pix_c_y = currMB->mb.y * mb_cr_size_y;
-  currMB->block_x = currMB->mb.x * BLOCK_SIZE;
-  currMB->pix_c_x = currMB->mb.x * mb_cr_size_x;
 
   mv_mul=4;
 
@@ -643,11 +639,11 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   for(j=0;j<MB_BLOCK_SIZE/BLOCK_SIZE;j++)
   {
     joff=j*4;
-    j4=currMB->block_y+j;
+    j4=currMB->mb.y*4+j;
     for(i=0;i<MB_BLOCK_SIZE/BLOCK_SIZE;i++)
     {
       ioff=i*4;
-      i4=currMB->block_x+i;
+      i4=currMB->mb.x*4+i;
 
       vec1_x = i4*4*mv_mul + mv[0];
       vec1_y = j4*4*mv_mul + mv[1];
@@ -692,9 +688,9 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
         for(b4=0;b4<4;b4++)
         {
           joff = subblk_offset_y[yuv][b8][b4];
-          j4=currMB->pix_c_y+joff;
+          j4   = currMB->mb.y * mb_cr_size_y + joff;
           ioff = subblk_offset_x[yuv][b8][b4];
-          i4=currMB->pix_c_x+ioff;
+          i4   = currMB->mb.x * mb_cr_size_x + ioff;
 
           for(jj=0;jj<4;jj++)
           {
@@ -948,10 +944,6 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
 
   currMB->mb.x = (short) (x/BLOCK_SIZE);
   currMB->mb.y = (short) (y/BLOCK_SIZE);
-  currMB->block_y = currMB->mb.y * BLOCK_SIZE;
-  currMB->pix_c_y = currMB->mb.y * mb_cr_size_y/4;
-  currMB->block_x = currMB->mb.x * BLOCK_SIZE;
-  currMB->pix_c_x = currMB->mb.x * mb_cr_size_x/4;
 
   mv_mul=4;
 
@@ -991,9 +983,9 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
     for(uv=0;uv<2;uv++)
     {
       joff = subblk_offset_y[yuv][0][0];
-      j4=currMB->pix_c_y+joff;
+      j4   = currMB->mb.y * mb_cr_size_y/4 + joff;
       ioff = subblk_offset_x[yuv][0][0];
-      i4=currMB->pix_c_x+ioff;
+      i4   = currMB->mb.x * mb_cr_size_x/4 + ioff;
 
       for(jj=0;jj<2;jj++)
       {

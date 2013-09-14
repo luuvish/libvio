@@ -1034,7 +1034,7 @@ void transform_t::inverse_transform_4x4(mb_t* mb, ColorPlane pl, int ioff, int j
     else
         this->itrans4x4(mb, pl, ioff, joff);
 
-    copy_image_data_4x4(&curr_img[mb->pix_y + joff], &slice->mb_rec[pl][joff], mb->pix_x + ioff, ioff);
+    copy_image_data_4x4(&curr_img[mb->mb.y * 16 + joff], &slice->mb_rec[pl][joff], mb->mb.x * 16 + ioff, ioff);
 }
 
 void transform_t::inverse_transform_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff)
@@ -1048,7 +1048,7 @@ void transform_t::inverse_transform_8x8(mb_t* mb, ColorPlane pl, int ioff, int j
     else
         this->itrans8x8(mb, pl, ioff, joff);
 
-    copy_image_data_8x8(&curr_img[mb->pix_y + joff], &slice->mb_rec[pl][joff], mb->pix_x + ioff, ioff);
+    copy_image_data_8x8(&curr_img[mb->mb.y * 16 + joff], &slice->mb_rec[pl][joff], mb->mb.x * 16 + ioff, ioff);
 }
 
 void transform_t::inverse_transform_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
@@ -1062,7 +1062,7 @@ void transform_t::inverse_transform_16x16(mb_t* mb, ColorPlane pl, int ioff, int
     else
         this->itrans16x16(mb, pl);
 
-    copy_image_data_16x16(&curr_img[mb->pix_y + joff], &slice->mb_rec[pl][joff], mb->pix_x + ioff, ioff);
+    copy_image_data_16x16(&curr_img[mb->mb.y * 16 + joff], &slice->mb_rec[pl][joff], mb->mb.x * 16 + ioff, ioff);
 }
 
 void transform_t::inverse_transform_chroma(mb_t* mb, ColorPlane pl)
@@ -1082,7 +1082,7 @@ void transform_t::inverse_transform_chroma(mb_t* mb, ColorPlane pl)
     }
     for (int joff = 0; joff < sps->MbHeightC; joff += 4) {
         for (int ioff = 0; ioff < sps->MbWidthC; ioff += 4)
-            copy_image_data_4x4(&curr_img[mb->pix_c_y + joff], &slice->mb_rec[pl][joff], mb->pix_c_x + ioff, ioff);
+            copy_image_data_4x4(&curr_img[mb->mb.y * sps->MbHeightC + joff], &slice->mb_rec[pl][joff], mb->mb.x * sps->MbWidthC + ioff, ioff);
     }
 }
 
@@ -1098,9 +1098,9 @@ void transform_t::inverse_transform_inter(mb_t* mb, ColorPlane pl, int smb)
             iMBtrans4x4(mb, pl, smb); 
         else // 8x8 inverse transform
             iMBtrans8x8(mb, pl);
-        copy_image_data_16x16(&curr_img[mb->pix_y], slice->mb_rec[pl], mb->pix_x, 0);
+        copy_image_data_16x16(&curr_img[mb->mb.y * 16], slice->mb_rec[pl], mb->mb.x * 16, 0);
     } else {
-        copy_image_data_16x16(&curr_img[mb->pix_y], slice->mb_pred[pl], mb->pix_x, 0);
+        copy_image_data_16x16(&curr_img[mb->mb.y * 16], slice->mb_pred[pl], mb->mb.x * 16, 0);
     }
 
     if (smb || mb->CodedBlockPatternLuma)
@@ -1113,7 +1113,7 @@ void transform_t::inverse_transform_inter(mb_t* mb, ColorPlane pl, int smb)
         std::mem_fn(&transform_t::itrans4x4) : std::mem_fn(&transform_t::itrans4x4_ls);
 
     for (int uv = 0; uv < 2; ++uv) {
-        imgpel **curUV = &dec_picture->imgUV[uv][mb->pix_c_y]; 
+        imgpel **curUV = &dec_picture->imgUV[uv][mb->mb.y * sps->MbHeightC]; 
         imgpel **mb_rec  = slice->mb_rec [uv + 1];
         imgpel **mb_pred = slice->mb_pred[uv + 1];
 
@@ -1125,9 +1125,9 @@ void transform_t::inverse_transform_inter(mb_t* mb, ColorPlane pl, int smb)
                 for (int ioff = 0; ioff < sps->MbWidthC ;ioff += BLOCK_SIZE)
                     itrans_4x4(this, mb, (ColorPlane)(uv + 1), ioff, joff);
             }
-            copy_image_data(curUV, mb_rec, mb->pix_c_x, 0, sps->MbWidthC, sps->MbHeightC);
+            copy_image_data(curUV, mb_rec, mb->mb.x * sps->MbWidthC, 0, sps->MbWidthC, sps->MbHeightC);
         } else
-            copy_image_data(curUV, mb_pred, mb->pix_c_x, 0, sps->MbWidthC, sps->MbHeightC);
+            copy_image_data(curUV, mb_pred, mb->mb.x * sps->MbWidthC, 0, sps->MbWidthC, sps->MbHeightC);
     }
 
     if (smb || mb->CodedBlockPatternChroma)
