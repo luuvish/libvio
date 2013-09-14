@@ -5,7 +5,7 @@
 #include "sei.h"
 #include "output.h"
 
-static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_out);
+static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p_out);
 static void img2buf_byte   (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 static void img2buf_normal (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 static void img2buf_endian (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
@@ -260,12 +260,12 @@ static void img2buf_endian (imgpel** imgX, unsigned char* buf, int size_x, int s
  *    real picture structure
  ************************************************************************
  */
-void write_picture(VideoParameters *p_Vid, StorablePicture *p, int p_out, int real_structure)
+void write_picture(VideoParameters *p_Vid, storable_picture *p, int p_out, int real_structure)
 {
   write_out_picture(p_Vid, p, p_out);
 }
 
-static void allocate_p_dec_pic(VideoParameters *p_Vid, DecodedPicList *pDecPic, StorablePicture *p, int iLumaSize, int iFrameSize, int iLumaSizeX, int iLumaSizeY, int iChromaSizeX, int iChromaSizeY)
+static void allocate_p_dec_pic(VideoParameters *p_Vid, DecodedPicList *pDecPic, storable_picture *p, int iLumaSize, int iFrameSize, int iLumaSizeX, int iLumaSizeY, int iChromaSizeX, int iChromaSizeY)
 {
   sps_t *sps = p_Vid->active_sps;
   int pic_unit_bitsize_on_disk;
@@ -334,7 +334,7 @@ static DecodedPicList *get_one_avail_dec_pic_from_list(DecodedPicList *pDecPicLi
 *    Output file
 ************************************************************************
 */
-static void write_out_picture(VideoParameters *p_Vid, StorablePicture *p, int p_out)
+static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p_out)
 {
   InputParameters *p_Inp = p_Vid->p_Inp;
   DecodedPicList *pDecPic;
@@ -574,7 +574,7 @@ void uninit_out_buffer(VideoParameters *p_Vid)
  *    Initialize picture memory with (Y:0,U:128,V:128)
  ************************************************************************
  */
-void clear_picture(VideoParameters *p_Vid, StorablePicture *p)
+void clear_picture(VideoParameters *p_Vid, storable_picture *p)
 {
   sps_t *sps = p_Vid->active_sps;
   int i,j;
@@ -605,14 +605,14 @@ void clear_picture(VideoParameters *p_Vid, StorablePicture *p)
  * \param p_Vid
  *      image decoding parameters for current picture
  * \param fs
- *    FrameStore that contains a single field
+ *    frame_store that contains a single field
  * \param p_out
  *    Output file
  ************************************************************************
  */
-void write_unpaired_field(VideoParameters *p_Vid, FrameStore* fs, int p_out)
+void write_unpaired_field(VideoParameters *p_Vid, frame_store* fs, int p_out)
 {
-  StorablePicture *p;
+  storable_picture *p;
   assert (fs->is_used<3);
 
   if(fs->is_used & 0x01)
@@ -684,17 +684,17 @@ void flush_direct_output(VideoParameters *p_Vid, int p_out)
 /*!
  ************************************************************************
  * \brief
- *    Write a frame (from FrameStore)
+ *    Write a frame (from frame_store)
  *
  * \param p_Vid
  *      image decoding parameters for current picture
  * \param fs
- *    FrameStore containing the frame
+ *    frame_store containing the frame
  * \param p_out
  *    Output file
  ************************************************************************
  */
-void write_stored_frame( VideoParameters *p_Vid, FrameStore *fs, int p_out)
+void write_stored_frame( VideoParameters *p_Vid, frame_store *fs, int p_out)
 {
   // make sure no direct output field is pending
   flush_direct_output(p_Vid, p_out);
@@ -728,7 +728,7 @@ void write_stored_frame( VideoParameters *p_Vid, FrameStore *fs, int p_out)
  *    Output file
  ************************************************************************
  */
-void direct_output(VideoParameters *p_Vid, StorablePicture *p, int p_out)
+void direct_output(VideoParameters *p_Vid, storable_picture *p, int p_out)
 {
   if (p->structure==FRAME)
   {

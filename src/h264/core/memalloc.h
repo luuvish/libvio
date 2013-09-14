@@ -5,7 +5,7 @@
 #include "global.h"
 #include "dpb.h"
 
-extern int  get_mem2Dmp  (PicMotionParams ***array2D, int dim0, int dim1);
+extern int  get_mem2Dmp  (pic_motion_params ***array2D, int dim0, int dim1);
 
 extern byte** new_mem2D(int dim0, int dim1);
 extern int  get_mem2D(byte ***array2D, int dim0, int dim1);
@@ -23,7 +23,7 @@ extern int  get_mem2Dpel_pad(imgpel ***array2D, int dim0, int dim1, int iPadY, i
 extern int  get_mem3Dpel    (imgpel ****array3D, int dim0, int dim1, int dim2);
 extern int  get_mem3Dpel_pad(imgpel ****array3D, int dim0, int dim1, int dim2, int iPadY, int iPadX);
 
-extern void free_mem2Dmp   (PicMotionParams    **array2D);
+extern void free_mem2Dmp   (pic_motion_params    **array2D);
 
 extern void free_mem2D     (byte      **array2D);
 extern void free_mem3D     (byte     ***array3D);

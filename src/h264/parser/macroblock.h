@@ -13,20 +13,65 @@ struct inp_par;
 enum {
     PSKIP        =  0,
     BSKIP_DIRECT =  0,
+
     P16x16       =  1,
     P16x8        =  2,
     P8x16        =  3,
-    SMB8x8       =  4,
-    SMB8x4       =  5,
-    SMB4x8       =  6,
-    SMB4x4       =  7,
-    P8x8         =  8,
-    I4MB         =  9,
+    P8x8         =  4,
+    P8x4         =  5,
+    P4x8         =  6,
+    P4x4         =  7,
+
+    I4MB         =  8,
+    I8MB         =  9,
     I16MB        = 10,
     IBLOCK       = 11,
     SI4MB        = 12,
-    I8MB         = 13,
-    IPCM         = 14
+    IPCM         = 13
+};
+
+enum {
+    Intra_4x4 = 0,
+    Intra_8x8,
+    Intra_16x16,
+    Intra_NxN,
+
+    Pred_L0 = 0,
+    Pred_L1,
+    BiPred,
+    Direct,
+
+    NA = 0
+};
+
+enum {
+    I_NxN = 0,
+    I_4x4,
+    I_8x8,
+    I_16x16,
+    I_PCM,
+    SI,
+
+    P_Skip,
+    P_16x16,
+    P_16x8,
+    P_8x16,
+    P_8x8,
+    P_8x8ref0,
+    P_8x4,
+    P_4x8,
+    P_4x4,
+
+    B_Skip,
+    B_Direct_16x16,
+    B_16x16,
+    B_16x8,
+    B_8x16,
+    B_Direct_8x8,
+    B_8x8,
+    B_8x4,
+    B_4x8,
+    B_4x4
 };
 
 
@@ -63,22 +108,15 @@ struct macroblock_t {
     uint8_t     ref_idx_l1 [4];
     int16_t     mvd_l0     [4][4][2];
     int16_t     mvd_l1     [4][4][2];
-    uint8_t     sub_mb_type[4];
 
+    uint8_t     SubMbType    [4];
+    uint8_t     SubMbPredMode[4];
     bool        noSubMbPartSizeLessThan8x8Flag;
-    uint8_t     NumMbPart;
-    uint8_t     MbPartPredMode[2];
-    uint8_t     MbPartWidth;
-    uint8_t     MbPartHeight;
     uint8_t     Intra4x4PredMode[16];
     uint8_t     Intra8x8PredMode[ 4];
     uint8_t     Intra16x16PredMode;
     uint8_t     CodedBlockPatternLuma;
     uint8_t     CodedBlockPatternChroma;
-    uint8_t     NumSubMbPart   [4];
-    uint8_t     SubMbPredMode  [4];
-    uint8_t     SubMbPartWidth [4];
-    uint8_t     SubMbPartHeight[4];
     int8_t      QpY;
     int8_t      QpC[2];
     uint8_t     qp_scaled[MAX_PLANE];
@@ -87,9 +125,6 @@ struct macroblock_t {
     uint8_t     nz_coeff[3][4][4]; // cavlc
     uint64_t    cbp_bits[3];       // cabac
     uint64_t    cbp_blks[3];       // deblock
-
-    char        b8mode[4];
-    char        b8pdir[4];
 
     bool        fieldMbInFrameFlag;
     bool        filterInternalEdgesFlag;

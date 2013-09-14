@@ -47,7 +47,7 @@ static void GetMotionVectorPredictorMBAFF (mb_t *currMB,
                                     PixelPos *block,        // <--> block neighbors
                                     MotionVector *pmv,
                                     short  ref_frame,
-                                    PicMotionParams **mv_info,
+                                    pic_motion_params **mv_info,
                                     int    list,
                                     int    mb_x,
                                     int    mb_y,
@@ -195,7 +195,7 @@ static void GetMotionVectorPredictorNormal (mb_t *currMB,
                                             PixelPos *block,      // <--> block neighbors
                                             MotionVector *pmv,
                                             short  ref_frame,
-                                            PicMotionParams **mv_info,
+                                            pic_motion_params **mv_info,
                                             int    list,
                                             int    mb_x,
                                             int    mb_y,
@@ -277,7 +277,7 @@ static void GetMotionVectorPredictorNormal (mb_t *currMB,
 }
 
 void GetMVPredictor(mb_t *currMB, PixelPos *block, MotionVector *pmv,
-                    short ref_frame, PicMotionParams **mv_info,
+                    short ref_frame, pic_motion_params **mv_info,
                     int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y)
 {
     slice_t *currSlice = currMB->p_Slice;

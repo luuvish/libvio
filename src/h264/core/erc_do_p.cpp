@@ -315,9 +315,9 @@ static int concealByCopy(frame *recfr, int currMBNum,
 static void copyBetweenFrames (frame *recfr, int currYBlockNum, int picSizeX, int regionSize)
 {
   VideoParameters *p_Vid = recfr->p_Vid;
-  StorablePicture *dec_picture = p_Vid->dec_picture;
+  storable_picture *dec_picture = p_Vid->dec_picture;
   int j, k, location, xmin, ymin;
-  StorablePicture* refPic = p_Vid->ppSliceList[0]->listX[0][0];
+  storable_picture* refPic = p_Vid->ppSliceList[0]->listX[0][0];
 
   /* set the position of the region to be copied */
   xmin = (xPosYBlock(currYBlockNum,picSizeX)<<3);
@@ -596,7 +596,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   int ioff,joff;
   imgpel *pMB = predMB;
   slice_t *currSlice;// = p_Vid->currentSlice;
-  StorablePicture *dec_picture = p_Vid->dec_picture;
+  storable_picture *dec_picture = p_Vid->dec_picture;
   int ii0,jj0,ii1,jj1,if1,jf1,if0,jf0;
   int mv_mul;
 
@@ -757,7 +757,7 @@ static void copyPredMB (int currYBlockNum, imgpel *predMB, frame *recfr,
 {
   VideoParameters *p_Vid = recfr->p_Vid;
   sps_t *sps = p_Vid->active_sps;
-  StorablePicture *dec_picture = p_Vid->dec_picture;
+  storable_picture *dec_picture = p_Vid->dec_picture;
   int j, k, xmin, ymin, xmax, ymax;
   int locationTmp;
   int uv_x = uv_div[0][dec_picture->chroma_format_idc];
@@ -916,7 +916,7 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
   int vec1_x=0,vec1_y=0;
   int ioff,joff;
 
-  StorablePicture *dec_picture = p_Vid->dec_picture;
+  storable_picture *dec_picture = p_Vid->dec_picture;
   imgpel *pMB = predMB;
 
   int ii0,jj0,ii1,jj1,if1,jf1,if0,jf0;
@@ -1056,7 +1056,7 @@ static void CopyImgData(imgpel **inputY, imgpel ***inputUV, imgpel **outputY, im
 ************************************************************************
 */
 
-static StorablePicture* get_last_ref_pic_from_dpb(dpb_t *p_Dpb)
+static storable_picture* get_last_ref_pic_from_dpb(dpb_t *p_Dpb)
 {
   int used_size = p_Dpb->used_size - 1;
   int i;
@@ -1086,7 +1086,7 @@ static StorablePicture* get_last_ref_pic_from_dpb(dpb_t *p_Dpb)
 ************************************************************************
 */
 
-static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoParameters *p_Vid)
+static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoParameters *p_Vid)
 {
   int i=0;
   int mv[3];
@@ -1096,7 +1096,7 @@ static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoPar
   int uv;
   int mm, nn;
   int scale = 1;
-  StorablePicture *dec_picture = p_Vid->dec_picture;
+  storable_picture *dec_picture = p_Vid->dec_picture;
     sps_t *sps = p_Vid->active_sps;
   // InputParameters *test;
 
@@ -1238,11 +1238,11 @@ static void copy_to_conceal(StorablePicture *src, StorablePicture *dst, VideoPar
 */
 
 static void
-copy_prev_pic_to_concealed_pic(StorablePicture *picture, dpb_t *p_Dpb)
+copy_prev_pic_to_concealed_pic(storable_picture *picture, dpb_t *p_Dpb)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   /* get the last ref pic in dpb */
-  StorablePicture *ref_pic = get_last_ref_pic_from_dpb(p_Dpb);
+  storable_picture *ref_pic = get_last_ref_pic_from_dpb(p_Dpb);
 
   assert(ref_pic != NULL);
 
@@ -1268,7 +1268,7 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
   sps_t *sps = p_Vid->active_sps;
   int CurrFrameNum;
   int UnusedShortTermFrameNum;
-  StorablePicture *picture = NULL;
+  storable_picture *picture = NULL;
   int tmp1 = pSlice->delta_pic_order_cnt[0];
   int tmp2 = pSlice->delta_pic_order_cnt[1];
   int i;
@@ -1394,7 +1394,7 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
   int list0idx = 0;
   int list0idx_1 = 0;
 
-  StorablePicture *tmp_s;
+  storable_picture *tmp_s;
 
   if (!field_pic_flag)
   {
@@ -1424,7 +1424,7 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
         }
       }
       // order list 0 by PicNum
-      qsort((void *)p_Vid->ppSliceList[0]->listX[0], list0idx, sizeof(StorablePicture*), compare_pic_by_pic_num_desc);
+      qsort((void *)p_Vid->ppSliceList[0]->listX[0], list0idx, sizeof(storable_picture*), compare_pic_by_pic_num_desc);
       p_Vid->ppSliceList[0]->listXsize[0] = (char) list0idx;
     }
   }
@@ -1443,7 +1443,7 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
         }
       }
 
-      qsort((void *)p_Vid->ppSliceList[0]->listX[0], list0idx, sizeof(StorablePicture*), compare_pic_by_poc_desc);
+      qsort((void *)p_Vid->ppSliceList[0]->listX[0], list0idx, sizeof(storable_picture*), compare_pic_by_poc_desc);
       list0idx_1 = list0idx;
 
       //      for(i=0;i<p_Dpb->ref_frames_in_buffer; i++)
@@ -1456,7 +1456,7 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
         }
       }
 
-      qsort((void *)&p_Vid->ppSliceList[0]->listX[0][list0idx_1], list0idx-list0idx_1, sizeof(StorablePicture*), compare_pic_by_poc_asc);
+      qsort((void *)&p_Vid->ppSliceList[0]->listX[0][list0idx_1], list0idx-list0idx_1, sizeof(storable_picture*), compare_pic_by_poc_asc);
 
       for (j=0; j<list0idx_1; j++)
       {
@@ -1469,8 +1469,8 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
 
       p_Vid->ppSliceList[0]->listXsize[0] = p_Vid->ppSliceList[0]->listXsize[1] = (char) list0idx;
 
-      qsort((void *)&p_Vid->ppSliceList[0]->listX[0][(short) p_Vid->ppSliceList[0]->listXsize[0]], list0idx-p_Vid->ppSliceList[0]->listXsize[0], sizeof(StorablePicture*), compare_pic_by_lt_pic_num_asc);
-      qsort((void *)&p_Vid->ppSliceList[0]->listX[1][(short) p_Vid->ppSliceList[0]->listXsize[0]], list0idx-p_Vid->ppSliceList[0]->listXsize[0], sizeof(StorablePicture*), compare_pic_by_lt_pic_num_asc);
+      qsort((void *)&p_Vid->ppSliceList[0]->listX[0][(short) p_Vid->ppSliceList[0]->listXsize[0]], list0idx-p_Vid->ppSliceList[0]->listXsize[0], sizeof(storable_picture*), compare_pic_by_lt_pic_num_asc);
+      qsort((void *)&p_Vid->ppSliceList[0]->listX[1][(short) p_Vid->ppSliceList[0]->listXsize[0]], list0idx-p_Vid->ppSliceList[0]->listXsize[0], sizeof(storable_picture*), compare_pic_by_lt_pic_num_asc);
       p_Vid->ppSliceList[0]->listXsize[0] = p_Vid->ppSliceList[0]->listXsize[1] = (char) list0idx;
     }
   }
@@ -1519,7 +1519,7 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
 ************************************************************************
 */
 
-StorablePicture *get_pic_from_dpb(dpb_t *p_Dpb, int missingpoc, unsigned int *pos)
+storable_picture *get_pic_from_dpb(dpb_t *p_Dpb, int missingpoc, unsigned int *pos)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
   int used_size = p_Dpb->used_size - 1;
@@ -1565,7 +1565,7 @@ int comp(const void *i, const void *j)
 ************************************************************************
 */
 
-struct concealment_node * init_node( StorablePicture* picture, int missingpoc )
+struct concealment_node * init_node( storable_picture* picture, int missingpoc )
 {
   struct concealment_node *ptr;
 
@@ -1676,8 +1676,8 @@ void conceal_non_ref_pics(dpb_t *p_Dpb, int diff)
   sps_t *sps = p_Vid->active_sps;
   int missingpoc = 0;
   unsigned int i, pos = 0;
-  StorablePicture *conceal_from_picture = NULL;
-  StorablePicture *conceal_to_picture = NULL;
+  storable_picture *conceal_from_picture = NULL;
+  storable_picture *conceal_to_picture = NULL;
   struct concealment_node *concealment_ptr = NULL;
   int temp_used_size = p_Dpb->used_size;
 
@@ -1739,7 +1739,7 @@ void conceal_non_ref_pics(dpb_t *p_Dpb, int diff)
 ************************************************************************
 */
 
-void sliding_window_poc_management(dpb_t *p_Dpb, StorablePicture *p)
+void sliding_window_poc_management(dpb_t *p_Dpb, storable_picture *p)
 {    
   if (p_Dpb->used_size == p_Dpb->size)
   {
@@ -1766,7 +1766,7 @@ void sliding_window_poc_management(dpb_t *p_Dpb, StorablePicture *p)
 void write_lost_non_ref_pic(dpb_t *p_Dpb, int poc, int p_out)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
-  FrameStore concealment_fs;
+  frame_store concealment_fs;
   if(poc > 0)
   {
     if((poc - p_Dpb->last_output_poc) > p_Vid->poc_gap)

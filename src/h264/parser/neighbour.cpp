@@ -42,7 +42,7 @@ bool mb_is_available(int mbAddr, mb_t *currMB)
 void CheckAvailabilityOfNeighbors(mb_t *currMB)
 {
   slice_t *currSlice = currMB->p_Slice;
-  StorablePicture *dec_picture = currSlice->dec_picture; //p_Vid->dec_picture;
+  storable_picture *dec_picture = currSlice->dec_picture; //p_Vid->dec_picture;
   const int mb_nr = currMB->mbAddrX;
   BlockPos *PicPos = currMB->p_Vid->PicPos;
 
@@ -88,7 +88,7 @@ void CheckAvailabilityOfNeighbors(mb_t *currMB)
 void CheckAvailabilityOfNeighborsNormal(mb_t *currMB)
 {
   slice_t *currSlice = currMB->p_Slice;
-  StorablePicture *dec_picture = currSlice->dec_picture; //p_Vid->dec_picture;
+  storable_picture *dec_picture = currSlice->dec_picture; //p_Vid->dec_picture;
   const int mb_nr = currMB->mbAddrX;
   BlockPos *PicPos = currMB->p_Vid->PicPos;
 
@@ -119,7 +119,7 @@ void CheckAvailabilityOfNeighborsNormal(mb_t *currMB)
 void CheckAvailabilityOfNeighborsMBAFF(mb_t *currMB)
 {
   slice_t *currSlice = currMB->p_Slice;
-  StorablePicture *dec_picture = currSlice->dec_picture;
+  storable_picture *dec_picture = currSlice->dec_picture;
   const int mb_nr = currMB->mbAddrX;
   BlockPos *PicPos = currMB->p_Vid->PicPos;
 

@@ -65,7 +65,7 @@ static void init_neighbors(VideoParameters *p_Vid)
  *****************************************************************************************
  */
 
-static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
+static void DeblockMb(VideoParameters *p_Vid, storable_picture *p, int MbQAddr)
 {
     mb_t *MbQ = &(p_Vid->mb_data[MbQAddr]) ; // current Mb
 
@@ -255,7 +255,7 @@ static void DeblockMb(VideoParameters *p_Vid, StorablePicture *p, int MbQAddr)
     }
 }
 
-static void DeblockPicture(VideoParameters *p_Vid, StorablePicture *p)
+static void DeblockPicture(VideoParameters *p_Vid, storable_picture *p)
 {
     int i;
     for (i = 0; i < p->PicSizeInMbs; ++i)
@@ -270,7 +270,7 @@ static void make_frame_picture_JV(VideoParameters *p_Vid)
     p_Vid->dec_picture = p_Vid->dec_picture_JV[0];
 
     if (p_Vid->dec_picture->used_for_reference) {
-        nsize = (p_Vid->dec_picture->size_y/BLOCK_SIZE)*(p_Vid->dec_picture->size_x/BLOCK_SIZE)*sizeof(PicMotionParams);
+        nsize = (p_Vid->dec_picture->size_y/BLOCK_SIZE)*(p_Vid->dec_picture->size_x/BLOCK_SIZE)*sizeof(pic_motion_params);
         memcpy( &(p_Vid->dec_picture->JVmv_info[PLANE_Y][0][0]), &(p_Vid->dec_picture_JV[PLANE_Y]->mv_info[0][0]), nsize);
         memcpy( &(p_Vid->dec_picture->JVmv_info[PLANE_U][0][0]), &(p_Vid->dec_picture_JV[PLANE_U]->mv_info[0][0]), nsize);
         memcpy( &(p_Vid->dec_picture->JVmv_info[PLANE_V][0][0]), &(p_Vid->dec_picture_JV[PLANE_V]->mv_info[0][0]), nsize);
@@ -316,7 +316,7 @@ void change_plane_JV(VideoParameters *p_Vid, int nplane, slice_t *pSlice)
     }
 }
 
-void pic_deblock(VideoParameters *p_Vid, StorablePicture *p)
+void pic_deblock(VideoParameters *p_Vid, storable_picture *p)
 {
     int iDeblockMode = 1;
     //init mb_data;

@@ -146,27 +146,27 @@ int ercConcealInterFrame( frame *recfr, objectBuffer_t *object_list,
 #include "output.h"
 
 struct concealment_node {
-    StorablePicture* picture;
+    storable_picture* picture;
     int  missingpocs;
     struct concealment_node *next;
 };
 
 struct slice_t;
 
-extern struct concealment_node * init_node(StorablePicture* , int );
+extern struct concealment_node * init_node(storable_picture* , int );
 extern void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int , bool );
 
 extern void conceal_non_ref_pics(dpb_t *p_Dpb, int diff);
 extern void conceal_lost_frames (dpb_t *p_Dpb, struct slice_t *pSlice);
 
-extern void sliding_window_poc_management(dpb_t *p_Dpb, StorablePicture *p);
+extern void sliding_window_poc_management(dpb_t *p_Dpb, storable_picture *p);
 extern void write_lost_non_ref_pic       (dpb_t *p_Dpb, int poc, int p_out);
 extern void write_lost_ref_after_idr     (dpb_t *p_Dpb, int pos);
 
 extern int comp(const void *, const void *);
 
 struct macroblock_t;
-void erc_picture(VideoParameters *p_Vid, StorablePicture **dec_picture);
+void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture);
 void ercWriteMBMODEandMV(struct macroblock_t *currMB);
 
 

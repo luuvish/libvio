@@ -36,7 +36,7 @@ static mb_t* get_non_aff_neighbor_luma(mb_t *mb, int xN, int yN)
  *    returns a buffer of 16 Strength values for one stripe in a mb (for different Frame or Field types)
  *********************************************************************************************
  */
-void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
+void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
 {
     byte *Strength = MbQ->strength_ver[edge];
     slice_t *currSlice = MbQ->p_Slice;
@@ -133,12 +133,12 @@ void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
             int blk_x  = mb.x + (blkQ  & 3);
             int blk_y2 = (short)(get_pos_y_luma(neighbor,  0) + idx) >> 2;
             int blk_x2 = (short)(get_pos_x_luma(neighbor, xQ)      ) >> 2;
-            PicMotionParams *mv_info_p = &p->mv_info[blk_y ][blk_x ];            
-            PicMotionParams *mv_info_q = &p->mv_info[blk_y2][blk_x2];            
-            StorablePicturePtr ref_p0 = mv_info_p->ref_pic[LIST_0];
-            StorablePicturePtr ref_q0 = mv_info_q->ref_pic[LIST_0];            
-            StorablePicturePtr ref_p1 = mv_info_p->ref_pic[LIST_1];
-            StorablePicturePtr ref_q1 = mv_info_q->ref_pic[LIST_1];
+            pic_motion_params *mv_info_p = &p->mv_info[blk_y ][blk_x ];            
+            pic_motion_params *mv_info_q = &p->mv_info[blk_y2][blk_x2];            
+            storable_picture* ref_p0 = mv_info_p->ref_pic[LIST_0];
+            storable_picture* ref_q0 = mv_info_q->ref_pic[LIST_0];            
+            storable_picture* ref_p1 = mv_info_p->ref_pic[LIST_1];
+            storable_picture* ref_q1 = mv_info_q->ref_pic[LIST_1];
 
             if ( ((ref_p0==ref_q0) && (ref_p1==ref_q1)) || ((ref_p0==ref_q1) && (ref_p1==ref_q0))) {
                 // L0 and L1 reference pictures of p0 are different; q0 as well
@@ -175,7 +175,7 @@ void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
  *    returns a buffer of 16 Strength values for one stripe in a mb (for different Frame or Field types)
  *********************************************************************************************
  */
-void get_strength_hor(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
+void get_strength_hor(mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
 {  
     byte  *Strength = MbQ->strength_hor[edge];
     int    StrValue;
@@ -229,12 +229,12 @@ void get_strength_hor(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
             int blk_x  = mb.x + (blkQ  & 3);
             int blk_y2 = get_pos_y_luma(neighbor,yQ) >> 2;
             int blk_x2 = ((short)(get_pos_x_luma(neighbor,0)) >> 2) + idx;
-            PicMotionParams *mv_info_p = &p->mv_info[blk_y ][blk_x ];
-            PicMotionParams *mv_info_q = &p->mv_info[blk_y2][blk_x2];
-            StorablePicturePtr ref_p0 = mv_info_p->ref_pic[LIST_0];
-            StorablePicturePtr ref_q0 = mv_info_q->ref_pic[LIST_0];
-            StorablePicturePtr ref_p1 = mv_info_p->ref_pic[LIST_1];
-            StorablePicturePtr ref_q1 = mv_info_q->ref_pic[LIST_1];            
+            pic_motion_params *mv_info_p = &p->mv_info[blk_y ][blk_x ];
+            pic_motion_params *mv_info_q = &p->mv_info[blk_y2][blk_x2];
+            storable_picture* ref_p0 = mv_info_p->ref_pic[LIST_0];
+            storable_picture* ref_q0 = mv_info_q->ref_pic[LIST_0];
+            storable_picture* ref_p1 = mv_info_p->ref_pic[LIST_1];
+            storable_picture* ref_q1 = mv_info_q->ref_pic[LIST_1];            
 
             if ( ((ref_p0==ref_q0) && (ref_p1==ref_q1)) || ((ref_p0==ref_q1) && (ref_p1==ref_q0))) {
                 // L0 and L1 reference pictures of p0 are different; q0 as well
@@ -271,7 +271,7 @@ void get_strength_hor(mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
  *    returns a buffer of 16 Strength values for one stripe in a mb (for MBAFF)
  *********************************************************************************************
  */
-void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
+void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
 {
   //byte *Strength = MbQ->strength_ver[edge];
     short  blkP, blkQ, idx;
@@ -326,12 +326,12 @@ void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
                         int blk_x  = ((mb_x<<2) + (blkQ  & 3));
                         int blk_y2 = (pixP.pos_y >> 2);
                         int blk_x2 = (pixP.pos_x >> 2);
-                        PicMotionParams *mv_info_p = &p->mv_info[blk_y ][blk_x ];
-                        PicMotionParams *mv_info_q = &p->mv_info[blk_y2][blk_x2];
-                        StorablePicturePtr ref_p0 = mv_info_p->ref_pic[LIST_0];
-                        StorablePicturePtr ref_q0 = mv_info_q->ref_pic[LIST_0];
-                        StorablePicturePtr ref_p1 = mv_info_p->ref_pic[LIST_1];
-                        StorablePicturePtr ref_q1 = mv_info_q->ref_pic[LIST_1];
+                        pic_motion_params *mv_info_p = &p->mv_info[blk_y ][blk_x ];
+                        pic_motion_params *mv_info_q = &p->mv_info[blk_y2][blk_x2];
+                        storable_picture* ref_p0 = mv_info_p->ref_pic[LIST_0];
+                        storable_picture* ref_q0 = mv_info_q->ref_pic[LIST_0];
+                        storable_picture* ref_p1 = mv_info_p->ref_pic[LIST_1];
+                        storable_picture* ref_q1 = mv_info_q->ref_pic[LIST_1];
 
                         if ( ((ref_p0==ref_q0) && (ref_p1==ref_q1))||((ref_p0==ref_q1) && (ref_p1==ref_q0))) {
                             // L0 and L1 reference pictures of p0 are different; q0 as well
@@ -392,12 +392,12 @@ void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
                             int blk_x  = ((mb_x<<2) + (blkQ  & 3));
                             int blk_y2 = (pixP.pos_y >> 2);
                             int blk_x2 = (pixP.pos_x >> 2);
-                            PicMotionParams *mv_info_p = &p->mv_info[blk_y ][blk_x ];
-                            PicMotionParams *mv_info_q = &p->mv_info[blk_y2][blk_x2];
-                            StorablePicturePtr ref_p0 = mv_info_p->ref_pic[LIST_0];
-                            StorablePicturePtr ref_q0 = mv_info_q->ref_pic[LIST_0];
-                            StorablePicturePtr ref_p1 = mv_info_p->ref_pic[LIST_1];
-                            StorablePicturePtr ref_q1 = mv_info_q->ref_pic[LIST_1];
+                            pic_motion_params *mv_info_p = &p->mv_info[blk_y ][blk_x ];
+                            pic_motion_params *mv_info_q = &p->mv_info[blk_y2][blk_x2];
+                            storable_picture* ref_p0 = mv_info_p->ref_pic[LIST_0];
+                            storable_picture* ref_q0 = mv_info_q->ref_pic[LIST_0];
+                            storable_picture* ref_p1 = mv_info_p->ref_pic[LIST_1];
+                            storable_picture* ref_q1 = mv_info_q->ref_pic[LIST_1];
 
                             if ( ((ref_p0==ref_q0) && (ref_p1==ref_q1))||((ref_p0==ref_q1) && (ref_p1==ref_q0))) {
                                 Strength[idx]=0;
@@ -437,7 +437,7 @@ void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
  *    returns a buffer of 16 Strength values for one stripe in a mb (for MBAFF)
  *********************************************************************************************
  */
-void get_strength_hor_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, StorablePicture *p)
+void get_strength_hor_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
 {
     short  blkP, blkQ, idx;
     short  blk_x, blk_x2, blk_y, blk_y2 ;
@@ -501,12 +501,12 @@ void get_strength_hor_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, St
                         blk_x  = (short) ((mb_x<<2) + (blkQ  & 3));
                         blk_y2 = (short) (pixP.pos_y >> 2);
                         blk_x2 = (short) (pixP.pos_x >> 2);
-                        PicMotionParams *mv_info_p = &p->mv_info[blk_y ][blk_x ];
-                        PicMotionParams *mv_info_q = &p->mv_info[blk_y2][blk_x2];
-                        StorablePicturePtr ref_p0 = mv_info_p->ref_pic[LIST_0];
-                        StorablePicturePtr ref_q0 = mv_info_q->ref_pic[LIST_0];
-                        StorablePicturePtr ref_p1 = mv_info_p->ref_pic[LIST_1];
-                        StorablePicturePtr ref_q1 = mv_info_q->ref_pic[LIST_1];
+                        pic_motion_params *mv_info_p = &p->mv_info[blk_y ][blk_x ];
+                        pic_motion_params *mv_info_q = &p->mv_info[blk_y2][blk_x2];
+                        storable_picture* ref_p0 = mv_info_p->ref_pic[LIST_0];
+                        storable_picture* ref_q0 = mv_info_q->ref_pic[LIST_0];
+                        storable_picture* ref_p1 = mv_info_p->ref_pic[LIST_1];
+                        storable_picture* ref_q1 = mv_info_q->ref_pic[LIST_1];
 
                         if ((ref_p0 == ref_q0 && ref_p1 == ref_q1) || (ref_p0 == ref_q1 && ref_p1 == ref_q0)) {
                             StrValue = 0;

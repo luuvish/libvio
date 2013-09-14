@@ -46,24 +46,24 @@ void free_top_bot_planes(imgpel **imgTopField, imgpel **imgBotField)
 /*!
  ************************************************************************
  * \brief
- *    Allocate 2D memory array -> PicMotionParams array2D[dim0][dim1]
+ *    Allocate 2D memory array -> pic_motion_params array2D[dim0][dim1]
  *
  * \par Output:
  *    memory size in bytes
  ************************************************************************/
-int get_mem2Dmp(PicMotionParams ***array2D, int dim0, int dim1)
+int get_mem2Dmp(pic_motion_params ***array2D, int dim0, int dim1)
 {
   int i;
 
-  if((*array2D    = (PicMotionParams**)mem_malloc(dim0 *      sizeof(PicMotionParams*))) == NULL)
+  if((*array2D    = (pic_motion_params**)mem_malloc(dim0 *      sizeof(pic_motion_params*))) == NULL)
     no_mem_exit("get_mem2Dmp: array2D");
-  if((*(*array2D) = (PicMotionParams* )mem_calloc(dim0 * dim1, sizeof(PicMotionParams ))) == NULL)
+  if((*(*array2D) = (pic_motion_params* )mem_calloc(dim0 * dim1, sizeof(pic_motion_params ))) == NULL)
     no_mem_exit("get_mem2Dmp: array2D");
 
   for(i = 1 ; i < dim0; i++)
     (*array2D)[i] =  (*array2D)[i-1] + dim1;
 
-  return dim0 * (sizeof(PicMotionParams*) + dim1 * sizeof(PicMotionParams));
+  return dim0 * (sizeof(pic_motion_params*) + dim1 * sizeof(pic_motion_params));
 }
 
 /*!
@@ -73,7 +73,7 @@ int get_mem2Dmp(PicMotionParams ***array2D, int dim0, int dim1)
  *    which was allocated with get_mem2Dmp()
  ************************************************************************
  */
-void free_mem2Dmp(PicMotionParams **array2D)
+void free_mem2Dmp(pic_motion_params **array2D)
 {
   if (array2D)
   {

@@ -20,7 +20,7 @@ static const int BLOCK_STEP[8][2] = {
 static void mb_pred_skip(mb_t *currMB, ColorPlane curr_plane)
 {
     slice_t *currSlice = currMB->p_Slice;
-    StorablePicture *dec_picture = currSlice->dec_picture;
+    storable_picture *dec_picture = currSlice->dec_picture;
 
     perform_mc(currMB, curr_plane, dec_picture, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
@@ -30,17 +30,16 @@ static void mb_pred_skip(mb_t *currMB, ColorPlane curr_plane)
 static void mb_pred_p_inter(mb_t *currMB, ColorPlane curr_plane)
 {
     slice_t *currSlice = currMB->p_Slice;
-    StorablePicture *dec_picture = currSlice->dec_picture;
+    storable_picture *dec_picture = currSlice->dec_picture;
 
-    int partmode = (currMB->mb_type == P8x8 ? 4 : currMB->mb_type);
-    int step_h0  = BLOCK_STEP[partmode][0];
-    int step_v0  = BLOCK_STEP[partmode][1];
+    int step_h0 = BLOCK_STEP[currMB->mb_type][0];
+    int step_v0 = BLOCK_STEP[currMB->mb_type][1];
 
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {
             int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-            int mv_mode  = currMB->b8mode[block8x8];
-            int pred_dir = currMB->b8pdir[block8x8];
+            int mv_mode  = currMB->SubMbType    [block8x8];
+            int pred_dir = currMB->SubMbPredMode[block8x8];
             int step_h4  = BLOCK_STEP[mv_mode][0];
             int step_v4  = BLOCK_STEP[mv_mode][1];
 
@@ -60,7 +59,7 @@ static void mb_pred_b_direct(mb_t *currMB, ColorPlane curr_plane)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    StorablePicture *dec_picture = currSlice->dec_picture;
+    storable_picture *dec_picture = currSlice->dec_picture;
 
     if (currSlice->direct_spatial_mv_pred_flag) {
         if (sps->direct_8x8_inference_flag)
@@ -76,15 +75,14 @@ static void mb_pred_b_direct(mb_t *currMB, ColorPlane curr_plane)
         }
     }
 
-    //int partmode = (currMB->mb_type == P8x8 ? 4 : currMB->mb_type);
-    int step_h0 = 2; //BLOCK_STEP[partmode][0];
-    int step_v0 = 2; //BLOCK_STEP[partmode][1];
+    int step_h0 = 2; //BLOCK_STEP[currMB->mb_type][0];
+    int step_v0 = 2; //BLOCK_STEP[currMB->mb_type][1];
 
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {
             int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-            int mv_mode  = currMB->b8mode[block8x8];
-            int pred_dir = currMB->b8pdir[block8x8];
+            int mv_mode  = currMB->SubMbType    [block8x8];
+            int pred_dir = currMB->SubMbPredMode[block8x8];
             int step_h4  = BLOCK_STEP[mv_mode][0];
             int step_v4  = BLOCK_STEP[mv_mode][1];
             if (mv_mode == 0) {
@@ -108,11 +106,10 @@ static void mb_pred_b_inter8x8(mb_t *currMB, ColorPlane curr_plane)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    StorablePicture *dec_picture = currSlice->dec_picture;
+    storable_picture *dec_picture = currSlice->dec_picture;
 
-    int partmode = (currMB->mb_type == P8x8 ? 4 : currMB->mb_type);
-    int step_h0  = BLOCK_STEP[partmode][0];
-    int step_v0  = BLOCK_STEP[partmode][1];
+    int step_h0 = BLOCK_STEP[currMB->mb_type][0];
+    int step_v0 = BLOCK_STEP[currMB->mb_type][1];
 
     int pred_dirs[4];
 
@@ -126,7 +123,7 @@ static void mb_pred_b_inter8x8(mb_t *currMB, ColorPlane curr_plane)
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {
             int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-            int mv_mode  = currMB->b8mode[block8x8];
+            int mv_mode  = currMB->SubMbType[block8x8];
             int step_h4  = BLOCK_STEP[mv_mode][0];
             int step_v4  = BLOCK_STEP[mv_mode][1];
             int pred_dir = pred_dirs[block8x8];
@@ -153,7 +150,7 @@ static void mb_pred_ipcm(mb_t *currMB)
     int i, j, k;
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
-    StorablePicture *dec_picture = currSlice->dec_picture;
+    storable_picture *dec_picture = currSlice->dec_picture;
 
     for (i = 0; i < 16; ++i) {
         for (j = 0; j < 16 ; ++j)
@@ -310,11 +307,11 @@ static void decode_one_component(mb_t *currMB, ColorPlane curr_plane)
 
     if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag) {
         if (!currMB->is_intra_block) {
-            StorablePicture *vidref = p_Vid->no_reference_picture;
+            storable_picture *vidref = p_Vid->no_reference_picture;
             int noref = currSlice->framepoc < p_Vid->recovery_poc;
             for (int j = 0; j < 6; j++) {
                 for (int i = 0; i < currSlice->listXsize[j] ; i++) {
-                    StorablePicture *curr_ref = currSlice->listX[j][i];
+                    storable_picture *curr_ref = currSlice->listX[j][i];
                     if (curr_ref) {
                         curr_ref->no_ref = noref && (curr_ref == vidref);
                         curr_ref->cur_imgY = (curr_plane == PLANE_Y) ? curr_ref->imgY : curr_ref->imgUV[curr_plane-1];

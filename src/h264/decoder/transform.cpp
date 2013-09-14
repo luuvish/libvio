@@ -1026,7 +1026,7 @@ void transform_t::inverse_chroma_dc(mb_t* mb, ColorPlane pl)
 void transform_t::inverse_transform_4x4(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
-    StorablePicture* dec_picture = slice->dec_picture;
+    storable_picture* dec_picture = slice->dec_picture;
     imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
 
     if (mb->TransformBypassModeFlag)
@@ -1040,7 +1040,7 @@ void transform_t::inverse_transform_4x4(mb_t* mb, ColorPlane pl, int ioff, int j
 void transform_t::inverse_transform_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
-    StorablePicture* dec_picture = slice->dec_picture;
+    storable_picture* dec_picture = slice->dec_picture;
     imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
 
     if (mb->TransformBypassModeFlag)
@@ -1054,7 +1054,7 @@ void transform_t::inverse_transform_8x8(mb_t* mb, ColorPlane pl, int ioff, int j
 void transform_t::inverse_transform_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
-    StorablePicture* dec_picture = slice->dec_picture;
+    storable_picture* dec_picture = slice->dec_picture;
     imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
 
     if (mb->TransformBypassModeFlag)
@@ -1069,7 +1069,7 @@ void transform_t::inverse_transform_chroma(mb_t* mb, ColorPlane pl)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
-    StorablePicture* dec_picture = slice->dec_picture;
+    storable_picture* dec_picture = slice->dec_picture;
     imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
 
     if (mb->TransformBypassModeFlag)
@@ -1090,7 +1090,7 @@ void transform_t::inverse_transform_inter(mb_t* mb, ColorPlane pl, int smb)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
-    StorablePicture* dec_picture = slice->dec_picture;
+    storable_picture* dec_picture = slice->dec_picture;
     imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
 
     if (smb || mb->CodedBlockPatternLuma) {

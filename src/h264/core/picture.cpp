@@ -295,7 +295,7 @@ static void MbAffPostProc(VideoParameters *p_Vid)
 {
     imgpel temp_buffer[32][16];
 
-    StorablePicture *dec_picture = p_Vid->dec_picture;
+    storable_picture *dec_picture = p_Vid->dec_picture;
     sps_t *sps = p_Vid->active_sps;
     imgpel ** imgY  = dec_picture->imgY;
     imgpel ***imgUV = dec_picture->imgUV;
@@ -349,7 +349,7 @@ void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, i
         memcpy(pLine0+j*iStride,  pLine, iStride*sizeof(imgpel));
 }
 
-void pad_dec_picture(VideoParameters *p_Vid, StorablePicture *dec_picture)
+void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture)
 {
     int iPadX = MCBUF_LUMA_PAD_X;
     int iPadY = MCBUF_LUMA_PAD_Y;
@@ -379,7 +379,7 @@ void pad_dec_picture(VideoParameters *p_Vid, StorablePicture *dec_picture)
     }
 }
 
-static void status_picture(VideoParameters *p_Vid, StorablePicture **dec_picture)
+static void status_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
 {
     InputParameters *p_Inp = p_Vid->p_Inp;
     SNRParameters   *snr   = p_Vid->snr;
@@ -472,7 +472,7 @@ static void status_picture(VideoParameters *p_Vid, StorablePicture **dec_picture
     }
 }
 
-void exit_picture(VideoParameters *p_Vid, StorablePicture **dec_picture)
+void exit_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
 {
     sps_t *sps = p_Vid->active_sps;
     slice_t *currSlice = p_Vid->ppSliceList[0];

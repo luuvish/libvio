@@ -67,14 +67,14 @@ static void init_mvc_picture(slice_t *currSlice)
   VideoParameters *p_Vid = currSlice->p_Vid;
   dpb_t *p_Dpb = p_Vid->p_Dpb_layer[0];
 
-  StorablePicture *p_pic = NULL;
+  storable_picture *p_pic = NULL;
 
   // find BL reconstructed picture
   if (!currSlice->field_pic_flag)
   {
     for (i = 0; i < (int)p_Dpb->used_size/*size*/; i++)
     {
-      FrameStore *fs = p_Dpb->fs[i];
+      frame_store *fs = p_Dpb->fs[i];
       if ((fs->frame->view_id == 0) && (fs->frame->frame_poc == currSlice->framepoc))
       {
         p_pic = fs->frame;
@@ -86,7 +86,7 @@ static void init_mvc_picture(slice_t *currSlice)
   {
     for (i = 0; i < (int)p_Dpb->used_size/*size*/; i++)
     {
-      FrameStore *fs = p_Dpb->fs[i];
+      frame_store *fs = p_Dpb->fs[i];
       if ((fs->top_field->view_id == 0) && (fs->top_field->top_poc == currSlice->TopFieldOrderCnt))
       {
         p_pic = fs->top_field;
@@ -98,7 +98,7 @@ static void init_mvc_picture(slice_t *currSlice)
   {
     for (i = 0; i < (int)p_Dpb->used_size/*size*/; i++)
     {
-      FrameStore *fs = p_Dpb->fs[i];
+      frame_store *fs = p_Dpb->fs[i];
       if ((fs->bottom_field->view_id == 0) && (fs->bottom_field->bottom_poc == currSlice->BottomFieldOrderCnt))
       {
         p_pic = fs->bottom_field;
@@ -115,7 +115,7 @@ static void init_mvc_picture(slice_t *currSlice)
 #endif
 
 
-static void copy_dec_picture_JV( VideoParameters *p_Vid, StorablePicture *dst, StorablePicture *src )
+static void copy_dec_picture_JV( VideoParameters *p_Vid, storable_picture *dst, storable_picture *src )
 {
   dst->top_poc              = src->top_poc;
   dst->bottom_poc           = src->bottom_poc;
@@ -150,7 +150,7 @@ static void copy_dec_picture_JV( VideoParameters *p_Vid, StorablePicture *dst, S
   dst->frame_crop_bottom_offset = src->frame_crop_bottom_offset;
 
 #if (ENABLE_OUTPUT_TONEMAPPING)
-  // store the necessary tone mapping sei into StorablePicture structure
+  // store the necessary tone mapping sei into storable_picture structure
   dst->seiHasTone_mapping = src->seiHasTone_mapping;
 
   dst->seiHasTone_mapping    = src->seiHasTone_mapping;
@@ -180,7 +180,7 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
 {
   int i;
   int nplane;
-  StorablePicture *dec_picture = NULL;
+  storable_picture *dec_picture = NULL;
   sps_t *sps = p_Vid->active_sps;
   dpb_t *p_Dpb = currSlice->p_Dpb;
 
@@ -358,7 +358,7 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
   }
 
 #if (ENABLE_OUTPUT_TONEMAPPING)
-  // store the necessary tone mapping sei into StorablePicture structure
+  // store the necessary tone mapping sei into storable_picture structure
   if (p_Vid->seiToneMapping->seiHasTone_mapping)
   {
     int coded_data_bit_max = (1 << p_Vid->seiToneMapping->coded_data_bit_depth);
@@ -456,7 +456,7 @@ static slice_t *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
     for (i = 0; i < 17; i++)
         currSlice->ref_flag[i] = 1;
     for (i = 0; i < 6; i++) {
-        currSlice->listX[i] = (StorablePicture **)calloc(MAX_LIST_SIZE, sizeof (StorablePicture*)); // +1 for reordering
+        currSlice->listX[i] = (storable_picture **)calloc(MAX_LIST_SIZE, sizeof (storable_picture*)); // +1 for reordering
         if (!currSlice->listX[i])
             no_mem_exit("malloc_slice: currSlice->listX[i]");
     }
@@ -614,7 +614,7 @@ int decode_one_frame(DecoderParams *pDecoder)
  *    Calculate the value of frame_no
  ************************************************************************
 */
-void calculate_frame_no(VideoParameters *p_Vid, StorablePicture *p)
+void calculate_frame_no(VideoParameters *p_Vid, storable_picture *p)
 {
   InputParameters *p_Inp = p_Vid->p_Inp;
   // calculate frame number

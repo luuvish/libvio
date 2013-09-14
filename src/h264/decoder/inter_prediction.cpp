@@ -284,7 +284,7 @@ static void get_luma_31(imgpel **block, imgpel **cur_imgY, int block_size_y, int
  *    Interpolation of 1/4 subpixel
  ************************************************************************
  */ 
-void get_block_luma(StorablePicture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
+void get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
                     imgpel **block, int shift_x, int maxold_x, int maxold_y,
                     ColorPlane pl, mb_t *currMB)
 {
@@ -353,7 +353,7 @@ static void get_chroma_XY(imgpel *block, imgpel *cur_img, int span, int block_si
     }
 }
 
-static void get_block_chroma(StorablePicture *curr_ref, int x_pos, int y_pos,
+static void get_block_chroma(storable_picture *curr_ref, int x_pos, int y_pos,
                              int maxold_x, int maxold_y, int block_size_x, int vert_block_size,
                              imgpel *block1, imgpel *block2, VideoParameters *p_Vid)
 {
@@ -425,7 +425,7 @@ static void check_motion_vector_range(const MotionVector *mv, slice_t *pSlice)
 
 static int CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
 {
-    StorablePicture *dec_picture = currMB->p_Slice->dec_picture;
+    storable_picture *dec_picture = currMB->p_Slice->dec_picture;
     int y_pos = vec_y >> 2;
     int maxold_y = (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;
 
@@ -439,7 +439,7 @@ static int CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
         return 0;
 }
 
-void perform_mc(mb_t *currMB, ColorPlane pl, StorablePicture *dec_picture, int pred_dir, int i, int j, int block_size_x, int block_size_y)
+void perform_mc(mb_t *currMB, ColorPlane pl, storable_picture *dec_picture, int pred_dir, int i, int j, int block_size_x, int block_size_y)
 {
     assert (pred_dir <= 2);
 
@@ -454,7 +454,7 @@ void perform_mc(mb_t *currMB, ColorPlane pl, StorablePicture *dec_picture, int p
     int ioff = (i << 2);
     int joff = (j << 2);
     int chroma_format_idc = dec_picture->chroma_format_idc;
-    PicMotionParams *mv_info = &dec_picture->mv_info[j4][i4];
+    pic_motion_params *mv_info = &dec_picture->mv_info[j4][i4];
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
 
@@ -469,7 +469,7 @@ void perform_mc(mb_t *currMB, ColorPlane pl, StorablePicture *dec_picture, int p
 
     MotionVector *l0_mv_array, *l1_mv_array;
     short l0_refframe, l1_refframe;
-    StorablePicture *list0, *list1;
+    storable_picture *list0, *list1;
 
     int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
                        sps->chroma_format_idc == YUV444 ? 16 : 8;

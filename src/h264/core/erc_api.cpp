@@ -363,7 +363,7 @@ void ercMarkCurrMBConcealed( int currMBNum, int comp, int picSizeX, ercVariables
   }
 }
 
-void erc_picture(VideoParameters *p_Vid, StorablePicture **dec_picture)
+void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
 {
     frame recfr;
     recfr.p_Vid = p_Vid;
@@ -427,7 +427,7 @@ void ercWriteMBMODEandMV(mb_t *currMB)
 {
   VideoParameters *p_Vid = currMB->p_Vid;
   int i, ii, jj, currMBNum = currMB->mbAddrX; //p_Vid->currentSlice->current_mb_nr;
-  StorablePicture *dec_picture = p_Vid->dec_picture;
+  storable_picture *dec_picture = p_Vid->dec_picture;
   int mbx = xPosMB(currMBNum, dec_picture->size_x), mby = yPosMB(currMBNum, dec_picture->size_x);
   objectBuffer_t *currRegion, *pRegion;
 
@@ -439,10 +439,10 @@ void ercWriteMBMODEandMV(mb_t *currMB)
     {
       pRegion             = currRegion + i;
       pRegion->regionMode = (currMB->mb_type  ==I16MB  ? REGMODE_INTRA      :
-        currMB->b8mode[i]==IBLOCK ? REGMODE_INTRA_8x8  :
-        currMB->b8mode[i]==0      ? REGMODE_INTER_COPY :
-        currMB->b8mode[i]==1      ? REGMODE_INTER_PRED : REGMODE_INTER_PRED_8x8);
-      if (currMB->b8mode[i]==0 || currMB->b8mode[i]==IBLOCK)  // INTRA OR COPY
+        currMB->SubMbType[i]==IBLOCK ? REGMODE_INTRA_8x8  :
+        currMB->SubMbType[i]==0      ? REGMODE_INTER_COPY :
+        currMB->SubMbType[i]==1      ? REGMODE_INTER_PRED : REGMODE_INTER_PRED_8x8);
+      if (currMB->SubMbType[i]==0 || currMB->SubMbType[i]==IBLOCK)  // INTRA OR COPY
       {
         pRegion->mv[0]    = 0;
         pRegion->mv[1]    = 0;
@@ -452,7 +452,7 @@ void ercWriteMBMODEandMV(mb_t *currMB)
       {
         ii              = 4*mbx + (i & 0x01)*2;// + BLOCK_SIZE;
         jj              = 4*mby + (i >> 1  )*2;
-        if (currMB->b8mode[i]>=5 && currMB->b8mode[i]<=7)  // SMALL BLOCKS
+        if (currMB->SubMbType[i]>=5 && currMB->SubMbType[i]<=7)  // SMALL BLOCKS
         {
           pRegion->mv[0]  = (dec_picture->mv_info[jj][ii].mv[LIST_0].mv_x + dec_picture->mv_info[jj][ii + 1].mv[LIST_0].mv_x + dec_picture->mv_info[jj + 1][ii].mv[LIST_0].mv_x + dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_x + 2)/4;
           pRegion->mv[1]  = (dec_picture->mv_info[jj][ii].mv[LIST_0].mv_y + dec_picture->mv_info[jj][ii + 1].mv[LIST_0].mv_y + dec_picture->mv_info[jj + 1][ii].mv[LIST_0].mv_y + dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_y + 2)/4;
@@ -475,8 +475,8 @@ void ercWriteMBMODEandMV(mb_t *currMB)
       jj                  = 4*mby + (i/2)*2;
       pRegion             = currRegion + i;
       pRegion->regionMode = (currMB->mb_type  ==I16MB  ? REGMODE_INTRA      :
-        currMB->b8mode[i]==IBLOCK ? REGMODE_INTRA_8x8  : REGMODE_INTER_PRED_8x8);
-      if (currMB->mb_type==I16MB || currMB->b8mode[i]==IBLOCK)  // INTRA
+        currMB->SubMbType[i]==IBLOCK ? REGMODE_INTRA_8x8  : REGMODE_INTER_PRED_8x8);
+      if (currMB->mb_type==I16MB || currMB->SubMbType[i]==IBLOCK)  // INTRA
       {
         pRegion->mv[0]    = 0;
         pRegion->mv[1]    = 0;

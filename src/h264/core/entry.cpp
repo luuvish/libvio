@@ -34,7 +34,7 @@ using namespace vio::h264;
  *    detect if current slice is "first VCL NAL unit of a picture"
  ************************************************************************
  */
-static int is_new_picture(StorablePicture *dec_picture, slice_t *currSlice, OldSliceParams *p_old_slice)
+static int is_new_picture(storable_picture *dec_picture, slice_t *currSlice, OldSliceParams *p_old_slice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
 

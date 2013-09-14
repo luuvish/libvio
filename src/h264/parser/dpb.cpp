@@ -23,7 +23,7 @@ static inline int RSD(int x)
  *    Check if one of the frames/fields in frame store is used for reference
  ************************************************************************
  */
-static int is_used_for_reference(FrameStore* fs)
+static int is_used_for_reference(frame_store* fs)
 {
   if (fs->is_reference)
   {
@@ -266,20 +266,20 @@ void init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type)
   p_Dpb->ref_frames_in_buffer = 0;
   p_Dpb->ltref_frames_in_buffer = 0;
 
-  p_Dpb->fs = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
+  p_Dpb->fs = (frame_store **)calloc(p_Dpb->size, sizeof (frame_store*));
   if (NULL==p_Dpb->fs)
     no_mem_exit("init_dpb: p_Dpb->fs");
 
-  p_Dpb->fs_ref = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
+  p_Dpb->fs_ref = (frame_store **)calloc(p_Dpb->size, sizeof (frame_store*));
   if (NULL==p_Dpb->fs_ref)
     no_mem_exit("init_dpb: p_Dpb->fs_ref");
 
-  p_Dpb->fs_ltref = (FrameStore **)calloc(p_Dpb->size, sizeof (FrameStore*));
+  p_Dpb->fs_ltref = (frame_store **)calloc(p_Dpb->size, sizeof (frame_store*));
   if (NULL==p_Dpb->fs_ltref)
     no_mem_exit("init_dpb: p_Dpb->fs_ltref");
 
 #if (MVC_EXTENSION_ENABLE)
-  p_Dpb->fs_ilref = (FrameStore **)calloc(1, sizeof (FrameStore*));
+  p_Dpb->fs_ilref = (frame_store **)calloc(1, sizeof (frame_store*));
   if (NULL==p_Dpb->fs_ilref)
     no_mem_exit("init_dpb: p_Dpb->fs_ilref");
 #endif
@@ -355,22 +355,22 @@ void re_init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type)
       error ("DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n", 1000);
     }
 
-    p_Dpb->fs = (FrameStore **)realloc(p_Dpb->fs, iDpbSize * sizeof (FrameStore*));
+    p_Dpb->fs = (frame_store **)realloc(p_Dpb->fs, iDpbSize * sizeof (frame_store*));
     if (NULL==p_Dpb->fs)
       no_mem_exit("re_init_dpb: p_Dpb->fs");
 
-    p_Dpb->fs_ref = (FrameStore **)realloc(p_Dpb->fs_ref, iDpbSize * sizeof (FrameStore*));
+    p_Dpb->fs_ref = (frame_store **)realloc(p_Dpb->fs_ref, iDpbSize * sizeof (frame_store*));
     if (NULL==p_Dpb->fs_ref)
       no_mem_exit("re_init_dpb: p_Dpb->fs_ref");
 
-    p_Dpb->fs_ltref = (FrameStore **)realloc(p_Dpb->fs_ltref, iDpbSize * sizeof (FrameStore*));
+    p_Dpb->fs_ltref = (frame_store **)realloc(p_Dpb->fs_ltref, iDpbSize * sizeof (frame_store*));
     if (NULL==p_Dpb->fs_ltref)
       no_mem_exit("re_init_dpb: p_Dpb->fs_ltref");
 
 #if (MVC_EXTENSION_ENABLE)
     if(!p_Dpb->fs_ilref)
     {
-      p_Dpb->fs_ilref = (FrameStore **)calloc(1, sizeof (FrameStore*));
+      p_Dpb->fs_ilref = (frame_store **)calloc(1, sizeof (frame_store*));
       if (NULL==p_Dpb->fs_ilref)
         no_mem_exit("init_dpb: p_Dpb->fs_ilref");
     }
@@ -477,14 +477,14 @@ void free_dpb(dpb_t *p_Dpb)
  *    Allocate memory for decoded picture buffer frame stores and initialize with sane values.
  *
  * \return
- *    the allocated FrameStore structure
+ *    the allocated frame_store structure
  ************************************************************************
  */
-FrameStore* alloc_frame_store(void)
+frame_store* alloc_frame_store(void)
 {
-  FrameStore *f;
+  frame_store *f;
 
-  f = (FrameStore *)calloc (1, sizeof(FrameStore));
+  f = (frame_store *)calloc (1, sizeof(frame_store));
   if (NULL==f)
     no_mem_exit("alloc_frame_store: f");
 
@@ -502,7 +502,7 @@ FrameStore* alloc_frame_store(void)
   return f;
 }
 
-void alloc_pic_motion(PicMotionParamsOld *motion, int size_y, int size_x)
+void alloc_pic_motion(pic_motion_params_old* motion, int size_y, int size_x)
 {
   motion->mb_field_decoding_flag = (byte *)calloc (size_y * size_x, sizeof(byte));
   if (motion->mb_field_decoding_flag == NULL)
@@ -528,10 +528,10 @@ void alloc_pic_motion(PicMotionParamsOld *motion, int size_y, int size_x)
  *    vertical chroma size
  *
  * \return
- *    the allocated StorablePicture structure
+ *    the allocated storable_picture structure
  ************************************************************************
  */
-StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure structure, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output)
+storable_picture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure structure, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output)
 {
   sps_t *sps = p_Vid->active_sps;  
 
@@ -544,10 +544,10 @@ StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure
         iChromaPadY = MCBUF_LUMA_PAD_Y;
     }
 
-  StorablePicture *s;
+  storable_picture *s;
   int   nplane;
 
-  s = (StorablePicture *)calloc (1, sizeof(StorablePicture));
+  s = (storable_picture *)calloc (1, sizeof(storable_picture));
   if (NULL==s)
     no_mem_exit("alloc_storable_picture: s");
 
@@ -631,7 +631,7 @@ StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure
     {
       for (i = 0; i < 2; i++)
       {
-        s->listX[j][i] = (StorablePicture **)calloc(MAX_LIST_SIZE, sizeof (StorablePicture*)); // +1 for reordering
+        s->listX[j][i] = (storable_picture **)calloc(MAX_LIST_SIZE, sizeof (storable_picture*)); // +1 for reordering
         if (NULL==s->listX[j][i])
         no_mem_exit("alloc_storable_picture: s->listX[i]");
       }
@@ -649,11 +649,11 @@ StorablePicture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure
  * \param p_Vid
  *    VideoParameters
  * \param f
- *    FrameStore to be freed
+ *    frame_store to be freed
  *
  ************************************************************************
  */
-void free_frame_store(FrameStore* f)
+void free_frame_store(frame_store* f)
 {
   if (f)
   {
@@ -676,7 +676,7 @@ void free_frame_store(FrameStore* f)
   }
 }
 
-void free_pic_motion(PicMotionParamsOld *motion)
+void free_pic_motion(pic_motion_params_old* motion)
 {
   if (motion->mb_field_decoding_flag)
   {
@@ -696,7 +696,7 @@ void free_pic_motion(PicMotionParamsOld *motion)
  *
  ************************************************************************
  */
-void free_storable_picture(StorablePicture* p)
+void free_storable_picture(storable_picture* p)
 {
     int iChromaPadX = MCBUF_CHROMA_PAD_X;
     int iChromaPadY = MCBUF_CHROMA_PAD_Y;
@@ -768,11 +768,11 @@ void free_storable_picture(StorablePicture* p)
 /*!
  ************************************************************************
  * \brief
- *    mark FrameStore unused for reference
+ *    mark frame_store unused for reference
  *
  ************************************************************************
  */
-void unmark_for_reference(FrameStore* fs)
+void unmark_for_reference(frame_store* fs)
 {
   if (fs->is_used & 1)
   {
@@ -820,11 +820,11 @@ void unmark_for_reference(FrameStore* fs)
 /*!
  ************************************************************************
  * \brief
- *    mark FrameStore unused for reference and reset long term flags
+ *    mark frame_store unused for reference and reset long term flags
  *
  ************************************************************************
  */
-void unmark_for_long_term_reference(FrameStore* fs)
+void unmark_for_long_term_reference(frame_store* fs)
 {
   if (fs->is_used & 1)
   {
@@ -860,7 +860,7 @@ void unmark_for_long_term_reference(FrameStore* fs)
 }
 
 
-static void gen_field_ref_ids(VideoParameters *p_Vid, StorablePicture *p)
+static void gen_field_ref_ids(VideoParameters *p_Vid, storable_picture *p)
 {
   int i,j;
    //! Generate Frame parameters from field information.
@@ -883,7 +883,7 @@ static void gen_field_ref_ids(VideoParameters *p_Vid, StorablePicture *p)
   }
 }
 
-void insert_picture_in_dpb(VideoParameters *p_Vid, FrameStore* fs, StorablePicture* p)
+void insert_picture_in_dpb(VideoParameters *p_Vid, frame_store* fs, storable_picture* p)
 {
   assert (p!=NULL);
   assert (fs!=NULL);
@@ -992,8 +992,8 @@ void insert_picture_in_dpb(VideoParameters *p_Vid, FrameStore* fs, StorablePictu
  */
 void remove_frame_from_dpb(dpb_t *p_Dpb, int pos)
 {
-  FrameStore* fs = p_Dpb->fs[pos];
-  FrameStore* tmp;
+  frame_store* fs = p_Dpb->fs[pos];
+  frame_store* tmp;
   unsigned i;
 
   //printf ("remove frame with frame_num #%d\n", fs->frame_num);
@@ -1212,14 +1212,14 @@ void flush_dpbs(dpb_t **p_Dpb_layers, int nLayers)
  *    Extract top field from a frame
  ************************************************************************
  */
-void dpb_split_field(VideoParameters *p_Vid, FrameStore *fs)
+void dpb_split_field(VideoParameters *p_Vid, frame_store *fs)
 {
   int i, j, ii, jj, jj4;
   int idiv,jdiv;
   int currentmb;
   int twosz16 = 2 * (fs->frame->size_x >> 4);
-  StorablePicture *fs_top = NULL, *fs_btm = NULL; 
-  StorablePicture *frame = fs->frame;
+  storable_picture *fs_top = NULL, *fs_btm = NULL; 
+  storable_picture *frame = fs->frame;
 
   fs->poc = frame->poc;
 
@@ -1313,7 +1313,7 @@ void dpb_split_field(VideoParameters *p_Vid, FrameStore *fs)
   {
     if (frame->mb_aff_frame_flag)
     {
-      PicMotionParamsOld *frm_motion = &frame->motion;
+      pic_motion_params_old* frm_motion = &frame->motion;
       for (j=0 ; j< (frame->size_y >> 3); j++)
       {
         jj = (j >> 2)*8 + (j & 0x03);
@@ -1410,7 +1410,7 @@ void dpb_split_field(VideoParameters *p_Vid, FrameStore *fs)
  *    YUV components and display information only
  ************************************************************************
  */
-void dpb_combine_field_yuv(VideoParameters *p_Vid, FrameStore *fs)
+void dpb_combine_field_yuv(VideoParameters *p_Vid, frame_store *fs)
 {
   int i, j;
 
@@ -1481,7 +1481,7 @@ void dpb_combine_field_yuv(VideoParameters *p_Vid, FrameStore *fs)
  *    Generate a frame from top and bottom fields
  ************************************************************************
  */
-void dpb_combine_field(VideoParameters *p_Vid, FrameStore *fs)
+void dpb_combine_field(VideoParameters *p_Vid, frame_store *fs)
 {
   int i,j, jj, jj4, k, l;
 
@@ -1548,7 +1548,7 @@ void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
   
   int CurrFrameNum;
   int UnusedShortTermFrameNum;
-  StorablePicture *picture = NULL;
+  storable_picture *picture = NULL;
   int tmp1 = currSlice->delta_pic_order_cnt[0];
   int tmp2 = currSlice->delta_pic_order_cnt[1];
   currSlice->delta_pic_order_cnt[0] = currSlice->delta_pic_order_cnt[1] = 0;
@@ -1668,7 +1668,7 @@ void append_interview_list(dpb_t *p_Dpb,
                            bool field_pic_flag,
                            bool bottom_field_flag,
                            int list_idx, 
-                           FrameStore **list,
+                           frame_store **list,
                            int *listXsize, 
                            int currPOC, 
                            int curr_view_id, 
@@ -1680,7 +1680,7 @@ void append_interview_list(dpb_t *p_Dpb,
   int poc = 0;
   int fld_idx;
   int num_ref_views, *ref_view_id;
-  FrameStore *fs = p_Dpb->fs_ilref[0];
+  frame_store *fs = p_Dpb->fs_ilref[0];
 
 
   if(iVOIdx <0)
@@ -1738,7 +1738,7 @@ void append_interview_list(dpb_t *p_Dpb,
 
 #endif
 
-void process_picture_in_dpb_s(VideoParameters *p_Vid, StorablePicture *p_pic)
+void process_picture_in_dpb_s(VideoParameters *p_Vid, storable_picture *p_pic)
 {
   ImageData *p_img_out = &p_Vid->tempData3;
   imgpel***  d_img;
@@ -1935,10 +1935,10 @@ int remove_unused_proc_pic_from_dpb(dpb_t *p_Dpb)
  ************************************************************************
  */
 #if (MVC_EXTENSION_ENABLE)
-void store_proc_picture_in_dpb(dpb_t *p_Dpb, StorablePicture* p)
+void store_proc_picture_in_dpb(dpb_t *p_Dpb, storable_picture* p)
 {
   VideoParameters *p_Vid = p_Dpb->p_Vid;
-  FrameStore *fs = p_Dpb->fs_ilref[0];
+  frame_store *fs = p_Dpb->fs_ilref[0];
   if(p_Dpb->used_size_il>0 && fs->is_used==3)
   {
     //checking;
@@ -1993,7 +1993,7 @@ void store_proc_picture_in_dpb(dpb_t *p_Dpb, StorablePicture* p)
  *    Clone an encoded frame picture structure
  ************************************************************************
  */
-StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePicture *p_pic )
+storable_picture * clone_storable_picture( VideoParameters *p_Vid, storable_picture *p_pic )
 {
   int i, j;
   int nplane;
@@ -2002,7 +2002,7 @@ StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePictur
   imgpel ***img_in = NULL;
 
   sps_t *sps = p_Vid->active_sps;
-  StorablePicture *p_stored_pic = alloc_storable_picture (p_Vid, (PictureStructure) p_Vid->structure,
+  storable_picture *p_stored_pic = alloc_storable_picture (p_Vid, (PictureStructure) p_Vid->structure,
       sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
       sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 0);
 
@@ -2099,7 +2099,7 @@ StorablePicture * clone_storable_picture( VideoParameters *p_Vid, StorablePictur
     for (i = 0; i < (p_pic->size_x >> BLOCK_SHIFT); i++)
     {          
       *((short *) ref_idx) = -1;
-      ref_idx += sizeof(PicMotionParams);
+      ref_idx += sizeof(pic_motion_params);
     }
   }
 

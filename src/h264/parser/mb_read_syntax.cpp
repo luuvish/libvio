@@ -38,8 +38,8 @@ static int ref_idx_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
     if (block_a.available) {
         int b8a = ((block_a.x >> 1) & 0x01)+(block_a.y & 0x02);    
         mb_t* mb_a = &slice->mb_data[block_a.mb_addr];
-        PicMotionParams* mv_info = &slice->dec_picture->mv_info[block_a.pos_y][block_a.pos_x];
-        if (!(mb_a->mb_type == IPCM || IS_DIRECT(mb_a) || (mb_a->b8mode[b8a] == 0 && mb_a->b8pdir[b8a] == 2))) {
+        pic_motion_params* mv_info = &slice->dec_picture->mv_info[block_a.pos_y][block_a.pos_x];
+        if (!(mb_a->mb_type == IPCM || IS_DIRECT(mb_a) || (mb_a->SubMbType[b8a] == 0 && mb_a->SubMbPredMode[b8a] == 2))) {
             if (slice->MbaffFrameFlag && !mb->mb_field_decoding_flag && mb_a->mb_field_decoding_flag)
                 condTermFlagA = (mv_info->ref_idx[list] > 1 ? 1 : 0);
             else
@@ -49,8 +49,8 @@ static int ref_idx_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
     if (block_b.available) {
         int b8b = ((block_b.x >> 1) & 0x01)+(block_b.y & 0x02);    
         mb_t* mb_b = &slice->mb_data[block_b.mb_addr];
-        PicMotionParams* mv_info = &slice->dec_picture->mv_info[block_b.pos_y][block_b.pos_x];
-        if (!(mb_b->mb_type == IPCM || IS_DIRECT(mb_b) || (mb_b->b8mode[b8b] == 0 && mb_b->b8pdir[b8b] == 2))) {
+        pic_motion_params* mv_info = &slice->dec_picture->mv_info[block_b.pos_y][block_b.pos_x];
+        if (!(mb_b->mb_type == IPCM || IS_DIRECT(mb_b) || (mb_b->SubMbType[b8b] == 0 && mb_b->SubMbPredMode[b8b] == 2))) {
             if (slice->MbaffFrameFlag && !mb->mb_field_decoding_flag && mb_b->mb_field_decoding_flag)
                 condTermFlagB = (mv_info->ref_idx[list] > 1 ? 1 : 0);
             else

@@ -124,7 +124,7 @@ static void fill_wp_params(slice_t *currSlice)
     }
 }
 
-static void compute_colocated(slice_t *currSlice, StorablePicture **listX[6])
+static void compute_colocated(slice_t *currSlice, storable_picture **listX[6])
 {
     int i, j;
 
@@ -160,12 +160,12 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
 {
     int i, j;
     if (currSlice->active_sps->separate_colour_plane_flag != 0) {
-        StorablePicture *vidref = p_Vid->no_reference_picture;
+        storable_picture *vidref = p_Vid->no_reference_picture;
         int noref = (currSlice->framepoc < p_Vid->recovery_poc);
         if (currSlice->colour_plane_id == 0) {
             for (j = 0; j < 6; j++) {
                 for (i = 0; i < MAX_LIST_SIZE; i++) {
-                    StorablePicture *curr_ref = currSlice->listX[j][i];
+                    storable_picture *curr_ref = currSlice->listX[j][i];
                     if (curr_ref) {
                         curr_ref->no_ref = noref && (curr_ref == vidref);
                         curr_ref->cur_imgY = curr_ref->imgY;
@@ -174,7 +174,7 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
             }
         }
     } else {
-        StorablePicture *vidref = p_Vid->no_reference_picture;
+        storable_picture *vidref = p_Vid->no_reference_picture;
         int noref = (currSlice->framepoc < p_Vid->recovery_poc);
         int total_lists = currSlice->MbaffFrameFlag ? 6 :
                           currSlice->slice_type == B_SLICE ? 2 : 1;
@@ -183,7 +183,7 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
             // since currently this is done at the slice level, it seems safe to do so.
             // Note for some reason I get now a mismatch between version 12 and this one in cabac. I wonder why.
             for (i = 0; i < MAX_LIST_SIZE; i++) {
-                StorablePicture *curr_ref = currSlice->listX[j][i];
+                storable_picture *curr_ref = currSlice->listX[j][i];
                 if (curr_ref) {
                     curr_ref->no_ref = noref && (curr_ref == vidref);
                     curr_ref->cur_imgY = curr_ref->imgY;
