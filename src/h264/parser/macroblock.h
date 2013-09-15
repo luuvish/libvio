@@ -25,9 +25,8 @@ enum {
     I4MB         =  8,
     I8MB         =  9,
     I16MB        = 10,
-    IBLOCK       = 11,
-    SI4MB        = 12,
-    IPCM         = 13
+    SI4MB        = 11,
+    IPCM         = 12
 };
 
 enum {

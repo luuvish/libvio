@@ -7,16 +7,30 @@
 
 struct slice_t;
 
-void init_Deblock(VideoParameters *p_Vid, int mb_aff_frame_flag);
-void pic_deblock(VideoParameters *p_Vid, storable_picture *p);
-// For 4:4:4 independent mode
-void change_plane_JV(VideoParameters *p_Vid, int nplane, struct slice_t *pSlice);
-
-
 struct deblock_t {
 	void init();
-	void deblock();
+	void deblock(VideoParameters *p_Vid, storable_picture *p);
+
+private:
+	void init_neighbors(VideoParameters *p_Vid);
+	void make_frame_picture_JV(VideoParameters *p_Vid);
+
+	void DeblockMb(VideoParameters *p_Vid, storable_picture *p, int MbQAddr);
+	void DeblockPicture(VideoParameters *p_Vid, storable_picture *p);
+
+  	void edge_loop_luma_ver  (ColorPlane pl, imgpel** Img, byte* Strength, macroblock_t* MbQ, int edge, storable_picture* p);
+  	void edge_loop_luma_hor  (ColorPlane pl, imgpel** Img, byte* Strength, macroblock_t* MbQ, int edge, storable_picture* p);
+  	void edge_loop_chroma_ver(ColorPlane pl, imgpel** Img, byte* Strength, macroblock_t* MbQ, int edge, storable_picture* p);
+  	void edge_loop_chroma_hor(ColorPlane pl, imgpel** Img, byte* Strength, macroblock_t* MbQ, int edge, storable_picture* p);
 };
+
+void get_strength_ver    (mb_t *MbQ, int edge, int mvlimit, storable_picture *p);
+void get_strength_hor    (mb_t *MbQ, int edge, int mvlimit, storable_picture *p);
+void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, storable_picture *p);
+void get_strength_hor_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, storable_picture *p);
+
+
+extern deblock_t deblock;
 
 
 #endif /* _DEBLOCK_H_ */

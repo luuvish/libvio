@@ -252,12 +252,12 @@ bool slice_t::init()
     if (current_header != SOP && current_header != SOS)
         return false;
 
-    if (this->active_sps->separate_colour_plane_flag != 0)
-        change_plane_JV(p_Vid, this->colour_plane_id, this);
-    else {
-        this->mb_data     = p_Vid->mb_data;
-        this->dec_picture = p_Vid->dec_picture;
+    if (this->active_sps->separate_colour_plane_flag) {
+        p_Vid->mb_data     = p_Vid->mb_data_JV    [this->colour_plane_id];
+        p_Vid->dec_picture = p_Vid->dec_picture_JV[this->colour_plane_id];
     }
+    this->mb_data     = p_Vid->mb_data;
+    this->dec_picture = p_Vid->dec_picture;
 
     if (this->slice_type == B_SLICE)
         compute_colocated(this, this->listX);

@@ -242,7 +242,6 @@ static void init_picture_decoding(VideoParameters *p_Vid)
     update_ltref_list(p_Vid->p_Dpb_layer[pSlice->view_id]);
     update_pic_num(pSlice);
 #endif
-    init_Deblock(p_Vid, pSlice->MbaffFrameFlag);
 }
 
 
@@ -488,7 +487,7 @@ void exit_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
     erc_picture(p_Vid, dec_picture);
 #endif
 
-    pic_deblock(p_Vid, *dec_picture);
+    deblock.deblock(p_Vid, *dec_picture);
 
     if ((*dec_picture)->mb_aff_frame_flag)
         MbAffPostProc(p_Vid);

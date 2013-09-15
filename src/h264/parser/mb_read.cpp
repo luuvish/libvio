@@ -16,9 +16,6 @@
 
 #include "mb_read_syntax.h"
 
-#define IS_I16MB(MB)    ((MB)->mb_type==I16MB  || (MB)->mb_type==IPCM)
-#define IS_DIRECT(MB)   ((MB)->mb_type==0     && (slice->slice_type == B_SLICE ))
-
 
 using namespace vio::h264;
 using vio::h264::cabac_engine_t;
@@ -141,7 +138,7 @@ static void interpret_mb_mode_P(mb_t* mb)
     } else if (mbmode == 6) {
         mb->is_intra_block = true;
         mb->mb_type = I4MB;
-        memset(mb->SubMbType, IBLOCK, 4 * sizeof(char));
+        memset(mb->SubMbType,   I4MB, 4 * sizeof(char));
         memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
     } else if (mbmode == 31) {
         mb->is_intra_block = true;
@@ -172,7 +169,7 @@ static void interpret_mb_mode_I(mb_t* mb)
     if (mbmode == 0) {
         mb->is_intra_block = true;
         mb->mb_type = I4MB;
-        memset(mb->SubMbType, IBLOCK, 4 * sizeof(char));
+        memset(mb->SubMbType,   I4MB, 4 * sizeof(char));
         memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
     } else if (mbmode == 25) {
         mb->is_intra_block = true;
@@ -225,7 +222,7 @@ static void interpret_mb_mode_B(mb_t* mb)
     } else if (mbtype == 23) { // intra4x4
         mb->is_intra_block = true;
         mb->mb_type = I4MB;
-        memset(mb->SubMbType, IBLOCK, 4 * sizeof(char));
+        memset(mb->SubMbType,   I4MB, 4 * sizeof(char));
         memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
     } else if (mbtype > 23 && mbtype < 48) { // intra16x16
         mb->is_intra_block = true;
@@ -257,12 +254,12 @@ static void interpret_mb_mode_SI(mb_t* mb)
     if (mbmode == 0) {
         mb->is_intra_block = true;
         mb->mb_type = SI4MB;
-        memset(mb->SubMbType, IBLOCK, 4 * sizeof(char));
+        memset(mb->SubMbType,   I4MB, 4 * sizeof(char));
         memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
     } else if (mbmode == 1) {
         mb->is_intra_block = true;
         mb->mb_type = I4MB;
-        memset(mb->SubMbType, IBLOCK, 4 * sizeof(char));
+        memset(mb->SubMbType,   I4MB, 4 * sizeof(char));
         memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
     } else if (mbmode == 26) {
         mb->is_intra_block = true;
@@ -968,6 +965,8 @@ void macroblock_t::parse_cbp_qp()
     sps_t *sps = slice->active_sps;
     pps_t *pps = slice->active_pps;
 
+#define IS_I16MB(MB)  ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
+#define IS_DIRECT(MB) ((MB)->mb_type == 0 && slice->slice_type == B_SLICE)
     // read CBP if not new intra mode
     if (!IS_I16MB(this)) {
         uint8_t coded_block_pattern = parse_coded_block_pattern(this);
@@ -1021,6 +1020,8 @@ void macroblock_t::parse_cbp_qp()
             }
         }
     }
+#undef IS_DIRECT
+#undef IS_I16MB
 
     this->update_qp(slice->SliceQpY);
 }

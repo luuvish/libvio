@@ -4,7 +4,6 @@
 #include "image.h"
 #include "neighbour.h"
 #include "deblock.h"
-#include "deblock_common.h"
 
 
 #define get_x_luma(x) (x & 15)
@@ -38,14 +37,14 @@ static mb_t* get_non_aff_neighbor_luma(mb_t *mb, int xN, int yN)
  */
 void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
 {
-    byte *Strength = MbQ->strength_ver[edge];
-    slice_t *currSlice = MbQ->p_Slice;
-    int     StrValue;
-    BlockPos *PicPos = MbQ->p_Vid->PicPos;
+    byte*     Strength = MbQ->strength_ver[edge];
+    slice_t*  currSlice = MbQ->p_Slice;
+    int       StrValue;
+    BlockPos* PicPos = MbQ->p_Vid->PicPos;
 
     int xQ = (edge << 2) - 1;
-    mb_t *neighbor = get_non_aff_neighbor_luma(MbQ, xQ, 0);
-    mb_t *MbP = (edge) ? MbQ : neighbor;
+    mb_t* neighbor = get_non_aff_neighbor_luma(MbQ, xQ, 0);
+    mb_t* MbP = edge ? MbQ : neighbor;
 
 /*
     mixedModeEdgeFlag = MbaffFrameFlag == 1 && p->field != q->field
@@ -91,7 +90,7 @@ void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
     bS = 0;
 */
     if (currSlice->slice_type == SP_SLICE || currSlice->slice_type == SI_SLICE ||
-        MbQ->is_intra_block || (MbP->is_intra_block && edge == 0)) {
+        MbQ->is_intra_block || MbP->is_intra_block) {
         // Set strength to either 3 or 4 regardless of pixel position
         StrValue = (edge == 0) ? 4 : 3;
         memset(Strength, (byte) StrValue, BLOCK_SIZE * sizeof(byte));
@@ -102,13 +101,12 @@ void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
         memset(Strength, 0, BLOCK_SIZE * sizeof(byte));
         return;
     }
-
+/*
     if (edge && (MbQ->mb_type == P16x16 || MbQ->mb_type == P16x8)) {
-        int blkP, blkQ, idx;
-        for (idx = 0; idx < MB_BLOCK_SIZE; idx += BLOCK_SIZE) {
-            blkQ = idx + (edge);
-            blkP = idx + (get_x_luma(xQ) >> 2);
-            if ((MbQ->cbp_blks[0] & (((uint64_t)1 << blkQ) | ((uint64_t)1 << blkP))) != 0)
+        for (int idx = 0; idx < MB_BLOCK_SIZE; idx += BLOCK_SIZE) {
+            int blkQ = idx + (edge);
+            int blkP = idx + (get_x_luma(xQ) >> 2);
+            if (MbQ->cbp_blks[0] & (((uint64_t)1 << blkQ) | ((uint64_t)1 << blkP)))
                 StrValue = 2;
             else
                 StrValue = 0; // if internal edge of certain types, then we already know StrValue should be 0
@@ -116,23 +114,22 @@ void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
         }
         return;
     }
-
-    int      blkP, blkQ, idx;
-    BlockPos mb = PicPos[ MbQ->mbAddrX ];
+*/
+    BlockPos mb = PicPos[MbQ->mbAddrX];
     mb.x <<= BLOCK_SHIFT;
     mb.y <<= BLOCK_SHIFT;
 
-    for (idx = 0; idx < MB_BLOCK_SIZE; idx += BLOCK_SIZE) {
-        blkQ = idx  + (edge);
-        blkP = idx  + (get_x_luma(xQ) >> 2);
+    for (int idx = 0; idx < MB_BLOCK_SIZE; idx += BLOCK_SIZE) {
+        int blkQ = idx + (edge);
+        int blkP = idx + (get_x_luma(xQ) >> 2);
         if ((MbQ->cbp_blks[0] & ((uint64_t)1 << blkQ)) != 0 ||
             (MbP->cbp_blks[0] & ((uint64_t)1 << blkP)) != 0)
             StrValue = 2;
         else { // for everything else, if no coefs, but vector difference >= 1 set Strength=1
-            int blk_y  = mb.y + (blkQ >> 2);
             int blk_x  = mb.x + (blkQ  & 3);
-            int blk_y2 = (short)(get_pos_y_luma(neighbor,  0) + idx) >> 2;
-            int blk_x2 = (short)(get_pos_x_luma(neighbor, xQ)      ) >> 2;
+            int blk_y  = mb.y + (blkQ >> 2);
+            int blk_x2 = (get_pos_x_luma(neighbor, xQ)      ) >> 2;
+            int blk_y2 = (get_pos_y_luma(neighbor,  0) + idx) >> 2;
             pic_motion_params *mv_info_p = &p->mv_info[blk_y ][blk_x ];            
             pic_motion_params *mv_info_q = &p->mv_info[blk_y2][blk_x2];            
             storable_picture* ref_p0 = mv_info_p->ref_pic[LIST_0];
@@ -177,17 +174,17 @@ void get_strength_ver(mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
  */
 void get_strength_hor(mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
 {  
-    byte  *Strength = MbQ->strength_hor[edge];
-    int    StrValue;
-    slice_t *currSlice = MbQ->p_Slice;
-    BlockPos *PicPos = MbQ->p_Vid->PicPos;
+    byte*     Strength = MbQ->strength_hor[edge];
+    int       StrValue;
+    slice_t*  currSlice = MbQ->p_Slice;
+    BlockPos* PicPos = MbQ->p_Vid->PicPos;
 
     int yQ = (edge < BLOCK_SIZE ? (edge << 2) - 1: 0);
-    mb_t *neighbor = get_non_aff_neighbor_luma(MbQ, 0, yQ);
-    mb_t *MbP = (edge) ? MbQ : neighbor;
+    mb_t* neighbor = get_non_aff_neighbor_luma(MbQ, 0, yQ);
+    mb_t* MbP = edge ? MbQ : neighbor;
 
     if (currSlice->slice_type == SP_SLICE || currSlice->slice_type == SI_SLICE ||
-        MbQ->is_intra_block || (MbP->is_intra_block && edge == 0)) {
+        MbQ->is_intra_block || MbP->is_intra_block) {
         // Set strength to either 3 or 4 regardless of pixel position
         StrValue = (edge == 0 && !currSlice->field_pic_flag) ? 4 : 3;
         memset(Strength, (byte) StrValue, BLOCK_SIZE * sizeof(byte));
@@ -198,12 +195,11 @@ void get_strength_hor(mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
         memset(Strength, 0, BLOCK_SIZE * sizeof(byte));
         return;
     }
-
+/*
     if (edge && (MbQ->mb_type == P16x16 || MbQ->mb_type == P8x16)) {
-        int blkP, blkQ, idx;
-        for (idx = 0; idx < BLOCK_SIZE; idx++) {
-            blkQ = (yQ + 1) + idx;
-            blkP = (get_y_luma(yQ) & 0xFFFC) + idx;
+        for (int idx = 0; idx < BLOCK_SIZE; idx++) {
+            int blkQ = (yQ + 1) + idx;
+            int blkP = (get_y_luma(yQ) & 0xFFFC) + idx;
             if ((MbQ->cbp_blks[0] & (((uint64_t)1 << blkQ) | ((uint64_t)1 << blkP))) != 0)
                 StrValue = 2;
             else
@@ -212,23 +208,22 @@ void get_strength_hor(mb_t *MbQ, int edge, int mvlimit, storable_picture *p)
         }
         return;
     }
-
-    int      blkP, blkQ, idx;
-    BlockPos mb = PicPos[ MbQ->mbAddrX ];
+*/
+    BlockPos mb = PicPos[MbQ->mbAddrX];
     mb.x <<= 2;
     mb.y <<= 2;
 
-    for (idx = 0; idx < BLOCK_SIZE; idx++) {
-        blkQ = (yQ + 1) + idx;
-        blkP = (get_y_luma(yQ) & 0xFFFC) + idx;
+    for (int idx = 0; idx < BLOCK_SIZE; idx++) {
+        int blkQ = (yQ + 1) + idx;
+        int blkP = (get_y_luma(yQ) & 0xFFFC) + idx;
 
         if ((MbQ->cbp_blks[0] & ((uint64_t)1 << blkQ)) != 0 || (MbP->cbp_blks[0] & ((uint64_t)1 << blkP)) != 0)
             StrValue = 2;
         else { // for everything else, if no coefs, but vector difference >= 1 set Strength=1
-            int blk_y  = mb.y + (blkQ >> 2);
             int blk_x  = mb.x + (blkQ  & 3);
-            int blk_y2 = get_pos_y_luma(neighbor,yQ) >> 2;
-            int blk_x2 = ((short)(get_pos_x_luma(neighbor,0)) >> 2) + idx;
+            int blk_y  = mb.y + (blkQ >> 2);
+            int blk_x2 = (get_pos_x_luma(neighbor,  0) >> 2) + idx;
+            int blk_y2 = (get_pos_y_luma(neighbor, yQ) >> 2);
             pic_motion_params *mv_info_p = &p->mv_info[blk_y ][blk_x ];
             pic_motion_params *mv_info_q = &p->mv_info[blk_y2][blk_x2];
             storable_picture* ref_p0 = mv_info_p->ref_pic[LIST_0];
