@@ -1,3 +1,26 @@
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : deblock.h
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
+
 #ifndef _DEBLOCK_H_
 #define _DEBLOCK_H_
 
@@ -15,19 +38,22 @@ private:
 	void init_neighbors(VideoParameters *p_Vid);
 	void make_frame_picture_JV(VideoParameters *p_Vid);
 
-	void DeblockMb(VideoParameters *p_Vid, storable_picture *p, int MbQAddr);
-	void DeblockPicture(VideoParameters *p_Vid, storable_picture *p);
+	void deblock_pic(VideoParameters *p_Vid, storable_picture *p);
+	void deblock_mb(macroblock_t* mb);
 
-  	void edge_loop_luma_ver  (ColorPlane pl, imgpel** Img, byte* Strength, macroblock_t* MbQ, int edge, storable_picture* p);
-  	void edge_loop_luma_hor  (ColorPlane pl, imgpel** Img, byte* Strength, macroblock_t* MbQ, int edge, storable_picture* p);
-  	void edge_loop_chroma_ver(ColorPlane pl, imgpel** Img, byte* Strength, macroblock_t* MbQ, int edge, storable_picture* p);
-  	void edge_loop_chroma_hor(ColorPlane pl, imgpel** Img, byte* Strength, macroblock_t* MbQ, int edge, storable_picture* p);
+	void make_bS();
+
+  	void edge_loop_luma_ver  (ColorPlane pl, uint8_t* Strength, macroblock_t* MbQ, int edge);
+  	void edge_loop_luma_hor  (ColorPlane pl, uint8_t* Strength, macroblock_t* MbQ, int edge);
+  	void edge_loop_chroma_ver(ColorPlane pl, uint8_t* Strength, macroblock_t* MbQ, int edge);
+  	void edge_loop_chroma_hor(ColorPlane pl, uint8_t* Strength, macroblock_t* MbQ, int edge);
+
+	void edge_loop(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaStyleFilteringFlag,
+                   macroblock_t* MbQ, uint8_t* Strength, ColorPlane pl, int edge);
+
+	void deblock_strong(imgpel *pixP, imgpel *pixQ, int widthP, int widthQ, int alpha, int beta, int bS, bool chromaStyleFilteringFlag);
+	void deblock_normal(imgpel *pixP, imgpel *pixQ, int widthP, int widthQ, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int chromaEdgeFlag, int BitDepthY, int BitDepthC, int indexA);
 };
-
-void get_strength_ver    (mb_t *MbQ, int edge, int mvlimit, storable_picture *p);
-void get_strength_hor    (mb_t *MbQ, int edge, int mvlimit, storable_picture *p);
-void get_strength_ver_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, storable_picture *p);
-void get_strength_hor_MBAff(byte *Strength, mb_t *MbQ, int edge, int mvlimit, storable_picture *p);
 
 
 extern deblock_t deblock;
