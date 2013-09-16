@@ -370,8 +370,7 @@ void deblock_t::deblock_normal(imgpel *pixP, imgpel *pixQ, int widthP, int width
 #undef q
 }
 
-void deblock_t::edge_loop(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool verticalEdgeFlag,
-                          int edge, uint8_t* Strength)
+void deblock_t::edge_loop(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool verticalEdgeFlag, int edge)
 {
     VideoParameters* p_Vid = MbQ->p_Vid;
     sps_t* sps = p_Vid->active_sps;
@@ -382,8 +381,14 @@ void deblock_t::edge_loop(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool ve
     int nE       = chromaEdgeFlag == 0 ? 16 : (verticalEdgeFlag == 1 ? sps->MbHeightC : sps->MbWidthC);
     int BitDepth = chromaEdgeFlag == 0 ? sps->BitDepthY : sps->BitDepthC;
 
-    //auto _Strength = verticalEdgeFlag == 0 ? MbQ->strength_hor : MbQ->strength_ver;
-    //auto Strength = _Strength[edge == 1 ? 4 : edge / 4];
+    uint8_t* Strength;
+    if (verticalEdgeFlag)
+        Strength = MbQ->strength_ver[edge == 1 ? 4 : edge * 4 / (chromaEdgeFlag == 0 ? 16 : sps->MbWidthC)];
+    else
+        Strength = MbQ->strength_hor[edge == 1 ? 4 : edge * 4 / (chromaEdgeFlag == 0 ? 16 : sps->MbHeightC)];
+    uint64_t* bS64 = (uint64_t*)Strength;
+    if (bS64[0] == 0 && bS64[1] == 0)
+        return;
 
     PixelPos pixP, pixQ;
 
@@ -548,7 +553,8 @@ void deblock_t::deblock_mb(mb_t* mb)
             if (filterHorEdgeFlag[0][edge])
                 this->get_strength_hor(MbQ, edge);
 
-            if (filterHorEdgeFlag[0][edge] && edge == 0 && !MbQ->mb_field_decoding_flag && MbQ->mixedModeEdgeFlag) {
+            if (filterHorEdgeFlag[0][edge] &&
+                edge == 0 && !MbQ->mb_field_decoding_flag && MbQ->mixedModeEdgeFlag) {
                 mixedModeEdgeFlag = MbQ->mixedModeEdgeFlag;
                 MbQ->DeblockCall = 2;
                 this->get_strength_hor(MbQ, 4);
@@ -559,44 +565,27 @@ void deblock_t::deblock_mb(mb_t* mb)
 
         // Vertical deblocking
         for (int edge = 0; edge < 4; ++edge) {
-            if (filterVerEdgeFlag[0][edge]) {
-                uint8_t* Strength = MbQ->strength_ver[edge];
-                if ((*((int64_t *) Strength)) || ((*(((int64_t *) Strength) + 1))))
-                    this->edge_loop(MbQ, false, PLANE_Y, true, edge * 4, Strength);
-            }
+            if (filterVerEdgeFlag[0][edge])
+                this->edge_loop(MbQ, false, PLANE_Y, true, edge * 4);
             if (sps->ChromaArrayType != 0 && filterVerEdgeFlag[1][edge]) {
-                uint8_t* Strength = MbQ->strength_ver[sps->ChromaArrayType < 3 ? edge * 2 : edge];
-                if ((*((int64_t *) Strength)) || ((*(((int64_t *) Strength) + 1)))) {
-                    this->edge_loop(MbQ, true, PLANE_U, true, edge * 4, Strength);
-                    this->edge_loop(MbQ, true, PLANE_V, true, edge * 4, Strength);
-                }
+                this->edge_loop(MbQ, true, PLANE_U, true, edge * 4);
+                this->edge_loop(MbQ, true, PLANE_V, true, edge * 4);
             }
         }
 
         // horizontal deblocking
         for (int edge = 0; edge < 4; ++edge) {
             if (filterHorEdgeFlag[0][edge]) {
-                uint8_t* Strength = MbQ->strength_hor[edge];
-                if ((*((int64_t *) Strength)) || ((*(((int64_t *) Strength) + 1))))
-                    this->edge_loop(MbQ, false, PLANE_Y, false, edge * 4, Strength);
-                if (edge == 0 && !MbQ->mb_field_decoding_flag && MbQ->mixedModeEdgeFlag) {
-                    uint8_t* Strength = MbQ->strength_hor[4];
-                    if ((*((int64_t *) Strength)) || ((*(((int64_t *) Strength) + 1))))
-                        this->edge_loop(MbQ, false, PLANE_Y, false, 1, Strength);
-                }
+                this->edge_loop(MbQ, false, PLANE_Y, false, edge * 4);
+                if (edge == 0 && !MbQ->mb_field_decoding_flag && MbQ->mixedModeEdgeFlag)
+                    this->edge_loop(MbQ, false, PLANE_Y, false, 1);
             }
             if (sps->ChromaArrayType != 0 && filterHorEdgeFlag[1][edge]) {
-                uint8_t* Strength = MbQ->strength_hor[sps->ChromaArrayType < 2 ? edge * 2 : edge];
-                if ((*((int64_t *) Strength)) || ((*(((int64_t *) Strength) + 1)))) {
-                    this->edge_loop(MbQ, true, PLANE_U, false, edge * 4, Strength);
-                    this->edge_loop(MbQ, true, PLANE_V, false, edge * 4, Strength);
-                }
+                this->edge_loop(MbQ, true, PLANE_U, false, edge * 4);
+                this->edge_loop(MbQ, true, PLANE_V, false, edge * 4);
                 if (edge == 0 && !MbQ->mb_field_decoding_flag && MbQ->mixedModeEdgeFlag) {
-                    uint8_t* Strength = MbQ->strength_hor[4];
-                    if ((*((int64_t *) Strength)) || ((*(((int64_t *) Strength) + 1)))) {
-                        this->edge_loop(MbQ, true, PLANE_U, false, 1, Strength);
-                        this->edge_loop(MbQ, true, PLANE_V, false, 1, Strength);
-                    }
+                    this->edge_loop(MbQ, true, PLANE_U, false, 1);
+                    this->edge_loop(MbQ, true, PLANE_V, false, 1);
                 }
             }
         }
