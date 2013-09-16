@@ -23,6 +23,9 @@
 #include "dpb.h"
 
 
+using vio::h264::deblock;
+
+
 static inline int is_BL_profile(unsigned int profile_idc) 
 {
   return ( profile_idc == FREXT_CAVLC444 || profile_idc == BASELINE || profile_idc == MAIN || profile_idc == EXTENDED ||

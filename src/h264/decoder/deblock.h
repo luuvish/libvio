@@ -30,6 +30,11 @@
 
 struct slice_t;
 
+
+namespace vio  {
+namespace h264 {
+
+
 struct deblock_t {
 	void init();
 	void deblock(VideoParameters *p_Vid, storable_picture *p);
@@ -43,20 +48,22 @@ private:
 
 	void make_bS();
 
-  	void edge_loop_luma_ver  (ColorPlane pl, uint8_t* Strength, macroblock_t* MbQ, int edge);
-  	void edge_loop_luma_hor  (ColorPlane pl, uint8_t* Strength, macroblock_t* MbQ, int edge);
-  	void edge_loop_chroma_ver(ColorPlane pl, uint8_t* Strength, macroblock_t* MbQ, int edge);
-  	void edge_loop_chroma_hor(ColorPlane pl, uint8_t* Strength, macroblock_t* MbQ, int edge);
+	void get_strength_ver(macroblock_t* MbQ, int edge);
+	void get_strength_hor(macroblock_t* MbQ, int edge);
 
-	void edge_loop(bool verticalEdgeFlag, bool chromaEdgeFlag, bool chromaStyleFilteringFlag,
-                   macroblock_t* MbQ, uint8_t* Strength, ColorPlane pl, int edge);
+	void edge_loop(macroblock_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool verticalEdgeFlag,
+	 			   int edge, uint8_t* Strength);
 
 	void deblock_strong(imgpel *pixP, imgpel *pixQ, int widthP, int widthQ, int alpha, int beta, int bS, bool chromaStyleFilteringFlag);
-	void deblock_normal(imgpel *pixP, imgpel *pixQ, int widthP, int widthQ, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int chromaEdgeFlag, int BitDepthY, int BitDepthC, int indexA);
+	void deblock_normal(imgpel *pixP, imgpel *pixQ, int widthP, int widthQ, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int tc0, int BitDepth);
 };
 
 
 extern deblock_t deblock;
+
+
+}
+}
 
 
 #endif /* _DEBLOCK_H_ */

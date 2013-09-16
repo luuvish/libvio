@@ -131,7 +131,7 @@ struct macroblock_t {
     bool        filterTopMbEdgeFlag;
 
     bool        mixedModeEdgeFlag;
-    uint8_t     strength_ver[4][4];  // bS
+    uint8_t     strength_ver[4][16]; // bS
     uint8_t     strength_hor[5][16]; // bS
 
     void        create(slice_t *slice);
