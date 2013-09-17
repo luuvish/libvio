@@ -85,9 +85,6 @@ struct macroblock_t {
     macroblock_t* mb_up;   //!< pointer to neighboring MB (CABAC)
     macroblock_t* mb_left; //!< pointer to neighboring MB (CABAC)
 
-    macroblock_t* mbup;   // neighbors for loopfilter
-    macroblock_t* mbleft; // neighbors for loopfilter
-
     bool        is_intra_block;
     uint8_t     DeblockCall;
 
@@ -126,11 +123,9 @@ struct macroblock_t {
     uint64_t    cbp_blks[3];       // deblock
 
     bool        fieldMbInFrameFlag;
-    bool        filterInternalEdgesFlag;
-    bool        filterLeftMbEdgeFlag;
-    bool        filterTopMbEdgeFlag;
-
     bool        mixedModeEdgeFlag;
+    bool        filterVerEdgeFlag[2][4];
+    bool        filterHorEdgeFlag[2][4];
     uint8_t     strength_ver[4][16]; // bS
     uint8_t     strength_hor[5][16]; // bS
 

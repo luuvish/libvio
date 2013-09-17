@@ -4,8 +4,6 @@
 struct macroblock_t;
 
 void CheckAvailabilityOfNeighbors(struct macroblock_t *currMB);
-void CheckAvailabilityOfNeighborsMBAFF(struct macroblock_t *currMB);
-void CheckAvailabilityOfNeighborsNormal(struct macroblock_t *currMB);
 void CheckAvailabilityOfNeighborsCABAC(struct macroblock_t *currMB);
 
 void getAffNeighbour         (struct macroblock_t *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);

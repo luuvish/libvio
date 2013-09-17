@@ -449,7 +449,7 @@ void macroblock_t::parse()
                     currMB->mb_field_decoding_flag = slice->mb_data[slice->current_mb_nr-1].mb_field_decoding_flag;
                     currMB->mbAddrX  = slice->current_mb_nr;
 
-                    CheckAvailabilityOfNeighborsMBAFF(currMB);
+                    CheckAvailabilityOfNeighbors(currMB);
                     CheckAvailabilityOfNeighborsCABAC(currMB);
 
                     //check_next_mb
