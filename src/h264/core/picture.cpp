@@ -277,55 +277,6 @@ void decode_picture(VideoParameters *p_Vid)
 }
 
 
-static void update_mbaff_macroblock_data(imgpel **cur_img, imgpel (*temp)[16], int x0, int width, int height)
-{
-    imgpel (*temp_evn)[16] = temp;
-    imgpel (*temp_odd)[16] = temp + height; 
-    imgpel **temp_img = cur_img;
-    int y;
-
-    for (y = 0; y < 2 * height; ++y)
-        memcpy(*temp++, (*temp_img++ + x0), width * sizeof(imgpel));
-
-    for (y = 0; y < height; ++y) {
-        memcpy((*cur_img++ + x0), *temp_evn++, width * sizeof(imgpel));
-        memcpy((*cur_img++ + x0), *temp_odd++, width * sizeof(imgpel));
-    }
-}
-
-static void MbAffPostProc(VideoParameters *p_Vid)
-{
-    imgpel temp_buffer[32][16];
-
-    storable_picture *dec_picture = p_Vid->dec_picture;
-    sps_t *sps = p_Vid->active_sps;
-    imgpel ** imgY  = dec_picture->imgY;
-    imgpel ***imgUV = dec_picture->imgUV;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-    int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-
-    short i, x0, y0;
-
-    for (i = 0; i < (int)dec_picture->PicSizeInMbs; i += 2) {
-        if (dec_picture->motion.mb_field_decoding_flag[i]) {
-            get_mb_pos(p_Vid, i, mb_size, &x0, &y0);
-            update_mbaff_macroblock_data(imgY + y0, temp_buffer, x0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-
-            if (dec_picture->chroma_format_idc != YUV400) {
-                x0 = (short) ((x0 * mb_cr_size_x) >> 4);
-                y0 = (short) ((y0 * mb_cr_size_y) >> 4);
-
-                update_mbaff_macroblock_data(imgUV[0] + y0, temp_buffer, x0, mb_cr_size_x, mb_cr_size_y);
-                update_mbaff_macroblock_data(imgUV[1] + y0, temp_buffer, x0, mb_cr_size_x, mb_cr_size_y);
-            }
-        }
-    }
-}
-
 void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, int iPadY)
 {
     int j;
@@ -490,10 +441,7 @@ void exit_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
     erc_picture(p_Vid, dec_picture);
 #endif
 
-    deblock.deblock(p_Vid, *dec_picture);
-
-    if ((*dec_picture)->mb_aff_frame_flag)
-        MbAffPostProc(p_Vid);
+    deblock.deblock(p_Vid);
 
     if (p_Vid->structure != FRAME)
         p_Vid->number /= 2;
