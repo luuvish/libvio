@@ -204,7 +204,7 @@ void UseParameterSet (slice_t *currSlice)
     }
 
     if (sps->pic_order_cnt_type == 1) {
-        if (sps->num_ref_frames_in_pic_order_cnt_cycle >= MAX_NUM_REF_FRAMES)
+        if ((int)sps->num_ref_frames_in_pic_order_cnt_cycle >= MAX_NUM_REF_FRAMES)
             error("num_ref_frames_in_pic_order_cnt_cycle too large",-1011);
     }
     p_Vid->dpb_layer_id = currSlice->layer_id;

@@ -204,8 +204,8 @@ uint32_t cabac_engine_t::fl(cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t m
     uint8_t  fixedLength = ceil(log2(cMax + 1));
     uint8_t  binIdx = 0;
     uint32_t bins = 0;
-    while (binIdx < fixedLength)
-        bins |= this->decode_decision(ctx + ctxIdxIncs[min<int>(binIdx, maxBinIdxCtx)]) << binIdx++;
+    for (binIdx = 0; binIdx < fixedLength; ++binIdx)
+        bins |= this->decode_decision(ctx + ctxIdxIncs[min<int>(binIdx, maxBinIdxCtx)]) << binIdx;
     return bins;
 }
 
