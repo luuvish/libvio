@@ -228,7 +228,7 @@ uint32_t annex_b_t::get_nalu(nalu_t* nalu)
 
 inline uint32_t annex_b_t::getChunk()
 {
-    uint32_t readbytes = ::read(this->BitStreamFile, this->iobuffer, this->iIOBufferSize); 
+    uint32_t readbytes = ::read(this->BitStreamFile, this->iobuffer, this->iIOBufferSize);
     if (0 == readbytes) {
         this->is_eof = true;
         return 0;

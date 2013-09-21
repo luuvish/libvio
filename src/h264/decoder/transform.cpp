@@ -623,7 +623,7 @@ static void recon8x8_lossless(int **m7, imgpel **mb_rec, imgpel **mpr, int max_i
 {
     for (int j = 0; j < 8; j++) {
         for (int i = ioff; i < ioff + 8; i++)
-            (*mb_rec)[i] = (imgpel) clip1<int>(max_imgpel_value, ((*m7)[i] + (long)(*mpr)[i])); 
+            (*mb_rec)[i] = (imgpel) clip1<int>(max_imgpel_value, ((*m7)[i] + (*mpr)[i])); 
         mb_rec++;
         m7++;
         mpr++;
