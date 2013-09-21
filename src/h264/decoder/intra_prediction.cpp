@@ -26,7 +26,6 @@
 #include "macroblock.h"
 #include "intra_prediction.h"
 #include "neighbour.h"
-#include "image.h"
 
 
 namespace vio  {
@@ -42,51 +41,36 @@ static inline int InverseRasterScan(int index, int dx, int dy, int width, int xy
 }
 
 
-static void neighbouring_samples_4x4(imgpel *pred, bool *available, mb_t *currMB, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_4x4(imgpel* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    VideoParameters *p_Vid = currMB->p_Vid;
-    imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
+    pps_t* pps = slice->active_pps;
+
+    imgpel** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
     PixelPos pix_a, pix_b, pix_c, pix_d, pix_x[4];
 
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
     int mb_size_xy[2][2] = {
         { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
-        { mb_cr_size_x, mb_cr_size_y }
+        { sps->MbWidthC, sps->MbHeightC }
     };
     int *mb_size = mb_size_xy[pl == 0 ? IS_LUMA : IS_CHROMA];
 
-    bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
-    bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
-
-    if (MbaffFrameFlag == 0) {
-        getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
-        for (int i = 0; i < 4; i++)
-            getNonAffNeighbour(currMB, xO - 1, yO + i, mb_size, &pix_x[i]);
-        getNonAffNeighbour(currMB, xO    , yO - 1, mb_size, &pix_b);
-        getNonAffNeighbour(currMB, xO + 4, yO - 1, mb_size, &pix_c);
-        getNonAffNeighbour(currMB, xO - 1, yO - 1, mb_size, &pix_d);
-    } else {
-        getAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
-        for (int i = 0; i < 4; i++)
-            getAffNeighbour(currMB, xO - 1, yO + i, mb_size, &pix_x[i]);
-        getAffNeighbour(currMB, xO    , yO - 1, mb_size, &pix_b);
-        getAffNeighbour(currMB, xO + 4, yO - 1, mb_size, &pix_c);
-        getAffNeighbour(currMB, xO - 1, yO - 1, mb_size, &pix_d);
-    }
+    getNeighbour(mb, xO - 1, yO    , mb_size, &pix_a);
+    for (int i = 0; i < 4; i++)
+        getNeighbour(mb, xO - 1, yO + i, mb_size, &pix_x[i]);
+    getNeighbour(mb, xO    , yO - 1, mb_size, &pix_b);
+    getNeighbour(mb, xO + 4, yO - 1, mb_size, &pix_c);
+    getNeighbour(mb, xO - 1, yO - 1, mb_size, &pix_d);
     pix_c.available = pix_c.available && !((xO==4) && ((yO==4)||(yO==12)));
 
-    if (constrained_intra_pred_flag) {
-        available[0] = pix_a.available ? currSlice->mb_data[pix_a.mb_addr].is_intra_block : 0;
+    if (pps->constrained_intra_pred_flag) {
+        available[0] = pix_a.available ? slice->mb_data[pix_a.mb_addr].is_intra_block : 0;
         for (int i = 0; i < 4; i++)
-            available[0] &= pix_x[i].available ? currSlice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
-        available[1] = pix_b.available ? currSlice->mb_data[pix_b.mb_addr].is_intra_block : 0;
-        available[2] = pix_c.available ? currSlice->mb_data[pix_c.mb_addr].is_intra_block : 0;
-        available[3] = pix_d.available ? currSlice->mb_data[pix_d.mb_addr].is_intra_block : 0;
+            available[0] &= pix_x[i].available ? slice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
+        available[1] = pix_b.available ? slice->mb_data[pix_b.mb_addr].is_intra_block : 0;
+        available[2] = pix_c.available ? slice->mb_data[pix_c.mb_addr].is_intra_block : 0;
+        available[3] = pix_d.available ? slice->mb_data[pix_d.mb_addr].is_intra_block : 0;
     } else {
         available[0] = pix_a.available;
         available[1] = pix_b.available;
@@ -100,10 +84,10 @@ static void neighbouring_samples_4x4(imgpel *pred, bool *available, mb_t *currMB
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
-        //int width = (pl) ? currSlice->dec_picture->iChromaStride : currSlice->dec_picture->iLumaStride;
-        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
+        //int width = (pl) ? slice->dec_picture->iChromaStride : slice->dec_picture->iLumaStride;
+        //int dy = MbaffFrameFlag == 1 && slice->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
 //        imgpel *pix = &img[pix_a.pos_y][pix_a.pos_x];
-//        if (MbaffFrameFlag == 1 && !currMB->mb_field_decoding_flag && (currMB->mbAddrX & 1))
+//        if (MbaffFrameFlag == 1 && !mb->mb_field_decoding_flag && (mb->mbAddrX & 1))
 //            pix -= 16 * width;
 //        for (int y = 0; y < 4; y++)
 //            p(-1, y) = pix[y * dy * width];
@@ -122,51 +106,36 @@ static void neighbouring_samples_4x4(imgpel *pred, bool *available, mb_t *currMB
 #undef p
 }
 
-static void neighbouring_samples_8x8(imgpel *pred, bool *available, mb_t *currMB, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_8x8(imgpel* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    VideoParameters *p_Vid = currMB->p_Vid;
-    imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
+    pps_t* pps = slice->active_pps;
+
+    imgpel** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
     PixelPos pix_a, pix_b, pix_c, pix_d, pix_x[8];
 
-    bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
-    bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
     int mb_size_xy[2][2] = {
         { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
-        { mb_cr_size_x, mb_cr_size_y }
+        { sps->MbWidthC, sps->MbHeightC }
     };
     int *mb_size = mb_size_xy[pl == 0 ? IS_LUMA : IS_CHROMA];
 
-    if (MbaffFrameFlag == 0) {
-        getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
-        for (int i = 0; i < 8; i++)
-            getNonAffNeighbour(currMB, xO - 1, yO + i, mb_size, &pix_x[i]);
-        getNonAffNeighbour(currMB, xO    , yO - 1, mb_size, &pix_b);
-        getNonAffNeighbour(currMB, xO + 8, yO - 1, mb_size, &pix_c);
-        getNonAffNeighbour(currMB, xO - 1, yO - 1, mb_size, &pix_d);
-    } else {
-        getAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
-        for (int i = 0; i < 8; i++)
-            getAffNeighbour(currMB, xO - 1, yO + i, mb_size, &pix_x[i]);
-        getAffNeighbour(currMB, xO    , yO - 1, mb_size, &pix_b);
-        getAffNeighbour(currMB, xO + 8, yO - 1, mb_size, &pix_c);
-        getAffNeighbour(currMB, xO - 1, yO - 1, mb_size, &pix_d);
-    }
+    getNeighbour(mb, xO - 1, yO    , mb_size, &pix_a);
+    for (int i = 0; i < 8; i++)
+        getNeighbour(mb, xO - 1, yO + i, mb_size, &pix_x[i]);
+    getNeighbour(mb, xO    , yO - 1, mb_size, &pix_b);
+    getNeighbour(mb, xO + 8, yO - 1, mb_size, &pix_c);
+    getNeighbour(mb, xO - 1, yO - 1, mb_size, &pix_d);
     pix_c.available = pix_c.available && !(xO == 8 && yO == 8);
 
-    if (constrained_intra_pred_flag) {
-        available[0] = pix_a.available ? currSlice->mb_data[pix_a.mb_addr].is_intra_block : 0;
+    if (pps->constrained_intra_pred_flag) {
+        available[0] = pix_a.available ? slice->mb_data[pix_a.mb_addr].is_intra_block : 0;
         for (int i = 0; i < 8; i++)
-            available[0] &= pix_x[i].available ? currSlice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
-        available[1] = pix_b.available ? currSlice->mb_data[pix_b.mb_addr].is_intra_block : 0;
-        available[2] = pix_c.available ? currSlice->mb_data[pix_c.mb_addr].is_intra_block : 0;
-        available[3] = pix_d.available ? currSlice->mb_data[pix_d.mb_addr].is_intra_block : 0;
+            available[0] &= pix_x[i].available ? slice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
+        available[1] = pix_b.available ? slice->mb_data[pix_b.mb_addr].is_intra_block : 0;
+        available[2] = pix_c.available ? slice->mb_data[pix_c.mb_addr].is_intra_block : 0;
+        available[3] = pix_d.available ? slice->mb_data[pix_d.mb_addr].is_intra_block : 0;
     } else {
         available[0] = pix_a.available;
         available[1] = pix_b.available;
@@ -183,10 +152,10 @@ static void neighbouring_samples_8x8(imgpel *pred, bool *available, mb_t *currMB
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
-        //int width = (pl) ? currSlice->dec_picture->iChromaStride : currSlice->dec_picture->iLumaStride;
-        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
+        //int width = (pl) ? slice->dec_picture->iChromaStride : slice->dec_picture->iLumaStride;
+        //int dy = MbaffFrameFlag == 1 && slice->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
 //        imgpel *pix = &img[pix_a.pos_y][pix_a.pos_x];
-//        if (MbaffFrameFlag == 1 && !currMB->mb_field_decoding_flag && (currMB->mbAddrX & 1))
+//        if (MbaffFrameFlag == 1 && !mb->mb_field_decoding_flag && (mb->mbAddrX & 1))
 //            pix -= 16 * width;
 //        for (int y = 0; y < 4; y++)
 //            p(-1, y) = pix[y * dy * width];
@@ -235,48 +204,34 @@ static void neighbouring_samples_8x8(imgpel *pred, bool *available, mb_t *currMB
 #undef plf
 }
 
-static void neighbouring_samples_16x16(imgpel *pred, bool *available, mb_t *currMB, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_16x16(imgpel* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    VideoParameters *p_Vid = currMB->p_Vid;
-    imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
+    pps_t* pps = slice->active_pps;
+
+    imgpel** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
     PixelPos pix_a, pix_b, pix_d, pix_x[16];
 
-    bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
-    bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
     int mb_size_xy[2][2] = {
         { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
-        { mb_cr_size_x, mb_cr_size_y }
+        { sps->MbWidthC, sps->MbHeightC }
     };
     int *mb_size = mb_size_xy[pl == 0 ? IS_LUMA : IS_CHROMA];
 
-    if (MbaffFrameFlag == 0) {
-        getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
-        for (int i = 0; i < 16; i++)
-            getNonAffNeighbour(currMB, xO - 1, yO + i, mb_size, &pix_x[i]);
-        getNonAffNeighbour(currMB, xO    , yO - 1, mb_size, &pix_b);
-        getNonAffNeighbour(currMB, xO - 1, yO - 1, mb_size, &pix_d);
-    } else {
-        getAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
-        for (int i = 0; i < 16; i++)
-            getAffNeighbour(currMB, xO - 1, yO + i, mb_size, &pix_x[i]);
-        getAffNeighbour(currMB, xO    , yO - 1, mb_size, &pix_b);
-        getAffNeighbour(currMB, xO - 1, yO - 1, mb_size, &pix_d);
-    }
+    getNeighbour(mb, xO - 1, yO    , mb_size, &pix_a);
+    for (int i = 0; i < 16; i++)
+        getNeighbour(mb, xO - 1, yO + i, mb_size, &pix_x[i]);
+    getNeighbour(mb, xO    , yO - 1, mb_size, &pix_b);
+    getNeighbour(mb, xO - 1, yO - 1, mb_size, &pix_d);
 
-    if (constrained_intra_pred_flag) {
-        available[0] = pix_a.available ? currSlice->mb_data[pix_a.mb_addr].is_intra_block : 0;
+    if (pps->constrained_intra_pred_flag) {
+        available[0] = pix_a.available ? slice->mb_data[pix_a.mb_addr].is_intra_block : 0;
         for (int i = 0; i < 16; i++)
-            available[0] &= pix_x[i].available ? currSlice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
-        available[1] = pix_b.available ? currSlice->mb_data[pix_b.mb_addr].is_intra_block : 0;
+            available[0] &= pix_x[i].available ? slice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
+        available[1] = pix_b.available ? slice->mb_data[pix_b.mb_addr].is_intra_block : 0;
         available[2] = 0;
-        available[3] = pix_d.available ? currSlice->mb_data[pix_d.mb_addr].is_intra_block : 0;
+        available[3] = pix_d.available ? slice->mb_data[pix_d.mb_addr].is_intra_block : 0;
     } else {
         available[0] = pix_a.available;
         available[1] = pix_b.available;
@@ -290,10 +245,10 @@ static void neighbouring_samples_16x16(imgpel *pred, bool *available, mb_t *curr
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
-        //int width = (pl) ? currSlice->dec_picture->iChromaStride : currSlice->dec_picture->iLumaStride;
-        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
+        //int width = (pl) ? slice->dec_picture->iChromaStride : slice->dec_picture->iLumaStride;
+        //int dy = MbaffFrameFlag == 1 && slice->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
 //        imgpel *pix = &img[pix_a.pos_y][pix_a.pos_x];
-//        if (MbaffFrameFlag == 1 && !currMB->mb_field_decoding_flag && (currMB->mbAddrX & 1))
+//        if (MbaffFrameFlag == 1 && !mb->mb_field_decoding_flag && (mb->mbAddrX & 1))
 //            pix -= 16 * width;
 //        for (int y = 0; y < 4; y++)
 //            p(-1, y) = pix[y * dy * width];
@@ -308,52 +263,38 @@ static void neighbouring_samples_16x16(imgpel *pred, bool *available, mb_t *curr
 #undef p
 }
 
-static void neighbouring_samples_chroma(imgpel *pred, bool *available, mb_t *currMB, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_chroma(imgpel* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    VideoParameters *p_Vid = currMB->p_Vid;
-    imgpel **img = (pl) ? currSlice->dec_picture->imgUV[pl - 1] : currSlice->dec_picture->imgY;
+    slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
+    pps_t* pps = slice->active_pps;
+
+    imgpel** img = (pl) ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
     //PixelPos pix_a;
     PixelPos pix_b, pix_d, pix_x[16];
 
-    bool constrained_intra_pred_flag = p_Vid->active_pps->constrained_intra_pred_flag;
-    bool MbaffFrameFlag = currSlice->MbaffFrameFlag;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
     int mb_size_xy[2][2] = {
         { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
-        { mb_cr_size_x, mb_cr_size_y }
+        { sps->MbWidthC, sps->MbHeightC }
     };
     int *mb_size = mb_size_xy[pl == 0 ? IS_LUMA : IS_CHROMA];
 
-    if (MbaffFrameFlag == 0) {
-        //getNonAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
-        for (int i = 0; i < mb_cr_size_y; i++)
-            getNonAffNeighbour(currMB, xO - 1, yO + i, mb_size, &pix_x[i]);
-        getNonAffNeighbour(currMB, xO    , yO - 1, mb_size, &pix_b);
-        getNonAffNeighbour(currMB, xO - 1, yO - 1, mb_size, &pix_d);
-    } else {
-        //getAffNeighbour(currMB, xO - 1, yO    , mb_size, &pix_a);
-        for (int i = 0; i < mb_cr_size_y; i++)
-            getAffNeighbour(currMB, xO - 1, yO + i, mb_size, &pix_x[i]);
-        getAffNeighbour(currMB, xO    , yO - 1, mb_size, &pix_b);
-        getAffNeighbour(currMB, xO - 1, yO - 1, mb_size, &pix_d);
-    }
+    //getNeighbour(mb, xO - 1, yO    , mb_size, &pix_a);
+    for (int i = 0; i < sps->MbHeightC; i++)
+        getNeighbour(mb, xO - 1, yO + i, mb_size, &pix_x[i]);
+    getNeighbour(mb, xO    , yO - 1, mb_size, &pix_b);
+    getNeighbour(mb, xO - 1, yO - 1, mb_size, &pix_d);
 
-    if (constrained_intra_pred_flag) {
+    if (pps->constrained_intra_pred_flag) {
         available[0] = 1;
-        //available[0] = pix_a.available ? currSlice->mb_data[pix_a.mb_addr].is_intra_block : 0;
-        for (int i = 0; i < mb_cr_size_y/2; i++)
-            available[0] &= pix_x[i].available ? currSlice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
-        available[1] = pix_b.available ? currSlice->mb_data[pix_b.mb_addr].is_intra_block : 0;
+        //available[0] = pix_a.available ? slice->mb_data[pix_a.mb_addr].is_intra_block : 0;
+        for (int i = 0; i < sps->MbHeightC/2; i++)
+            available[0] &= pix_x[i].available ? slice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
+        available[1] = pix_b.available ? slice->mb_data[pix_b.mb_addr].is_intra_block : 0;
         available[2] = 1;
-        for (int i = mb_cr_size_y/2; i < mb_cr_size_y; i++)
-            available[2] &= pix_x[i].available ? currSlice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
-        available[3] = pix_d.available ? currSlice->mb_data[pix_d.mb_addr].is_intra_block : 0;
+        for (int i = sps->MbHeightC/2; i < sps->MbHeightC; i++)
+            available[2] &= pix_x[i].available ? slice->mb_data[pix_x[i].mb_addr].is_intra_block : 0;
+        available[3] = pix_d.available ? slice->mb_data[pix_d.mb_addr].is_intra_block : 0;
     } else {
         available[0] = pix_x[0].available; //pix_a.available;
         available[1] = pix_b.available;
@@ -367,23 +308,23 @@ static void neighbouring_samples_chroma(imgpel *pred, bool *available, mb_t *cur
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
-        //int width = (pl) ? currSlice->dec_picture->iChromaStride : currSlice->dec_picture->iLumaStride;
-        //int dy = MbaffFrameFlag == 1 && p_Vid->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
+        //int width = (pl) ? slice->dec_picture->iChromaStride : slice->dec_picture->iLumaStride;
+        //int dy = MbaffFrameFlag == 1 && slice->mb_data[pix_a.mb_addr].mb_field_decoding_flag ? 2 : 1;
 //        imgpel *pix = &img[pix_a.pos_y][pix_a.pos_x];
-//        if (MbaffFrameFlag == 1 && !currMB->mb_field_decoding_flag && (currMB->mbAddrX & 1))
+//        if (MbaffFrameFlag == 1 && !mb->mb_field_decoding_flag && (mb->mbAddrX & 1))
 //            pix -= 16 * width;
 //        for (int y = 0; y < 4; y++)
 //            p(-1, y) = pix[y * dy * width];
-        for (int y = 0; y < mb_cr_size_y/2; y++)
+        for (int y = 0; y < sps->MbHeightC/2; y++)
             p(-1, y) = img[pix_x[y].pos_y][pix_x[y].pos_x];
     }
     if (available[2]) {
-        for (int y = mb_cr_size_y/2; y < mb_cr_size_y; y++)
+        for (int y = sps->MbHeightC/2; y < sps->MbHeightC; y++)
             p(-1, y) = img[pix_x[y].pos_y][pix_x[y].pos_x];
     }
     if (available[1]) {
         imgpel *pix = &img[pix_b.pos_y][pix_b.pos_x];
-        for (int x = 0; x < mb_cr_size_x; x++)
+        for (int x = 0; x < sps->MbWidthC; x++)
             p(x, -1) = pix[x];
     }
 #undef p

@@ -433,10 +433,8 @@ typedef struct video_par {
   struct storable_picture *pending_output;
   int    recovery_flag;
 
-  void (*buf2img)          (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int o_size_x, int o_size_y, int symbol_size_in_bytes, int bitshift);
-  void (*getNeighbour)     (struct macroblock_t *currMB, int xN, int yN, int mb_size[2], PixelPos *pix);
-  void (*get_mb_block_pos) (BlockPos *PicPos, int mb_addr, short *x, short *y);
-  void (*img2buf)          (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
+  void (*buf2img)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int o_size_x, int o_size_y, int symbol_size_in_bytes, int bitshift);
+  void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
   ImageData tempData3;
   //control;

@@ -12,9 +12,9 @@
 
 #include "sei.h"
 #include "output.h"
-#include "neighbour.h"
 #include "memalloc.h"
 #include "macroblock.h"
+#include "neighbour.h"
 
 #include "intra_prediction.h"
 #include "deblock.h"

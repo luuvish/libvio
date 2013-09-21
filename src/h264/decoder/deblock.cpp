@@ -36,49 +36,6 @@ namespace h264 {
 deblock_t deblock;
 
 
-static void get_mb2pos(slice_t* slice, int mbAddr, int& xI, int& yI)
-{
-    sps_t* sps = slice->active_sps;
-
-    if (slice->MbaffFrameFlag == 0) {
-        xI = mbAddr % sps->PicWidthInMbs * 16;
-        yI = mbAddr / sps->PicWidthInMbs * 16;
-    } else {
-        xI = (mbAddr / 2) % sps->PicWidthInMbs * 16;
-        yI = (mbAddr / 2) / sps->PicWidthInMbs * 32;
-        mb_t* mb = &slice->mb_data[mbAddr];
-        if (mb->mb_field_decoding_flag == 0)
-            yI += mbAddr % 2 * 16;
-        else
-            yI += mbAddr % 2;
-    }
-}
-
-static mb_t* get_pos2mb(slice_t* slice, int xP, int yP, int& mbAddr)
-{
-    sps_t* sps = slice->active_sps;
-
-    if (xP < 0 || xP >= sps->PicWidthInMbs * 16)
-        return nullptr;
-    if (yP < 0 || yP >= slice->PicHeightInMbs * 16)
-        return nullptr;
-
-    mbAddr = (slice->MbaffFrameFlag == 0) ?
-        ((yP / 16) * sps->PicWidthInMbs + (xP / 16)) :
-        ((yP / 32) * sps->PicWidthInMbs + (xP / 16)) * 2;
-    if (mbAddr < 0 || mbAddr >= sps->PicWidthInMbs * slice->PicHeightInMbs)
-        return nullptr;
-
-    mb_t* mb = &slice->mb_data[mbAddr];
-    if (slice->MbaffFrameFlag) {
-        if ((mb->mb_field_decoding_flag == 0) ? (yP & 16) : (yP & 1)) {
-            ++mbAddr;
-            ++mb;
-        }
-    }
-    return mb;
-}
-
 inline int deblock_t::compare_mvs(const MotionVector* mv0, const MotionVector* mv1, int mvlimit)
 {
     return (abs(mv0->mv_x - mv1->mv_x) >= 4) | (abs(mv0->mv_y - mv1->mv_y) >= mvlimit);
@@ -132,12 +89,12 @@ void deblock_t::strength_vertical(mb_t* MbQ, int edge)
     pic_motion_params** mv_info = MbQ->p_Vid->dec_picture->mv_info;
 
     int xI, yI;
-    get_mb2pos(MbQ->p_Slice, MbQ->mbAddrX, xI, yI);
+    neighbour.get_mb2pos(MbQ->p_Slice, MbQ->mbAddrX, xI, yI);
     int xQ = xI + edge * 4;
     int yQ = MbQ->fieldMbInFrameFlag ? yI / 32 * 32 + (yI % 32) / 2 + 16 * (yI & 1) : yI;
 
     int mbAddrP;
-    get_pos2mb(MbQ->p_Slice, xI + (edge - 1) * 4, yI, mbAddrP);
+    neighbour.get_pos2mb(MbQ->p_Slice, xI + (edge - 1) * 4, yI, mbAddrP);
     mb_t* MbP = &MbQ->p_Vid->mb_data[mbAddrP];
     int xP = xQ - 4;
     int yP = yQ;
@@ -178,7 +135,7 @@ void deblock_t::strength_vertical(mb_t* MbQ, int edge)
 
     for (int y = 0; y < MB_BLOCK_SIZE; ++y) {
         int y0 = yI + (1 + MbQ->fieldMbInFrameFlag) * y;
-        get_pos2mb(MbQ->p_Slice, xI + (edge - 1) * 4, y0, mbAddrP);
+        neighbour.get_pos2mb(MbQ->p_Slice, xI + (edge - 1) * 4, y0, mbAddrP);
         MbP = &MbQ->p_Vid->mb_data[mbAddrP];
         bool fieldMbInFrameFlag = slice->MbaffFrameFlag && MbP->mb_field_decoding_flag;
         yP = fieldMbInFrameFlag ? y0 / 32 * 32 + (y0 % 32) / 2 + 16 * (y0 & 1) : y0;
@@ -221,13 +178,13 @@ void deblock_t::strength_horizontal(mb_t* MbQ, int edge)
     int dy = (1 + MbQ->fieldMbInFrameFlag);
 
     int xI, yI;
-    get_mb2pos(MbQ->p_Slice, MbQ->mbAddrX, xI, yI);
+    neighbour.get_mb2pos(MbQ->p_Slice, MbQ->mbAddrX, xI, yI);
     int xQ = xI;
     int y0 = yI + (edge == 4 ? 1 : dy * edge * 4);
     int yQ = MbQ->fieldMbInFrameFlag ? y0 / 32 * 32 + (y0 % 32) / 2 + 16 * (y0 & 1) : y0;
 
     int mbAddrP;
-    get_pos2mb(MbQ->p_Slice, xQ, y0 - 4 * dy, mbAddrP);
+    neighbour.get_pos2mb(MbQ->p_Slice, xQ, y0 - 4 * dy, mbAddrP);
     mb_t* MbP = &MbQ->p_Vid->mb_data[mbAddrP];
     int xP = xQ;
     int yP = y0 - 4 * dy;
@@ -300,10 +257,10 @@ void deblock_t::strength(mb_t* MbQ)
         bool filterTopMbEdgeFlag  = 0;
 
         int xI, yI;
-        get_mb2pos(MbQ->p_Slice, MbQ->mbAddrX, xI, yI);
+        neighbour.get_mb2pos(MbQ->p_Slice, MbQ->mbAddrX, xI, yI);
 
         int mbAddrL;
-        mb_t* MbL = get_pos2mb(MbQ->p_Slice, xI - 16, yI, mbAddrL);
+        mb_t* MbL = neighbour.get_pos2mb(MbQ->p_Slice, xI - 16, yI, mbAddrL);
         if (MbL) {
             if (slice->disable_deblocking_filter_idc == 0)
                 filterLeftMbEdgeFlag = 1;
@@ -311,7 +268,7 @@ void deblock_t::strength(mb_t* MbQ)
                 filterLeftMbEdgeFlag = MbQ->slice_nr == slice->mb_data[mbAddrL].slice_nr;
         }
         int mbAddrU;
-        mb_t* MbU = get_pos2mb(MbQ->p_Slice, xI, yI - 16, mbAddrU);
+        mb_t* MbU = neighbour.get_pos2mb(MbQ->p_Slice, xI, yI - 16, mbAddrU);
         if (MbU) {
             if (slice->disable_deblocking_filter_idc == 0)
                 filterTopMbEdgeFlag = 1;
@@ -511,7 +468,7 @@ void deblock_t::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool 
     int dy = (1 + fieldModeInFrameFilteringFlag);
 
     int xI, yI;
-    get_mb2pos(MbQ->p_Slice, MbQ->mbAddrX, xI, yI);
+    neighbour.get_mb2pos(MbQ->p_Slice, MbQ->mbAddrX, xI, yI);
     int xP = chromaEdgeFlag == 0 ? xI : (xI / sps->SubWidthC);
     int yP = chromaEdgeFlag == 0 ? yI : (yI + sps->SubHeightC - 1) / sps->SubHeightC;
 
@@ -521,7 +478,7 @@ void deblock_t::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool 
         xJ += (edge - 1) * (chromaEdgeFlag == 0 ? 1 : sps->SubWidthC);
     else
         yJ += dy * (edge - 1) * (chromaEdgeFlag == 0 ? 1 : sps->SubHeightC) - (edge % 2);
-    get_pos2mb(MbQ->p_Slice, xJ, yJ, mbAddrJ);
+    neighbour.get_pos2mb(MbQ->p_Slice, xJ, yJ, mbAddrJ);
     mb_t* MbP = &p_Vid->mb_data[mbAddrJ];
 
     int incQ = verticalEdgeFlag ? 1 : dy * width;
@@ -538,7 +495,7 @@ void deblock_t::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool 
         if (bS > 0) {
             if (verticalEdgeFlag) {
                 yJ = yI + dy * pel * (chromaEdgeFlag == 0 ? 1 : sps->SubHeightC);
-                get_pos2mb(MbQ->p_Slice, xJ, yJ + (chromaEdgeFlag && mixed && (pel & 1)), mbAddrJ);
+                neighbour.get_pos2mb(MbQ->p_Slice, xJ, yJ + (chromaEdgeFlag && mixed && (pel & 1)), mbAddrJ);
                 MbP = &p_Vid->mb_data[mbAddrJ];
             }
 

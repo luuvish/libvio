@@ -12,9 +12,9 @@
 
 #include "sei.h"
 #include "output.h"
-#include "neighbour.h"
 #include "memalloc.h"
 #include "macroblock.h"
+#include "neighbour.h"
 
 #include "intra_prediction.h"
 #include "deblock.h"
@@ -333,9 +333,6 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
 
   dec_picture->mb_aff_frame_flag = currSlice->MbaffFrameFlag;
   dec_picture->PicWidthInMbs     = sps->PicWidthInMbs;
-
-  p_Vid->get_mb_block_pos = dec_picture->mb_aff_frame_flag ? get_mb_block_pos_mbaff : get_mb_block_pos_normal;
-  p_Vid->getNeighbour     = dec_picture->mb_aff_frame_flag ? getAffNeighbour : getNonAffNeighbour;
 
   dec_picture->PicNum    = currSlice->frame_num;
   dec_picture->frame_num = currSlice->frame_num;

@@ -288,7 +288,7 @@ void macroblock_t::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, u
     if (chroma && !ac)
         nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
     else
-        nC = predict_nnz(this, pl, i * 4, j * 4);
+        nC = neighbour.predict_nnz(this, pl, i * 4, j * 4);
 
     uint8_t coeff_token  = this->parse_coeff_token(nC);
     uint8_t TotalCoeff   = coeff_token >> 2;

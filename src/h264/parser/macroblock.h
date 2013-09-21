@@ -86,7 +86,6 @@ struct macroblock_t {
     macroblock_t* mb_left; //!< pointer to neighboring MB (CABAC)
 
     bool        is_intra_block;
-    uint8_t     DeblockCall;
 
     short       slice_nr;
     char        ei_flag;
