@@ -304,7 +304,7 @@ static void decode_one_component(mb_t* mb, ColorPlane curr_plane)
     sps_t* sps = slice->active_sps;
     VideoParameters* p_Vid = slice->p_Vid;
 
-    if (sps->chroma_format_idc == YUV444 && !sps->separate_colour_plane_flag) {
+    if (sps->ChromaArrayType == 3) {
         if (!mb->is_intra_block) {
             storable_picture *vidref = p_Vid->no_reference_picture;
             int noref = slice->framepoc < p_Vid->recovery_poc;

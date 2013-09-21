@@ -1,3 +1,26 @@
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : neighbour.cpp
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
+
 #include "global.h"
 #include "data_partition.h"
 #include "slice.h"
@@ -110,6 +133,7 @@ int neighbour_t::predict_nnz(mb_t* mb, int pl, int i, int j)
         nC = (nC + 1) >> 1;
     return nC;
 }
+
 
 
 static void getNonAffNeighbour(mb_t *currMB, int xN, int yN, int mb_size[2], PixelPos *pix)
@@ -340,9 +364,19 @@ static void getAffNeighbour(mb_t *currMB, int xN, int yN, int mb_size[2], PixelP
     if (pix->available) {
         pix->x = (short)(xN & (maxW - 1));
         pix->y = (short)(yM & (maxH - 1));
-        get_mb_pos(p_Vid, pix->mb_addr, mb_size, &(pix->pos_x), &(pix->pos_y));
-        pix->pos_x = pix->pos_x + pix->x;
-        pix->pos_y = pix->pos_y + pix->y;
+
+        if (p_Vid->dec_picture->mb_aff_frame_flag) {
+            BlockPos *pPos = &p_Vid->PicPos[pix->mb_addr >> 1];
+            pix->pos_x = (short)pPos->x;
+            pix->pos_y = (short)((pPos->y << 1) + (pix->mb_addr & 0x01));
+        } else {
+            BlockPos *pPos = &p_Vid->PicPos[pix->mb_addr];
+            pix->pos_x = (short)pPos->x;
+            pix->pos_y = (short)pPos->y;
+        }
+
+        pix->pos_x = pix->x + (short)(pix->pos_x * mb_size[0]);
+        pix->pos_y = pix->y + (short)(pix->pos_y * mb_size[1]);
     }
 }
 
@@ -418,32 +452,6 @@ void CheckAvailabilityOfNeighborsCABAC(mb_t *currMB)
         currMB->mb_left = &currMB->p_Slice->mb_data[left.mb_addr];
     else
         currMB->mb_left = NULL;
-}
-
-
-static void get_mb_block_pos_normal(BlockPos *PicPos, int mb_addr, short *x, short *y)
-{
-    BlockPos *pPos = &PicPos[mb_addr];
-    *x = (short) pPos->x;
-    *y = (short) pPos->y;
-}
-
-static void get_mb_block_pos_mbaff(BlockPos *PicPos, int mb_addr, short *x, short *y)
-{
-    BlockPos *pPos = &PicPos[mb_addr >> 1];
-    *x = (short)  pPos->x;
-    *y = (short) ((pPos->y << 1) + (mb_addr & 0x01));
-}
-
-void get_mb_pos(VideoParameters *p_Vid, int mb_addr, int mb_size[2], short *x, short *y)
-{
-    if (p_Vid->dec_picture->mb_aff_frame_flag)
-        get_mb_block_pos_mbaff(p_Vid->PicPos, mb_addr, x, y);
-    else
-        get_mb_block_pos_normal(p_Vid->PicPos, mb_addr, x, y);
-
-    (*x) = (short) ((*x) * mb_size[0]);
-    (*y) = (short) ((*y) * mb_size[1]);
 }
 
 

@@ -30,30 +30,31 @@ namespace h264 {
 
 
 struct transform_t {
-	void inverse_luma_dc         (macroblock_t* mb, ColorPlane pl);
-	void inverse_chroma_dc       (macroblock_t* mb, ColorPlane pl);
+	void inverse_luma_dc         (mb_t* mb, ColorPlane pl);
+	void inverse_chroma_dc       (mb_t* mb, ColorPlane pl);
 
-	void inverse_transform_4x4   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-	void inverse_transform_8x8   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-	void inverse_transform_16x16 (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-	void inverse_transform_chroma(macroblock_t* mb, ColorPlane pl);
+	void inverse_transform_4x4   (mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void inverse_transform_8x8   (mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void inverse_transform_16x16 (mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void inverse_transform_chroma(mb_t* mb, ColorPlane pl);
 
-	void inverse_transform_inter (macroblock_t* mb, ColorPlane pl, int smb);
+	void inverse_transform_inter (mb_t* mb, ColorPlane pl, int smb);
 
 protected:
-	void Inv_Residual_trans_4x4   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-	void Inv_Residual_trans_8x8   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-	void Inv_Residual_trans_16x16 (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-	void Inv_Residual_trans_Chroma(macroblock_t* mb, ColorPlane pl, int ioff, int joff);
+	void Inv_Residual_trans_4x4   (mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void Inv_Residual_trans_8x8   (mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void Inv_Residual_trans_16x16 (mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void Inv_Residual_trans_Chroma(mb_t* mb, ColorPlane pl, int ioff, int joff);
 
-	void itrans4x4_ls(macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-	void itrans4x4   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-	void itrans8x8   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-	void itrans16x16 (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-	void itrans_sp   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
+	void itrans4x4_ls(mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void itrans8x8_ls(mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void itrans4x4   (mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void itrans8x8   (mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void itrans16x16 (mb_t* mb, ColorPlane pl, int ioff, int joff);
+	void itrans_sp   (mb_t* mb, ColorPlane pl, int ioff, int joff);
 
-	void iMBtrans4x4(macroblock_t* mb, ColorPlane pl, int smb);
-	void iMBtrans8x8(macroblock_t* mb, ColorPlane pl, int smb);
+	void iMBtrans4x4(mb_t* mb, ColorPlane pl, int smb);
+	void iMBtrans8x8(mb_t* mb, ColorPlane pl, int smb);
 };
 
 extern transform_t transform;

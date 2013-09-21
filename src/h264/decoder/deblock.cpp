@@ -625,19 +625,19 @@ static void update_mbaff_macroblock_data(imgpel **cur_img, imgpel (*temp)[16], i
 
 static void MbAffPostProc(VideoParameters *p_Vid)
 {
-    imgpel temp_buffer[32][16];
+    slice_t* slice = p_Vid->ppSliceList[0];
+    sps_t* sps = p_Vid->active_sps;
 
     storable_picture* dec_picture = p_Vid->dec_picture;
-    sps_t* sps = p_Vid->active_sps;
     imgpel**  imgY  = dec_picture->imgY;
     imgpel*** imgUV = dec_picture->imgUV;
 
-    int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
+    imgpel temp_buffer[32][16];
+    int x0, y0;
 
-    for (int i = 0; i < (int)dec_picture->PicSizeInMbs; i += 2) {
-        if (dec_picture->motion.mb_field_decoding_flag[i]) {
-            short x0, y0;
-            get_mb_pos(p_Vid, i, mb_size, &x0, &y0);
+    for (int mbAddr = 0; mbAddr < dec_picture->PicSizeInMbs; mbAddr += 2) {
+        if (dec_picture->motion.mb_field_decoding_flag[mbAddr]) {
+            neighbour.get_mb2pos(slice, mbAddr, x0, y0);
             update_mbaff_macroblock_data(imgY + y0, temp_buffer, x0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
             if (dec_picture->chroma_format_idc != YUV400) {

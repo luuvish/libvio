@@ -5,7 +5,7 @@
 #include "global.h"
 #include "parset.h"
 #include "dpb.h"
-
+#include "macroblock.h"
 #include "quantization.h"
 
 
@@ -41,9 +41,9 @@ typedef struct DecRefPicMarking_s
 } DecRefPicMarking_t;
 
 //! slice_t
-typedef struct slice_t {
-    struct video_par         *p_Vid;
-    struct inp_par           *p_Inp;
+struct slice_t {
+    video_par*  p_Vid;
+    inp_par*    p_Inp;
     pps_t*      active_pps;
     sps_t*      active_sps;
     int         svc_extension_flag;
@@ -185,8 +185,8 @@ typedef struct slice_t {
     char                      listXsize[6];
     struct storable_picture **listX[6];
 
-    data_partition_t            *partArr;      //!< array of partitions
-    cabac_contexts_t         *mot_ctx;      //!< pointer to struct of context models for use in CABAC
+    data_partition_t* partArr;      //!< array of partitions
+    cabac_contexts_t* mot_ctx;      //!< pointer to struct of context models for use in CABAC
 
     int                       mvscale[6][MAX_REFERENCE_PICTURES];
 
@@ -215,23 +215,23 @@ typedef struct slice_t {
 
 
 #if (MVC_EXTENSION_ENABLE)
-    int                       listinterviewidx0;
-    int                       listinterviewidx1;
-    struct frame_store      **fs_listinterview0;
-    struct frame_store      **fs_listinterview1;
+    int           listinterviewidx0;
+    int           listinterviewidx1;
+    frame_store** fs_listinterview0;
+    frame_store** fs_listinterview1;
 #endif
 
     // for signalling to the neighbour logic that this is a deblocker call
     int                       max_mb_vmv_r; //!< maximum vertical motion vector range in luma quarter pixel units for the current level_idc
 
     int                       erc_mvperMB;
-    struct macroblock_t     *mb_data;
-    struct storable_picture  *dec_picture;
-    char                      chroma_vector_adjustment[6][32];
+    mb_t*             mb_data;
+    storable_picture* dec_picture;
+    char              chroma_vector_adjustment[6][32];
 
     bool        init();
     void        decode();
-} slice_t;
+};
 
 
 void slice_header(slice_t *currSlice);

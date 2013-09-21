@@ -1,3 +1,26 @@
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : neighbour.h
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
+
 #ifndef _NEIGHBOUR_H_
 #define _NEIGHBOUR_H_
 
@@ -8,7 +31,6 @@ void CheckAvailabilityOfNeighborsCABAC(mb_t* mb);
 void getNeighbour       (mb_t* mb, int xN, int yN, int mb_size[2], PixelPos *pix);
 void get4x4Neighbour    (mb_t* mb, int xN, int yN, int mb_size[2], PixelPos *pix);
 void get4x4NeighbourBase(mb_t* mb, int xN, int yN, int mb_size[2], PixelPos *pix);
-void get_mb_pos         (VideoParameters *p_Vid, int mb_addr, int mb_size[2], short *x, short *y);
 
 void get_neighbors(mb_t* mb, PixelPos *block, int mb_x, int mb_y, int blockshape_x);
 void check_dp_neighbors(mb_t* mb);
