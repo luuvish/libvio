@@ -29,11 +29,145 @@
 #include "neighbour.h"
 
 
-using namespace vio::h264;
+loc_t operator + (const loc_t& l, const loc_t& r)
+{
+    return { l.x + r.x, l.y + r.y };
+}
+
+loc_t operator - (const loc_t& l, const loc_t& r)
+{
+    return { l.x - r.x, l.y - r.y };
+}
 
 
-neighbour_t neighbour;
+loc_t neighbour_t::get_location(slice_t* slice, int mbAddr, const pos_t& offset)
+{
+    sps_t* sps = slice->active_sps;
 
+    loc_t loc {};
+
+    if (slice->MbaffFrameFlag == 0) {
+        loc.x = mbAddr % sps->PicWidthInMbs * 16;
+        loc.y = mbAddr / sps->PicWidthInMbs * 16;
+        loc.x += offset.x;
+        loc.y += offset.y;
+    } else {
+        loc.x = (mbAddr / 2) % sps->PicWidthInMbs * 16;
+        loc.y = (mbAddr / 2) / sps->PicWidthInMbs * 32;
+        mb_t* mb = &slice->mb_data[mbAddr];
+        loc.x += offset.x;
+        if (mb->mb_field_decoding_flag == 0) {
+            loc.y += mbAddr % 2 * 16;
+            loc.y += offset.y;
+        } else {
+            loc.y += mbAddr % 2;
+            loc.y += offset.y * 2;
+        }
+    }
+
+    return loc;
+}
+
+mb_t* neighbour_t::get_mb(slice_t* slice, const loc_t& loc)
+{
+    sps_t* sps = slice->active_sps;
+
+    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * 16)
+        return nullptr;
+    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * 16)
+        return nullptr;
+
+    int mbAddr = (slice->MbaffFrameFlag == 0) ?
+        ((loc.y / 16) * sps->PicWidthInMbs + (loc.x / 16)) :
+        ((loc.y / 32) * sps->PicWidthInMbs + (loc.x / 16)) * 2;
+
+    mb_t* mb = &slice->mb_data[mbAddr];
+    if (slice->MbaffFrameFlag)
+        mb += ((mb->mb_field_decoding_flag == 0) ? (loc.y & 16) : (loc.y & 1)) ? 1 : 0;
+    return mb;
+}
+
+int neighbour_t::get_mbaddr(slice_t* slice, const loc_t& loc)
+{
+    sps_t* sps = slice->active_sps;
+
+    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * 16)
+        return -1;
+    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * 16)
+        return -1;
+
+    int mbAddr = (slice->MbaffFrameFlag == 0) ?
+        ((loc.y / 16) * sps->PicWidthInMbs + (loc.x / 16)) :
+        ((loc.y / 32) * sps->PicWidthInMbs + (loc.x / 16)) * 2;
+
+    if (slice->MbaffFrameFlag) {
+        mb_t* mb = &slice->mb_data[mbAddr];
+        mbAddr += ((mb->mb_field_decoding_flag == 0) ? (loc.y & 16) : (loc.y & 1)) ? 1 : 0;
+    }
+    return mbAddr;
+}
+
+pos_t neighbour_t::get_blkpos(slice_t* slice, const loc_t& loc)
+{
+    sps_t* sps = slice->active_sps;
+
+    pos_t pos {};
+
+    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * 16)
+        return pos;
+    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * 16)
+        return pos;
+
+    int mbAddr = (slice->MbaffFrameFlag == 0) ?
+        ((loc.y / 16) * sps->PicWidthInMbs + (loc.x / 16)) :
+        ((loc.y / 32) * sps->PicWidthInMbs + (loc.x / 16)) * 2;
+
+    pos.x = loc.x;
+    pos.y = loc.y;
+    if (slice->MbaffFrameFlag) {
+        mb_t* mb = &slice->mb_data[mbAddr];
+        if (mb->mb_field_decoding_flag)
+            pos.y = loc.y / 32 * 32 + (loc.y % 32) / 2 + 16 * (loc.y & 1);
+    }
+    return pos;
+}
+
+
+pos_t neighbour_t::get_position(slice_t* slice, int mbAddr, int blkIdx)
+{
+    sps_t* sps = slice->active_sps;
+
+    pos_t pos {};
+
+    int blkX = ((blkIdx / 4) % 2) * 2 + (blkIdx % 4) % 2;
+    int blkY = ((blkIdx / 4) / 2) * 2 + (blkIdx % 4) / 2;
+
+    if (slice->MbaffFrameFlag == 0) {
+        pos.x = mbAddr % sps->PicWidthInMbs * 16;
+        pos.y = mbAddr / sps->PicWidthInMbs * 16;
+        pos.x += blkX * 4;
+        pos.y += blkY * 4;
+    } else {
+        pos.x = (mbAddr / 2) % sps->PicWidthInMbs * 16;
+        pos.y = (mbAddr / 2) / sps->PicWidthInMbs * 32;
+        mb_t* mb = &slice->mb_data[mbAddr];
+        pos.x += blkX * 4;
+        if (mb->mb_field_decoding_flag == 0) {
+            pos.y += mbAddr % 2 * 16;
+            pos.y += blkY * 4;
+        } else {
+            pos.y += mbAddr % 2;
+            pos.y += blkY * 8;
+        }
+    }
+
+    return pos;
+}
+
+int neighbour_t::get_blkIdx(slice_t* slice, const pos_t& pos)
+{
+    return 0;
+}
 
 void neighbour_t::get_mb2pos(slice_t* slice, int mbAddr, int& xI, int& yI)
 {
@@ -78,6 +212,31 @@ mb_t* neighbour_t::get_pos2mb(slice_t* slice, int xP, int yP, int& mbAddr)
     return mb;
 }
 
+int neighbour_t::get_pos2mb(slice_t* slice, int xP, int yP)
+{
+    sps_t* sps = slice->active_sps;
+
+    if (xP < 0 || xP >= sps->PicWidthInMbs * 16)
+        return -1;
+    if (yP < 0 || yP >= slice->PicHeightInMbs * 16)
+        return -1;
+
+    int mbAddr = (slice->MbaffFrameFlag == 0) ?
+        ((yP / 16) * sps->PicWidthInMbs + (xP / 16)) :
+        ((yP / 32) * sps->PicWidthInMbs + (xP / 16)) * 2;
+    if (mbAddr < 0 || mbAddr >= sps->PicWidthInMbs * slice->PicHeightInMbs)
+        return -1;
+
+    mb_t* mb = &slice->mb_data[mbAddr];
+    if (slice->MbaffFrameFlag) {
+        if ((mb->mb_field_decoding_flag == 0) ? (yP & 16) : (yP & 1)) {
+            ++mbAddr;
+            ++mb;
+        }
+    }
+    return mbAddr;
+}
+
 int neighbour_t::predict_nnz(mb_t* mb, int pl, int i, int j)
 {
     slice_t* slice = mb->p_Slice;
@@ -95,7 +254,7 @@ int neighbour_t::predict_nnz(mb_t* mb, int pl, int i, int j)
 
     bool availableFlagA = pixA.available;
     bool availableFlagB = pixB.available;
-    if (pps->constrained_intra_pred_flag && slice->dp_mode == PAR_DP_3) {
+    if (pps->constrained_intra_pred_flag && slice->dp_mode == vio::h264::PAR_DP_3) {
         if (mb->is_intra_block) {
             availableFlagA &= slice->mb_data[pixA.mb_addr].is_intra_block;
             availableFlagB &= slice->mb_data[pixB.mb_addr].is_intra_block;
@@ -468,21 +627,11 @@ void get4x4Neighbour(mb_t *currMB, int block_x, int block_y, int mb_size[2], Pix
     }
 }
 
-void get4x4NeighbourBase(mb_t *currMB, int block_x, int block_y, int mb_size[2], PixelPos *pix)
-{
-    getNeighbour(currMB, block_x, block_y, mb_size, pix);
-
-    if (pix->available) {
-        pix->x >>= 2;
-        pix->y >>= 2;
-    }
-}
-
 
 void get_neighbors(mb_t *currMB, PixelPos *block, int mb_x, int mb_y, int blockshape_x)
 {
     int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-  
+
     get4x4Neighbour(currMB, mb_x - 1,            mb_y    , mb_size, block    );
     get4x4Neighbour(currMB, mb_x,                mb_y - 1, mb_size, block + 1);
     get4x4Neighbour(currMB, mb_x + blockshape_x, mb_y - 1, mb_size, block + 2);  

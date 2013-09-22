@@ -2,14 +2,7 @@
 #include "dpb.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "transform.h"
-#include "intra_prediction.h"
-#include "inter_prediction.h"
 
-
-using namespace vio::h264;
-
-intra_prediction_t intra_prediction;
 
 //! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
 static const int BLOCK_STEP[8][2] = {
@@ -20,17 +13,15 @@ static const int BLOCK_STEP[8][2] = {
 static void mb_pred_skip(mb_t* mb, ColorPlane curr_plane)
 {
     slice_t* slice = mb->p_Slice;
-    storable_picture* dec_picture = slice->dec_picture;
 
-    perform_mc(mb, curr_plane, dec_picture, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+    slice->inter_prediction.perform_mc(mb, curr_plane, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
-    transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice);
+    slice->transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice);
 }
 
 static void mb_pred_p_inter(mb_t* mb, ColorPlane curr_plane)
 {
     slice_t* slice = mb->p_Slice;
-    storable_picture* dec_picture = slice->dec_picture;
 
     int step_h0 = BLOCK_STEP[mb->mb_type][0];
     int step_v0 = BLOCK_STEP[mb->mb_type][1];
@@ -45,12 +36,12 @@ static void mb_pred_p_inter(mb_t* mb, ColorPlane curr_plane)
 
             for (int j = j0; j < j0 + step_v0; j += step_v4) {
                 for (int i = i0; i < i0 + step_h0; i += step_h4)
-                    perform_mc(mb, curr_plane, dec_picture, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
+                    slice->inter_prediction.perform_mc(mb, curr_plane, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
             }
         }
     }
 
-    transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice);
+    slice->transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice);
     if (mb->CodedBlockPatternLuma != 0 || mb->CodedBlockPatternChroma != 0)
         slice->is_reset_coeff = false;
 }
@@ -59,19 +50,18 @@ static void mb_pred_b_direct(mb_t* mb, ColorPlane curr_plane)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
-    storable_picture* dec_picture = slice->dec_picture;
 
     if (slice->direct_spatial_mv_pred_flag) {
         if (sps->direct_8x8_inference_flag)
-            get_direct8x8spatial(mb, dec_picture);
+            slice->inter_prediction.get_direct8x8spatial(mb);
         else
-            get_direct4x4spatial(mb, dec_picture);
+            slice->inter_prediction.get_direct4x4spatial(mb);
     } else {
         for (int block8x8 = 0; block8x8 < 4; block8x8++) {
             if (sps->direct_8x8_inference_flag)
-                get_direct8x8temporal(mb, dec_picture, block8x8);
+                slice->inter_prediction.get_direct8x8temporal(mb, block8x8);
             else
-                get_direct4x4temporal(mb, dec_picture, block8x8);
+                slice->inter_prediction.get_direct4x4temporal(mb, block8x8);
         }
     }
 
@@ -92,12 +82,12 @@ static void mb_pred_b_direct(mb_t* mb, ColorPlane curr_plane)
 
             for (int j = j0; j < j0 + step_v0; j += step_v4) {
                 for (int i = i0; i < i0 + step_h0; i += step_h4)
-                    perform_mc(mb, curr_plane, dec_picture, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
+                    slice->inter_prediction.perform_mc(mb, curr_plane, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
             }
         }
     }
 
-    transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice); 
+    slice->transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice); 
     if (mb->CodedBlockPatternLuma != 0 || mb->CodedBlockPatternChroma != 0)
         slice->is_reset_coeff = false;
 }
@@ -106,7 +96,6 @@ static void mb_pred_b_inter8x8(mb_t* mb, ColorPlane curr_plane)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
-    storable_picture* dec_picture = slice->dec_picture;
 
     int step_h0 = BLOCK_STEP[mb->mb_type][0];
     int step_v0 = BLOCK_STEP[mb->mb_type][1];
@@ -116,7 +105,7 @@ static void mb_pred_b_inter8x8(mb_t* mb, ColorPlane curr_plane)
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {
             int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-            pred_dirs[block8x8] = get_inter8x8(mb, dec_picture, block8x8);
+            pred_dirs[block8x8] = slice->inter_prediction.get_inter8x8(mb, block8x8);
         }
     }
 
@@ -134,12 +123,12 @@ static void mb_pred_b_inter8x8(mb_t* mb, ColorPlane curr_plane)
 
             for (int j = j0; j < j0 + step_v0; j += step_v4) {
                 for (int i = i0; i < i0 + step_h0; i += step_h4)
-                    perform_mc(mb, curr_plane, dec_picture, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
+                    slice->inter_prediction.perform_mc(mb, curr_plane, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
             }
         }
     }
 
-    transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice);
+    slice->transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice);
     if (mb->CodedBlockPatternLuma != 0 || mb->CodedBlockPatternChroma != 0)
         slice->is_reset_coeff = false;
 }
@@ -195,28 +184,28 @@ static void mb_pred_intra(mb_t* mb, ColorPlane curr_plane)
         int joff = ((block4x4 / 4) / 2) * 8 + ((block4x4 % 4) / 2) * 4;
 
         if (mb->mb_type == I4MB)
-            intra_prediction.intra_pred_4x4(mb, curr_plane, ioff, joff);
+            slice->intra_prediction.intra_pred_4x4(mb, curr_plane, ioff, joff);
         else if (mb->mb_type == I8MB)
-            intra_prediction.intra_pred_8x8(mb, curr_plane, ioff, joff);
+            slice->intra_prediction.intra_pred_8x8(mb, curr_plane, ioff, joff);
         else if (mb->mb_type == I16MB)
-            intra_prediction.intra_pred_16x16(mb, curr_plane, ioff, joff);
+            slice->intra_prediction.intra_pred_16x16(mb, curr_plane, ioff, joff);
 
         if (mb->mb_type == I4MB)
-            transform.inverse_transform_4x4(mb, curr_plane, ioff, joff);
+            slice->transform.inverse_transform_4x4(mb, curr_plane, ioff, joff);
         else if (mb->mb_type == I8MB)
-            transform.inverse_transform_8x8(mb, curr_plane, ioff, joff);
+            slice->transform.inverse_transform_8x8(mb, curr_plane, ioff, joff);
         else if (mb->mb_type == I16MB)
-            transform.inverse_transform_16x16(mb, curr_plane, ioff, joff);
+            slice->transform.inverse_transform_16x16(mb, curr_plane, ioff, joff);
     }
 
     if (mb->mb_type == I16MB || mb->CodedBlockPatternLuma != 0 || mb->CodedBlockPatternChroma != 0)
         slice->is_reset_coeff = false;
 
     if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
-        intra_prediction.intra_pred_chroma(mb);
+        slice->intra_prediction.intra_pred_chroma(mb);
 
         for (int uv = 0; uv < 2; uv++)
-            transform.inverse_transform_chroma(mb, (ColorPlane)(uv + 1));
+            slice->transform.inverse_transform_chroma(mb, (ColorPlane)(uv + 1));
         if (mb->CodedBlockPatternChroma)
             slice->is_reset_coeff_cr = false;
     }

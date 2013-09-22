@@ -12,8 +12,6 @@
 
 using vio::h264::cabac_context_t;
 using vio::h264::cabac_engine_t;
-using vio::h264::transform_t;
-using vio::h264::transform;
 
 
 #define IS_I16MB(MB) ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
@@ -288,7 +286,7 @@ void macroblock_t::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, u
     if (chroma && !ac)
         nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
     else
-        nC = neighbour.predict_nnz(this, pl, i * 4, j * 4);
+        nC = slice->neighbour.predict_nnz(this, pl, i * 4, j * 4);
 
     uint8_t coeff_token  = this->parse_coeff_token(nC);
     uint8_t TotalCoeff   = coeff_token >> 2;
@@ -722,7 +720,7 @@ void macroblock_t::residual_luma(ColorPlane pl)
     if (IS_I16MB(this) && !this->dpl_flag) {
         residual_block(this, LUMA_16DC, 0, 15, 16, pl, false, false, 0);
 
-        transform.inverse_luma_dc(this, pl);
+        slice->transform.inverse_luma_dc(this, pl);
     }
 
     for (int i8x8 = 0; i8x8 < 4; i8x8++) {
@@ -771,7 +769,7 @@ void macroblock_t::residual_chroma()
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
             residual_block(this, CHROMA_DC, 0, 4 * NumC8x8 - 1, 4 * NumC8x8, (ColorPlane)(iCbCr+1), true, false, 0);
 
-            transform.inverse_chroma_dc(this, (ColorPlane)(iCbCr + 1));
+            slice->transform.inverse_chroma_dc(this, (ColorPlane)(iCbCr + 1));
         }
     }
 

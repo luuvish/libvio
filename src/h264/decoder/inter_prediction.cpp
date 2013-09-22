@@ -28,6 +28,11 @@
 #include "transform.h"
 #include "inter_prediction.h"
 
+
+namespace vio  {
+namespace h264 {
+
+
 // These variables relate to the subpel accuracy supported by the software (1/4)
 #define BLOCK_SIZE_8x8_SP  32  // BLOCK_SIZE8x8 << 2
 
@@ -307,7 +312,7 @@ static void get_luma_31(imgpel **block, imgpel **cur_imgY, int block_size_y, int
  *    Interpolation of 1/4 subpixel
  ************************************************************************
  */ 
-void get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
+void inter_prediction_t::get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
                     imgpel **block, int shift_x, int maxold_x, int maxold_y,
                     ColorPlane pl, mb_t *currMB)
 {
@@ -462,7 +467,7 @@ static int CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
         return 0;
 }
 
-void perform_mc(mb_t *currMB, ColorPlane pl, storable_picture *dec_picture, int pred_dir, int i, int j, int block_size_x, int block_size_y)
+void inter_prediction_t::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y)
 {
     assert (pred_dir <= 2);
 
@@ -471,6 +476,8 @@ void perform_mc(mb_t *currMB, ColorPlane pl, storable_picture *dec_picture, int 
     VideoParameters *p_Vid = currMB->p_Vid;    
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
+
+    storable_picture* dec_picture = currSlice->dec_picture;
 
     int i4 = currMB->mb.x * 4 + i;
     int j4 = currMB->mb.y * 4 + j;
@@ -493,11 +500,6 @@ void perform_mc(mb_t *currMB, ColorPlane pl, storable_picture *dec_picture, int 
     MotionVector *l0_mv_array, *l1_mv_array;
     short l0_refframe, l1_refframe;
     storable_picture *list0, *list1;
-
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
 
     if (pred_dir != 2) {
         l0_mv_array = &mv_info->mv[pred_dir];
@@ -566,14 +568,14 @@ void perform_mc(mb_t *currMB, ColorPlane pl, storable_picture *dec_picture, int 
         int maxold_x = dec_picture->size_x_cr_m1;
         int maxold_y = currMB->mb_field_decoding_flag ? (dec_picture->size_y_cr >> 1) - 1 : dec_picture->size_y_cr_m1;
 
-        if (mb_cr_size_x == MB_BLOCK_SIZE) {
+        if (sps->MbWidthC == MB_BLOCK_SIZE) {
             ioff_cr = ioff;
             block_size_x_cr = block_size_x;
         } else {
             ioff_cr = ioff >> 1;
             block_size_x_cr = block_size_x >> 1;
         }
-        if (mb_cr_size_y == MB_BLOCK_SIZE) {
+        if (sps->MbHeightC == MB_BLOCK_SIZE) {
             joff_cr = joff;
             block_size_y_cr = block_size_y;
         } else {
@@ -625,4 +627,8 @@ void perform_mc(mb_t *currMB, ColorPlane pl, storable_picture *dec_picture, int 
 
 void inter_prediction_t::motion_compensation(mb_t *mb)
 {
+}
+
+
+}
 }

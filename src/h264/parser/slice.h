@@ -6,7 +6,14 @@
 #include "parset.h"
 #include "dpb.h"
 #include "macroblock.h"
+
+#include "neighbour.h"
+
+#include "intra_prediction.h"
+#include "inter_prediction.h"
 #include "quantization.h"
+#include "transform.h"
+#include "deblock.h"
 
 
 #define MAX_NUM_REF_IDX 32
@@ -17,7 +24,14 @@ struct cabac_contexts_t;
 struct macroblock_t;
 
 using vio::h264::cabac_contexts_t;
+
+//using vio::h264::neighbour_t;
+
+using vio::h264::intra_prediction_t;
+using vio::h264::inter_prediction_t;
 using vio::h264::quantization_t;
+using vio::h264::transform_t;
+using vio::h264::deblock_t;
 
 
 enum {
@@ -210,8 +224,13 @@ struct slice_t {
     imgpel                  **tmp_block_l2; // InterPrediction()
     imgpel                  **tmp_block_l3; // InterPrediction()
 
+    neighbour_t        neighbour;
 
-    quantization_t            quantization;
+    intra_prediction_t intra_prediction;
+    inter_prediction_t inter_prediction;
+    quantization_t     quantization;
+    transform_t        transform;
+    deblock_t          deblock;
 
 
 #if (MVC_EXTENSION_ENABLE)

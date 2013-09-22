@@ -54,9 +54,6 @@ private:
 };
 
 
-extern deblock_t deblock;
-
-
 }
 }
 

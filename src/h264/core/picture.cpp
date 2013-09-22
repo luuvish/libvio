@@ -16,14 +16,8 @@
 #include "macroblock.h"
 #include "neighbour.h"
 
-#include "intra_prediction.h"
-#include "deblock.h"
-
 #include "erc_api.h"
 #include "dpb.h"
-
-
-using vio::h264::deblock;
 
 
 static inline int is_BL_profile(unsigned int profile_idc) 
@@ -441,7 +435,7 @@ void exit_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
     erc_picture(p_Vid, dec_picture);
 #endif
 
-    deblock.deblock(p_Vid);
+    currSlice->deblock.deblock(p_Vid);
 
     if (p_Vid->structure != FRAME)
         p_Vid->number /= 2;

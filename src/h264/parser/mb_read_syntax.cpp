@@ -70,8 +70,8 @@ static int mvd_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, bool co
 
     PixelPos block_a, block_b;
     int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-    get4x4NeighbourBase(mb, x0 * 4 - 1, y0 * 4, mb_size, &block_a);
-    get4x4NeighbourBase(mb, x0 * 4, y0 * 4 - 1, mb_size, &block_b);
+    get4x4Neighbour(mb, x0 * 4 - 1, y0 * 4, mb_size, &block_a);
+    get4x4Neighbour(mb, x0 * 4, y0 * 4 - 1, mb_size, &block_b);
 
     int absMvdCompA = 0;
     int absMvdCompB = 0;
@@ -109,6 +109,14 @@ static int cbp_ctxIdxInc(mb_t* mb, uint8_t x0, uint8_t y0, uint8_t coded_block_p
 {
     slice_t* slice = mb->p_Slice;
 
+//    loc_t locA = slice->neighbour.get_location(slice, mb->mbAddrX, {x0 * 4 - 1, y0 * 4});
+//    loc_t locB = slice->neighbour.get_location(slice, mb->mbAddrX, {x0 * 4, y0 * 4 - 1});
+//    mb_t* mbA  = slice->neighbour.get_mb      (slice, locA);
+//    mb_t* mbB  = slice->neighbour.get_mb      (slice, locB);
+//
+//    mbA = mbA && mbA->slice_nr == mb->slice_nr ? mbA : nullptr;
+//    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbA : nullptr;
+
     PixelPos block_a, block_b;
     int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
     get4x4Neighbour(mb, x0 * 4 - 1, y0 * 4, mb_size, &block_a);
@@ -116,6 +124,11 @@ static int cbp_ctxIdxInc(mb_t* mb, uint8_t x0, uint8_t y0, uint8_t coded_block_p
 
     int cbp_a = 0x3F, cbp_b = 0x3F;
     int cbp_a_idx = 0, cbp_b_idx = 0;
+    //if (x0 == 0) {
+    //    if (mbA && mbA->mb_type != IPCM) {
+    //        cbp_a = mbA->CodedBlockPatternLuma;
+    //        cbp_a_idx = 2 * (block_a.y / 2) + 1;
+    //    }
     if (x0 == 0) {
         if (block_a.available && slice->mb_data[block_a.mb_addr].mb_type != IPCM) {
             cbp_a = slice->mb_data[block_a.mb_addr].CodedBlockPatternLuma;
@@ -125,6 +138,11 @@ static int cbp_ctxIdxInc(mb_t* mb, uint8_t x0, uint8_t y0, uint8_t coded_block_p
         cbp_a = coded_block_pattern;
         cbp_a_idx = y0;
     }
+    //if (y0 == 0) {
+    //    if (mbB && mbB->mb_type != IPCM) {
+    //        cbp_b = mbB->CodedBlockPatternLuma;
+    //        cbp_b_idx = (x0 / 2) + 2;
+    //    }
     if (y0 == 0) {
         if (block_b.available && slice->mb_data[block_b.mb_addr].mb_type != IPCM) {
             cbp_b = slice->mb_data[block_b.mb_addr].CodedBlockPatternLuma;

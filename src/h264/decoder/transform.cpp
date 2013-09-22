@@ -43,8 +43,6 @@ namespace vio  {
 namespace h264 {
 
 
-transform_t transform;
-
 // Macro defines
 #define Q_BITS          15
 #define DQ_BITS          6

@@ -340,7 +340,7 @@ static void update_direct_mv_info_spatial_8x8(mb_t *currMB)
 
     char l0_rFrame, l1_rFrame;
     MotionVector pmvl0, pmvl1;
-    prepare_direct_params(currMB, dec_picture, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
+    currSlice->inter_prediction.prepare_direct_params(currMB, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
 
     storable_picture *ref_pic_l[2];
     char             ref_idx_l[2];
@@ -403,7 +403,7 @@ static void update_direct_mv_info_spatial_4x4(mb_t *currMB)
 
     char l0_rFrame, l1_rFrame;
     MotionVector pmvl0, pmvl1;
-    prepare_direct_params(currMB, dec_picture, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
+    currSlice->inter_prediction.prepare_direct_params(currMB, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
 
     storable_picture *ref_pic_l[2];
     char              ref_idx_l[2];
@@ -448,7 +448,7 @@ static void update_direct_mv_info_spatial_4x4(mb_t *currMB)
 }
 
 
-void update_direct_mv_info(mb_t *currMB)
+void inter_prediction_t::update_direct_mv_info(mb_t *currMB)
 {
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
@@ -461,9 +461,10 @@ void update_direct_mv_info(mb_t *currMB)
 }
 
 
-void get_direct8x8temporal(mb_t *currMB, storable_picture *dec_picture, int block8x8)
+void inter_prediction_t::get_direct8x8temporal(mb_t *currMB, int block8x8)
 {
     slice_t *currSlice = currMB->p_Slice;
+    storable_picture* dec_picture = currSlice->dec_picture;
     sps_t *sps = currSlice->active_sps;
   
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
@@ -595,11 +596,12 @@ void get_direct8x8temporal(mb_t *currMB, storable_picture *dec_picture, int bloc
     }
 }
 
-void get_direct4x4temporal(mb_t *currMB, storable_picture *dec_picture, int block8x8)
+void inter_prediction_t::get_direct4x4temporal(mb_t *currMB, int block8x8)
 {
     slice_t *currSlice = currMB->p_Slice;
+    storable_picture* dec_picture = currSlice->dec_picture;
     sps_t *sps = currSlice->active_sps;
-  
+
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
     storable_picture **list0 = currSlice->listX[LIST_0 + list_offset];
@@ -668,9 +670,10 @@ void get_direct4x4temporal(mb_t *currMB, storable_picture *dec_picture, int bloc
     }
 }
 
-void get_direct8x8spatial(mb_t *currMB, storable_picture *dec_picture)
+void inter_prediction_t::get_direct8x8spatial(mb_t *currMB)
 {
     slice_t *currSlice = currMB->p_Slice;
+    storable_picture* dec_picture = currSlice->dec_picture;
 
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
@@ -679,7 +682,7 @@ void get_direct8x8spatial(mb_t *currMB, storable_picture *dec_picture)
 
     char l0_rFrame = -1, l1_rFrame = -1;
     MotionVector pmvl0 = zero_mv, pmvl1 = zero_mv;
-    prepare_direct_params(currMB, dec_picture, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
+    prepare_direct_params(currMB, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
 
     int pred_dir = 0;
     if (l0_rFrame < 0 && l1_rFrame < 0)
@@ -733,9 +736,10 @@ void get_direct8x8spatial(mb_t *currMB, storable_picture *dec_picture)
     }
 }
 
-void get_direct4x4spatial(mb_t *currMB, storable_picture *dec_picture)
+void inter_prediction_t::get_direct4x4spatial(mb_t *currMB)
 {
     slice_t *currSlice = currMB->p_Slice;
+    storable_picture* dec_picture = currSlice->dec_picture;
 
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
@@ -744,7 +748,7 @@ void get_direct4x4spatial(mb_t *currMB, storable_picture *dec_picture)
 
     char l0_rFrame = -1, l1_rFrame = -1;
     MotionVector pmvl0 = zero_mv, pmvl1 = zero_mv;
-    prepare_direct_params(currMB, dec_picture, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
+    prepare_direct_params(currMB, &pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
 
     int pred_dir = 0;
     if (l0_rFrame < 0 && l1_rFrame < 0)
@@ -793,9 +797,10 @@ void get_direct4x4spatial(mb_t *currMB, storable_picture *dec_picture)
     }
 }
 
-int get_inter8x8(mb_t *currMB, storable_picture *dec_picture, int block8x8)
+int inter_prediction_t::get_inter8x8(mb_t *currMB, int block8x8)
 {
     slice_t *currSlice = currMB->p_Slice;
+    storable_picture* dec_picture = currSlice->dec_picture;
 
     int list_offset = currSlice->MbaffFrameFlag && currMB->mb_field_decoding_flag ?
                       currMB->mbAddrX % 2 ? 4 : 2 : 0;
@@ -858,8 +863,11 @@ static inline void set_direct_references(mb_t *currMB, const PixelPos *mb, char 
     }
 }
 
-void prepare_direct_params(mb_t *currMB, storable_picture *dec_picture, MotionVector *pmvl0, MotionVector *pmvl1, char *l0_rFrame, char *l1_rFrame)
+void inter_prediction_t::prepare_direct_params(mb_t *currMB, MotionVector *pmvl0, MotionVector *pmvl1, char *l0_rFrame, char *l1_rFrame)
 {
+    slice_t *currSlice = currMB->p_Slice;
+    storable_picture* dec_picture = currSlice->dec_picture;
+
     PixelPos mb[4];
     get_neighbors(currMB, mb, 0, 0, 16);
 

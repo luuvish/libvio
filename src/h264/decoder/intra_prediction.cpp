@@ -24,8 +24,6 @@
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "intra_prediction.h"
-#include "neighbour.h"
 
 
 namespace vio  {

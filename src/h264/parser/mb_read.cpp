@@ -839,7 +839,7 @@ void macroblock_t::parse_motion_info()
     slice_t *slice = this->p_Slice;
 
     if (slice->slice_type == B_slice && this->mb_type == P8x8)
-        update_direct_mv_info(this);   
+        slice->inter_prediction.update_direct_mv_info(this);   
 
     this->parse_ref_pic_idx(LIST_0);
     if (slice->slice_type == B_slice)

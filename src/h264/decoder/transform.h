@@ -57,8 +57,6 @@ protected:
 	void iMBtrans8x8(mb_t* mb, ColorPlane pl, int smb);
 };
 
-extern transform_t transform;
-
 
 }
 }
