@@ -30,27 +30,27 @@ namespace h264 {
 
 
 struct deblock_t {
-	void init();
-	void deblock(VideoParameters* p_Vid);
+    void init();
+    void deblock(VideoParameters* p_Vid);
 
 private:
-	int  compare_mvs(const MotionVector* mv0, const MotionVector* mv1, int mvlimit);
-	int  bs_compare_mvs(const pic_motion_params* mv_info_p, const pic_motion_params* mv_info_q, int mvlimit);
+    int  compare_mvs(const MotionVector* mv0, const MotionVector* mv1, int mvlimit);
+    int  bs_compare_mvs(const pic_motion_params* mv_info_p, const pic_motion_params* mv_info_q, int mvlimit);
 
-	void strength_vertical  (mb_t* MbQ, int edge);
-	void strength_horizontal(mb_t* MbQ, int edge);
-	void strength           (mb_t* mb);
+    void strength_vertical  (mb_t* MbQ, int edge);
+    void strength_horizontal(mb_t* MbQ, int edge);
+    void strength           (mb_t* mb);
 
-	void filter_strong(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag);
-	void filter_normal(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int tc0, int BitDepth);
-	void filter_edge  (mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool verticalEdgeFlag, bool fieldModeInFrameFilteringFlag, int edge);
+    void filter_strong(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag);
+    void filter_normal(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int tc0, int BitDepth);
+    void filter_edge  (mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool verticalEdgeFlag, bool fieldModeInFrameFilteringFlag, int edge);
 
-	void filter_vertical  (mb_t* MbQ);
-	void filter_horizontal(mb_t* MbQ);
+    void filter_vertical  (mb_t* MbQ);
+    void filter_horizontal(mb_t* MbQ);
 
-	void init_neighbors       (VideoParameters *p_Vid);
-	void make_frame_picture_JV(VideoParameters *p_Vid);
-	void deblock_pic          (VideoParameters *p_Vid);
+    void init_neighbors       (VideoParameters *p_Vid);
+    void make_frame_picture_JV(VideoParameters *p_Vid);
+    void deblock_pic          (VideoParameters *p_Vid);
 };
 
 

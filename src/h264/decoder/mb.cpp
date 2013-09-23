@@ -16,7 +16,10 @@ static void mb_pred_skip(mb_t* mb, ColorPlane curr_plane)
 
     slice->inter_prediction.perform_mc(mb, curr_plane, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
-    slice->transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice);
+    if (slice->slice_type == SP_slice)
+        slice->transform.inverse_transform_sp(mb, curr_plane);
+    else
+        slice->transform.inverse_transform_inter(mb, curr_plane);
 }
 
 static void mb_pred_p_inter(mb_t* mb, ColorPlane curr_plane)
@@ -41,7 +44,10 @@ static void mb_pred_p_inter(mb_t* mb, ColorPlane curr_plane)
         }
     }
 
-    slice->transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice);
+    if (slice->slice_type == SP_slice)
+        slice->transform.inverse_transform_sp(mb, curr_plane);
+    else
+        slice->transform.inverse_transform_inter(mb, curr_plane);
     if (mb->CodedBlockPatternLuma != 0 || mb->CodedBlockPatternChroma != 0)
         slice->is_reset_coeff = false;
 }
@@ -87,7 +93,10 @@ static void mb_pred_b_direct(mb_t* mb, ColorPlane curr_plane)
         }
     }
 
-    slice->transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice); 
+    if (slice->slice_type == SP_slice)
+        slice->transform.inverse_transform_sp(mb, curr_plane);
+    else
+        slice->transform.inverse_transform_inter(mb, curr_plane);
     if (mb->CodedBlockPatternLuma != 0 || mb->CodedBlockPatternChroma != 0)
         slice->is_reset_coeff = false;
 }
@@ -128,7 +137,10 @@ static void mb_pred_b_inter8x8(mb_t* mb, ColorPlane curr_plane)
         }
     }
 
-    slice->transform.inverse_transform_inter(mb, curr_plane, slice->slice_type == SP_slice);
+    if (slice->slice_type == SP_slice)
+        slice->transform.inverse_transform_sp(mb, curr_plane);
+    else
+        slice->transform.inverse_transform_inter(mb, curr_plane);
     if (mb->CodedBlockPatternLuma != 0 || mb->CodedBlockPatternChroma != 0)
         slice->is_reset_coeff = false;
 }
