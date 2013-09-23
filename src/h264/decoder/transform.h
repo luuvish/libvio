@@ -42,14 +42,14 @@ struct transform_t {
     void inverse_transform_sp    (mb_t* mb, ColorPlane pl);
 
 protected:
-    void Inv_Residual_trans_4x4   (mb_t* mb, ColorPlane pl, int ioff, int joff);
-    void Inv_Residual_trans_8x8   (mb_t* mb, ColorPlane pl, int ioff, int joff);
-    void Inv_Residual_trans_16x16 (mb_t* mb, ColorPlane pl, int ioff, int joff);
-    void Inv_Residual_trans_Chroma(mb_t* mb, ColorPlane pl, int ioff, int joff);
+    void inverse_4x4(int **d, int **r, int pos_y, int pos_x);
+    void inverse_8x8(int **d, int **r, int pos_y, int pos_x);
 
-    void itrans4x4   (mb_t* mb, ColorPlane pl, int ioff, int joff);
-    void itrans8x8   (mb_t* mb, ColorPlane pl, int ioff, int joff);
-    void itrans16x16 (mb_t* mb, ColorPlane pl, int ioff, int joff);
+    void bypass_4x4   (int** r, int** f, int ioff, int joff, uint8_t pred_mode);
+    void bypass_8x8   (int** r, int** f, int ioff, int joff, uint8_t pred_mode);
+    void bypass_16x16 (int** r, int** f, int ioff, int joff, uint8_t pred_mode);
+    void bypass_chroma(int** r, int** f, int nW, int nH, uint8_t pred_mode);
+
     void itrans_sp   (mb_t* mb, ColorPlane pl, int ioff, int joff);
 };
 

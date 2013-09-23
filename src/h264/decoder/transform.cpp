@@ -43,10 +43,7 @@ namespace vio  {
 namespace h264 {
 
 
-// Macro defines
-#define Q_BITS          15
-#define DQ_BITS          6
-#define DQ_BITS_8        6 
+#define Q_BITS 15
 
 static inline int isign(int x)
 {
@@ -56,11 +53,6 @@ static inline int isign(int x)
 static inline int isignab(int a, int b)
 {
     return ((b) < 0) ? -abs(a) : abs(a);
-}
-
-static inline int rshift_rnd(int x, int a)
-{
-    return (a > 0) ? ((x + (1 << (a-1) )) >> a) : (x << (-a));
 }
 
 static inline int rshift_rnd_sf(int x, int a)
@@ -269,141 +261,141 @@ static void ihadamard4x4(int **tblock, int **block)
     }
 }
 
-static void inverse4x4(int **tblock, int **block, int pos_y, int pos_x)
+void transform_t::inverse_4x4(int **d, int **r, int pos_y, int pos_x)
 {
-    int tmp[16];
-    int *pTmp = tmp;
+    int f[4][4];
 
-    // Horizontal
-    for (int i = pos_y; i < pos_y + BLOCK_SIZE; i++) {
-        int *pblock = &tblock[i][pos_x];
+    // horizontal row of scaled transform coefficients
+    for (int i = 0; i < 4; ++i) {
+        int di0 = d[pos_y + i][pos_x + 0];
+        int di1 = d[pos_y + i][pos_x + 1];
+        int di2 = d[pos_y + i][pos_x + 2];
+        int di3 = d[pos_y + i][pos_x + 3];
 
-        int t0 = *(pblock++);
-        int t1 = *(pblock++);
-        int t2 = *(pblock++);
-        int t3 = *(pblock  );
+        int ei0 = di0 + di2;
+        int ei1 = di0 - di2;
+        int ei2 = (di1 >> 1) - di3;
+        int ei3 = di1 + (di3 >> 1);
 
-        int p0 =  t0 + t2;
-        int p1 =  t0 - t2;
-        int p2 = (t1 >> 1) - t3;
-        int p3 =  t1 + (t3 >> 1);
-
-        *(pTmp++) = p0 + p3;
-        *(pTmp++) = p1 + p2;
-        *(pTmp++) = p1 - p2;
-        *(pTmp++) = p0 - p3;
+        f[i][0] = ei0 + ei3;
+        f[i][1] = ei1 + ei2;
+        f[i][2] = ei1 - ei2;
+        f[i][3] = ei0 - ei3;
     }
 
-    // Vertical 
-    for (int i = 0; i < BLOCK_SIZE; i++) {
-        pTmp = tmp + i;
+    // vertical column of the resulting matrix
+    for (int j = 0; j < 4; ++j) {
+        int f0j = f[0][j];
+        int f1j = f[1][j];
+        int f2j = f[2][j];
+        int f3j = f[3][j];
 
-        int t0 = *pTmp;
-        int t1 = *(pTmp += BLOCK_SIZE);
-        int t2 = *(pTmp += BLOCK_SIZE);
-        int t3 = *(pTmp += BLOCK_SIZE);
+        int g0j = f0j + f2j;
+        int g1j = f0j - f2j;
+        int g2j = (f1j >> 1) - f3j;
+        int g3j = f1j + (f3j >> 1);
 
-        int p0 = t0 + t2;
-        int p1 = t0 - t2;
-        int p2 = (t1 >> 1) - t3;
-        int p3 = t1 + (t3 >> 1);
+        int h0j = g0j + g3j;
+        int h1j = g1j + g2j;
+        int h2j = g1j - g2j;
+        int h3j = g0j - g3j;
 
-        block[pos_y    ][pos_x + i] = p0 + p3;
-        block[pos_y + 1][pos_x + i] = p1 + p2;
-        block[pos_y + 2][pos_x + i] = p1 - p2;
-        block[pos_y + 3][pos_x + i] = p0 - p3;
+        r[pos_y + 0][pos_x + j] = (h0j + (1 << 5)) >> 6;
+        r[pos_y + 1][pos_x + j] = (h1j + (1 << 5)) >> 6;
+        r[pos_y + 2][pos_x + j] = (h2j + (1 << 5)) >> 6;
+        r[pos_y + 3][pos_x + j] = (h3j + (1 << 5)) >> 6;
     }
 }
 
-static void inverse8x8(int **tblock, int **block, int pos_x)
+void transform_t::inverse_8x8(int **d, int **r, int pos_y, int pos_x)
 {
-    int tmp[64];
-    int *pTmp = tmp;
+    int g[8][8];
 
-    // Horizontal  
-    for (int i = 0; i < BLOCK_SIZE_8x8; i++) {
-        int *pblock = &tblock[i][pos_x];
+    // horizontal row of scaled transform coefficients
+    for (int i = 0; i < 8; ++i) {
+        int di0 = d[pos_y + i][pos_x + 0];
+        int di1 = d[pos_y + i][pos_x + 1];
+        int di2 = d[pos_y + i][pos_x + 2];
+        int di3 = d[pos_y + i][pos_x + 3];
+        int di4 = d[pos_y + i][pos_x + 4];
+        int di5 = d[pos_y + i][pos_x + 5];
+        int di6 = d[pos_y + i][pos_x + 6];
+        int di7 = d[pos_y + i][pos_x + 7];
 
-        int p0 = *(pblock++);
-        int p1 = *(pblock++);
-        int p2 = *(pblock++);
-        int p3 = *(pblock++);
-        int p4 = *(pblock++);
-        int p5 = *(pblock++);
-        int p6 = *(pblock++);
-        int p7 = *(pblock  );
+        int ei0 = di0 + di4;
+        int ei1 = -di3 + di5 - di7 - (di7 >> 1);
+        int ei2 = di0 - di4;
+        int ei3 = di1 + di7 - di3 - (di3 >> 1);
+        int ei4 = (di2 >> 1) - di6;
+        int ei5 = -di1 + di7 + di5 + (di5 >> 1);
+        int ei6 = di2 + (di6 >> 1);
+        int ei7 = di3 + di5 + di1 + (di1 >> 1);
 
-        int a0 = p0 + p4;
-        int a1 = p0 - p4;
-        int a2 = p6 - (p2 >> 1);
-        int a3 = p2 + (p6 >> 1);
+        int fi0 = ei0 + ei6;
+        int fi1 = ei1 + (ei7 >> 2);
+        int fi2 = ei2 + ei4;
+        int fi3 = ei3 + (ei5 >> 2);
+        int fi4 = ei2 - ei4;
+        int fi5 = (ei3 >> 2) - ei5;
+        int fi6 = ei0 - ei6;
+        int fi7 = ei7 - (ei1 >> 2);
 
-        int b0 = a0 + a3;
-        int b2 = a1 - a2;
-        int b4 = a1 + a2;
-        int b6 = a0 - a3;
-
-        a0 = -p3 + p5 - p7 - (p7 >> 1);    
-        a1 =  p1 + p7 - p3 - (p3 >> 1);    
-        a2 = -p1 + p7 + p5 + (p5 >> 1);    
-        a3 =  p3 + p5 + p1 + (p1 >> 1);
-
-        int b1 = a0 + (a3 >> 2);    
-        int b3 = a1 + (a2 >> 2);    
-        int b5 = a2 - (a1 >> 2);
-        int b7 = a3 - (a0 >> 2);                
-
-        *(pTmp++) = b0 + b7;
-        *(pTmp++) = b2 - b5;
-        *(pTmp++) = b4 + b3;
-        *(pTmp++) = b6 + b1;
-        *(pTmp++) = b6 - b1;
-        *(pTmp++) = b4 - b3;
-        *(pTmp++) = b2 + b5;
-        *(pTmp++) = b0 - b7;
+        g[i][0] = fi0 + fi7;
+        g[i][1] = fi2 + fi5;
+        g[i][2] = fi4 + fi3;
+        g[i][3] = fi6 + fi1;
+        g[i][4] = fi6 - fi1;
+        g[i][5] = fi4 - fi3;
+        g[i][6] = fi2 - fi5;
+        g[i][7] = fi0 - fi7;
     }
 
-    // Vertical 
-    for (int i = 0; i < BLOCK_SIZE_8x8; i++) {
-        pTmp = tmp + i;
+    // vertical column of the resulting matrix
+    for (int j = 0; j < 8; ++j) {
+        int g0j = g[0][j];
+        int g1j = g[1][j];
+        int g2j = g[2][j];
+        int g3j = g[3][j];
+        int g4j = g[4][j];
+        int g5j = g[5][j];
+        int g6j = g[6][j];
+        int g7j = g[7][j];
 
-        int p0 = *pTmp;
-        int p1 = *(pTmp += BLOCK_SIZE_8x8);
-        int p2 = *(pTmp += BLOCK_SIZE_8x8);
-        int p3 = *(pTmp += BLOCK_SIZE_8x8);
-        int p4 = *(pTmp += BLOCK_SIZE_8x8);
-        int p5 = *(pTmp += BLOCK_SIZE_8x8);
-        int p6 = *(pTmp += BLOCK_SIZE_8x8);
-        int p7 = *(pTmp += BLOCK_SIZE_8x8);
+        int h0j = g0j + g4j;
+        int h1j = -g3j + g5j - g7j - (g7j >> 1);
+        int h2j = g0j - g4j;
+        int h3j = g1j + g7j - g3j - (g3j >> 1);
+        int h4j = (g2j >> 1) - g6j;
+        int h5j = -g1j + g7j + g5j + (g5j >> 1);
+        int h6j = g2j + (g6j >> 1);
+        int h7j = g3j + g5j + g1j + (g1j >> 1);
 
-        int a0 = p0 + p4;
-        int a1 = p0 - p4;
-        int a2 = p6 - (p2>>1);
-        int a3 = p2 + (p6>>1);
+        int k0j = h0j + h6j;
+        int k1j = h1j + (h7j >> 2);
+        int k2j = h2j + h4j;
+        int k3j = h3j + (h5j >> 2);
+        int k4j = h2j - h4j;
+        int k5j = (h3j >> 2) - h5j;
+        int k6j = h0j - h6j;
+        int k7j = h7j - (h1j >> 2);
 
-        int b0 = a0 + a3;
-        int b2 = a1 - a2;
-        int b4 = a1 + a2;
-        int b6 = a0 - a3;
+        int m0j = k0j + k7j;
+        int m1j = k2j + k5j;
+        int m2j = k4j + k3j;
+        int m3j = k6j + k1j;
+        int m4j = k6j - k1j;
+        int m5j = k4j - k3j;
+        int m6j = k2j - k5j;
+        int m7j = k0j - k7j;
 
-        a0 = -p3 + p5 - p7 - (p7 >> 1);
-        a1 =  p1 + p7 - p3 - (p3 >> 1);
-        a2 = -p1 + p7 + p5 + (p5 >> 1);
-        a3 =  p3 + p5 + p1 + (p1 >> 1);
-
-        int b1 = a0 + (a3 >> 2);
-        int b7 = a3 - (a0 >> 2);
-        int b3 = a1 + (a2 >> 2);
-        int b5 = a2 - (a1 >> 2);
-
-        block[0][pos_x + i] = b0 + b7;
-        block[1][pos_x + i] = b2 - b5;
-        block[2][pos_x + i] = b4 + b3;
-        block[3][pos_x + i] = b6 + b1;
-        block[4][pos_x + i] = b6 - b1;
-        block[5][pos_x + i] = b4 - b3;
-        block[6][pos_x + i] = b2 + b5;
-        block[7][pos_x + i] = b0 - b7;
+        r[pos_y + 0][pos_x + j] = (m0j + (1 << 5)) >> 6;
+        r[pos_y + 1][pos_x + j] = (m1j + (1 << 5)) >> 6;
+        r[pos_y + 2][pos_x + j] = (m2j + (1 << 5)) >> 6;
+        r[pos_y + 3][pos_x + j] = (m3j + (1 << 5)) >> 6;
+        r[pos_y + 4][pos_x + j] = (m4j + (1 << 5)) >> 6;
+        r[pos_y + 5][pos_x + j] = (m5j + (1 << 5)) >> 6;
+        r[pos_y + 6][pos_x + j] = (m6j + (1 << 5)) >> 6;
+        r[pos_y + 7][pos_x + j] = (m7j + (1 << 5)) >> 6;
     }
 }
 
@@ -454,423 +446,297 @@ static void forward4x4(int **block, int **tblock, int pos_y, int pos_x)
 }
 
 
-void transform_t::Inv_Residual_trans_4x4(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void transform_t::bypass_4x4(int** r, int** f, int ioff, int joff, uint8_t pred_mode)
 {
-    slice_t* slice = mb->p_Slice;
-    int    **cof     = slice->cof    [pl];
-    int    **mb_rres = slice->mb_rres[pl];
-    imgpel **mb_pred = slice->mb_pred[pl];
-    imgpel **mb_rec  = slice->mb_rec [pl];
-    int      temp[4][4];
-
-    int i4x4 = ((joff/4) / 2) * 8  + ((joff/4) % 2) * 2 + ((ioff/4) / 2) * 4 + ((ioff/4) % 2);
-    uint8_t pred_mode = mb->Intra4x4PredMode[i4x4];
-
     if (pred_mode == intra_prediction_t::Intra_4x4_Vertical) {
         for (int i = 0; i < 4; ++i) {
-            temp[0][i] = cof[joff + 0][ioff + i];
+            f[joff + 0][ioff + i] = r[joff + 0][ioff + i];
             for (int j = 1; j < 4; ++j)
-                temp[j][i] = cof[joff + j][ioff + i] + temp[j - 1][i];
-        }
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j)
-                mb_rres[joff + j][ioff + i] = temp[j][i];
+                f[joff + j][ioff + i] = r[joff + j][ioff + i] + f[joff + j - 1][ioff + i];
         }
     } else if (pred_mode == intra_prediction_t::Intra_4x4_Horizontal) {
         for (int j = 0; j < 4; ++j) {
-            temp[j][0] = cof[joff + j][ioff + 0];
+            f[joff + j][ioff + 0] = r[joff + j][ioff + 0];
             for (int i = 1; i < 4; ++i)
-                temp[j][i] = cof[joff + j][ioff + i] + temp[j][i - 1];
-        }
-        for (int j = 0; j < 4; ++j) {
-            for (int i = 0; i < 4; ++i)
-                mb_rres[joff + j][ioff + i] = temp[j][i];
+                f[joff + j][ioff + i] = r[joff + j][ioff + i] + f[joff + j][ioff + i - 1];
         }
     } else {
-        for (int j = joff; j < joff + BLOCK_SIZE; ++j) {
-            for (int i = ioff; i < ioff + BLOCK_SIZE; ++i)
-                mb_rres[j][i] = cof[j][i];
+        for (int j = 0; j < 4; ++j) {
+            for (int i = 0; i < 4; ++i)
+                f[joff + j][ioff + i] = r[joff + j][ioff + i];
         }
-    }
-
-    for (int j = joff; j < joff + BLOCK_SIZE; ++j) {
-        for (int i = ioff; i < ioff + BLOCK_SIZE; ++i)
-            mb_rec[j][i] = (imgpel) (mb_rres[j][i] + mb_pred[j][i]);
     }
 }
 
-void transform_t::Inv_Residual_trans_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void transform_t::bypass_8x8(int** r, int** f, int ioff, int joff, uint8_t pred_mode)
 {
-    slice_t* slice = mb->p_Slice;
-    int    **cof     = slice->cof    [pl];
-    int    **mb_rres = slice->mb_rres[pl];
-    imgpel **mb_pred = slice->mb_pred[pl];
-    imgpel **mb_rec  = slice->mb_rec [pl];
-    int      temp[8][8];
-
-    uint8_t pred_mode = mb->Intra8x8PredMode[joff/8 * 2 + ioff/8];
-
     if (pred_mode == intra_prediction_t::Intra_8x8_Vertical) {
         for (int i = 0; i < 8; ++i) {
-            temp[0][i] = cof[joff + 0][ioff + i];
+            f[joff + 0][ioff + i] = r[joff + 0][ioff + i];
             for (int j = 1; j < 8; ++j)
-                temp[j][i] = cof[joff + j][ioff + i] + temp[j - 1][i];
-        }
-        for (int i = 0; i < 8; ++i) {
-            for (int j = 0; j < 8; ++j)
-                mb_rres[joff + j][ioff + i] = temp[j][i];
+                f[joff + j][ioff + i] = r[joff + j][ioff + i] + f[joff + j - 1][ioff + i];
         }
     } else if (pred_mode == intra_prediction_t::Intra_8x8_Horizontal) {
         for (int j = 0; j < 8; ++j) {
-            temp[j][0] = cof[joff + j][ioff + 0];
+            f[joff + j][ioff + 0] = r[joff + j][ioff + 0];
             for (int i = 1; i < 8; ++i)
-                temp[j][i] = cof[joff + j][ioff + i] + temp[j][i - 1];
+                f[joff + j][ioff + i] = r[joff + j][ioff + i] + f[joff + j][ioff + i - 1];
         }
+    } else {
         for (int j = 0; j < 8; ++j) {
             for (int i = 0; i < 8; ++i)
-                mb_rres[joff + j][ioff + i] = temp[j][i];
+                f[joff + j][ioff + i] = r[joff + j][ioff + i];
         }
-    } else {
-        for (int j = joff; j < joff + 8; ++j) {
-            for (int i = ioff; i < ioff + 8; ++i)
-                mb_rres[j][i] = cof[j][i];
-        }
-    }
-
-    for (int j = joff; j < joff + 8; ++j) {
-        for (int i = ioff; i < ioff + 8; ++i)
-            mb_rec[j][i] = (imgpel) (mb_rres[j][i] + mb_pred[j][i]);
     }
 }
 
-void transform_t::Inv_Residual_trans_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void transform_t::bypass_16x16(int** r, int** f, int ioff, int joff, uint8_t pred_mode)
 {
-    slice_t* slice = mb->p_Slice;
-    int    **cof     = slice->cof    [pl];
-    int    **mb_rres = slice->mb_rres[pl];
-    imgpel **mb_pred = slice->mb_pred[pl];
-    imgpel **mb_rec  = slice->mb_rec [pl];
-    int      temp[16][16];
-
-    uint8_t pred_mode = mb->Intra16x16PredMode;
-
     if (pred_mode == intra_prediction_t::Intra_16x16_Vertical) {
-        for (int i = 0; i < MB_BLOCK_SIZE; ++i) {
-            temp[0][i] = cof[0][i];
-            for (int j = 1; j < MB_BLOCK_SIZE; ++j)
-                temp[j][i] = cof[j][i] + temp[j - 1][i];
-        }
-        for (int i = 0; i < MB_BLOCK_SIZE; ++i) {
-            for (int j = 0; j < MB_BLOCK_SIZE; j++)
-                mb_rres[j][i] = temp[j][i];
+        for (int i = 0; i < 16; ++i) {
+            f[0][i] = r[0][i];
+            for (int j = 1; j < 16; ++j)
+                f[j][i] = r[j][i] + f[j - 1][i];
         }
     } else if (pred_mode == intra_prediction_t::Intra_16x16_Horizontal) {
-        for (int j = 0; j < MB_BLOCK_SIZE; ++j) {
-            temp[j][0] = cof[j][0];
-            for (int i = 1; i < MB_BLOCK_SIZE; ++i)
-                temp[j][i] = cof[j][i] + temp[j][i - 1];
-        }
-        for (int j = 0; j < MB_BLOCK_SIZE; ++j) {
-            for (int i = 0; i < MB_BLOCK_SIZE; ++i)
-                mb_rres[j][i] = temp[j][i];
+        for (int j = 0; j < 16; ++j) {
+            f[j][0] = r[j][0];
+            for (int i = 1; i < 16; ++i)
+                f[j][i] = r[j][i] + f[j][i - 1];
         }
     } else {
-        for (int j = 0; j < MB_BLOCK_SIZE; ++j) {
-            for (int i = 0; i < MB_BLOCK_SIZE; ++i)
-                mb_rres[j][i] = cof[j][i];
+        for (int j = 0; j < 16; ++j) {
+            for (int i = 0; i < 16; ++i)
+                f[j][i] = r[j][i];
         }
-    }
-
-    for (int j = 0; j < MB_BLOCK_SIZE; ++j) {
-        for (int i = 0; i < MB_BLOCK_SIZE; ++i)
-            mb_rec[j][i] = (imgpel) (mb_rres[j][i] + mb_pred[j][i]);
     }
 }
 
-void transform_t::Inv_Residual_trans_Chroma(mb_t* mb, ColorPlane pl, int ioff=0, int joff=0)  
+void transform_t::bypass_chroma(int** r, int** f, int nW, int nH, uint8_t pred_mode)
 {
-    slice_t* slice = mb->p_Slice;
-    sps_t* sps = slice->active_sps;
-    int    **cof     = slice->cof    [pl];
-    int    **mb_rres = slice->mb_rres[pl];
-    imgpel **mb_pred = slice->mb_pred[pl];
-    imgpel **mb_rec  = slice->mb_rec [pl];
-    int      temp[16][16];
-
-    uint8_t pred_mode = mb->intra_chroma_pred_mode;
-
     if (pred_mode == intra_prediction_t::Intra_Chroma_Vertical) {
-        for (int i = 0; i < sps->MbWidthC; ++i) {
-            temp[0][i] = cof[0][i];
-            for (int j = 1; j < sps->MbHeightC; ++j)
-                temp[j][i] = cof[j][i] + temp[j - 1][i];
-        }
-        for (int i = 0; i < sps->MbWidthC; i++) {
-            for (int j = 0; j < sps->MbHeightC; j++)
-                mb_rres[j][i] = temp[j][i];
+        for (int i = 0; i < nW; ++i) {
+            f[0][i] = r[0][i];
+            for (int j = 1; j < nH; ++j)
+                f[j][i] = r[j][i] + f[j - 1][i];
         }
     } else if (pred_mode == intra_prediction_t::Intra_Chroma_Horizontal) {
-        for (int j = 0; j < sps->MbHeightC; ++j) {
-            temp[j][0] = cof[j][0];
-            for (int i = 1; i < sps->MbWidthC; ++i)
-                temp[j][i] = cof[j][i] + temp[j][i - 1];
-        }
-        for (int j = 0; j < sps->MbHeightC; ++j) {
-            for (int i = 0; i < sps->MbWidthC; ++i)
-                mb_rres[j][i] = temp[j][i];
+        for (int j = 0; j < nH; ++j) {
+            f[j][0] = r[j][0];
+            for (int i = 1; i < nW; ++i)
+                f[j][i] = r[j][i] + f[j][i - 1];
         }
     } else {
-        for (int j = 0; j < sps->MbHeightC; j++) {
-            for (int i = 0; i < sps->MbWidthC; i++)
-                mb_rres[j][i] = cof[j][i];
+        for (int j = 0; j < nH; ++j) {
+            for (int i = 0; i < nW; ++i)
+                f[j][i] = r[j][i];
         }
     }
-
-    int max_pel_value_comp = (1 << sps->BitDepthC) - 1;
-    for (int j = 0; j < sps->MbHeightC; ++j) {
-        for (int i = 0; i < sps->MbWidthC; ++i)
-            mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, mb_pred[j][i] + mb_rres[j][i]);
-    }
 }
-
-
-static void icopy4x4(mb_t *currMB, ColorPlane pl, int ioff, int joff)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    imgpel **mb_rec = &currSlice->mb_rec[pl][joff];
-    imgpel **mpr    = &currSlice->mb_pred[pl][joff];
-
-    for (int j = 0; j < 4; j++)
-        memcpy((*mb_rec++) + ioff, (*mpr++) + ioff, 4 * sizeof(imgpel));
-}
-
-static void icopy8x8(mb_t *currMB, ColorPlane pl, int ioff, int joff)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    imgpel **mb_rec = &currSlice->mb_rec[pl][joff];
-    imgpel **mpr    = &currSlice->mb_pred[pl][joff];
-
-    for (int j = 0; j < 8; j++)
-        memcpy((*mb_rec++) + ioff, (*mpr++) + ioff, 8 * sizeof(imgpel));
-}
-
-void transform_t::itrans4x4(mb_t *currMB, ColorPlane pl, int ioff, int joff)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
-
-    int    **cof     = currSlice->cof    [pl];
-    int    **mb_rres = currSlice->mb_rres[pl];
-    imgpel **mb_pred = currSlice->mb_pred[pl];
-    imgpel **mb_rec  = currSlice->mb_rec [pl];
-
-    inverse4x4(cof, mb_rres, joff, ioff);
-
-    for (int j = joff; j < joff + BLOCK_SIZE; j++) {
-        for (int i = ioff; i < ioff + BLOCK_SIZE; i++)
-            mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][i], DQ_BITS) + mb_pred[j][i]);
-    }
-}
-
-void transform_t::itrans8x8(mb_t *currMB, ColorPlane pl, int ioff, int joff)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
-
-    int    **cof     = currSlice->cof    [pl];
-    int    **mb_rres = currSlice->mb_rres[pl];
-    imgpel **mb_pred = currSlice->mb_pred[pl];
-    imgpel **mb_rec  = currSlice->mb_rec [pl];
-
-    inverse8x8(&cof[joff], &mb_rres[joff], ioff);
-
-    for (int j = joff; j < joff + 8; j++) {
-        for (int i = ioff; i < ioff + 8; i++)
-            mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, mb_pred[j][i] + rshift_rnd_sf(mb_rres[j][i], DQ_BITS_8)); 
-    }
-}
-
-void transform_t::itrans16x16(mb_t *currMB, ColorPlane pl, int ioff=0, int joff=0)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
-
-    int    **cof     = currSlice->cof    [pl];
-    int    **mb_rres = currSlice->mb_rres[pl];
-    imgpel **mb_pred = currSlice->mb_pred[pl];
-    imgpel **mb_rec  = currSlice->mb_rec [pl];
-
-    for (int jj = 0; jj < MB_BLOCK_SIZE; jj += BLOCK_SIZE) {
-        inverse4x4(cof, mb_rres, jj,  0);
-        inverse4x4(cof, mb_rres, jj,  4);
-        inverse4x4(cof, mb_rres, jj,  8);
-        inverse4x4(cof, mb_rres, jj, 12);
-    }
-
-    for (int j = 0; j < MB_BLOCK_SIZE; j++) {
-        for (int i = 0; i < MB_BLOCK_SIZE; i++)
-            mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][i], DQ_BITS) + mb_pred[j][i]);
-    }
-}
-
-
-static void itrans_2(mb_t *currMB, ColorPlane pl)
-{
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-
-    int transform_pl = sps->separate_colour_plane_flag ? PLANE_Y : pl;
-    int **cof = currSlice->cof[transform_pl];
-
-    int **M4;
-    get_mem2Dint(&M4, BLOCK_SIZE, BLOCK_SIZE);
-
-    // horizontal
-    for (int j = 0; j < 4; ++j) {
-        M4[j][0] = cof[j << 2][ 0];
-        M4[j][1] = cof[j << 2][ 4];
-        M4[j][2] = cof[j << 2][ 8];
-        M4[j][3] = cof[j << 2][12];
-    }
-
-    ihadamard4x4(M4, M4);
-
-    currSlice->quantization.inverse_itrans_2(currMB, pl, M4);
-
-    free_mem2Dint(M4);
-}
-
-static void itrans_420(mb_t *currMB, ColorPlane pl)
-{
-    slice_t *currSlice = currMB->p_Slice;
-
-    int **cof = currSlice->cof[pl];
-    int M4[4];
-    M4[0] = cof[0][0];
-    M4[1] = cof[0][4];
-    M4[2] = cof[4][0];
-    M4[3] = cof[4][4];
-
-    ihadamard2x2(M4, M4);
-
-    currSlice->quantization.inverse_itrans_420(currMB, pl, M4);
-}
-
-static void itrans_422(mb_t *currMB, ColorPlane pl)
-{
-    slice_t *currSlice = currMB->p_Slice;
-
-    int **cof = currSlice->cof[pl];
-    int **M4;
-    get_mem2Dint(&M4, BLOCK_SIZE, 2);
-
-    for (int j = 0; j < 4; j++) {
-        M4[j][0] = cof[j << 2][0];
-        M4[j][1] = cof[j << 2][4];
-    }
-
-    ihadamard2x4(M4, M4);
-
-    currSlice->quantization.inverse_itrans_422(currMB, pl, M4);
-
-    free_mem2Dint(M4);
-}
-
-
 
 
 void transform_t::inverse_luma_dc(mb_t* mb, ColorPlane pl)
 {
-    if (!mb->TransformBypassModeFlag)
-        itrans_2(mb, pl);
+    if (!mb->TransformBypassModeFlag) {
+        slice_t* slice = mb->p_Slice;
+        sps_t* sps = slice->active_sps;
+
+        int transform_pl = sps->separate_colour_plane_flag ? PLANE_Y : pl;
+        int **cof = slice->cof[transform_pl];
+
+        int **M4;
+        get_mem2Dint(&M4, BLOCK_SIZE, BLOCK_SIZE);
+
+        // horizontal
+        for (int j = 0; j < 4; ++j) {
+            M4[j][0] = cof[j << 2][ 0];
+            M4[j][1] = cof[j << 2][ 4];
+            M4[j][2] = cof[j << 2][ 8];
+            M4[j][3] = cof[j << 2][12];
+        }
+
+        ihadamard4x4(M4, M4);
+
+        slice->quantization.inverse_itrans_2(mb, pl, M4);
+
+        free_mem2Dint(M4);
+    }
 }
 
 void transform_t::inverse_chroma_dc(mb_t* mb, ColorPlane pl)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
+    bool smb = (slice->slice_type == SP_slice && !mb->is_intra_block) ||
+               (slice->slice_type == SI_slice && mb->mb_type == SI4MB);
+    int **cof = slice->cof[pl];
 
-    if (sps->ChromaArrayType == 1) {
-        int smb = (slice->slice_type == SP_slice && !mb->is_intra_block) ||
-                  (slice->slice_type == SI_slice && mb->mb_type == SI4MB);
-        if (!smb && !mb->TransformBypassModeFlag)
-            itrans_420(mb, pl);
-    }
-    if (sps->ChromaArrayType == 2) {
-        if (!mb->TransformBypassModeFlag)
-            itrans_422(mb, pl);
+    if (!mb->TransformBypassModeFlag) {
+        if (sps->ChromaArrayType == 1 && !smb) {
+            int M4[4];
+            M4[0] = cof[0][0];
+            M4[1] = cof[0][4];
+            M4[2] = cof[4][0];
+            M4[3] = cof[4][4];
+
+            ihadamard2x2(M4, M4);
+
+            slice->quantization.inverse_itrans_420(mb, pl, M4);
+        }
+        if (sps->ChromaArrayType == 2) {
+            int **M4;
+            get_mem2Dint(&M4, BLOCK_SIZE, 2);
+
+            for (int j = 0; j < 4; j++) {
+                M4[j][0] = cof[j << 2][0];
+                M4[j][1] = cof[j << 2][4];
+            }
+
+            ihadamard2x4(M4, M4);
+
+            slice->quantization.inverse_itrans_422(mb, pl, M4);
+
+            free_mem2Dint(M4);
+        }
     }
 }
 
 void transform_t::inverse_transform_4x4(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
-    storable_picture* dec_picture = slice->dec_picture;
-    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
     int block8x8 = (joff / 8) * 2 + (ioff / 8);
 
-    if (mb->TransformBypassModeFlag)
-        this->Inv_Residual_trans_4x4(mb, pl, ioff, joff);
-    else if (mb->CodedBlockPatternLuma & (1 << block8x8))
-        this->itrans4x4(mb, pl, ioff, joff);
-    else
-        icopy4x4(mb, pl, ioff, joff);
+    if (mb->CodedBlockPatternLuma & (1 << block8x8)) {
+        int i4x4 = ((joff / 4) / 2) * 8 + ((joff / 4) % 2) * 2 +
+                   ((ioff / 4) / 2) * 4 + ((ioff / 4) % 2);
+        uint8_t pred_mode = mb->Intra4x4PredMode[i4x4];
+        if (mb->TransformBypassModeFlag)
+            this->bypass_4x4(slice->cof[pl], slice->mb_rres[pl], ioff, joff, pred_mode);
+        else
+            this->inverse_4x4(slice->cof[pl], slice->mb_rres[pl], joff, ioff);
+    }
 
-    copy_image_data_4x4(&curr_img[mb->mb.y * 16 + joff], &slice->mb_rec[pl][joff], mb->mb.x * 16 + ioff, ioff);
+
+    sps_t *sps = slice->active_sps;
+    storable_picture* dec_picture = slice->dec_picture;
+    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
+    int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
+
+    int    **mb_rres = slice->mb_rres[pl];
+    imgpel **mb_pred = slice->mb_pred[pl];
+    imgpel **mb_rec  = slice->mb_rec [pl];
+
+    if (mb->CodedBlockPatternLuma & (1 << block8x8)) {
+        for (int j = joff; j < joff + 4; j++) {
+            for (int i = ioff; i < ioff + 4; i++)
+                mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, mb_rres[j][i] + mb_pred[j][i]);
+        }
+    } else {
+        for (int j = 0; j < 4; j++)
+            memcpy(&mb_rec[joff + j][ioff], &mb_pred[joff + j][ioff], 4 * sizeof(imgpel));
+    }
+
+    copy_image_data_4x4(&curr_img[mb->mb.y * 16 + joff], &mb_rec[joff], mb->mb.x * 16 + ioff, ioff);
 }
 
 void transform_t::inverse_transform_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
-    storable_picture* dec_picture = slice->dec_picture;
-    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
     int block8x8 = (joff / 8) * 2 + (ioff / 8);
 
-    if (mb->TransformBypassModeFlag)
-        this->Inv_Residual_trans_8x8(mb, pl, ioff, joff);
-    else if (mb->CodedBlockPatternLuma & (1 << block8x8))
-        this->itrans8x8(mb, pl, ioff, joff);
-    else
-        icopy8x8(mb, pl, ioff, joff);
+    if (mb->CodedBlockPatternLuma & (1 << block8x8)) {
+        uint8_t pred_mode = mb->Intra8x8PredMode[joff/8 * 2 + ioff/8];
+        if (mb->TransformBypassModeFlag)
+            this->bypass_8x8(slice->cof[pl], slice->mb_rres[pl], ioff, joff, pred_mode);
+        else
+            this->inverse_8x8(slice->cof[pl], slice->mb_rres[pl], joff, ioff);
+    }
 
-    copy_image_data_8x8(&curr_img[mb->mb.y * 16 + joff], &slice->mb_rec[pl][joff], mb->mb.x * 16 + ioff, ioff);
+
+    sps_t* sps = slice->active_sps;
+    storable_picture* dec_picture = slice->dec_picture;
+    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
+    int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
+
+    int    **mb_rres = slice->mb_rres[pl];
+    imgpel **mb_pred = slice->mb_pred[pl];
+    imgpel **mb_rec  = slice->mb_rec [pl];
+
+    if (mb->CodedBlockPatternLuma & (1 << block8x8)) {
+        for (int j = joff; j < joff + 8; j++) {
+            for (int i = ioff; i < ioff + 8; i++)
+                mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, mb_pred[j][i] + mb_rres[j][i]);
+        }
+    } else {
+        for (int j = 0; j < 8; j++)
+            memcpy(&mb_rec[joff + j][ioff], &mb_pred[joff + j][ioff], 8 * sizeof(imgpel));
+    }
+
+    copy_image_data_8x8(&curr_img[mb->mb.y * 16 + joff], &mb_rec[joff], mb->mb.x * 16 + ioff, ioff);
 }
 
 void transform_t::inverse_transform_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
+
+    uint8_t pred_mode = mb->Intra16x16PredMode;
+    if (mb->TransformBypassModeFlag)
+        this->bypass_16x16(slice->cof[pl], slice->mb_rres[pl], ioff, joff, pred_mode);
+    else {
+        for (int j = 0; j < 16; j += 4) {
+            for (int i = 0; i < 16; i += 4)
+                this->inverse_4x4(slice->cof[pl], slice->mb_rres[pl], j, i);
+        }
+    }
+
+    sps_t *sps = slice->active_sps;
     storable_picture* dec_picture = slice->dec_picture;
     imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
+    int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
 
-    if (mb->TransformBypassModeFlag)
-        this->Inv_Residual_trans_16x16(mb, pl, ioff, joff);
-    else
-        this->itrans16x16(mb, pl);
+    int    **mb_rres = slice->mb_rres[pl];
+    imgpel **mb_pred = slice->mb_pred[pl];
+    imgpel **mb_rec  = slice->mb_rec [pl];
 
-    copy_image_data_16x16(&curr_img[mb->mb.y * 16 + joff], &slice->mb_rec[pl][joff], mb->mb.x * 16 + ioff, ioff);
+    for (int j = 0; j < 16; j++) {
+        for (int i = 0; i < 16; i++)
+            mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, mb_rres[j][i] + mb_pred[j][i]);
+    }
+
+    copy_image_data_16x16(&curr_img[mb->mb.y * 16 + joff], &mb_rec[joff], mb->mb.x * 16 + ioff, ioff);
 }
 
 void transform_t::inverse_transform_chroma(mb_t* mb, ColorPlane pl)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
-    storable_picture* dec_picture = slice->dec_picture;
-    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
 
+    uint8_t pred_mode = mb->intra_chroma_pred_mode;
     if (mb->TransformBypassModeFlag)
-        this->Inv_Residual_trans_Chroma(mb, pl);
+        this->bypass_chroma(slice->cof[pl], slice->mb_rres[pl], sps->MbWidthC, sps->MbHeightC, pred_mode);
     else {
         for (int joff = 0; joff < sps->MbHeightC; joff += 4) {
             for (int ioff = 0; ioff < sps->MbWidthC; ioff += 4)
-                this->itrans4x4(mb, pl, ioff, joff);
+                this->inverse_4x4(slice->cof[pl], slice->mb_rres[pl], joff, ioff);
         }
     }
+
+    storable_picture* dec_picture = slice->dec_picture;
+    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
+    int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
+
+    int    **mb_rres = slice->mb_rres[pl];
+    imgpel **mb_pred = slice->mb_pred[pl];
+    imgpel **mb_rec  = slice->mb_rec [pl];
+
+    for (int j = 0; j < sps->MbHeightC; j++) {
+        for (int i = 0; i < sps->MbWidthC; i++)
+            mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, mb_rres[j][i] + mb_pred[j][i]);
+    }
+
     for (int joff = 0; joff < sps->MbHeightC; joff += 4) {
         for (int ioff = 0; ioff < sps->MbWidthC; ioff += 4)
-            copy_image_data_4x4(&curr_img[mb->mb.y * sps->MbHeightC + joff], &slice->mb_rec[pl][joff], mb->mb.x * sps->MbWidthC + ioff, ioff);
+            copy_image_data_4x4(&curr_img[mb->mb.y * sps->MbHeightC + joff], &mb_rec[joff], mb->mb.x * sps->MbWidthC + ioff, ioff);
     }
 }
 
@@ -967,13 +833,13 @@ void transform_t::itrans_sp(mb_t *currMB, ColorPlane pl, int ioff, int joff)
         }
     }
 
-    inverse4x4(cof, mb_rres, joff, ioff);
+    this->inverse_4x4(cof, mb_rres, joff, ioff);
 
     for (int j = joff; j < joff + BLOCK_SIZE; ++j) {
-        mb_rec[j][ioff    ] = (imgpel)clip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff    ], DQ_BITS));
-        mb_rec[j][ioff + 1] = (imgpel)clip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff + 1], DQ_BITS));
-        mb_rec[j][ioff + 2] = (imgpel)clip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff + 2], DQ_BITS));
-        mb_rec[j][ioff + 3] = (imgpel)clip1(max_pel_value_comp, rshift_rnd_sf(mb_rres[j][ioff + 3], DQ_BITS));
+        mb_rec[j][ioff    ] = (imgpel)clip1(max_pel_value_comp, mb_rres[j][ioff    ]);
+        mb_rec[j][ioff + 1] = (imgpel)clip1(max_pel_value_comp, mb_rres[j][ioff + 1]);
+        mb_rec[j][ioff + 2] = (imgpel)clip1(max_pel_value_comp, mb_rres[j][ioff + 2]);
+        mb_rec[j][ioff + 3] = (imgpel)clip1(max_pel_value_comp, mb_rres[j][ioff + 3]);
     }
 
     free_mem2Dint(PBlock);
@@ -990,11 +856,6 @@ static void itrans_sp_cr(mb_t *currMB, int uv)
     int    **cof = currSlice->cof[uv + 1];
     int **PBlock = new_mem2Dint(MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
-    int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV444 ? 16 : 8;
-    int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
-                       sps->chroma_format_idc == YUV420 ? 8 : 16;
-
     int qp_per    = (currSlice->SliceQpY < 0 ? currSlice->SliceQpY : QP_SCALE_CR[currSlice->SliceQpY]) / 6;
     int qp_rem    = (currSlice->SliceQpY < 0 ? currSlice->SliceQpY : QP_SCALE_CR[currSlice->SliceQpY]) % 6;
 
@@ -1007,15 +868,15 @@ static void itrans_sp_cr(mb_t *currMB, int uv)
         qp_rem = qp_rem_sp;
     }
 
-    for (j = 0; j < mb_cr_size_y; ++j) {
-        for (i = 0; i < mb_cr_size_x; ++i) {
+    for (j = 0; j < sps->MbHeightC; ++j) {
+        for (i = 0; i < sps->MbWidthC; ++i) {
             PBlock[j][i] = mb_pred[j][i];
             mb_pred[j][i] = 0;
         }
     }
 
-    for (n2 = 0; n2 < mb_cr_size_y; n2 += BLOCK_SIZE) {
-        for (n1 = 0; n1 < mb_cr_size_x; n1 += BLOCK_SIZE)
+    for (n2 = 0; n2 < sps->MbHeightC; n2 += BLOCK_SIZE) {
+        for (n1 = 0; n1 < sps->MbWidthC; n1 += BLOCK_SIZE)
             forward4x4(PBlock, PBlock, n2, n1);
     }
 
@@ -1037,8 +898,8 @@ static void itrans_sp_cr(mb_t *currMB, int uv)
             }
         }
 
-        for (n2 = 0; n2 < mb_cr_size_y; n2 += BLOCK_SIZE) {
-            for (n1 = 0; n1 < mb_cr_size_x; n1 += BLOCK_SIZE) {
+        for (n2 = 0; n2 < sps->MbHeightC; n2 += BLOCK_SIZE) {
+            for (n1 = 0; n1 < sps->MbWidthC; n1 += BLOCK_SIZE) {
                 for (j = 0; j < BLOCK_SIZE; ++j) {
                     for (i = 0; i < BLOCK_SIZE; ++i) {
                         // recovering coefficient since they are already dequantized earlier
@@ -1062,8 +923,8 @@ static void itrans_sp_cr(mb_t *currMB, int uv)
             }
         }
 
-        for (n2 = 0; n2 < mb_cr_size_y; n2 += BLOCK_SIZE) {
-            for (n1 = 0; n1 < mb_cr_size_x; n1 += BLOCK_SIZE) {
+        for (n2 = 0; n2 < sps->MbHeightC; n2 += BLOCK_SIZE) {
+            for (n1 = 0; n1 < sps->MbWidthC; n1 += BLOCK_SIZE) {
                 for (j = 0; j < BLOCK_SIZE; ++j) {
                     for (i = 0; i < BLOCK_SIZE; ++i) {
                         // recovering coefficient since they are already dequantized earlier
