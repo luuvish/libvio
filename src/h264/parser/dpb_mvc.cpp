@@ -234,7 +234,6 @@ void init_lists_p_slice_mvc(slice_t *currSlice)
 
   currSlice->listXsize[1] = 0;    
 
-#if !SIMULCAST_ENABLE
   if (currSlice->svc_extension_flag == 0)
   {        
     int curr_view_id = currSlice->layer_id;
@@ -257,7 +256,7 @@ void init_lists_p_slice_mvc(slice_t *currSlice)
       gen_pic_list_from_frame_interview_list(currSlice->bottom_field_flag, currSlice->fs_listinterview0, currSlice->listinterviewidx0, currSlice->listX[0], &currSlice->listXsize[0]);
     }
   }
-#endif
+
   // set max size
   currSlice->listXsize[0] = (char) min<int>(currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
   currSlice->listXsize[1] = (char) min<int>(currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);
@@ -457,7 +456,6 @@ void init_lists_b_slice_mvc(slice_t *currSlice)
     }
   }
 
-#if !SIMULCAST_ENABLE
   if (currSlice->svc_extension_flag == 0)
   {
     int curr_view_id = currSlice->view_id;
@@ -502,7 +500,7 @@ void init_lists_b_slice_mvc(slice_t *currSlice)
       gen_pic_list_from_frame_interview_list(currSlice->bottom_field_flag, currSlice->fs_listinterview1, currSlice->listinterviewidx1, currSlice->listX[1], &currSlice->listXsize[1]);
     }    
   }
-#endif
+
   // set max size
   currSlice->listXsize[0] = (char) min<int>(currSlice->listXsize[0], currSlice->num_ref_idx_l0_active_minus1 + 1);
   currSlice->listXsize[1] = (char) min<int>(currSlice->listXsize[1], currSlice->num_ref_idx_l1_active_minus1 + 1);

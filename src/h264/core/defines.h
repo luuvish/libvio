@@ -8,7 +8,6 @@
 
 #define ENABLE_OUTPUT_TONEMAPPING 1    //!< enable tone map the output if tone mapping SEI present
 #define DISABLE_ERC               0    //!< Disable any error concealment processes
-#define SIMULCAST_ENABLE          0    //!< to test the decoder
 
 #define MVC_EXTENSION_ENABLE      1    //!< enable support for the Multiview High Profile
 
@@ -46,11 +45,7 @@ typedef enum {
 
 #define BLOCK_SHIFT            2
 #define BLOCK_SIZE             4
-#define BLOCK_SIZE_8x8         8
-#define SMB_BLOCK_SIZE         8
-#define BLOCK_PIXELS          16
 #define MB_BLOCK_SIZE         16
-#define BLOCK_MULTIPLE         4 // (MB_BLOCK_SIZE/BLOCK_SIZE)
 
 
 enum {

@@ -531,10 +531,10 @@ void inter_prediction_t::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, i
 
     if (CheckVertMV(currMB, vec1_y, block_size_y)) {
         get_block_luma(list0, vec1_x, vec1_y,
-                       block_size_x, BLOCK_SIZE_8x8, tmp_block_l0, shift_x,
+                       block_size_x, 8, tmp_block_l0, shift_x,
                        maxold_x, maxold_y, pl, currMB);
         get_block_luma(list0, vec1_x, vec1_y+BLOCK_SIZE_8x8_SP,
-                       block_size_x, block_size_y-BLOCK_SIZE_8x8, tmp_block_l0+BLOCK_SIZE_8x8, shift_x,
+                       block_size_x, block_size_y-8, tmp_block_l0+8, shift_x,
                        maxold_x, maxold_y, pl, currMB);
     } else
         get_block_luma(list0, vec1_x, vec1_y,
@@ -543,10 +543,10 @@ void inter_prediction_t::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, i
     if (pred_dir == 2) {
         if (CheckVertMV(currMB, vec2_y, block_size_y)) {
             get_block_luma(list1, vec2_x, vec2_y,
-                           block_size_x, BLOCK_SIZE_8x8, tmp_block_l1, shift_x,
+                           block_size_x, 8, tmp_block_l1, shift_x,
                            maxold_x, maxold_y, pl, currMB);
             get_block_luma(list1, vec2_x, vec2_y+BLOCK_SIZE_8x8_SP,
-                           block_size_x, block_size_y-BLOCK_SIZE_8x8, tmp_block_l1 + BLOCK_SIZE_8x8, shift_x,
+                           block_size_x, block_size_y-8, tmp_block_l1 + 8, shift_x,
                            maxold_x, maxold_y, pl, currMB);
         } else
             get_block_luma(list1, vec2_x, vec2_y,

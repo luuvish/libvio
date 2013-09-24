@@ -58,10 +58,7 @@ static void mb_pred_b_direct(mb_t* mb, ColorPlane curr_plane)
     sps_t* sps = slice->active_sps;
 
     if (slice->direct_spatial_mv_pred_flag) {
-        if (sps->direct_8x8_inference_flag)
-            slice->inter_prediction.get_direct8x8spatial(mb);
-        else
-            slice->inter_prediction.get_direct4x4spatial(mb);
+        slice->inter_prediction.get_direct4x4spatial(mb);
     } else {
         for (int block8x8 = 0; block8x8 < 4; block8x8++) {
             if (sps->direct_8x8_inference_flag)
@@ -170,7 +167,7 @@ static void mb_pred_ipcm(mb_t* mb)
     // for deblocking filter
     mb->update_qp(0);
 
-    memset(mb->nz_coeff, 16, 3 * BLOCK_PIXELS * sizeof(byte));
+    memset(mb->nz_coeff, 16, 3 * 16 * sizeof(byte));
 
     // for CABAC decoding of MB skip flag
     mb->mb_skip_flag = 0;

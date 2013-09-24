@@ -40,8 +40,7 @@ struct inter_prediction_t {
 
     void get_direct8x8temporal(mb_t* mb, int block8x8);
     void get_direct4x4temporal(mb_t* mb, int block8x8);
-    void get_direct8x8spatial (mb_t* mb);
-    void get_direct4x4spatial (mb_t* mb);
+    void get_direct4x4spatial (mb_t* mb, bool dir=true);
     int  get_inter8x8         (mb_t* mb, int block8x8);
 
     void update_direct_mv_info(mb_t* mb);
