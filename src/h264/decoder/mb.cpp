@@ -155,14 +155,14 @@ static void mb_pred_ipcm(mb_t* mb)
 
     for (i = 0; i < 16; ++i) {
         for (j = 0; j < 16 ; ++j)
-            dec_picture->imgY[mb->mb.y * 16 + i][mb->mb.x * 16 + j] = (imgpel) slice->cof[0][i][j];
+            dec_picture->imgY[mb->mb.y * 16 + i][mb->mb.x * 16 + j] = (imgpel) slice->transform.cof[0][i][j];
     }
 
     if (sps->chroma_format_idc != YUV400 && sps->separate_colour_plane_flag == 0) {
         for (k = 0; k < 2; ++k) {
             for (i = 0; i < sps->MbHeightC; ++i) {
                 for (j = 0;j < sps->MbWidthC; ++j)
-                    dec_picture->imgUV[k][mb->mb.y * sps->MbHeightC + i][mb->mb.x * sps->MbWidthC + j] = (imgpel) slice->cof[k + 1][i][j];
+                    dec_picture->imgUV[k][mb->mb.y * sps->MbHeightC + i][mb->mb.x * sps->MbWidthC + j] = (imgpel) slice->transform.cof[k + 1][i][j];
             }
         }
     }

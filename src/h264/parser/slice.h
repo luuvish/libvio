@@ -11,7 +11,6 @@
 
 #include "intra_prediction.h"
 #include "inter_prediction.h"
-#include "quantization.h"
 #include "transform.h"
 #include "deblock.h"
 
@@ -29,7 +28,6 @@ using vio::h264::cabac_contexts_t;
 
 using vio::h264::intra_prediction_t;
 using vio::h264::inter_prediction_t;
-using vio::h264::quantization_t;
 using vio::h264::transform_t;
 using vio::h264::deblock_t;
 
@@ -214,9 +212,6 @@ struct slice_t {
     bool                      is_reset_coeff;
     bool                      is_reset_coeff_cr;
     imgpel                 ***mb_pred; // IntraPrediction()
-    imgpel                 ***mb_rec;
-    int                    ***mb_rres;
-    int                    ***cof;
 
     imgpel                  **tmp_block_l0; // InterPrediction()
     imgpel                  **tmp_block_l1; // InterPrediction()
@@ -228,7 +223,6 @@ struct slice_t {
 
     intra_prediction_t intra_prediction;
     inter_prediction_t inter_prediction;
-    quantization_t     quantization;
     transform_t        transform;
     deblock_t          deblock;
 

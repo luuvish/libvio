@@ -545,14 +545,14 @@ void macroblock_t::parse_i_pcm()
     if (slice->dp_mode && slice->dpB_NotPresent) {
         for (int y = 0; y < 16; y++) {
             for (int x = 0; x < 16; x++)
-                slice->cof[0][y][x] = 1 << (sps->BitDepthY - 1);
+                slice->transform.cof[0][y][x] = 1 << (sps->BitDepthY - 1);
         }
 
         if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
             for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
                 for (int y = 0; y < sps->MbHeightC; y++) {
                     for (int x = 0; x < sps->MbWidthC; x++)
-                        slice->cof[iCbCr + 1][y][x] = 1 << (sps->BitDepthC - 1);
+                        slice->transform.cof[iCbCr + 1][y][x] = 1 << (sps->BitDepthC - 1);
                 }
             }
         }
@@ -564,14 +564,14 @@ void macroblock_t::parse_i_pcm()
 
         for (int y = 0; y < 16; y++) {
             for (int x = 0; x < 16; x++)
-                slice->cof[0][y][x] = dp->f(sps->BitDepthY);
+                slice->transform.cof[0][y][x] = dp->f(sps->BitDepthY);
         }
 
         if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
             for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
                 for (int y = 0; y < sps->MbHeightC; y++) {
                     for (int x = 0; x < sps->MbWidthC; x++)
-                        slice->cof[iCbCr + 1][y][x] = dp->f(sps->BitDepthC);
+                        slice->transform.cof[iCbCr + 1][y][x] = dp->f(sps->BitDepthC);
                 }
             }
         }
@@ -1046,11 +1046,14 @@ void macroblock_t::update_qp(int qp)
     this->qp_scaled[0] = qp + sps->QpBdOffsetY;
 
     for (int i = 0; i < 2; i++) {
-        int8_t qpi = clip3(-(sps->QpBdOffsetC), 51, this->QpY + QpOffset[i]);
-        int8_t qpc = qpi < 30 ? qpi : QP_SCALE_CR[qpi];
+        int8_t QpI = clip3(-(sps->QpBdOffsetC), 51, this->QpY + QpOffset[i]);
+        int8_t QpC = QpI < 30 ? QpI : QP_SCALE_CR[QpI];
+        this->QpC[i]           = QpC;
+        this->qp_scaled[i + 1] = QpC + sps->QpBdOffsetC;
 
-        this->QpC[i]           = qpc;
-        this->qp_scaled[i + 1] = qpc + sps->QpBdOffsetC;
+        int8_t QsI = clip3(-(sps->QpBdOffsetC), 51, this->p_Slice->QsY + QpOffset[i]);
+        int8_t QsC = QsI < 30 ? QsI : QP_SCALE_CR[QsI];
+        this->QsC[i]           = QsC;
     }
 
     this->TransformBypassModeFlag = (sps->qpprime_y_zero_transform_bypass_flag && this->qp_scaled[0] == 0);

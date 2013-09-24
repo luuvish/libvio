@@ -11,9 +11,6 @@
 #include "parset.h"
 #include "sei.h"
 #include "erc_api.h"
-#include "quantization.h"
-#include "transform.h"
-#include "deblock.h"
 #include "output.h"
 #include "h264decoder.h"
 
@@ -542,9 +539,6 @@ static void free_slice(slice_t *currSlice)
     free_mem2Dpel(currSlice->tmp_block_l2);
     free_mem2Dpel(currSlice->tmp_block_l3);
 
-    free_mem3Dint(currSlice->cof    );
-    free_mem3Dint(currSlice->mb_rres);
-    free_mem3Dpel(currSlice->mb_rec );
     free_mem3Dpel(currSlice->mb_pred);
 
     free_mem3Dint(currSlice->wp_weight );

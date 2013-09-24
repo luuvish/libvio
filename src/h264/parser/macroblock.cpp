@@ -51,14 +51,10 @@ void macroblock_t::init(slice_t* slice)
     memset(this->cbp_blks, 0, sizeof(this->cbp_blks));
     memset(this->cbp_bits, 0, sizeof(this->cbp_bits));
 
-    // initialize slice->mb_rres
     if (!slice->is_reset_coeff) {
-        memset(slice->mb_rres[0][0], 0, 16 * 16 * sizeof(int));
-        memset(slice->mb_rres[1][0], 0, sps->MbWidthC * sps->MbHeightC * sizeof(int));
-        memset(slice->mb_rres[2][0], 0, sps->MbWidthC * sps->MbHeightC * sizeof(int));
-        memset(slice->cof[0][0], 0, 16 * 16 * sizeof(int));
+        memset(slice->transform.cof[0][0], 0, 16 * 16 * sizeof(int));
         if (!slice->is_reset_coeff_cr) {
-            memset(slice->cof[1][0], 0, 2 * 16 * 16 * sizeof(int));
+            memset(slice->transform.cof[1][0], 0, 2 * 16 * 16 * sizeof(int));
             slice->is_reset_coeff_cr = 1;
         }
         slice->is_reset_coeff = 1;

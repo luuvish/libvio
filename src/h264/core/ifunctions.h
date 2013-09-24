@@ -30,4 +30,10 @@ using std::ceil;
 using std::log2;
 
 
+static inline int sign(int x)
+{
+    return ((x > 0) - (x < 0));
+}
+
+
 #endif

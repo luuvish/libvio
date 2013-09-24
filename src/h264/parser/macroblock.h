@@ -113,6 +113,7 @@ struct macroblock_t {
     uint8_t     CodedBlockPatternChroma;
     int8_t      QpY;
     int8_t      QpC[2];
+    int8_t      QsC[2];
     uint8_t     qp_scaled[MAX_PLANE];
     bool        TransformBypassModeFlag;
 

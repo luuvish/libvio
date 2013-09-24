@@ -5,7 +5,6 @@
 #include "bitstream_cabac.h"
 #include "data_partition.h"
 #include "macroblock.h"
-#include "quantization.h"
 #include "transform.h"
 #include "neighbour.h"
 
@@ -368,18 +367,18 @@ void macroblock_t::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, u
             //coeffLevel[start_scan + coeffNum] = levelVal[k];
             if (!chroma) {
                 if (!ac)
-                    slice->quantization.coeff_luma_dc(this, pl, i, j, coeffNum, levelVal[k]);
+                    slice->transform.coeff_luma_dc(this, pl, i, j, coeffNum, levelVal[k]);
                 else {
                     int x0 = !this->transform_size_8x8_flag ? i : (i & ~1);
                     int y0 = !this->transform_size_8x8_flag ? j : (j & ~1);
                     int c0 = !this->transform_size_8x8_flag ? coeffNum : coeffNum * 4 + (blkIdx % 4);
-                    slice->quantization.coeff_luma_ac(this, pl, x0, y0, c0, levelVal[k]);
+                    slice->transform.coeff_luma_ac(this, pl, x0, y0, c0, levelVal[k]);
                 }
             } else {
                 if (!ac)
-                    slice->quantization.coeff_chroma_dc(this, pl, i, j, coeffNum, levelVal[k]);
+                    slice->transform.coeff_chroma_dc(this, pl, i, j, coeffNum, levelVal[k]);
                 else
-                    slice->quantization.coeff_chroma_ac(this, pl, i, j, coeffNum, levelVal[k]);
+                    slice->transform.coeff_chroma_ac(this, pl, i, j, coeffNum, levelVal[k]);
             }
         }
     }
@@ -694,14 +693,14 @@ void macroblock_t::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, u
             //    assert(startIdx + ii < numCoeff);
             if (!chroma) {
                 if (!ac)
-                    slice->quantization.coeff_luma_dc(this, pl, i, j, ii, *coeff);
+                    slice->transform.coeff_luma_dc(this, pl, i, j, ii, *coeff);
                 else
-                    slice->quantization.coeff_luma_ac(this, pl, i, j, ii, *coeff);
+                    slice->transform.coeff_luma_ac(this, pl, i, j, ii, *coeff);
             } else {
                 if (!ac)
-                    slice->quantization.coeff_chroma_dc(this, pl, i, j, ii, *coeff);
+                    slice->transform.coeff_chroma_dc(this, pl, i, j, ii, *coeff);
                 else
-                    slice->quantization.coeff_chroma_ac(this, pl, i, j, ii, *coeff);
+                    slice->transform.coeff_chroma_ac(this, pl, i, j, ii, *coeff);
             }
         }
         coeff--;
@@ -720,7 +719,7 @@ void macroblock_t::residual_luma(ColorPlane pl)
     if (IS_I16MB(this) && !this->dpl_flag) {
         residual_block(this, LUMA_16DC, 0, 15, 16, pl, false, false, 0);
 
-        slice->transform.inverse_luma_dc(this, pl);
+        slice->transform.transform_luma_dc(this, pl);
     }
 
     for (int i8x8 = 0; i8x8 < 4; i8x8++) {
@@ -769,7 +768,7 @@ void macroblock_t::residual_chroma()
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
             residual_block(this, CHROMA_DC, 0, 4 * NumC8x8 - 1, 4 * NumC8x8, (ColorPlane)(iCbCr+1), true, false, 0);
 
-            slice->transform.inverse_chroma_dc(this, (ColorPlane)(iCbCr + 1));
+            slice->transform.transform_chroma_dc(this, (ColorPlane)(iCbCr + 1));
         }
     }
 
