@@ -344,7 +344,7 @@ static void status_picture(VideoParameters *p_Vid, storable_picture **dec_pictur
     int chroma_format_idc = (*dec_picture)->chroma_format_idc;
 
     // report
-    char cslice_type[9];  
+    static char cslice_type[9] = { 0 };  
 
     if (!p_Inp->silent) {
         if (structure == TOP_FIELD || structure == FRAME) {

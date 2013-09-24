@@ -83,7 +83,7 @@ static void Report(VideoParameters *p_Vid)
 #endif
 
   // normalize time
-  p_Vid->tot_time /= p_Vid->tot_time;
+  p_Vid->tot_time /= 1000;
 
   if (!p_Inp->silent)
   {

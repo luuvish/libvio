@@ -698,6 +698,9 @@ void free_pic_motion(pic_motion_params_old* motion)
  */
 void free_storable_picture(storable_picture* p)
 {
+  int nplane;
+  if (p)
+  {
     int iChromaPadX = MCBUF_CHROMA_PAD_X;
     int iChromaPadY = MCBUF_CHROMA_PAD_Y;
     if (p->chroma_format_idc == YUV422)
@@ -707,9 +710,6 @@ void free_storable_picture(storable_picture* p)
         iChromaPadY = MCBUF_LUMA_PAD_Y;
     }
 
-  int nplane;
-  if (p)
-  {
     if (p->mv_info)
     {
       free_mem2Dmp(p->mv_info);

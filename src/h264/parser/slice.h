@@ -20,7 +20,6 @@
 namespace vio { namespace h264 {
 struct cabac_contexts_t;
 }}
-struct macroblock_t;
 
 using vio::h264::cabac_contexts_t;
 
