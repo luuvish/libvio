@@ -35,15 +35,14 @@ struct inter_prediction_t {
     void get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y, imgpel **block,
                         int shift_x,int maxold_x,int maxold_y, ColorPlane pl, mb_t* mb);
 
-    void prepare_direct_params(mb_t* mb, MotionVector *pmvl0, MotionVector *pmvl1,char *l0_rFrame, char *l1_rFrame);
     void perform_mc           (mb_t* mb, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y);
 
-    void get_direct8x8temporal(mb_t* mb, int block8x8);
-    void get_direct4x4temporal(mb_t* mb, int block8x8);
-    void get_direct4x4spatial (mb_t* mb, bool dir=true);
-    int  get_inter8x8         (mb_t* mb, int block8x8);
-
-    void update_direct_mv_info(mb_t* mb);
+    int  get_colocated_info   (mb_t* mb, storable_picture* list1, int i, int j);
+    void set_direct_references(mb_t* mb, const PixelPos* pix, char* l0_rFrame, char* l1_rFrame, pic_motion_params** mv_info);
+    void prepare_direct_params(mb_t* mb, MotionVector* pmvl0, MotionVector* pmvl1,char* l0_rFrame, char* l1_rFrame);
+    void get_direct_temporal(mb_t* mb, bool dir=true);
+    void get_direct_spatial (mb_t* mb, bool dir=true);
+    int  get_inter8x8       (mb_t* mb, int block8x8);
 };
 
 

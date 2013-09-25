@@ -607,6 +607,11 @@ void macroblock_t::parse_skip()
     }
 
     if (slice->slice_type == B_slice) {
+        if (slice->direct_spatial_mv_pred_flag)
+            slice->inter_prediction.get_direct_spatial(this);
+        else
+            slice->inter_prediction.get_direct_temporal(this);
+
         this->noSubMbPartSizeLessThan8x8Flag = sps->direct_8x8_inference_flag;
 
         if (slice->mb_skip_run >= 0) {
@@ -838,8 +843,12 @@ void macroblock_t::parse_motion_info()
 {
     slice_t *slice = this->p_Slice;
 
-    if (slice->slice_type == B_slice && this->mb_type == P8x8)
-        slice->inter_prediction.update_direct_mv_info(this);   
+    if (slice->slice_type == B_slice && this->mb_type == P8x8) {
+        if (slice->direct_spatial_mv_pred_flag)
+            slice->inter_prediction.get_direct_spatial(this, false);
+        else
+            slice->inter_prediction.get_direct_temporal(this, true);
+    }
 
     this->parse_ref_pic_idx(LIST_0);
     if (slice->slice_type == B_slice)

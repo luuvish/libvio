@@ -25,51 +25,14 @@ static void mb_pred_skip(mb_t* mb, ColorPlane curr_plane)
 static void mb_pred_p_inter(mb_t* mb, ColorPlane curr_plane)
 {
     slice_t* slice = mb->p_Slice;
+    sps_t* sps = slice->active_sps;
 
     int step_h0 = BLOCK_STEP[mb->mb_type][0];
     int step_v0 = BLOCK_STEP[mb->mb_type][1];
-
-    for (int j0 = 0; j0 < 4; j0 += step_v0) {
-        for (int i0 = 0; i0 < 4; i0 += step_h0) {
-            int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-            int mv_mode  = mb->SubMbType    [block8x8];
-            int pred_dir = mb->SubMbPredMode[block8x8];
-            int step_h4  = BLOCK_STEP[mv_mode][0];
-            int step_v4  = BLOCK_STEP[mv_mode][1];
-
-            for (int j = j0; j < j0 + step_v0; j += step_v4) {
-                for (int i = i0; i < i0 + step_h0; i += step_h4)
-                    slice->inter_prediction.perform_mc(mb, curr_plane, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
-            }
-        }
+    if (mb->mb_type == PSKIP && slice->slice_type == B_slice) {
+        step_h0 = 2;
+        step_v0 = 2;
     }
-
-    if (slice->slice_type == SP_slice)
-        slice->transform.inverse_transform_sp(mb, curr_plane);
-    else
-        slice->transform.inverse_transform_inter(mb, curr_plane);
-    if (mb->CodedBlockPatternLuma != 0 || mb->CodedBlockPatternChroma != 0)
-        slice->is_reset_coeff = false;
-}
-
-static void mb_pred_b_direct(mb_t* mb, ColorPlane curr_plane)
-{
-    slice_t* slice = mb->p_Slice;
-    sps_t* sps = slice->active_sps;
-
-    if (slice->direct_spatial_mv_pred_flag) {
-        slice->inter_prediction.get_direct4x4spatial(mb);
-    } else {
-        for (int block8x8 = 0; block8x8 < 4; block8x8++) {
-            if (sps->direct_8x8_inference_flag)
-                slice->inter_prediction.get_direct8x8temporal(mb, block8x8);
-            else
-                slice->inter_prediction.get_direct4x4temporal(mb, block8x8);
-        }
-    }
-
-    int step_h0 = 2; //BLOCK_STEP[mb->mb_type][0];
-    int step_v0 = 2; //BLOCK_STEP[mb->mb_type][1];
 
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {
@@ -118,7 +81,8 @@ static void mb_pred_b_inter8x8(mb_t* mb, ColorPlane curr_plane)
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {
             int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-            int mv_mode  = mb->SubMbType[block8x8];
+            int mv_mode  = mb->SubMbType    [block8x8];
+            //int pred_dir = mb->SubMbPredMode[block8x8];
             int step_h4  = BLOCK_STEP[mv_mode][0];
             int step_v4  = BLOCK_STEP[mv_mode][1];
             int pred_dir = pred_dirs[block8x8];
@@ -328,15 +292,13 @@ static void decode_one_component(mb_t* mb, ColorPlane curr_plane)
         return;
     }
 
-    if (mb->mb_type == PSKIP) {
-        if (slice->slice_type == B_SLICE)
-            mb_pred_b_direct(mb, curr_plane);
-        else
-            mb_pred_skip(mb, curr_plane);
+    if (mb->mb_type == PSKIP && slice->slice_type != B_slice) {
+        mb_pred_skip(mb, curr_plane);
         return;
     }
 
-    if (slice->slice_type == P_SLICE || slice->slice_type == SP_SLICE ||
+    if ((slice->slice_type == B_slice && mb->mb_type == PSKIP) ||
+        slice->slice_type == P_slice || slice->slice_type == SP_slice ||
         mb->mb_type == P16x16 || mb->mb_type == P16x8 || mb->mb_type == P8x16) {
         mb_pred_p_inter(mb, curr_plane);
         return;
