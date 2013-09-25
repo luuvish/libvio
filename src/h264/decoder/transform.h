@@ -21,15 +21,16 @@
  * ===========================================================================
  */
 
-#ifndef _TRANSFORM_H_
-#define _TRANSFORM_H_
+#ifndef _VIO_H264_TRANSFORM_H_
+#define _VIO_H264_TRANSFORM_H_
 
 
 namespace vio  {
 namespace h264 {
 
 
-struct transform_t {
+class Transform {
+public:
     void assign_quant_params(slice_t* slice);
 
     pos_t inverse_scan_luma_dc  (mb_t* mb, int run);
@@ -57,7 +58,7 @@ struct transform_t {
 
     int         cof[3][16][16];
 
-protected:
+private:
     void set_quant(slice_t* slice);
 
     void ihadamard_2x2(int c[2][2], int f[2][2]);
@@ -95,4 +96,4 @@ protected:
 }
 
 
-#endif /* _TRANSFORM_H_ */
+#endif // _VIO_H264_TRANSFORM_H_

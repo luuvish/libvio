@@ -27,6 +27,8 @@
 #include "transform.h"
 #include "image.h"
 
+#include "intra_prediction.h"
+
 
 namespace vio  {
 namespace h264 {
@@ -171,7 +173,7 @@ static const int dequant_coef8[6][8][8] = {
 };
 
 
-void transform_t::assign_quant_params(slice_t* slice)
+void Transform::assign_quant_params(slice_t* slice)
 {
     sps_t* sps = slice->active_sps;
     pps_t* pps = slice->active_pps;
@@ -258,7 +260,7 @@ void transform_t::assign_quant_params(slice_t* slice)
     this->set_quant(slice);
 }
 
-void transform_t::set_quant(slice_t* slice)
+void Transform::set_quant(slice_t* slice)
 {
     sps_t* sps = slice->active_sps;
     pps_t* pps = slice->active_pps;
@@ -338,7 +340,7 @@ static const uint8_t ZIGZAG_SCAN_8x8[2][64][2] = {
      { 6, 6 }, { 6, 7 }, { 7, 2 }, { 7, 3 }, { 7, 4 }, { 7, 5 }, { 7, 6 }, { 7, 7 }}
 };
 
-pos_t transform_t::inverse_scan_luma_dc(mb_t* mb, int run)
+pos_t Transform::inverse_scan_luma_dc(mb_t* mb, int run)
 {
     slice_t* slice = mb->p_Slice;
 
@@ -348,7 +350,7 @@ pos_t transform_t::inverse_scan_luma_dc(mb_t* mb, int run)
     return {zigzag_scan_4x4[run][0], zigzag_scan_4x4[run][1]};
 }
 
-pos_t transform_t::inverse_scan_luma_ac(mb_t* mb, int run)
+pos_t Transform::inverse_scan_luma_ac(mb_t* mb, int run)
 {
     slice_t* slice = mb->p_Slice;
 
@@ -362,7 +364,7 @@ pos_t transform_t::inverse_scan_luma_ac(mb_t* mb, int run)
         return {zigzag_scan_8x8[run][0], zigzag_scan_8x8[run][1]};
 }
 
-pos_t transform_t::inverse_scan_chroma_dc(mb_t* mb, int run)
+pos_t Transform::inverse_scan_chroma_dc(mb_t* mb, int run)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -374,7 +376,7 @@ pos_t transform_t::inverse_scan_chroma_dc(mb_t* mb, int run)
     return {0, 0};
 }
 
-pos_t transform_t::inverse_scan_chroma_ac(mb_t* mb, int run)
+pos_t Transform::inverse_scan_chroma_ac(mb_t* mb, int run)
 {
     slice_t* slice = mb->p_Slice;
 
@@ -390,7 +392,7 @@ static inline int rshift_rnd_sf(int x, int a)
     return ((x + (1 << (a-1) )) >> a);
 }
 
-int transform_t::inverse_quantize(mb_t* mb, bool uv, ColorPlane pl, int i0, int j0, int levarr)
+int Transform::inverse_quantize(mb_t* mb, bool uv, ColorPlane pl, int i0, int j0, int levarr)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -420,13 +422,13 @@ int transform_t::inverse_quantize(mb_t* mb, bool uv, ColorPlane pl, int i0, int 
 }
 
 
-void transform_t::coeff_luma_dc(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
+void Transform::coeff_luma_dc(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
 {
     const pos_t& pos = inverse_scan_luma_dc(mb, runarr);
     this->cof[pl][pos.y * 4][pos.x * 4] = levarr;
 }
 
-void transform_t::coeff_luma_ac(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
+void Transform::coeff_luma_ac(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
 {
     if (!mb->transform_size_8x8_flag)
         mb->cbp_blks[pl] |= ((uint64_t)0x01 << (y0 * 4 + x0));
@@ -439,13 +441,13 @@ void transform_t::coeff_luma_ac(mb_t* mb, ColorPlane pl, int x0, int y0, int run
     this->cof[pl][y0 * 4 + pos.y][x0 * 4 + pos.x] = levarr;
 }
 
-void transform_t::coeff_chroma_dc(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
+void Transform::coeff_chroma_dc(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
 {
     const pos_t& pos = inverse_scan_chroma_dc(mb, runarr);
     this->cof[pl][pos.y * 4][pos.x * 4] = levarr;
 }
 
-void transform_t::coeff_chroma_ac(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
+void Transform::coeff_chroma_ac(mb_t* mb, ColorPlane pl, int x0, int y0, int runarr, int levarr)
 {
     const pos_t& pos = inverse_scan_chroma_ac(mb, runarr);
     if (!mb->TransformBypassModeFlag)
@@ -455,7 +457,7 @@ void transform_t::coeff_chroma_ac(mb_t* mb, ColorPlane pl, int x0, int y0, int r
 
 
 
-void transform_t::ihadamard_2x2(int c[2][2], int f[2][2])
+void Transform::ihadamard_2x2(int c[2][2], int f[2][2])
 {
     int e[2][2];
 
@@ -478,7 +480,7 @@ void transform_t::ihadamard_2x2(int c[2][2], int f[2][2])
     }
 }
 
-void transform_t::ihadamard_2x4(int c[4][2], int f[4][2])
+void Transform::ihadamard_2x4(int c[4][2], int f[4][2])
 {
     int e[4][2];
 
@@ -510,7 +512,7 @@ void transform_t::ihadamard_2x4(int c[4][2], int f[4][2])
     }
 }
 
-void transform_t::ihadamard_4x4(int c[4][4], int f[4][4])
+void Transform::ihadamard_4x4(int c[4][4], int f[4][4])
 {
     int e[4][4];
 
@@ -551,7 +553,7 @@ void transform_t::ihadamard_4x4(int c[4][4], int f[4][4])
     }
 }
 
-void transform_t::forward_4x4(int p[16][16], int c[16][16], int pos_y, int pos_x)
+void Transform::forward_4x4(int p[16][16], int c[16][16], int pos_y, int pos_x)
 {
     int f[4][4];
 
@@ -592,7 +594,7 @@ void transform_t::forward_4x4(int p[16][16], int c[16][16], int pos_y, int pos_x
     }
 }
 
-void transform_t::inverse_4x4(int d[16][16], int r[16][16], int pos_y, int pos_x)
+void Transform::inverse_4x4(int d[16][16], int r[16][16], int pos_y, int pos_x)
 {
     int f[4][4];
 
@@ -638,7 +640,7 @@ void transform_t::inverse_4x4(int d[16][16], int r[16][16], int pos_y, int pos_x
     }
 }
 
-void transform_t::inverse_8x8(int d[16][16], int r[16][16], int pos_y, int pos_x)
+void Transform::inverse_8x8(int d[16][16], int r[16][16], int pos_y, int pos_x)
 {
     int g[8][8];
 
@@ -731,15 +733,15 @@ void transform_t::inverse_8x8(int d[16][16], int r[16][16], int pos_y, int pos_x
 }
 
 
-void transform_t::bypass_4x4(int r[16][16], int f[16][16], int ioff, int joff, uint8_t pred_mode)
+void Transform::bypass_4x4(int r[16][16], int f[16][16], int ioff, int joff, uint8_t pred_mode)
 {
-    if (pred_mode == intra_prediction_t::Intra_4x4_Vertical) {
+    if (pred_mode == IntraPrediction::Intra_4x4_Vertical) {
         for (int i = 0; i < 4; ++i) {
             f[joff + 0][ioff + i] = r[joff + 0][ioff + i];
             for (int j = 1; j < 4; ++j)
                 f[joff + j][ioff + i] = r[joff + j][ioff + i] + f[joff + j - 1][ioff + i];
         }
-    } else if (pred_mode == intra_prediction_t::Intra_4x4_Horizontal) {
+    } else if (pred_mode == IntraPrediction::Intra_4x4_Horizontal) {
         for (int j = 0; j < 4; ++j) {
             f[joff + j][ioff + 0] = r[joff + j][ioff + 0];
             for (int i = 1; i < 4; ++i)
@@ -753,15 +755,15 @@ void transform_t::bypass_4x4(int r[16][16], int f[16][16], int ioff, int joff, u
     }
 }
 
-void transform_t::bypass_8x8(int r[16][16], int f[16][16], int ioff, int joff, uint8_t pred_mode)
+void Transform::bypass_8x8(int r[16][16], int f[16][16], int ioff, int joff, uint8_t pred_mode)
 {
-    if (pred_mode == intra_prediction_t::Intra_8x8_Vertical) {
+    if (pred_mode == IntraPrediction::Intra_8x8_Vertical) {
         for (int i = 0; i < 8; ++i) {
             f[joff + 0][ioff + i] = r[joff + 0][ioff + i];
             for (int j = 1; j < 8; ++j)
                 f[joff + j][ioff + i] = r[joff + j][ioff + i] + f[joff + j - 1][ioff + i];
         }
-    } else if (pred_mode == intra_prediction_t::Intra_8x8_Horizontal) {
+    } else if (pred_mode == IntraPrediction::Intra_8x8_Horizontal) {
         for (int j = 0; j < 8; ++j) {
             f[joff + j][ioff + 0] = r[joff + j][ioff + 0];
             for (int i = 1; i < 8; ++i)
@@ -775,15 +777,15 @@ void transform_t::bypass_8x8(int r[16][16], int f[16][16], int ioff, int joff, u
     }
 }
 
-void transform_t::bypass_16x16(int r[16][16], int f[16][16], int ioff, int joff, uint8_t pred_mode)
+void Transform::bypass_16x16(int r[16][16], int f[16][16], int ioff, int joff, uint8_t pred_mode)
 {
-    if (pred_mode == intra_prediction_t::Intra_16x16_Vertical) {
+    if (pred_mode == IntraPrediction::Intra_16x16_Vertical) {
         for (int i = 0; i < 16; ++i) {
             f[0][i] = r[0][i];
             for (int j = 1; j < 16; ++j)
                 f[j][i] = r[j][i] + f[j - 1][i];
         }
-    } else if (pred_mode == intra_prediction_t::Intra_16x16_Horizontal) {
+    } else if (pred_mode == IntraPrediction::Intra_16x16_Horizontal) {
         for (int j = 0; j < 16; ++j) {
             f[j][0] = r[j][0];
             for (int i = 1; i < 16; ++i)
@@ -797,15 +799,15 @@ void transform_t::bypass_16x16(int r[16][16], int f[16][16], int ioff, int joff,
     }
 }
 
-void transform_t::bypass_chroma(int r[16][16], int f[16][16], int nW, int nH, uint8_t pred_mode)
+void Transform::bypass_chroma(int r[16][16], int f[16][16], int nW, int nH, uint8_t pred_mode)
 {
-    if (pred_mode == intra_prediction_t::Intra_Chroma_Vertical) {
+    if (pred_mode == IntraPrediction::Intra_Chroma_Vertical) {
         for (int i = 0; i < nW; ++i) {
             f[0][i] = r[0][i];
             for (int j = 1; j < nH; ++j)
                 f[j][i] = r[j][i] + f[j - 1][i];
         }
-    } else if (pred_mode == intra_prediction_t::Intra_Chroma_Horizontal) {
+    } else if (pred_mode == IntraPrediction::Intra_Chroma_Horizontal) {
         for (int j = 0; j < nH; ++j) {
             f[j][0] = r[j][0];
             for (int i = 1; i < nW; ++i)
@@ -820,7 +822,7 @@ void transform_t::bypass_chroma(int r[16][16], int f[16][16], int nW, int nH, ui
 }
 
 
-void transform_t::transform_luma_dc(mb_t* mb, ColorPlane pl)
+void Transform::transform_luma_dc(mb_t* mb, ColorPlane pl)
 {
     if (!mb->TransformBypassModeFlag) {
         slice_t* slice = mb->p_Slice;
@@ -853,7 +855,7 @@ void transform_t::transform_luma_dc(mb_t* mb, ColorPlane pl)
     }
 }
 
-void transform_t::transform_chroma_dc(mb_t* mb, ColorPlane pl)
+void Transform::transform_chroma_dc(mb_t* mb, ColorPlane pl)
 {
     if (!mb->TransformBypassModeFlag) {
         slice_t* slice = mb->p_Slice;
@@ -907,7 +909,7 @@ void transform_t::transform_chroma_dc(mb_t* mb, ColorPlane pl)
 }
 
 
-void transform_t::construction(mb_t* mb, ColorPlane pl, int ioff, int joff, int nW, int nH)
+void Transform::construction(mb_t* mb, ColorPlane pl, int ioff, int joff, int nW, int nH)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -934,7 +936,7 @@ void transform_t::construction(mb_t* mb, ColorPlane pl, int ioff, int joff, int 
         memcpy(&curr_img[mb->mb.y * 16 + joff + j][mb->mb.x * 16 + ioff], &mb_rec[joff + j][ioff], nW * sizeof (imgpel));
 }
 
-void transform_t::construction_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void Transform::construction_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -955,7 +957,7 @@ void transform_t::construction_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff
         memcpy(&curr_img[mb->mb.y * 16 + joff + j][mb->mb.x * 16 + ioff], &mb_rec[joff + j][ioff], 16 * sizeof (imgpel));
 }
 
-void transform_t::construction_chroma(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void Transform::construction_chroma(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -980,7 +982,7 @@ void transform_t::construction_chroma(mb_t* mb, ColorPlane pl, int ioff, int jof
     }
 }
 
-void transform_t::inverse_transform_4x4(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void Transform::inverse_transform_4x4(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     int block8x8 = (joff / 8) * 2 + (ioff / 8);
 
@@ -997,7 +999,7 @@ void transform_t::inverse_transform_4x4(mb_t* mb, ColorPlane pl, int ioff, int j
     this->construction(mb, pl, ioff, joff, 4, 4);
 }
 
-void transform_t::inverse_transform_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void Transform::inverse_transform_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     int block8x8 = (joff / 8) * 2 + (ioff / 8);
 
@@ -1012,7 +1014,7 @@ void transform_t::inverse_transform_8x8(mb_t* mb, ColorPlane pl, int ioff, int j
     this->construction(mb, pl, ioff, joff, 8, 8);
 }
 
-void transform_t::inverse_transform_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void Transform::inverse_transform_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     uint8_t pred_mode = mb->Intra16x16PredMode;
     if (mb->TransformBypassModeFlag)
@@ -1027,7 +1029,7 @@ void transform_t::inverse_transform_16x16(mb_t* mb, ColorPlane pl, int ioff, int
     this->construction_16x16(mb, pl, ioff, joff);
 }
 
-void transform_t::inverse_transform_chroma(mb_t* mb, ColorPlane pl)
+void Transform::inverse_transform_chroma(mb_t* mb, ColorPlane pl)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -1045,7 +1047,7 @@ void transform_t::inverse_transform_chroma(mb_t* mb, ColorPlane pl)
     this->construction_chroma(mb, pl, 0, 0);
 }
 
-void transform_t::inverse_transform_inter(mb_t* mb, ColorPlane pl)
+void Transform::inverse_transform_inter(mb_t* mb, ColorPlane pl)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -1126,7 +1128,7 @@ static const uint16_t LevelScale2[6][4][4] = {
      {  4559,  2893,  4559,  2893 }}
 };
 
-void transform_t::itrans_sp(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void Transform::itrans_sp(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -1183,7 +1185,7 @@ void transform_t::itrans_sp(mb_t* mb, ColorPlane pl, int ioff, int joff)
 }
 
 
-void transform_t::itrans_sp_cr(mb_t* mb, ColorPlane pl)
+void Transform::itrans_sp_cr(mb_t* mb, ColorPlane pl)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -1259,7 +1261,7 @@ void transform_t::itrans_sp_cr(mb_t* mb, ColorPlane pl)
     cof[4][4] = (mp1[0][0] - mp1[0][1] - mp1[1][0] + mp1[1][1]) >> 1;
 }
 
-void transform_t::inverse_transform_sp(mb_t* mb, ColorPlane pl)
+void Transform::inverse_transform_sp(mb_t* mb, ColorPlane pl)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;

@@ -21,21 +21,22 @@
  * ===========================================================================
  */
 
-#ifndef _INTER_PREDICTION_H_
-#define _INTER_PREDICTION_H_
+#ifndef _VIO_H264_INTER_PREDICTION_H_
+#define _VIO_H264_INTER_PREDICTION_H_
 
 
 namespace vio  {
 namespace h264 {
 
 
-struct inter_prediction_t {
+class InterPrediction {
+public:
     void motion_compensation(mb_t* mb);
 
     void get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y, imgpel **block,
                         int shift_x,int maxold_x,int maxold_y, ColorPlane pl, mb_t* mb);
 
-    void perform_mc           (mb_t* mb, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y);
+    void perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y);
 };
 
 
@@ -43,4 +44,4 @@ struct inter_prediction_t {
 }
 
 
-#endif /* _INTER_PREDICTION_H_ */
+#endif // _VIO_H264_INTER_PREDICTION_H_

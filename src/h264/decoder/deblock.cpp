@@ -33,12 +33,12 @@ namespace vio  {
 namespace h264 {
 
 
-inline int deblock_t::compare_mvs(const MotionVector* mv0, const MotionVector* mv1, int mvlimit)
+inline int Deblock::compare_mvs(const MotionVector* mv0, const MotionVector* mv1, int mvlimit)
 {
     return (abs(mv0->mv_x - mv1->mv_x) >= 4) | (abs(mv0->mv_y - mv1->mv_y) >= mvlimit);
 }
 
-inline int deblock_t::bs_compare_mvs(const pic_motion_params* mv_info_p, const pic_motion_params* mv_info_q, int mvlimit)
+inline int Deblock::bs_compare_mvs(const pic_motion_params* mv_info_p, const pic_motion_params* mv_info_q, int mvlimit)
 {
     int StrValue;
 
@@ -76,7 +76,7 @@ inline int deblock_t::bs_compare_mvs(const pic_motion_params* mv_info_p, const p
 }
 
 
-void deblock_t::strength_vertical(mb_t* MbQ, int edge)
+void Deblock::strength_vertical(mb_t* MbQ, int edge)
 {
     uint8_t* Strength = MbQ->strength_ver[edge];
     int StrValue;
@@ -156,7 +156,7 @@ void deblock_t::strength_vertical(mb_t* MbQ, int edge)
     }
 }
 
-void deblock_t::strength_horizontal(mb_t* MbQ, int edge)
+void Deblock::strength_horizontal(mb_t* MbQ, int edge)
 {
     uint8_t* Strength = MbQ->strength_hor[edge];
     int StrValue;
@@ -230,7 +230,7 @@ void deblock_t::strength_horizontal(mb_t* MbQ, int edge)
     }
 }
 
-void deblock_t::strength(mb_t* MbQ)
+void Deblock::strength(mb_t* MbQ)
 {
     slice_t* slice = MbQ->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -329,7 +329,7 @@ static const uint8_t TABLE_TC0[52][3] = {
 };
 
 
-void deblock_t::filter_strong(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag)
+void Deblock::filter_strong(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag)
 {
 #define p(i) (pixQ[- (i + 1) * width])
 #define q(i) (pixQ[  (i    ) * width])
@@ -374,7 +374,7 @@ void deblock_t::filter_strong(imgpel *pixQ, int width, int alpha, int beta, int 
 #undef q
 }
 
-void deblock_t::filter_normal(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int tc0, int BitDepth)
+void Deblock::filter_normal(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int tc0, int BitDepth)
 {
 #define p(i) (pixQ[- (i + 1) * width])
 #define q(i) (pixQ[  (i    ) * width])
@@ -420,7 +420,7 @@ void deblock_t::filter_normal(imgpel *pixQ, int width, int alpha, int beta, int 
 }
 
 
-void deblock_t::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool verticalEdgeFlag, bool fieldModeInFrameFilteringFlag, int edge)
+void Deblock::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool verticalEdgeFlag, bool fieldModeInFrameFilteringFlag, int edge)
 {
     slice_t* slice = MbQ->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -490,7 +490,7 @@ void deblock_t::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool 
     }
 }
 
-void deblock_t::filter_vertical(mb_t* MbQ)
+void Deblock::filter_vertical(mb_t* MbQ)
 {
     slice_t* slice = MbQ->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -507,7 +507,7 @@ void deblock_t::filter_vertical(mb_t* MbQ)
     }
 }
 
-void deblock_t::filter_horizontal(mb_t* MbQ)
+void Deblock::filter_horizontal(mb_t* MbQ)
 {
     slice_t* slice = MbQ->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -539,7 +539,7 @@ void deblock_t::filter_horizontal(mb_t* MbQ)
     }
 }
 
-void deblock_t::deblock_pic(VideoParameters* p_Vid)
+void Deblock::deblock_pic(VideoParameters* p_Vid)
 {
     slice_t* slice = p_Vid->ppSliceList[0];
     mb_t* mb_data = slice->mb_data;
@@ -556,7 +556,7 @@ void deblock_t::deblock_pic(VideoParameters* p_Vid)
 }
 
 
-void deblock_t::make_frame_picture_JV(VideoParameters *p_Vid)
+void Deblock::make_frame_picture_JV(VideoParameters *p_Vid)
 {
     sps_t* sps = p_Vid->active_sps;
     p_Vid->dec_picture = p_Vid->dec_picture_JV[0];
@@ -623,7 +623,7 @@ static void MbAffPostProc(VideoParameters *p_Vid)
     }
 }
 
-void deblock_t::deblock(VideoParameters *p_Vid)
+void Deblock::deblock(VideoParameters *p_Vid)
 {
     storable_picture* p = p_Vid->dec_picture;
     if (p->mb_aff_frame_flag)

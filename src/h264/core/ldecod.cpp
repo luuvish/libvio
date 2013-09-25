@@ -562,8 +562,7 @@ static void free_slice(slice_t *currSlice)
         free(tmp_drpm);
     }
 
-    free(currSlice);
-    currSlice = NULL;
+    delete currSlice;
 }
 
 static void free_img( VideoParameters *p_Vid)

@@ -435,7 +435,7 @@ void exit_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
     erc_picture(p_Vid, dec_picture);
 #endif
 
-    currSlice->deblock.deblock(p_Vid);
+    currSlice->decoder.deblock_filter(*currSlice);
 
     if (p_Vid->structure != FRAME)
         p_Vid->number /= 2;

@@ -25,16 +25,12 @@
 #include "slice.h"
 #include "macroblock.h"
 #include "dpb.h"
-#include "transform.h"
 #include "inter_prediction.h"
 
 
 namespace vio  {
 namespace h264 {
 
-
-// These variables relate to the subpel accuracy supported by the software (1/4)
-#define BLOCK_SIZE_8x8_SP  32  // BLOCK_SIZE8x8 << 2
 
 static inline int RSHIFT_RND(int x, int a)
 {
@@ -312,7 +308,7 @@ static void get_luma_31(imgpel **block, imgpel **cur_imgY, int block_size_y, int
  *    Interpolation of 1/4 subpixel
  ************************************************************************
  */ 
-void inter_prediction_t::get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
+void InterPrediction::get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
                     imgpel **block, int shift_x, int maxold_x, int maxold_y,
                     ColorPlane pl, mb_t *currMB)
 {
@@ -467,7 +463,7 @@ static int CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
         return 0;
 }
 
-void inter_prediction_t::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y)
+void InterPrediction::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y)
 {
     assert (pred_dir <= 2);
 
@@ -533,7 +529,7 @@ void inter_prediction_t::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, i
         get_block_luma(list0, vec1_x, vec1_y,
                        block_size_x, 8, tmp_block_l0, shift_x,
                        maxold_x, maxold_y, pl, currMB);
-        get_block_luma(list0, vec1_x, vec1_y+BLOCK_SIZE_8x8_SP,
+        get_block_luma(list0, vec1_x, vec1_y+32,
                        block_size_x, block_size_y-8, tmp_block_l0+8, shift_x,
                        maxold_x, maxold_y, pl, currMB);
     } else
@@ -545,7 +541,7 @@ void inter_prediction_t::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, i
             get_block_luma(list1, vec2_x, vec2_y,
                            block_size_x, 8, tmp_block_l1, shift_x,
                            maxold_x, maxold_y, pl, currMB);
-            get_block_luma(list1, vec2_x, vec2_y+BLOCK_SIZE_8x8_SP,
+            get_block_luma(list1, vec2_x, vec2_y+32,
                            block_size_x, block_size_y-8, tmp_block_l1 + 8, shift_x,
                            maxold_x, maxold_y, pl, currMB);
         } else
@@ -625,7 +621,7 @@ void inter_prediction_t::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, i
 }
 
 
-void inter_prediction_t::motion_compensation(mb_t *mb)
+void InterPrediction::motion_compensation(mb_t *mb)
 {
 }
 

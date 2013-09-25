@@ -16,9 +16,6 @@
 #include "macroblock.h"
 #include "neighbour.h"
 
-#include "intra_prediction.h"
-#include "deblock.h"
-
 #include "erc_api.h"
 #include "dpb.h"
 
@@ -278,8 +275,8 @@ void slice_t::decode()
         // Initializes the current macroblock
         currMB->init(this);
         // Get the syntax elements from the NAL
-        currMB->parse();
-        currMB->decode();
+        this->parser.parse(*currMB);
+        this->decoder.decode(*currMB);
 
         if (this->MbaffFrameFlag && currMB->mb_field_decoding_flag) {
             this->num_ref_idx_l0_active_minus1 = ((this->num_ref_idx_l0_active_minus1 + 1) >> 1) - 1;

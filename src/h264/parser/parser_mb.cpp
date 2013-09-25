@@ -10,7 +10,10 @@
 #include "image.h"
 #include "neighbour.h"
 
-#include "mb_read_syntax.h"
+#include "parser.h"
+
+#include "intra_prediction.h"
+#include "transform.h"
 
 
 using namespace vio::h264;
@@ -277,22 +280,22 @@ static void interpret_mb_mode_SI(mb_t* mb)
     }
 }
 
-void macroblock_t::interpret_mb_mode()
+void interpret_mb_mode(mb_t* mb)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb->p_Slice;
     switch (slice->slice_type) {
     case P_SLICE: 
     case SP_SLICE:
-        interpret_mb_mode_P(this);
+        interpret_mb_mode_P(mb);
         break;
     case B_SLICE:
-        interpret_mb_mode_B(this);
+        interpret_mb_mode_B(mb);
         break;
     case I_SLICE: 
-        interpret_mb_mode_I(this);
+        interpret_mb_mode_I(mb);
         break;
     case SI_SLICE: 
-        interpret_mb_mode_SI(this);
+        interpret_mb_mode_SI(mb);
         break;
     default:
         printf("Unsupported slice type\n");
@@ -399,41 +402,44 @@ static void skip_macroblock(mb_t* mb)
 
 
 
-void macroblock_t::parse()
+namespace vio {
+namespace h264 {
+
+void Parser::parse(mb_t& mb)
 {
-    slice_t *slice = this->p_Slice;
-    pps_t *pps = slice->active_pps;
-    int CurrMbAddr = this->mbAddrX;
+    slice_t* slice = mb.p_Slice;
+    pps_t* pps = slice->active_pps;
+    int CurrMbAddr = mb.mbAddrX;
     bool moreDataFlag = 1;
 
-    data_partition_t *dp = &slice->partArr[0];
+    data_partition_t* dp = &slice->partArr[0];
 
     if (slice->slice_type != I_slice && slice->slice_type != SI_slice) {
         if (pps->entropy_coding_mode_flag) {
             if (slice->prescan_skip_read) {
                 slice->prescan_skip_read = false;
-                this->mb_skip_flag = slice->prescan_skip_flag;
+                mb.mb_skip_flag = slice->prescan_skip_flag;
             } else {
-                this->mb_skip_flag = parse_mb_skip_flag(this);
-                if (this->mb_skip_flag)
+                mb.mb_skip_flag = this->parse_mb_skip_flag(mb);
+                if (mb.mb_skip_flag)
                     slice->last_dquant = 0;
-                this->ei_flag = 0;
+                mb.ei_flag = 0;
             }
         } else {
             if (slice->mb_skip_run == -1)
-                slice->mb_skip_run = parse_mb_skip_run(this);
-            this->mb_skip_flag = (slice->mb_skip_run > 0);
-            if (this->mb_skip_flag)
-                this->ei_flag = 0;
+                slice->mb_skip_run = this->parse_mb_skip_run(mb);
+            mb.mb_skip_flag = (slice->mb_skip_run > 0);
+            if (mb.mb_skip_flag)
+                mb.ei_flag = 0;
         }
 
-        this->mb_type                 = !this->mb_skip_flag;
-        this->CodedBlockPatternLuma   = !this->mb_skip_flag;
-        this->CodedBlockPatternChroma = 0;
+        mb.mb_type                 = !mb.mb_skip_flag;
+        mb.CodedBlockPatternLuma   = !mb.mb_skip_flag;
+        mb.CodedBlockPatternChroma = 0;
 
         if (slice->MbaffFrameFlag && CurrMbAddr % 2 == 0) {
             if (pps->entropy_coding_mode_flag) {
-                if (this->mb_skip_flag) {
+                if (mb.mb_skip_flag) {
                     //get next MB
                     ++slice->current_mb_nr;
 
@@ -451,13 +457,13 @@ void macroblock_t::parse()
                     //check_next_mb
                     slice->last_dquant = 0;
                     slice->prescan_skip_read = true;
-                    slice->prescan_skip_flag = parse_mb_skip_flag(currMB);
+                    slice->prescan_skip_flag = this->parse_mb_skip_flag(*currMB);
                     if (slice->prescan_skip_flag)
                         slice->last_dquant = 0;
-                    this->ei_flag = 0;
+                    mb.ei_flag = 0;
                     if (!slice->prescan_skip_flag) {
                         slice->prescan_mb_field_decoding_read = true;
-                        slice->prescan_mb_field_decoding_flag = parse_mb_field_decoding_flag(currMB);
+                        slice->prescan_mb_field_decoding_flag = this->parse_mb_field_decoding_flag(*currMB);
                         slice->mb_data[slice->current_mb_nr-1].mb_field_decoding_flag = slice->prescan_mb_field_decoding_flag;
                     }
 
@@ -468,17 +474,17 @@ void macroblock_t::parse()
                 }
             } else {
                 if (slice->mb_skip_run == 1)
-                    this->mb_field_decoding_flag = dp->next_bits(1);
+                    mb.mb_field_decoding_flag = dp->next_bits(1);
             }
         }
 
         if (pps->entropy_coding_mode_flag) {
-            if (this->mb_skip_flag)
+            if (mb.mb_skip_flag)
                 slice->mb_skip_run = 0;
         } else
             slice->mb_skip_run--;
 
-        moreDataFlag = !this->mb_skip_flag;
+        moreDataFlag = !mb.mb_skip_flag;
     }
 
     if (moreDataFlag) {
@@ -488,67 +494,66 @@ void macroblock_t::parse()
             (CurrMbAddr % 2 == 0 || (CurrMbAddr % 2 == 1 && prevMbSkipped))) {
             if (slice->prescan_mb_field_decoding_read) {
                 slice->prescan_mb_field_decoding_read = false;
-                this->mb_field_decoding_flag = slice->prescan_mb_field_decoding_flag;
+                mb.mb_field_decoding_flag = slice->prescan_mb_field_decoding_flag;
             } else
-                this->mb_field_decoding_flag = parse_mb_field_decoding_flag(this);
+                mb.mb_field_decoding_flag = this->parse_mb_field_decoding_flag(mb);
         }
     }
 
     if (pps->entropy_coding_mode_flag)
-        CheckAvailabilityOfNeighborsCABAC(this);
+        CheckAvailabilityOfNeighborsCABAC(&mb);
 
 
     if (moreDataFlag) {
-        this->mb_type = parse_mb_type(this);
-        this->ei_flag = 0;
+        mb.mb_type = this->parse_mb_type(mb);
+        mb.ei_flag = 0;
     }
 
     if (slice->slice_type != I_slice && slice->slice_type != SI_slice) {
-        if (slice->MbaffFrameFlag && this->mb_field_decoding_flag) {
+        if (slice->MbaffFrameFlag && mb.mb_field_decoding_flag) {
             slice->num_ref_idx_l0_active_minus1 = ((slice->num_ref_idx_l0_active_minus1 + 1) << 1) - 1;
             slice->num_ref_idx_l1_active_minus1 = ((slice->num_ref_idx_l1_active_minus1 + 1) << 1) - 1;
         }
     }
 
-    this->interpret_mb_mode();
+    interpret_mb_mode(&mb);
 
     if (slice->slice_type != B_slice)
-        this->noSubMbPartSizeLessThan8x8Flag = 1;
-    slice->dec_picture->motion.mb_field_decoding_flag[this->mbAddrX] = this->mb_field_decoding_flag;
+        mb.noSubMbPartSizeLessThan8x8Flag = 1;
+    slice->dec_picture->motion.mb_field_decoding_flag[mb.mbAddrX] = mb.mb_field_decoding_flag;
 
-    if (this->mb_type == IPCM)
-        this->parse_i_pcm();
-    else if (this->mb_type == PSKIP || this->mb_type == BSKIP_DIRECT)
-        this->parse_skip();
-    else if (this->is_intra_block)
-        this->parse_intra();
+    if (mb.mb_type == IPCM)
+        this->parse_i_pcm(mb);
+    else if (mb.mb_type == PSKIP || mb.mb_type == BSKIP_DIRECT)
+        this->parse_skip(mb);
+    else if (mb.is_intra_block)
+        this->parse_intra(mb);
     else
-        this->parse_inter();
+        this->parse_inter(mb);
 }
 
-
-void macroblock_t::parse_i_pcm()
+void Parser::parse_i_pcm(mb_t& mb)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     sps_t* sps = slice->active_sps;
     pps_t* pps = slice->active_pps;
 
-    this->noSubMbPartSizeLessThan8x8Flag = 1;
-    this->transform_size_8x8_flag = 0;
+    mb.noSubMbPartSizeLessThan8x8Flag = 1;
+    mb.transform_size_8x8_flag = 0;
 
-    init_macroblock(this);
+    init_macroblock(&mb);
 
     if (slice->dp_mode && slice->dpB_NotPresent) {
         for (int y = 0; y < 16; y++) {
             for (int x = 0; x < 16; x++)
-                slice->transform.cof[0][y][x] = 1 << (sps->BitDepthY - 1);
+                slice->decoder.transform->cof[0][y][x] = 1 << (sps->BitDepthY - 1);
         }
 
         if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
             for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
                 for (int y = 0; y < sps->MbHeightC; y++) {
                     for (int x = 0; x < sps->MbWidthC; x++)
-                        slice->transform.cof[iCbCr + 1][y][x] = 1 << (sps->BitDepthC - 1);
+                        slice->decoder.transform->cof[iCbCr + 1][y][x] = 1 << (sps->BitDepthC - 1);
                 }
             }
         }
@@ -560,14 +565,14 @@ void macroblock_t::parse_i_pcm()
 
         for (int y = 0; y < 16; y++) {
             for (int x = 0; x < 16; x++)
-                slice->transform.cof[0][y][x] = dp->f(sps->BitDepthY);
+                slice->decoder.transform->cof[0][y][x] = dp->f(sps->BitDepthY);
         }
 
         if (sps->chroma_format_idc != YUV400 && !sps->separate_colour_plane_flag) {
             for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
                 for (int y = 0; y < sps->MbHeightC; y++) {
                     for (int x = 0; x < sps->MbWidthC; x++)
-                        slice->transform.cof[iCbCr + 1][y][x] = dp->f(sps->BitDepthC);
+                        slice->decoder.transform->cof[iCbCr + 1][y][x] = dp->f(sps->BitDepthC);
                 }
             }
         }
@@ -577,22 +582,22 @@ void macroblock_t::parse_i_pcm()
     }
 }
 
-void macroblock_t::parse_skip()
+void Parser::parse_skip(mb_t& mb)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     sps_t* sps = slice->active_sps;
     pps_t* pps = slice->active_pps;
 
     pic_motion_params** mv_info = slice->dec_picture->mv_info;
     int slice_no = slice->current_slice_nr;
 
-    this->transform_size_8x8_flag = 0;
+    mb.transform_size_8x8_flag = 0;
     if (pps->constrained_intra_pred_flag)
-        this->is_intra_block = 0;
+        mb.is_intra_block = 0;
 
     for (int y = 0; y < BLOCK_SIZE; y++) {
         for (int x = 0; x < BLOCK_SIZE; x++) {
-            auto mv = &mv_info[this->mb.y * 4 + y][this->mb.x * 4 + x];
+            auto mv = &mv_info[mb.mb.y * 4 + y][mb.mb.x * 4 + x];
             mv->slice_no = slice_no;
             if (slice->slice_type != B_slice) {
                 mv->ref_pic[LIST_1] = NULL;
@@ -604,136 +609,136 @@ void macroblock_t::parse_skip()
 
     if (slice->slice_type == B_slice) {
         if (slice->direct_spatial_mv_pred_flag)
-            this->get_direct_spatial();
+            mb.get_direct_spatial();
         else
-            this->get_direct_temporal();
+            mb.get_direct_temporal();
 
-        this->noSubMbPartSizeLessThan8x8Flag = sps->direct_8x8_inference_flag;
+        mb.noSubMbPartSizeLessThan8x8Flag = sps->direct_8x8_inference_flag;
 
         if (slice->mb_skip_run >= 0) {
             if (pps->entropy_coding_mode_flag) {
                 slice->is_reset_coeff = true;
                 slice->mb_skip_run = -1;
             } else
-                memset(this->nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
+                memset(mb.nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
         } else {
-            this->parse_cbp_qp();
-            this->residual();
+            this->parse_cbp_qp(mb);
+            this->residual(mb);
         }
     } else
-        skip_macroblock(this);
+        skip_macroblock(&mb);
 }
 
-void macroblock_t::parse_intra()
+void Parser::parse_intra(mb_t& mb)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
-    if (this->mb_type != I4MB)
-        this->noSubMbPartSizeLessThan8x8Flag = 1;
+    if (mb.mb_type != I4MB)
+        mb.noSubMbPartSizeLessThan8x8Flag = 1;
 
-    this->transform_size_8x8_flag = 0;
-    if (this->mb_type == I4MB && pps->transform_8x8_mode_flag) {
-        this->transform_size_8x8_flag = parse_transform_size_8x8_flag(this);
-        if (this->transform_size_8x8_flag) {
-            this->mb_type = I8MB;
+    mb.transform_size_8x8_flag = 0;
+    if (mb.mb_type == I4MB && pps->transform_8x8_mode_flag) {
+        mb.transform_size_8x8_flag = this->parse_transform_size_8x8_flag(mb);
+        if (mb.transform_size_8x8_flag) {
+            mb.mb_type = I8MB;
             for (int i = 0; i < 4; i++) {
-                this->SubMbType    [i] = I8MB;
-                this->SubMbPredMode[i] = -1;
+                mb.SubMbType    [i] = I8MB;
+                mb.SubMbPredMode[i] = -1;
             }
         }
     }
 
-    init_macroblock(this);
-    this->parse_ipred_modes();
-    this->parse_cbp_qp();
+    init_macroblock(&mb);
+    this->parse_ipred_modes(mb);
+    this->parse_cbp_qp(mb);
 
-    this->residual();
+    this->residual(mb);
 }
 
-void macroblock_t::parse_inter()
+void Parser::parse_inter(mb_t& mb)
 {
     static const char p_v2b8 [ 4] = { 4, 5, 6, 7 };
     static const char p_v2pd [ 4] = { 0, 0, 0, 0 };
     static const char b_v2b8 [13] = { 0, 4, 4, 4, 5, 6, 5, 6, 5, 6, 7, 7, 7 };
     static const char b_v2pd [13] = { 2, 0, 1, 2, 0, 0, 1, 1, 2, 2, 0, 1, 2 };
 
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     sps_t* sps = slice->active_sps;
     pps_t* pps = slice->active_pps;
 
-    this->noSubMbPartSizeLessThan8x8Flag = 1;
-    this->transform_size_8x8_flag = 0;
-    if (this->mb_type == P8x8) {
+    mb.noSubMbPartSizeLessThan8x8Flag = 1;
+    mb.transform_size_8x8_flag = 0;
+    if (mb.mb_type == P8x8) {
         for (int mbPartIdx = 0; mbPartIdx < 4; mbPartIdx++) {
-            int val = parse_sub_mb_type(this);
+            int val = this->parse_sub_mb_type(mb);
 
             //const uint8_t (*sub_mb_types)[5] = slice->slice_type == B_slice ?
             //    sub_mb_types_b_slice : sub_mb_types_p_slice;
 
             if (slice->slice_type != B_slice) {
                 assert(val < 4);
-                this->SubMbType    [mbPartIdx] = p_v2b8[val];
-                this->SubMbPredMode[mbPartIdx] = p_v2pd[val];
+                mb.SubMbType    [mbPartIdx] = p_v2b8[val];
+                mb.SubMbPredMode[mbPartIdx] = p_v2pd[val];
             } else {
                 assert(val < 13);
-                this->SubMbType    [mbPartIdx] = b_v2b8[val];
-                this->SubMbPredMode[mbPartIdx] = b_v2pd[val];
+                mb.SubMbType    [mbPartIdx] = b_v2b8[val];
+                mb.SubMbPredMode[mbPartIdx] = b_v2pd[val];
             }
 
             //set noSubMbPartSizeLessThan8x8Flag for P8x8 mode
-            this->noSubMbPartSizeLessThan8x8Flag &= 
-                (this->SubMbType[mbPartIdx] == 0 && sps->direct_8x8_inference_flag) ||
-                (this->SubMbType[mbPartIdx] == P8x8);
+            mb.noSubMbPartSizeLessThan8x8Flag &= 
+                (mb.SubMbType[mbPartIdx] == 0 && sps->direct_8x8_inference_flag) ||
+                (mb.SubMbType[mbPartIdx] == P8x8);
         }
     }
 
     if (pps->constrained_intra_pred_flag)
-        this->is_intra_block = 0;
+        mb.is_intra_block = 0;
 
-    init_macroblock(this);
-    this->parse_motion_info();
-    this->parse_cbp_qp();
+    init_macroblock(&mb);
+    this->parse_motion_info(mb);
+    this->parse_cbp_qp(mb);
 
-    this->residual();
+    this->residual(mb);
 }
 
 
-void macroblock_t::parse_ipred_modes()
+void Parser::parse_ipred_modes(mb_t& mb)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     sps_t* sps = slice->active_sps;
 
-    if (this->mb_type == I8MB)
-        this->parse_ipred_8x8_modes();
-    else if (this->mb_type == I4MB)
-        this->parse_ipred_4x4_modes();
+    if (mb.mb_type == I8MB)
+        this->parse_ipred_8x8_modes(mb);
+    else if (mb.mb_type == I4MB)
+        this->parse_ipred_4x4_modes(mb);
 
     if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
-        this->intra_chroma_pred_mode = parse_intra_chroma_pred_mode(this);
+        mb.intra_chroma_pred_mode = this->parse_intra_chroma_pred_mode(mb);
 
-        assert(this->intra_chroma_pred_mode >= intra_prediction_t::Intra_Chroma_DC ||
-               this->intra_chroma_pred_mode <= intra_prediction_t::Intra_Chroma_Plane);
+        assert(mb.intra_chroma_pred_mode >= IntraPrediction::Intra_Chroma_DC ||
+               mb.intra_chroma_pred_mode <= IntraPrediction::Intra_Chroma_Plane);
     }
 }
 
-void macroblock_t::parse_ipred_4x4_modes()
+void Parser::parse_ipred_4x4_modes(mb_t& mb)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     for (int luma4x4BlkIdx = 0; luma4x4BlkIdx < 16; luma4x4BlkIdx++) {
         int bx = ((luma4x4BlkIdx / 4) % 2) * 8 + ((luma4x4BlkIdx % 4) % 2) * 4;
         int by = ((luma4x4BlkIdx / 4) / 2) * 8 + ((luma4x4BlkIdx % 4) / 2) * 4;
-        int val = parse_intra_pred_mode(this);
+        int val = this->parse_intra_pred_mode(mb);
 
         bool    prev_intra4x4_pred_mode_flag = val == -1;
         uint8_t rem_intra4x4_pred_mode       = val;
 
         int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
         PixelPos left_block, top_block;
-        get4x4Neighbour(this, bx - 1, by    , mb_size, &left_block);
-        get4x4Neighbour(this, bx    , by - 1, mb_size, &top_block );
+        get4x4Neighbour(&mb, bx - 1, by    , mb_size, &left_block);
+        get4x4Neighbour(&mb, bx    , by - 1, mb_size, &top_block );
 
         //get from array and decode
         if (pps->constrained_intra_pred_flag) {
@@ -749,8 +754,8 @@ void macroblock_t::parse_ipred_4x4_modes()
         bool dcPredModePredictedFlag = !left_block.available || !top_block.available;
 
         int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
-        uint8_t intraMxMPredModeA = intra_prediction_t::Intra_4x4_DC;
-        uint8_t intraMxMPredModeB = intra_prediction_t::Intra_4x4_DC;
+        uint8_t intraMxMPredModeA = IntraPrediction::Intra_4x4_DC;
+        uint8_t intraMxMPredModeB = IntraPrediction::Intra_4x4_DC;
         if (!dcPredModePredictedFlag) {
             uint8_t left_mb_type = slice->p_Vid->mb_data[left_block.mb_addr].mb_type;
             uint8_t top_mb_type  = slice->p_Vid->mb_data[top_block.mb_addr ].mb_type;
@@ -766,34 +771,34 @@ void macroblock_t::parse_ipred_4x4_modes()
 
         uint8_t predIntra4x4PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
         if (prev_intra4x4_pred_mode_flag)
-            this->Intra4x4PredMode[luma4x4BlkIdx] = predIntra4x4PredMode;
+            mb.Intra4x4PredMode[luma4x4BlkIdx] = predIntra4x4PredMode;
         else if (rem_intra4x4_pred_mode < predIntra4x4PredMode)
-            this->Intra4x4PredMode[luma4x4BlkIdx] = rem_intra4x4_pred_mode;
+            mb.Intra4x4PredMode[luma4x4BlkIdx] = rem_intra4x4_pred_mode;
         else
-            this->Intra4x4PredMode[luma4x4BlkIdx] = rem_intra4x4_pred_mode + 1;
+            mb.Intra4x4PredMode[luma4x4BlkIdx] = rem_intra4x4_pred_mode + 1;
 
         //if ((luma4x4BlkIdx % 4) == 0)
-        //    this->Intra8x8PredMode[luma4x4BlkIdx / 4] = this->Intra4x4PredMode[luma4x4BlkIdx];
+        //    mb.Intra8x8PredMode[luma4x4BlkIdx / 4] = mb.Intra4x4PredMode[luma4x4BlkIdx];
     }
 }
 
-void macroblock_t::parse_ipred_8x8_modes()
+void Parser::parse_ipred_8x8_modes(mb_t& mb)
 {
-    slice_t *slice = this->p_Slice;
+    slice_t *slice = mb.p_Slice;
     pps_t *pps = slice->active_pps;
 
     for (int luma8x8BlkIdx = 0; luma8x8BlkIdx < 4; luma8x8BlkIdx++) {
         int bx = (luma8x8BlkIdx % 2) * 8;
         int by = (luma8x8BlkIdx / 2) * 8;
-        int val = parse_intra_pred_mode(this);
+        int val = this->parse_intra_pred_mode(mb);
 
         bool    prev_intra8x8_pred_mode_flag = val == -1;
         uint8_t rem_intra8x8_pred_mode       = val;
 
         int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
         PixelPos left_block, top_block;
-        get4x4Neighbour(this, bx - 1, by    , mb_size, &left_block);
-        get4x4Neighbour(this, bx    , by - 1, mb_size, &top_block);
+        get4x4Neighbour(&mb, bx - 1, by    , mb_size, &left_block);
+        get4x4Neighbour(&mb, bx    , by - 1, mb_size, &top_block);
 
         //get from array and decode
         if (pps->constrained_intra_pred_flag) {
@@ -804,8 +809,8 @@ void macroblock_t::parse_ipred_8x8_modes()
         bool dcPredModePredictedFlag = !left_block.available || !top_block.available;
 
         int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
-        uint8_t intraMxMPredModeA = intra_prediction_t::Intra_8x8_DC;
-        uint8_t intraMxMPredModeB = intra_prediction_t::Intra_8x8_DC;
+        uint8_t intraMxMPredModeA = IntraPrediction::Intra_8x8_DC;
+        uint8_t intraMxMPredModeB = IntraPrediction::Intra_8x8_DC;
         if (!dcPredModePredictedFlag) {
             uint8_t left_mb_type = slice->p_Vid->mb_data[left_block.mb_addr].mb_type;
             uint8_t top_mb_type  = slice->p_Vid->mb_data[top_block.mb_addr ].mb_type;
@@ -821,48 +826,48 @@ void macroblock_t::parse_ipred_8x8_modes()
 
         uint8_t predIntra8x8PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
         if (prev_intra8x8_pred_mode_flag)
-            this->Intra8x8PredMode[luma8x8BlkIdx] = predIntra8x8PredMode;
+            mb.Intra8x8PredMode[luma8x8BlkIdx] = predIntra8x8PredMode;
         else if (rem_intra8x8_pred_mode < predIntra8x8PredMode)
-            this->Intra8x8PredMode[luma8x8BlkIdx] = rem_intra8x8_pred_mode;
+            mb.Intra8x8PredMode[luma8x8BlkIdx] = rem_intra8x8_pred_mode;
         else
-            this->Intra8x8PredMode[luma8x8BlkIdx] = rem_intra8x8_pred_mode + 1;
+            mb.Intra8x8PredMode[luma8x8BlkIdx] = rem_intra8x8_pred_mode + 1;
 
-        //this->Intra4x4PredMode[luma8x8BlkIdx * 4    ] = this->Intra8x8PredMode[luma8x8BlkIdx];
-        //this->Intra4x4PredMode[luma8x8BlkIdx * 4 + 1] = this->Intra8x8PredMode[luma8x8BlkIdx];
-        //this->Intra4x4PredMode[luma8x8BlkIdx * 4 + 2] = this->Intra8x8PredMode[luma8x8BlkIdx];
-        //this->Intra4x4PredMode[luma8x8BlkIdx * 4 + 3] = this->Intra8x8PredMode[luma8x8BlkIdx];
+        //mb.Intra4x4PredMode[luma8x8BlkIdx * 4    ] = mb.Intra8x8PredMode[luma8x8BlkIdx];
+        //mb.Intra4x4PredMode[luma8x8BlkIdx * 4 + 1] = mb.Intra8x8PredMode[luma8x8BlkIdx];
+        //mb.Intra4x4PredMode[luma8x8BlkIdx * 4 + 2] = mb.Intra8x8PredMode[luma8x8BlkIdx];
+        //mb.Intra4x4PredMode[luma8x8BlkIdx * 4 + 3] = mb.Intra8x8PredMode[luma8x8BlkIdx];
     }
 }
 
 
-void macroblock_t::parse_motion_info()
+void Parser::parse_motion_info(mb_t& mb)
 {
-    slice_t *slice = this->p_Slice;
+    slice_t *slice = mb.p_Slice;
 
-    if (slice->slice_type == B_slice && this->mb_type == P8x8) {
+    if (slice->slice_type == B_slice && mb.mb_type == P8x8) {
         if (slice->direct_spatial_mv_pred_flag)
-            this->get_direct_spatial(false);
+            mb.get_direct_spatial(false);
         else
-            this->get_direct_temporal(true);
+            mb.get_direct_temporal(true);
     }
 
-    this->parse_ref_pic_idx(LIST_0);
+    this->parse_ref_pic_idx(mb, LIST_0);
     if (slice->slice_type == B_slice)
-        this->parse_ref_pic_idx(LIST_1);
+        this->parse_ref_pic_idx(mb, LIST_1);
 
-    this->parse_motion_vectors(LIST_0);
+    this->parse_motion_vectors(mb, LIST_0);
     if (slice->slice_type == B_slice)
-        this->parse_motion_vectors(LIST_1);
+        this->parse_motion_vectors(mb, LIST_1);
 
-    int list_offset = slice->MbaffFrameFlag && this->mb_field_decoding_flag ?
-                      this->mbAddrX % 2 ? 4 : 2 : 0;
+    int list_offset = slice->MbaffFrameFlag && mb.mb_field_decoding_flag ?
+                      mb.mbAddrX % 2 ? 4 : 2 : 0;
     storable_picture **list0 = slice->listX[LIST_0 + list_offset];
     storable_picture **list1 = slice->listX[LIST_1 + list_offset];
     pic_motion_params **p_mv_info = slice->dec_picture->mv_info;
     // record reference picture Ids for deblocking decisions
     for (int j4 = 0; j4 < 4; j4++) {
         for (int i4 = 0; i4 < 4; ++i4) {
-            auto mv_info = &p_mv_info[this->mb.y * 4 + j4][this->mb.x * 4 + i4];
+            auto mv_info = &p_mv_info[mb.mb.y * 4 + j4][mb.mb.x * 4 + i4];
             short ref_idx = mv_info->ref_idx[LIST_0];
             mv_info->ref_pic[LIST_0] = (ref_idx >= 0) ? list0[ref_idx] : NULL;
             if (slice->slice_type == B_slice) {
@@ -879,157 +884,162 @@ static const int BLOCK_STEP[8][2] = {
     {2, 2}, {2, 1}, {1, 2}, {1, 1}
 };
 
-void macroblock_t::parse_ref_pic_idx(int list)
+void Parser::parse_ref_pic_idx(mb_t& mb, int list)
 {
-    slice_t *slice = this->p_Slice;
+    slice_t *slice = mb.p_Slice;
     pic_motion_params **mv_info = slice->dec_picture->mv_info;
 
-    int step_h0 = BLOCK_STEP[this->mb_type][0];
-    int step_v0 = BLOCK_STEP[this->mb_type][1];
+    int step_h0 = BLOCK_STEP[mb.mb_type][0];
+    int step_v0 = BLOCK_STEP[mb.mb_type][1];
 
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {      
             int k = 2 * (j0 >> 1) + (i0 >> 1);
 
-            if ((this->SubMbPredMode[k] == list || this->SubMbPredMode[k] == BI_PRED) &&
-                this->SubMbType[k] != 0) {
-                uint8_t refframe = parse_ref_idx(this, list, i0, j0);
+            if ((mb.SubMbPredMode[k] == list || mb.SubMbPredMode[k] == BI_PRED) &&
+                mb.SubMbType[k] != 0) {
+                uint8_t refframe = this->parse_ref_idx(mb, list, i0, j0);
                 for (int j = 0; j < step_v0; j++) {
                     for (int i = 0; i < step_h0; i++)
-                        mv_info[this->mb.y * 4 + j0 + j][this->mb.x * 4 + i0 + i].ref_idx[list] = refframe;
+                        mv_info[mb.mb.y * 4 + j0 + j][mb.mb.x * 4 + i0 + i].ref_idx[list] = refframe;
                 }
             }
         }
     }
 }
 
-void macroblock_t::parse_motion_vectors(int list)
+void Parser::parse_motion_vectors(mb_t& mb, int list)
 {
-    slice_t *slice = this->p_Slice;
+    slice_t *slice = mb.p_Slice;
     pic_motion_params **mv_info = slice->dec_picture->mv_info;
 
-    int step_h0 = BLOCK_STEP[this->mb_type][0];
-    int step_v0 = BLOCK_STEP[this->mb_type][1];
+    int step_h0 = BLOCK_STEP[mb.mb_type][0];
+    int step_v0 = BLOCK_STEP[mb.mb_type][1];
 
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {
             int kk = 2 * (j0 >> 1) + (i0 >> 1);
-            int step_h4 = BLOCK_STEP[this->SubMbType[kk]][0];
-            int step_v4 = BLOCK_STEP[this->SubMbType[kk]][1];
-            char cur_ref_idx = mv_info[this->mb.y * 4 + j0][this->mb.x * 4 + i0].ref_idx[list];
+            int step_h4 = BLOCK_STEP[mb.SubMbType[kk]][0];
+            int step_v4 = BLOCK_STEP[mb.SubMbType[kk]][1];
+            char cur_ref_idx = mv_info[mb.mb.y * 4 + j0][mb.mb.x * 4 + i0].ref_idx[list];
 
-            if ((this->SubMbPredMode[kk] == list || this->SubMbPredMode[kk] == BI_PRED) &&
-                (this->SubMbType[kk] != 0)) { //has forward vector
+            if ((mb.SubMbPredMode[kk] == list || mb.SubMbPredMode[kk] == BI_PRED) &&
+                (mb.SubMbType[kk] != 0)) { //has forward vector
                 for (int j = j0; j < j0 + step_v0; j += step_v4) {
                     for (int i = i0; i < i0 + step_h0; i += step_h4)
-                        this->parse_motion_vector(list, step_h4 * 4, step_v4 * 4, i, j, cur_ref_idx);
+                        this->parse_motion_vector(mb, list, step_h4 * 4, step_v4 * 4, i, j, cur_ref_idx);
                 }
             }
         }
     }
 }
 
-void macroblock_t::parse_motion_vector(int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx)
+void Parser::parse_motion_vector(mb_t& mb, int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx)
 {
-    slice_t *slice = this->p_Slice;
+    slice_t *slice = mb.p_Slice;
 
     pic_motion_params **mv_info = slice->dec_picture->mv_info;
-    //const uint8_t (*sub_mb_types)[5] = this->p_Slice->slice_type == B_slice ?
+    //const uint8_t (*sub_mb_types)[5] = mb.p_Slice->slice_type == B_slice ?
     //                                   sub_mb_types_b_slice : sub_mb_types_p_slice;
-    //int step_h4 = sub_mb_types[this->sub_mb_type[kk]][3];
-    //int step_v4 = sub_mb_types[this->sub_mb_type[kk]][4];
+    //int step_h4 = sub_mb_types[mb.sub_mb_type[kk]][3];
+    //int step_v4 = sub_mb_types[mb.sub_mb_type[kk]][4];
 
     PixelPos block[4]; // neighbor blocks
     MotionVector pred_mv;
-    get_neighbors(this, block, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4);
-    this->GetMVPredictor(block, &pred_mv, cur_ref_idx, mv_info, list, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4, step_v4);
+    get_neighbors(&mb, block, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4);
+    mb.GetMVPredictor(block, &pred_mv, cur_ref_idx, mv_info, list, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4, step_v4);
 
     int16_t curr_mvd[2];
     for (int k = 0; k < 2; ++k)
-        curr_mvd[k] = parse_mvd(this, list, i, j, k);
+        curr_mvd[k] = this->parse_mvd(mb, list, i, j, k);
 
     MotionVector curr_mv;
     curr_mv.mv_x = curr_mvd[0] + pred_mv.mv_x;
     curr_mv.mv_y = curr_mvd[1] + pred_mv.mv_y;
 
-    int i4 = this->mb.x * 4 + i;
-    int j4 = this->mb.y * 4 + j;
+    int i4 = mb.mb.x * 4 + i;
+    int j4 = mb.mb.y * 4 + j;
     for (int jj = 0; jj < step_v4 / 4; ++jj) {
         for (int ii = 0; ii < step_h4 / 4; ++ii) {
             mv_info[jj + j4][ii + i4].mv[list] = curr_mv;
-            auto mvd = list == 0 ? this->mvd_l0 : this->mvd_l1;
+            auto mvd = list == 0 ? mb.mvd_l0 : mb.mvd_l1;
             mvd[jj + j][ii + i][0] = curr_mvd[0];
             mvd[jj + j][ii + i][1] = curr_mvd[1];
         }
     }
 }
 
-void macroblock_t::parse_cbp_qp()
+void Parser::parse_cbp_qp(mb_t& mb)
 {
-    slice_t *slice = this->p_Slice;
+    slice_t *slice = mb.p_Slice;
     sps_t *sps = slice->active_sps;
     pps_t *pps = slice->active_pps;
 
 #define IS_I16MB(MB)  ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
 #define IS_DIRECT(MB) ((MB)->mb_type == 0 && slice->slice_type == B_SLICE)
     // read CBP if not new intra mode
-    if (!IS_I16MB(this)) {
-        uint8_t coded_block_pattern = parse_coded_block_pattern(this);
-        this->CodedBlockPatternLuma   = coded_block_pattern % 16;
-        this->CodedBlockPatternChroma = coded_block_pattern / 16;
+    if (!IS_I16MB(&mb)) {
+        uint8_t coded_block_pattern = this->parse_coded_block_pattern(mb);
+        mb.CodedBlockPatternLuma   = coded_block_pattern % 16;
+        mb.CodedBlockPatternChroma = coded_block_pattern / 16;
         if (pps->entropy_coding_mode_flag) {
-            if (!this->CodedBlockPatternLuma && !this->CodedBlockPatternChroma)
+            if (!mb.CodedBlockPatternLuma && !mb.CodedBlockPatternChroma)
                 slice->last_dquant = 0;
         }
 
         //============= Transform size flag for INTER MBs =============
         //-------------------------------------------------------------
         int need_transform_size_flag =
-            ((this->mb_type >= 1 && this->mb_type <= 3) ||
-             (IS_DIRECT(this) && sps->direct_8x8_inference_flag) ||
-             this->noSubMbPartSizeLessThan8x8Flag) &&
-            (this->mb_type != I8MB) && (this->mb_type != I4MB) &&
-            (this->CodedBlockPatternLuma) && pps->transform_8x8_mode_flag;
+            ((mb.mb_type >= 1 && mb.mb_type <= 3) ||
+             (IS_DIRECT(&mb) && sps->direct_8x8_inference_flag) ||
+             mb.noSubMbPartSizeLessThan8x8Flag) &&
+            (mb.mb_type != I8MB) && (mb.mb_type != I4MB) &&
+            (mb.CodedBlockPatternLuma) && pps->transform_8x8_mode_flag;
 
         if (need_transform_size_flag)
-            this->transform_size_8x8_flag = parse_transform_size_8x8_flag(this);
+            mb.transform_size_8x8_flag = this->parse_transform_size_8x8_flag(mb);
     }
 
     //=====   DQUANT   =====
     //----------------------
     // Delta quant only if nonzero coeffs
-    if (IS_I16MB(this) || this->CodedBlockPatternLuma != 0 || this->CodedBlockPatternChroma != 0) {
-        this->mb_qp_delta = parse_mb_qp_delta(this);
+    if (IS_I16MB(&mb) || mb.CodedBlockPatternLuma != 0 || mb.CodedBlockPatternChroma != 0) {
+        mb.mb_qp_delta = this->parse_mb_qp_delta(mb);
 
         if (pps->entropy_coding_mode_flag)        
-            slice->last_dquant = this->mb_qp_delta;
+            slice->last_dquant = mb.mb_qp_delta;
 
-        assert(this->mb_qp_delta >= -(26 + sps->QpBdOffsetY / 2) &&
-               this->mb_qp_delta <=  (25 + sps->QpBdOffsetY / 2));
+        assert(mb.mb_qp_delta >= -(26 + sps->QpBdOffsetY / 2) &&
+               mb.mb_qp_delta <=  (25 + sps->QpBdOffsetY / 2));
 
         slice->SliceQpY =
-            ((slice->SliceQpY + this->mb_qp_delta + 52 + 2 * sps->QpBdOffsetY)
+            ((slice->SliceQpY + mb.mb_qp_delta + 52 + 2 * sps->QpBdOffsetY)
                 % (52 + sps->QpBdOffsetY)) - sps->QpBdOffsetY;
 
         if (slice->dp_mode) {
-            if (!this->is_intra_block && slice->dpC_NotPresent)
-                this->dpl_flag = 1;
-            if (this->is_intra_block && slice->dpB_NotPresent) {
-                this->ei_flag  = 1;
-                this->dpl_flag = 1;
+            if (!mb.is_intra_block && slice->dpC_NotPresent)
+                mb.dpl_flag = 1;
+            if (mb.is_intra_block && slice->dpB_NotPresent) {
+                mb.ei_flag  = 1;
+                mb.dpl_flag = 1;
             }
-            check_dp_neighbors(this);
-            if (this->dpl_flag) {
-                this->CodedBlockPatternLuma   = 0;
-                this->CodedBlockPatternChroma = 0;
+            check_dp_neighbors(&mb);
+            if (mb.dpl_flag) {
+                mb.CodedBlockPatternLuma   = 0;
+                mb.CodedBlockPatternChroma = 0;
             }
         }
     }
 #undef IS_DIRECT
 #undef IS_I16MB
 
-    this->update_qp(slice->SliceQpY);
+    mb.update_qp(slice->SliceQpY);
 }
+
+
+}
+}
+
 
 // Table 8-15 Specification of QPc as a function of qPi
 

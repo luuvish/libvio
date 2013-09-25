@@ -5,13 +5,16 @@
 #include "bitstream_cabac.h"
 #include "data_partition.h"
 #include "macroblock.h"
-#include "transform.h"
+
 #include "neighbour.h"
 
 
 using vio::h264::cabac_context_t;
 using vio::h264::cabac_engine_t;
 
+
+namespace vio {
+namespace h264 {
 
 #define IS_I16MB(MB) ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
 
@@ -160,10 +163,10 @@ static const uint8_t run_before_code[15][16] = {
 };
 
 
-uint8_t macroblock_t::parse_coeff_token(int nC)
+uint8_t Parser::parse_coeff_token(mb_t& mb, int nC)
 {
-    slice_t* slice = this->p_Slice;
-    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
+    slice_t* slice = mb.p_Slice;
+    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     if (nC >= 8) {
         int code = dp->read_bits(6);
@@ -229,10 +232,10 @@ static int16_t parse_level(data_partition_t *currStream, uint8_t level_prefix, u
 }
 */
 
-uint8_t macroblock_t::parse_total_zeros(int yuv, int tzVlcIndex)
+uint8_t Parser::parse_total_zeros(mb_t& mb, int yuv, int tzVlcIndex)
 {
-    slice_t* slice = this->p_Slice;
-    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
+    slice_t* slice = mb.p_Slice;
+    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int tab = tzVlcIndex - 1;
 
@@ -249,10 +252,10 @@ uint8_t macroblock_t::parse_total_zeros(int yuv, int tzVlcIndex)
     return -1;
 }
 
-uint8_t macroblock_t::parse_run_before(uint8_t zerosLeft)
+uint8_t Parser::parse_run_before(mb_t& mb, uint8_t zerosLeft)
 {
-    slice_t* slice = this->p_Slice;
-    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
+    slice_t* slice = mb.p_Slice;
+    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int tab = min<int>(zerosLeft, 7) - 1;
 
@@ -269,13 +272,13 @@ uint8_t macroblock_t::parse_run_before(uint8_t zerosLeft)
     return -1;
 }
 
-void macroblock_t::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
-                                        ColorPlane pl, bool chroma, bool ac, int blkIdx)
+void Parser::residual_block_cavlc(mb_t& mb, uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
+                                  ColorPlane pl, bool chroma, bool ac, int blkIdx)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     sps_t* sps = slice->active_sps;
 
-    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int i = chroma ? blkIdx % 2 : ((blkIdx / 4) % 2) * 2 + (blkIdx % 4) % 2;
     int j = chroma ? blkIdx / 2 : ((blkIdx / 4) / 2) * 2 + (blkIdx % 4) / 2;
@@ -285,9 +288,9 @@ void macroblock_t::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, u
     if (chroma && !ac)
         nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
     else
-        nC = slice->neighbour.predict_nnz(this, pl, i * 4, j * 4);
+        nC = slice->neighbour.predict_nnz(&mb, pl, i * 4, j * 4);
 
-    uint8_t coeff_token  = this->parse_coeff_token(nC);
+    uint8_t coeff_token  = this->parse_coeff_token(mb, nC);
     uint8_t TotalCoeff   = coeff_token >> 2;
     uint8_t TrailingOnes = coeff_token % 4;
 
@@ -341,13 +344,13 @@ void macroblock_t::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, u
         int zerosLeft = 0;
         if (TotalCoeff < maxNumCoeff) {
             int yuv = maxNumCoeff == 4 ? 0 : maxNumCoeff == 8 ? 1 : 2;
-            zerosLeft = this->parse_total_zeros(yuv, TotalCoeff);
+            zerosLeft = this->parse_total_zeros(mb, yuv, TotalCoeff);
         }
 
         for (int i = TotalCoeff - 1; i > 0; i--) {
 //        for (i = 0; i < TotalCoeff - 1; i++) {
             if (zerosLeft > 0)
-                runVal[i] = this->parse_run_before(zerosLeft);
+                runVal[i] = this->parse_run_before(mb, zerosLeft);
             else
                 runVal[i] = 0;
             zerosLeft -= runVal[i];
@@ -357,7 +360,7 @@ void macroblock_t::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, u
     }
 
     if (ac)
-        this->nz_coeff[pl][j][i] = TotalCoeff;
+        mb.nz_coeff[pl][j][i] = TotalCoeff;
 
     int coeffNum = startIdx - 1;
     //for (int k = TotalCoeff - 1; k >= 0; k--) {
@@ -367,18 +370,18 @@ void macroblock_t::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, u
             //coeffLevel[start_scan + coeffNum] = levelVal[k];
             if (!chroma) {
                 if (!ac)
-                    slice->transform.coeff_luma_dc(this, pl, i, j, coeffNum, levelVal[k]);
+                    slice->decoder.coeff_luma_dc(&mb, pl, i, j, coeffNum, levelVal[k]);
                 else {
-                    int x0 = !this->transform_size_8x8_flag ? i : (i & ~1);
-                    int y0 = !this->transform_size_8x8_flag ? j : (j & ~1);
-                    int c0 = !this->transform_size_8x8_flag ? coeffNum : coeffNum * 4 + (blkIdx % 4);
-                    slice->transform.coeff_luma_ac(this, pl, x0, y0, c0, levelVal[k]);
+                    int x0 = !mb.transform_size_8x8_flag ? i : (i & ~1);
+                    int y0 = !mb.transform_size_8x8_flag ? j : (j & ~1);
+                    int c0 = !mb.transform_size_8x8_flag ? coeffNum : coeffNum * 4 + (blkIdx % 4);
+                    slice->decoder.coeff_luma_ac(&mb, pl, x0, y0, c0, levelVal[k]);
                 }
             } else {
                 if (!ac)
-                    slice->transform.coeff_chroma_dc(this, pl, i, j, coeffNum, levelVal[k]);
+                    slice->decoder.coeff_chroma_dc(&mb, pl, i, j, coeffNum, levelVal[k]);
                 else
-                    slice->transform.coeff_chroma_ac(this, pl, i, j, coeffNum, levelVal[k]);
+                    slice->decoder.coeff_chroma_ac(&mb, pl, i, j, coeffNum, levelVal[k]);
             }
         }
     }
@@ -600,13 +603,13 @@ static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_cont
 }
 
 
-void macroblock_t::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
-                                        ColorPlane pl, bool chroma, bool ac, int blkIdx)
+void Parser::residual_block_cabac(mb_t& mb, uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
+                                  ColorPlane pl, bool chroma, bool ac, int blkIdx)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     sps_t* sps = slice->active_sps;
 
-    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (this->is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int context;
     if (!chroma) {
@@ -614,11 +617,11 @@ void macroblock_t::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, u
             context = LUMA_16DC;
         else {
             if (pl == PLANE_Y || sps->separate_colour_plane_flag)
-                context = this->transform_size_8x8_flag ? LUMA_8x8 : IS_I16MB(this) ? LUMA_16AC : LUMA_4x4;
+                context = mb.transform_size_8x8_flag ? LUMA_8x8 : IS_I16MB(&mb) ? LUMA_16AC : LUMA_4x4;
             else if (pl == PLANE_U)
-                context = this->transform_size_8x8_flag ? CB_8x8 : IS_I16MB(this) ? CB_16AC : CB_4x4;
+                context = mb.transform_size_8x8_flag ? CB_8x8 : IS_I16MB(&mb) ? CB_16AC : CB_4x4;
             else
-                context = this->transform_size_8x8_flag ? CR_8x8 : IS_I16MB(this) ? CR_16AC : CR_4x4;
+                context = mb.transform_size_8x8_flag ? CR_8x8 : IS_I16MB(&mb) ? CR_16AC : CR_4x4;
         }
     } else {
         if (!ac)
@@ -630,17 +633,17 @@ void macroblock_t::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, u
     int coded_block_flag = 1; // always one for 8x8 mode
     if (sps->chroma_format_idc == YUV444 || context != LUMA_8x8) {
         cabac_context_t* ctx = slice->mot_ctx->bcbp_contexts + type2ctx_bcbp[context];
-        int ctxIdxInc = coded_block_flag_ctxIdxInc(this, pl, chroma, ac, blkIdx);
+        int ctxIdxInc = coded_block_flag_ctxIdxInc(&mb, pl, chroma, ac, blkIdx);
 
         coded_block_flag = dp->de_cabac.decode_decision(ctx + ctxIdxInc);
     }
     if (coded_block_flag)
-        update_coded_block_flag(this, pl, chroma, ac, blkIdx);
+        update_coded_block_flag(&mb, pl, chroma, ac, blkIdx);
 
     if (!coded_block_flag)
         return;
 
-    bool field = slice->field_pic_flag || this->mb_field_decoding_flag;
+    bool field = slice->field_pic_flag || mb.mb_field_decoding_flag;
     const uint8_t* pos2ctx_Map  = pos2ctx_map [field][context];
     const uint8_t* pos2ctx_Last = pos2ctx_last[context];
     cabac_context_t* map_ctx  = slice->mot_ctx->map_contexts [field] + type2ctx_map[context];
@@ -693,95 +696,95 @@ void macroblock_t::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, u
             //    assert(startIdx + ii < numCoeff);
             if (!chroma) {
                 if (!ac)
-                    slice->transform.coeff_luma_dc(this, pl, i, j, ii, *coeff);
+                    slice->decoder.coeff_luma_dc(&mb, pl, i, j, ii, *coeff);
                 else
-                    slice->transform.coeff_luma_ac(this, pl, i, j, ii, *coeff);
+                    slice->decoder.coeff_luma_ac(&mb, pl, i, j, ii, *coeff);
             } else {
                 if (!ac)
-                    slice->transform.coeff_chroma_dc(this, pl, i, j, ii, *coeff);
+                    slice->decoder.coeff_chroma_dc(&mb, pl, i, j, ii, *coeff);
                 else
-                    slice->transform.coeff_chroma_ac(this, pl, i, j, ii, *coeff);
+                    slice->decoder.coeff_chroma_ac(&mb, pl, i, j, ii, *coeff);
             }
         }
         coeff--;
     }
 }
 
-void macroblock_t::residual_luma(ColorPlane pl)
+void Parser::residual_luma(mb_t& mb, ColorPlane pl)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     auto residual_block = !pps->entropy_coding_mode_flag ?
-        std::mem_fn(&macroblock_t::residual_block_cavlc) :
-        std::mem_fn(&macroblock_t::residual_block_cabac);
+        std::mem_fn(&Parser::residual_block_cavlc) :
+        std::mem_fn(&Parser::residual_block_cabac);
 
-    if (IS_I16MB(this) && !this->dpl_flag) {
-        residual_block(this, LUMA_16DC, 0, 15, 16, pl, false, false, 0);
+    if (IS_I16MB(&mb) && !mb.dpl_flag) {
+        residual_block(this, mb, LUMA_16DC, 0, 15, 16, pl, false, false, 0);
 
-        slice->transform.transform_luma_dc(this, pl);
+        slice->decoder.transform_luma_dc(&mb, pl);
     }
 
     for (int i8x8 = 0; i8x8 < 4; i8x8++) {
-        if (!this->transform_size_8x8_flag || !pps->entropy_coding_mode_flag) {
+        if (!mb.transform_size_8x8_flag || !pps->entropy_coding_mode_flag) {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                if (this->CodedBlockPatternLuma & (1 << i8x8)) {
-                    if (IS_I16MB(this))
-                        residual_block(this, LUMA_16AC, 1, 14, 15, pl, false, true, i8x8 * 4 + i4x4);
+                if (mb.CodedBlockPatternLuma & (1 << i8x8)) {
+                    if (IS_I16MB(&mb))
+                        residual_block(this, mb, LUMA_16AC, 1, 14, 15, pl, false, true, i8x8 * 4 + i4x4);
                     else
-                        residual_block(this, LUMA_4x4, 0, 15, 16, pl, false, true, i8x8 * 4 + i4x4);
+                        residual_block(this, mb, LUMA_4x4, 0, 15, 16, pl, false, true, i8x8 * 4 + i4x4);
                 } else {
                     if (!pps->entropy_coding_mode_flag) {
                         int i = (i8x8 % 2) * 2 + (i4x4 % 2);
                         int j = (i8x8 / 2) * 2 + (i4x4 / 2);
-                        this->nz_coeff[pl][j][i] = 0;
+                        mb.nz_coeff[pl][j][i] = 0;
                     }
                 }
             }
-        } else if (this->CodedBlockPatternLuma & (1 << i8x8))
-            residual_block(this, LUMA_8x8, 0, 63, 64, pl, false, true, i8x8 * 4);
+        } else if (mb.CodedBlockPatternLuma & (1 << i8x8))
+            residual_block(this, mb, LUMA_8x8, 0, 63, 64, pl, false, true, i8x8 * 4);
         else {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
                 if (!pps->entropy_coding_mode_flag) {
                     int i = (i8x8 % 2) * 2 + (i4x4 % 2);
                     int j = (i8x8 / 2) * 2 + (i4x4 / 2);
-                    this->nz_coeff[pl][j][i] = 0;
+                    mb.nz_coeff[pl][j][i] = 0;
                 }
             }
         }
     }
 }
 
-void macroblock_t::residual_chroma()
+void Parser::residual_chroma(mb_t& mb)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     sps_t* sps = slice->active_sps;
     pps_t* pps = slice->active_pps;
 
     int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
 
     auto residual_block = !pps->entropy_coding_mode_flag ?
-        std::mem_fn(&macroblock_t::residual_block_cavlc) :
-        std::mem_fn(&macroblock_t::residual_block_cabac);
+        std::mem_fn(&Parser::residual_block_cavlc) :
+        std::mem_fn(&Parser::residual_block_cabac);
 
-    if (this->CodedBlockPatternChroma & 3) {
+    if (mb.CodedBlockPatternChroma & 3) {
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            residual_block(this, CHROMA_DC, 0, 4 * NumC8x8 - 1, 4 * NumC8x8, (ColorPlane)(iCbCr+1), true, false, 0);
+            residual_block(this, mb, CHROMA_DC, 0, 4 * NumC8x8 - 1, 4 * NumC8x8, (ColorPlane)(iCbCr+1), true, false, 0);
 
-            slice->transform.transform_chroma_dc(this, (ColorPlane)(iCbCr + 1));
+            slice->decoder.transform_chroma_dc(&mb, (ColorPlane)(iCbCr + 1));
         }
     }
 
     for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
         for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                if (this->CodedBlockPatternChroma & 2)
-                    residual_block(this, CHROMA_AC, 1, 14, 15, (ColorPlane)(iCbCr+1), true, true, i8x8 * 4 + i4x4);
+                if (mb.CodedBlockPatternChroma & 2)
+                    residual_block(this, mb, CHROMA_AC, 1, 14, 15, (ColorPlane)(iCbCr+1), true, true, i8x8 * 4 + i4x4);
                 else {
                     if (!pps->entropy_coding_mode_flag) {
                         int i = (i4x4 % 2);
                         int j = (i4x4 / 2) + (i8x8 * 2);
-                        this->nz_coeff[iCbCr + 1][j][i] = 0;
+                        mb.nz_coeff[iCbCr + 1][j][i] = 0;
                     }
                 }
             }
@@ -789,16 +792,20 @@ void macroblock_t::residual_chroma()
     }
 }
 
-void macroblock_t::residual()
+void Parser::residual(mb_t& mb)
 {
-    slice_t* slice = this->p_Slice;
+    slice_t* slice = mb.p_Slice;
     sps_t* sps = slice->active_sps;
 
-    this->residual_luma(PLANE_Y);
+    this->residual_luma(mb, PLANE_Y);
     if (sps->ChromaArrayType == 1 || sps->ChromaArrayType == 2)
-        this->residual_chroma();
+        this->residual_chroma(mb);
     else if (sps->ChromaArrayType == 3) {
-        this->residual_luma(PLANE_U);
-        this->residual_luma(PLANE_V);
+        this->residual_luma(mb, PLANE_U);
+        this->residual_luma(mb, PLANE_V);
     }
+}
+
+
+}
 }

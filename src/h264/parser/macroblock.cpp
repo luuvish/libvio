@@ -7,6 +7,7 @@
 #include "image.h"
 #include "neighbour.h"
 #include "intra_prediction.h"
+#include "transform.h"
 
 
 using namespace vio::h264;
@@ -37,7 +38,7 @@ void macroblock_t::init(slice_t* slice)
     this->mb_skip_flag            = 0;
     this->mb_type                 = 0;
     this->mb_qp_delta             = 0;
-    this->intra_chroma_pred_mode  = intra_prediction_t::Intra_Chroma_DC;
+    this->intra_chroma_pred_mode  = IntraPrediction::Intra_Chroma_DC;
     this->CodedBlockPatternLuma   = 0;
     this->CodedBlockPatternChroma = 0;
 
@@ -52,9 +53,9 @@ void macroblock_t::init(slice_t* slice)
     memset(this->cbp_bits, 0, sizeof(this->cbp_bits));
 
     if (!slice->is_reset_coeff) {
-        memset(slice->transform.cof[0][0], 0, 16 * 16 * sizeof(int));
+        memset(slice->decoder.transform->cof[0][0], 0, 16 * 16 * sizeof(int));
         if (!slice->is_reset_coeff_cr) {
-            memset(slice->transform.cof[1][0], 0, 2 * 16 * 16 * sizeof(int));
+            memset(slice->decoder.transform->cof[1][0], 0, 2 * 16 * 16 * sizeof(int));
             slice->is_reset_coeff_cr = 1;
         }
         slice->is_reset_coeff = 1;

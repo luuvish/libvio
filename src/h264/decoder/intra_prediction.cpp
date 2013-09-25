@@ -25,6 +25,8 @@
 #include "slice.h"
 #include "macroblock.h"
 
+#include "intra_prediction.h"
+
 
 namespace vio  {
 namespace h264 {
@@ -835,7 +837,7 @@ static void intrapred_chroma_plane(imgpel *pred[2], imgpel pix[2][17*17], bool *
 #undef predCr
 
 
-void intra_prediction_t::intra_pred_4x4(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void IntraPrediction::intra_pred_4x4(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -919,7 +921,7 @@ void intra_prediction_t::intra_pred_4x4(mb_t* mb, ColorPlane pl, int ioff, int j
     }
 }
 
-void intra_prediction_t::intra_pred_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void IntraPrediction::intra_pred_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -1003,7 +1005,7 @@ void intra_prediction_t::intra_pred_8x8(mb_t* mb, ColorPlane pl, int ioff, int j
     }
 }
 
-void intra_prediction_t::intra_pred_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
+void IntraPrediction::intra_pred_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
@@ -1050,7 +1052,7 @@ void intra_prediction_t::intra_pred_16x16(mb_t* mb, ColorPlane pl, int ioff, int
     }
 }
 
-void intra_prediction_t::intra_pred_chroma(mb_t* mb)
+void IntraPrediction::intra_pred_chroma(mb_t* mb)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;

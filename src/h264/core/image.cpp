@@ -16,9 +16,6 @@
 #include "macroblock.h"
 #include "neighbour.h"
 
-#include "intra_prediction.h"
-#include "deblock.h"
-
 #include "erc_api.h"
 #include "dpb.h"
 
@@ -411,7 +408,7 @@ static slice_t *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
     int i, j, memory_size = 0;
     slice_t *currSlice;
 
-    currSlice = (slice_t *)calloc(1, sizeof(slice_t));
+    currSlice = new slice_t {};
     if (!currSlice) {
         snprintf(errortext, ET_SIZE, "Memory allocation for slice_t datastruct in NAL-mode %d failed", p_Inp->FileFormat);
         error(errortext,100);

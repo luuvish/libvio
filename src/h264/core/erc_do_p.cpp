@@ -1,11 +1,9 @@
 #include "global.h"
 #include "slice.h"
-#include "transform.h"
 #include "dpb.h"
 #include "memalloc.h"
 #include "erc_do.h"
 #include "image.h"
-#include "inter_prediction.h"
 #include "macroblock.h"
 
 
@@ -648,7 +646,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
       vec1_x = i4*4*mv_mul + mv[0];
       vec1_y = j4*4*mv_mul + mv[1];
 
-      currSlice->inter_prediction.get_block_luma(currSlice->listX[0][ref_frame], vec1_x, vec1_y, BLOCK_SIZE, BLOCK_SIZE,
+      currSlice->decoder.get_block_luma(currSlice->listX[0][ref_frame], vec1_x, vec1_y, BLOCK_SIZE, BLOCK_SIZE,
         tmp_block,
         dec_picture->iLumaStride,dec_picture->size_x_m1,
         (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1, PLANE_Y, currMB);
@@ -951,7 +949,7 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
 
   vec1_x = x*mv_mul + mv[0];
   vec1_y = y*mv_mul + mv[1];
-  currSlice->inter_prediction.get_block_luma(currSlice->listX[list][ref_frame],  vec1_x, vec1_y, BLOCK_SIZE, BLOCK_SIZE, tmp_block,
+  currSlice->decoder.get_block_luma(currSlice->listX[list][ref_frame],  vec1_x, vec1_y, BLOCK_SIZE, BLOCK_SIZE, tmp_block,
     dec_picture->iLumaStride,dec_picture->size_x_m1, (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1, PLANE_Y, currMB);
 
   for(jj=0;jj<MB_BLOCK_SIZE/BLOCK_SIZE;jj++)

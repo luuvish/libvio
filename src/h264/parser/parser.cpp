@@ -1,4 +1,25 @@
-#include <math.h>
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : parser.cpp
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
 
 #include "global.h"
 #include "slice.h"
@@ -10,11 +31,15 @@
 #include "image.h"
 #include "neighbour.h"
 
-#include "mb_read_syntax.h"
+#include "parser.h"
 
 
 using vio::h264::cabac_context_t;
 using vio::h264::cabac_engine_t;
+
+
+namespace vio {
+namespace h264 {
 
 
 static int ref_idx_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
@@ -157,9 +182,9 @@ static int cbp_ctxIdxInc(mb_t* mb, uint8_t x0, uint8_t y0, uint8_t coded_block_p
 }
 
 
-uint32_t parse_mb_skip_run(mb_t* mb)
+uint32_t Parser::parse_mb_skip_run(mb_t& mb)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     data_partition_t* dp = &slice->partArr[0];
@@ -172,9 +197,9 @@ uint32_t parse_mb_skip_run(mb_t* mb)
     return mb_skip_run;
 }
 
-bool parse_mb_skip_flag(mb_t* mb)
+bool Parser::parse_mb_skip_flag(mb_t& mb)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     data_partition_t* dp = &slice->partArr[0];
@@ -185,8 +210,8 @@ bool parse_mb_skip_flag(mb_t* mb)
     if (pps->entropy_coding_mode_flag) {
         cabac_context_t* ctx = slice->mot_ctx->skip_contexts;
 
-        int condTermFlagA = mb->mb_left && !mb->mb_left->mb_skip_flag ? 1 : 0;
-        int condTermFlagB = mb->mb_up   && !mb->mb_up  ->mb_skip_flag ? 1 : 0;
+        int condTermFlagA = mb.mb_left && !mb.mb_left->mb_skip_flag ? 1 : 0;
+        int condTermFlagB = mb.mb_up   && !mb.mb_up  ->mb_skip_flag ? 1 : 0;
         int ctxIdxInc = condTermFlagA + condTermFlagB;
 
         mb_skip_flag = dep_dp->decode_decision(ctx + ctxIdxInc);
@@ -195,9 +220,9 @@ bool parse_mb_skip_flag(mb_t* mb)
     return mb_skip_flag;
 }
 
-bool parse_mb_field_decoding_flag(mb_t* mb)
+bool Parser::parse_mb_field_decoding_flag(mb_t& mb)
 {
-	slice_t* slice = mb->p_Slice;
+	slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     data_partition_t* dp = &slice->partArr[0];
@@ -210,8 +235,8 @@ bool parse_mb_field_decoding_flag(mb_t* mb)
     else {
         cabac_context_t* ctx = slice->mot_ctx->mb_aff_contexts;
 
-        int condTermFlagA = mb->mbAvailA && slice->mb_data[mb->mbAddrA].mb_field_decoding_flag ? 1 : 0;
-        int condTermFlagB = mb->mbAvailB && slice->mb_data[mb->mbAddrB].mb_field_decoding_flag ? 1 : 0;
+        int condTermFlagA = mb.mbAvailA && slice->mb_data[mb.mbAddrA].mb_field_decoding_flag ? 1 : 0;
+        int condTermFlagB = mb.mbAvailB && slice->mb_data[mb.mbAddrB].mb_field_decoding_flag ? 1 : 0;
         int ctxIdxInc = condTermFlagA + condTermFlagB;
 
         mb_field_decoding_flag = dep_dp->decode_decision(ctx + ctxIdxInc);
@@ -359,9 +384,9 @@ static uint8_t parse_mb_type_b_slice(mb_t *mb)
     return mb_type;
 }
 
-uint32_t parse_mb_type(mb_t* mb)
+uint32_t Parser::parse_mb_type(mb_t& mb)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     data_partition_t* dp = &slice->partArr[0];
@@ -376,7 +401,7 @@ uint32_t parse_mb_type(mb_t* mb)
             slice->slice_type == I_slice || slice->slice_type == SI_slice ? parse_mb_type_i_slice :
             slice->slice_type == P_slice || slice->slice_type == SP_slice ? pares_mb_type_p_slice :
                                                                             parse_mb_type_b_slice;
-        mb_type = reading(mb);
+        mb_type = reading(&mb);
     }
 
     return mb_type;
@@ -432,9 +457,9 @@ static uint8_t parse_sub_mb_type_b_slice(mb_t* mb)
     return sub_mb_type;
 }
 
-uint8_t parse_sub_mb_type(mb_t* mb)
+uint8_t Parser::parse_sub_mb_type(mb_t& mb)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     data_partition_t* dp = &slice->partArr[0];
@@ -445,18 +470,18 @@ uint8_t parse_sub_mb_type(mb_t* mb)
         sub_mb_type = dp->ue();
     else {
         if (slice->slice_type == P_slice || slice->slice_type == SP_slice)
-            sub_mb_type = parse_sub_mb_type_p_slice(mb);
+            sub_mb_type = parse_sub_mb_type_p_slice(&mb);
         else
-            sub_mb_type = parse_sub_mb_type_b_slice(mb);
+            sub_mb_type = parse_sub_mb_type_b_slice(&mb);
     }
 
     return sub_mb_type;
 }
 
 
-bool parse_transform_size_8x8_flag(mb_t* mb)
+bool Parser::parse_transform_size_8x8_flag(mb_t& mb)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     data_partition_t* dp = &slice->partArr[0];
@@ -469,8 +494,8 @@ bool parse_transform_size_8x8_flag(mb_t* mb)
     else {
         cabac_context_t* ctx = slice->mot_ctx->transform_size_contexts;
 
-        int condTermFlagA = mb->mb_left && mb->mb_left->transform_size_8x8_flag ? 1 : 0;
-        int condTermFlagB = mb->mb_up   && mb->mb_up  ->transform_size_8x8_flag ? 1 : 0;
+        int condTermFlagA = mb.mb_left && mb.mb_left->transform_size_8x8_flag ? 1 : 0;
+        int condTermFlagB = mb.mb_up   && mb.mb_up  ->transform_size_8x8_flag ? 1 : 0;
         int ctxIdxInc = condTermFlagA + condTermFlagB;
 
         transform_size_8x8_flag = dep_dp->decode_decision(ctx + ctxIdxInc);
@@ -479,9 +504,9 @@ bool parse_transform_size_8x8_flag(mb_t* mb)
     return transform_size_8x8_flag;
 }
 
-int8_t parse_intra_pred_mode(mb_t* mb)
+int8_t Parser::parse_intra_pred_mode(mb_t& mb)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     data_partition_t* dp = &slice->partArr[0];
@@ -508,9 +533,9 @@ int8_t parse_intra_pred_mode(mb_t* mb)
     return intra_pred_mode;
 }
 
-uint8_t parse_intra_chroma_pred_mode(mb_t* mb)
+uint8_t Parser::parse_intra_chroma_pred_mode(mb_t& mb)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     data_partition_t* dp = &slice->partArr[0];
@@ -523,8 +548,8 @@ uint8_t parse_intra_chroma_pred_mode(mb_t* mb)
     else {
         cabac_context_t* ctx = slice->mot_ctx->cipr_contexts;
 
-        int condTermFlagA = mb->mb_left && mb->mb_left->intra_chroma_pred_mode != 0 && mb->mb_left->mb_type != IPCM ? 1 : 0;
-        int condTermFlagB = mb->mb_up   && mb->mb_up  ->intra_chroma_pred_mode != 0 && mb->mb_up  ->mb_type != IPCM ? 1 : 0;
+        int condTermFlagA = mb.mb_left && mb.mb_left->intra_chroma_pred_mode != 0 && mb.mb_left->mb_type != IPCM ? 1 : 0;
+        int condTermFlagB = mb.mb_up   && mb.mb_up  ->intra_chroma_pred_mode != 0 && mb.mb_up  ->mb_type != IPCM ? 1 : 0;
         uint8_t ctxIdxInc = condTermFlagA + condTermFlagB;
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 3, 3 };
 
@@ -534,13 +559,13 @@ uint8_t parse_intra_chroma_pred_mode(mb_t* mb)
     return intra_chroma_pred_mode;
 }
 
-uint8_t parse_ref_idx(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
+uint8_t Parser::parse_ref_idx(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     bool refidx_present =
-        slice->slice_type == B_slice || !slice->allrefzero || mb->mb_type != P8x8;
+        slice->slice_type == B_slice || !slice->allrefzero || mb.mb_type != P8x8;
     int num_ref_idx_active = list == LIST_0 ?
         slice->num_ref_idx_l0_active_minus1 + 1 :
         slice->num_ref_idx_l1_active_minus1 + 1;
@@ -560,7 +585,7 @@ uint8_t parse_ref_idx(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
             ref_idx = dp->ue();
     } else {
         cabac_context_t* ctx = slice->mot_ctx->ref_no_contexts;
-        uint8_t ctxIdxInc = ref_idx_ctxIdxInc(mb, list, x0, y0);
+        uint8_t ctxIdxInc = ref_idx_ctxIdxInc(&mb, list, x0, y0);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 4, 5 };
 
         ref_idx = dep_dp->u(ctx, ctxIdxIncs, 2);
@@ -569,9 +594,9 @@ uint8_t parse_ref_idx(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
     return ref_idx;
 }
 
-int16_t parse_mvd(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, uint8_t comp)
+int16_t Parser::parse_mvd(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0, uint8_t comp)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     data_partition_t* dp = &slice->partArr[0];
@@ -584,7 +609,7 @@ int16_t parse_mvd(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, uint8_t comp)
     else {
         cabac_context_t* ctx = (comp == 0) ? slice->mot_ctx->mvd_x_contexts
                                          : slice->mot_ctx->mvd_y_contexts;
-        uint8_t ctxIdxInc = mvd_ctxIdxInc(mb, list, x0, y0, comp);
+        uint8_t ctxIdxInc = mvd_ctxIdxInc(&mb, list, x0, y0, comp);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 3, 4, 5, 6 };
 
         mvd = dep_dp->ueg(ctx, ctxIdxIncs, 4, 9, 3);
@@ -593,9 +618,9 @@ int16_t parse_mvd(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, uint8_t comp)
     return mvd;
 }
 
-uint8_t parse_coded_block_pattern(mb_t* mb)
+uint8_t Parser::parse_coded_block_pattern(mb_t& mb)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     sps_t* sps = slice->active_sps;
     pps_t* pps = slice->active_pps;
 
@@ -626,13 +651,13 @@ uint8_t parse_coded_block_pattern(mb_t* mb)
         };
 
         bool normal  = (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ? 0 : 1);
-        bool inter   = (mb->is_intra_block ? 0 : 1);
+        bool inter   = (mb.is_intra_block ? 0 : 1);
         int  cbp_idx = dp->ue();
         coded_block_pattern = NCBP[normal][cbp_idx][inter];
     } else {
         for (int mb_y = 0; mb_y < 4; mb_y += 2) {
             for (int mb_x = 0; mb_x < 4; mb_x += 2) {
-                int ctxIdxInc = cbp_ctxIdxInc(mb, mb_x, mb_y, coded_block_pattern);
+                int ctxIdxInc = cbp_ctxIdxInc(&mb, mb_x, mb_y, coded_block_pattern);
 
                 cabac_context_t* ctx = slice->mot_ctx->cbp_l_contexts;
                 if (dep_dp->decode_decision(ctx + ctxIdxInc))
@@ -642,13 +667,13 @@ uint8_t parse_coded_block_pattern(mb_t* mb)
 
         if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
             cabac_context_t* ctx = slice->mot_ctx->cbp_c_contexts;
-            int condTermFlagA = mb->mb_left && (mb->mb_left->mb_type == IPCM || mb->mb_left->CodedBlockPatternChroma) ? 1 : 0;
-            int condTermFlagB = mb->mb_up   && (mb->mb_up  ->mb_type == IPCM || mb->mb_up  ->CodedBlockPatternChroma) ? 1 : 0;
+            int condTermFlagA = mb.mb_left && (mb.mb_left->mb_type == IPCM || mb.mb_left->CodedBlockPatternChroma) ? 1 : 0;
+            int condTermFlagB = mb.mb_up   && (mb.mb_up  ->mb_type == IPCM || mb.mb_up  ->CodedBlockPatternChroma) ? 1 : 0;
             int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
 
             if (dep_dp->decode_decision(ctx + ctxIdxInc)) {
-                condTermFlagA = mb->mb_left && (mb->mb_left->mb_type == IPCM || mb->mb_left->CodedBlockPatternChroma == 2) ? 1 : 0;
-                condTermFlagB = mb->mb_up   && (mb->mb_up  ->mb_type == IPCM || mb->mb_up  ->CodedBlockPatternChroma == 2) ? 1 : 0;
+                condTermFlagA = mb.mb_left && (mb.mb_left->mb_type == IPCM || mb.mb_left->CodedBlockPatternChroma == 2) ? 1 : 0;
+                condTermFlagB = mb.mb_up   && (mb.mb_up  ->mb_type == IPCM || mb.mb_up  ->CodedBlockPatternChroma == 2) ? 1 : 0;
                 ctxIdxInc = condTermFlagA + 2 * condTermFlagB + 4;
 
                 coded_block_pattern += dep_dp->decode_decision(ctx + ctxIdxInc) ? 32 : 16;
@@ -659,9 +684,9 @@ uint8_t parse_coded_block_pattern(mb_t* mb)
     return coded_block_pattern;
 }
 
-int8_t parse_mb_qp_delta(mb_t* mb)
+int8_t Parser::parse_mb_qp_delta(mb_t& mb)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t* slice = mb.p_Slice;
     pps_t* pps = slice->active_pps;
 
     data_partition_t* dp = &slice->partArr[0];
@@ -684,4 +709,8 @@ int8_t parse_mb_qp_delta(mb_t* mb)
     }
 
     return mb_qp_delta;
+}
+
+
+}
 }

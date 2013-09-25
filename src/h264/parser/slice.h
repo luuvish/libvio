@@ -9,10 +9,8 @@
 
 #include "neighbour.h"
 
-#include "intra_prediction.h"
-#include "inter_prediction.h"
-#include "transform.h"
-#include "deblock.h"
+#include "parser.h"
+#include "decoder.h"
 
 
 #define MAX_NUM_REF_IDX 32
@@ -25,10 +23,8 @@ using vio::h264::cabac_contexts_t;
 
 //using vio::h264::neighbour_t;
 
-using vio::h264::intra_prediction_t;
-using vio::h264::inter_prediction_t;
-using vio::h264::transform_t;
-using vio::h264::deblock_t;
+using vio::h264::Parser;
+using vio::h264::Decoder;
 
 
 enum {
@@ -220,10 +216,8 @@ struct slice_t {
 
     neighbour_t        neighbour;
 
-    intra_prediction_t intra_prediction;
-    inter_prediction_t inter_prediction;
-    transform_t        transform;
-    deblock_t          deblock;
+    Parser      parser;
+    Decoder     decoder;
 
 
 #if (MVC_EXTENSION_ENABLE)

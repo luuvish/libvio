@@ -21,15 +21,16 @@
  * ===========================================================================
  */
 
-#ifndef _INTRA_PREDICTION_H_
-#define _INTRA_PREDICTION_H_
+#ifndef _VIO_H264_INTRA_PREDICTION_H_
+#define _VIO_H264_INTRA_PREDICTION_H_
 
 
 namespace vio  {
 namespace h264 {
 
 
-struct intra_prediction_t {
+class IntraPrediction {
+public:
     enum {
         Intra_4x4_Vertical = 0,
         Intra_4x4_Horizontal,
@@ -73,4 +74,4 @@ struct intra_prediction_t {
 }
 
 
-#endif /* _INTRA_PREDICTION_H_ */
+#endif // _VIO_H264_INTRA_PREDICTION_H_

@@ -130,25 +130,7 @@ struct macroblock_t {
 
     void        create(slice_t *slice);
     void        init(slice_t *slice);
-    void        parse();
-    void        decode();
     bool        close(slice_t *slice);
-
-    void        parse_i_pcm();
-    void        parse_skip();
-    void        parse_intra();
-    void        parse_inter();
-
-    void        parse_ipred_modes();
-    void        parse_ipred_4x4_modes();
-    void        parse_ipred_8x8_modes();
-
-    void        parse_motion_info();
-    void        parse_ref_pic_idx(int list);
-    void        parse_motion_vectors(int list);
-    void        parse_motion_vector(int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx);
-
-    void        parse_cbp_qp();
 
     void        GetMotionVectorPredictorMBAFF(PixelPos* block, MotionVector* pmv,
                                       short ref_frame, pic_motion_params** mv_info,
@@ -167,20 +149,7 @@ struct macroblock_t {
     void        get_direct_spatial   (bool dir=true);
     int         get_inter8x8         (int block8x8);
 
-    void        interpret_mb_mode();
     void        update_qp(int qp);
-
-    void        residual       ();
-    void        residual_luma  (ColorPlane pl);
-    void        residual_chroma();
-    void        residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
-                                     ColorPlane pl, bool chroma, bool ac, int blkIdx);
-    void        residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
-                                     ColorPlane pl, bool chroma, bool ac, int blkIdx);
-
-    uint8_t     parse_coeff_token(int nC);
-    uint8_t     parse_total_zeros(int yuv, int tzVlcIndex);
-    uint8_t     parse_run_before(uint8_t zerosLeft);
 };
 
 using mb_t = macroblock_t;

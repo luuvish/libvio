@@ -21,15 +21,16 @@
  * ===========================================================================
  */
 
-#ifndef _DEBLOCK_H_
-#define _DEBLOCK_H_
+#ifndef _VIO_H264_DEBLOCK_H_
+#define _VIO_H264_DEBLOCK_H_
 
 
 namespace vio  {
 namespace h264 {
 
 
-struct deblock_t {
+class Deblock {
+public:
     void init();
     void deblock(VideoParameters* p_Vid);
 
@@ -58,4 +59,4 @@ private:
 }
 
 
-#endif /* _DEBLOCK_H_ */
+#endif // _VIO_H264_DEBLOCK_H_
