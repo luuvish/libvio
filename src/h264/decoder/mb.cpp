@@ -74,7 +74,7 @@ static void mb_pred_b_inter8x8(mb_t* mb, ColorPlane curr_plane)
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {
             int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-            pred_dirs[block8x8] = slice->inter_prediction.get_inter8x8(mb, block8x8);
+            pred_dirs[block8x8] = mb->get_inter8x8(block8x8);
         }
     }
 
@@ -119,7 +119,7 @@ static void mb_pred_ipcm(mb_t* mb)
             dec_picture->imgY[mb->mb.y * 16 + i][mb->mb.x * 16 + j] = (imgpel) slice->transform.cof[0][i][j];
     }
 
-    if (sps->chroma_format_idc != YUV400 && sps->separate_colour_plane_flag == 0) {
+    if (sps->ChromaArrayType != 0) {
         for (k = 0; k < 2; ++k) {
             for (i = 0; i < sps->MbHeightC; ++i) {
                 for (j = 0;j < sps->MbWidthC; ++j)

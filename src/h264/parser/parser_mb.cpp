@@ -9,10 +9,6 @@
 #include "fmo.h"
 #include "image.h"
 #include "neighbour.h"
-#include "transform.h"
-#include "mv_prediction.h"
-#include "intra_prediction.h"
-#include "inter_prediction.h"
 
 #include "mb_read_syntax.h"
 
@@ -388,7 +384,7 @@ static void skip_macroblock(mb_t* mb)
     if (zeroMotionA || zeroMotionB)
         pred_mv = zero_mv;
     else
-        GetMVPredictor(mb, pos, &pred_mv, 0, mv_info, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+        mb->GetMVPredictor(pos, &pred_mv, 0, mv_info, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
     for (int y = 0; y < BLOCK_SIZE; y++) {
         for (int x = 0; x < BLOCK_SIZE; x++) {
@@ -608,9 +604,9 @@ void macroblock_t::parse_skip()
 
     if (slice->slice_type == B_slice) {
         if (slice->direct_spatial_mv_pred_flag)
-            slice->inter_prediction.get_direct_spatial(this);
+            this->get_direct_spatial();
         else
-            slice->inter_prediction.get_direct_temporal(this);
+            this->get_direct_temporal();
 
         this->noSubMbPartSizeLessThan8x8Flag = sps->direct_8x8_inference_flag;
 
@@ -845,9 +841,9 @@ void macroblock_t::parse_motion_info()
 
     if (slice->slice_type == B_slice && this->mb_type == P8x8) {
         if (slice->direct_spatial_mv_pred_flag)
-            slice->inter_prediction.get_direct_spatial(this, false);
+            this->get_direct_spatial(false);
         else
-            slice->inter_prediction.get_direct_temporal(this, true);
+            this->get_direct_temporal(true);
     }
 
     this->parse_ref_pic_idx(LIST_0);
@@ -946,7 +942,7 @@ void macroblock_t::parse_motion_vector(int list, int step_h4, int step_v4, int i
     PixelPos block[4]; // neighbor blocks
     MotionVector pred_mv;
     get_neighbors(this, block, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4);
-    GetMVPredictor(this, block, &pred_mv, cur_ref_idx, mv_info, list, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4, step_v4);
+    this->GetMVPredictor(block, &pred_mv, cur_ref_idx, mv_info, list, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4, step_v4);
 
     int16_t curr_mvd[2];
     for (int k = 0; k < 2; ++k)

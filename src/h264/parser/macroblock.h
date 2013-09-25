@@ -150,6 +150,22 @@ struct macroblock_t {
 
     void        parse_cbp_qp();
 
+    void        GetMotionVectorPredictorMBAFF(PixelPos* block, MotionVector* pmv,
+                                      short ref_frame, pic_motion_params** mv_info,
+                                      int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
+    void        GetMotionVectorPredictorNormal(PixelPos* block, MotionVector* pmv,
+                                      short ref_frame, pic_motion_params** mv_info,
+                                      int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
+    void        GetMVPredictor       (PixelPos* block, MotionVector* pmv,
+                                      short ref_frame, pic_motion_params** mv_info,
+                                      int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
+
+    int         get_colocated_info   (storable_picture* list1, int i, int j);
+    void        set_direct_references(const PixelPos* pix, char* l0_rFrame, char* l1_rFrame, pic_motion_params** mv_info);
+    void        prepare_direct_params(MotionVector* pmvl0, MotionVector* pmvl1, char* l0_rFrame, char* l1_rFrame);
+    void        get_direct_temporal  (bool dir=true);
+    void        get_direct_spatial   (bool dir=true);
+    int         get_inter8x8         (int block8x8);
 
     void        interpret_mb_mode();
     void        update_qp(int qp);

@@ -9,10 +9,6 @@
 #include "fmo.h"
 #include "image.h"
 #include "neighbour.h"
-#include "transform.h"
-#include "mv_prediction.h"
-#include "intra_prediction.h"
-#include "inter_prediction.h"
 
 #include "mb_read_syntax.h"
 
