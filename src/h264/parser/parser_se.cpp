@@ -42,6 +42,29 @@ namespace vio {
 namespace h264 {
 
 
+Parser::SyntaxElement::SyntaxElement(mb_t& _mb) :
+    sps { *_mb.p_Slice->active_sps },
+    pps { *_mb.p_Slice->active_pps },
+    slice { *_mb.p_Slice },
+    mb { _mb }
+{
+}
+
+Parser::SyntaxElement::~SyntaxElement()
+{
+}
+
+Parser::SyntaxElement& Parser::SyntaxElement::operator = (const SyntaxElement& se)
+{
+    this->sps   = se.sps;
+    this->pps   = se.pps;
+    this->slice = se.slice;
+    this->mb    = se.mb;
+
+    return *this;
+}
+
+
 static int ref_idx_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
 {
     slice_t* slice = mb->p_Slice;
@@ -182,33 +205,27 @@ static int cbp_ctxIdxInc(mb_t* mb, uint8_t x0, uint8_t y0, uint8_t coded_block_p
 }
 
 
-uint32_t Parser::parse_mb_skip_run(mb_t& mb)
+uint32_t Parser::SyntaxElement::parse_mb_skip_run()
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
 
     uint32_t mb_skip_run = 0;
 
-    if (!pps->entropy_coding_mode_flag)
+    if (!pps.entropy_coding_mode_flag)
         mb_skip_run = dp->ue();
 
     return mb_skip_run;
 }
 
-bool Parser::parse_mb_skip_flag(mb_t& mb)
+bool Parser::SyntaxElement::parse_mb_skip_flag()
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
     cabac_engine_t* dep_dp = &dp->de_cabac;
 
     bool mb_skip_flag = 0;
 
-    if (pps->entropy_coding_mode_flag) {
-        cabac_context_t* ctx = slice->mot_ctx->skip_contexts;
+    if (pps.entropy_coding_mode_flag) {
+        cabac_context_t* ctx = slice.mot_ctx->skip_contexts;
 
         int condTermFlagA = mb.mb_left && !mb.mb_left->mb_skip_flag ? 1 : 0;
         int condTermFlagB = mb.mb_up   && !mb.mb_up  ->mb_skip_flag ? 1 : 0;
@@ -220,23 +237,20 @@ bool Parser::parse_mb_skip_flag(mb_t& mb)
     return mb_skip_flag;
 }
 
-bool Parser::parse_mb_field_decoding_flag(mb_t& mb)
+bool Parser::SyntaxElement::parse_mb_field_decoding_flag()
 {
-	slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
     cabac_engine_t* dep_dp = &dp->de_cabac;
 
     bool mb_field_decoding_flag;
 
-    if (!pps->entropy_coding_mode_flag)
+    if (!pps.entropy_coding_mode_flag)
         mb_field_decoding_flag = dp->f(1);
     else {
-        cabac_context_t* ctx = slice->mot_ctx->mb_aff_contexts;
+        cabac_context_t* ctx = slice.mot_ctx->mb_aff_contexts;
 
-        int condTermFlagA = mb.mbAvailA && slice->mb_data[mb.mbAddrA].mb_field_decoding_flag ? 1 : 0;
-        int condTermFlagB = mb.mbAvailB && slice->mb_data[mb.mbAddrB].mb_field_decoding_flag ? 1 : 0;
+        int condTermFlagA = mb.mbAvailA && slice.mb_data[mb.mbAddrA].mb_field_decoding_flag ? 1 : 0;
+        int condTermFlagB = mb.mbAvailB && slice.mb_data[mb.mbAddrB].mb_field_decoding_flag ? 1 : 0;
         int ctxIdxInc = condTermFlagA + condTermFlagB;
 
         mb_field_decoding_flag = dep_dp->decode_decision(ctx + ctxIdxInc);
@@ -384,22 +398,19 @@ static uint8_t parse_mb_type_b_slice(mb_t *mb)
     return mb_type;
 }
 
-uint32_t Parser::parse_mb_type(mb_t& mb)
+uint32_t Parser::SyntaxElement::parse_mb_type()
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
 
     uint32_t mb_type;
 
-    if (!pps->entropy_coding_mode_flag) {
+    if (!pps.entropy_coding_mode_flag) {
         mb_type = dp->ue();
-        mb_type += (slice->slice_type == P_slice || slice->slice_type == SP_slice) ? 1 : 0;
+        mb_type += (slice.slice_type == P_slice || slice.slice_type == SP_slice) ? 1 : 0;
     } else {
         uint8_t (*reading)(mb_t*) =
-            slice->slice_type == I_slice || slice->slice_type == SI_slice ? parse_mb_type_i_slice :
-            slice->slice_type == P_slice || slice->slice_type == SP_slice ? pares_mb_type_p_slice :
+            slice.slice_type == I_slice || slice.slice_type == SI_slice ? parse_mb_type_i_slice :
+            slice.slice_type == P_slice || slice.slice_type == SP_slice ? pares_mb_type_p_slice :
                                                                             parse_mb_type_b_slice;
         mb_type = reading(&mb);
     }
@@ -457,19 +468,16 @@ static uint8_t parse_sub_mb_type_b_slice(mb_t* mb)
     return sub_mb_type;
 }
 
-uint8_t Parser::parse_sub_mb_type(mb_t& mb)
+uint8_t Parser::SyntaxElement::parse_sub_mb_type()
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
 
     uint8_t sub_mb_type;
 
-    if (!pps->entropy_coding_mode_flag) 
+    if (!pps.entropy_coding_mode_flag) 
         sub_mb_type = dp->ue();
     else {
-        if (slice->slice_type == P_slice || slice->slice_type == SP_slice)
+        if (slice.slice_type == P_slice || slice.slice_type == SP_slice)
             sub_mb_type = parse_sub_mb_type_p_slice(&mb);
         else
             sub_mb_type = parse_sub_mb_type_b_slice(&mb);
@@ -479,20 +487,17 @@ uint8_t Parser::parse_sub_mb_type(mb_t& mb)
 }
 
 
-bool Parser::parse_transform_size_8x8_flag(mb_t& mb)
+bool Parser::SyntaxElement::parse_transform_size_8x8_flag()
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
     cabac_engine_t* dep_dp = &dp->de_cabac;
 
     bool transform_size_8x8_flag;
 
-    if (!pps->entropy_coding_mode_flag)
+    if (!pps.entropy_coding_mode_flag)
         transform_size_8x8_flag = dp->f(1);
     else {
-        cabac_context_t* ctx = slice->mot_ctx->transform_size_contexts;
+        cabac_context_t* ctx = slice.mot_ctx->transform_size_contexts;
 
         int condTermFlagA = mb.mb_left && mb.mb_left->transform_size_8x8_flag ? 1 : 0;
         int condTermFlagB = mb.mb_up   && mb.mb_up  ->transform_size_8x8_flag ? 1 : 0;
@@ -504,23 +509,20 @@ bool Parser::parse_transform_size_8x8_flag(mb_t& mb)
     return transform_size_8x8_flag;
 }
 
-int8_t Parser::parse_intra_pred_mode(mb_t& mb)
+int8_t Parser::SyntaxElement::parse_intra_pred_mode()
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
     cabac_engine_t* dep_dp = &dp->de_cabac;
 
     int8_t intra_pred_mode = 0;
 
-    if (!pps->entropy_coding_mode_flag) {
+    if (!pps.entropy_coding_mode_flag) {
         if (dp->f(1))
             intra_pred_mode = -1;
         else
             intra_pred_mode = dp->f(3);
     } else {
-        cabac_context_t* ctx = slice->mot_ctx->ipr_contexts;
+        cabac_context_t* ctx = slice.mot_ctx->ipr_contexts;
 
         if (dep_dp->decode_decision(ctx))
             intra_pred_mode = -1;
@@ -533,20 +535,17 @@ int8_t Parser::parse_intra_pred_mode(mb_t& mb)
     return intra_pred_mode;
 }
 
-uint8_t Parser::parse_intra_chroma_pred_mode(mb_t& mb)
+uint8_t Parser::SyntaxElement::parse_intra_chroma_pred_mode()
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
     cabac_engine_t* dep_dp = &dp->de_cabac;
 
     uint8_t intra_chroma_pred_mode;
 
-    if (!pps->entropy_coding_mode_flag)
+    if (!pps.entropy_coding_mode_flag)
         intra_chroma_pred_mode = dp->ue();
     else {
-        cabac_context_t* ctx = slice->mot_ctx->cipr_contexts;
+        cabac_context_t* ctx = slice.mot_ctx->cipr_contexts;
 
         int condTermFlagA = mb.mb_left && mb.mb_left->intra_chroma_pred_mode != 0 && mb.mb_left->mb_type != IPCM ? 1 : 0;
         int condTermFlagB = mb.mb_up   && mb.mb_up  ->intra_chroma_pred_mode != 0 && mb.mb_up  ->mb_type != IPCM ? 1 : 0;
@@ -559,32 +558,29 @@ uint8_t Parser::parse_intra_chroma_pred_mode(mb_t& mb)
     return intra_chroma_pred_mode;
 }
 
-uint8_t Parser::parse_ref_idx(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0)
+uint8_t Parser::SyntaxElement::parse_ref_idx(uint8_t list, uint8_t x0, uint8_t y0)
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
     bool refidx_present =
-        slice->slice_type == B_slice || !slice->allrefzero || mb.mb_type != P8x8;
+        slice.slice_type == B_slice || !slice.allrefzero || mb.mb_type != P8x8;
     int num_ref_idx_active = list == LIST_0 ?
-        slice->num_ref_idx_l0_active_minus1 + 1 :
-        slice->num_ref_idx_l1_active_minus1 + 1;
+        slice.num_ref_idx_l0_active_minus1 + 1 :
+        slice.num_ref_idx_l1_active_minus1 + 1;
 
     if (!refidx_present || num_ref_idx_active <= 1)
         return 0;
 
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
     cabac_engine_t* dep_dp = &dp->de_cabac;
 
     uint8_t ref_idx = 0;
 
-    if (!pps->entropy_coding_mode_flag) {
+    if (!pps.entropy_coding_mode_flag) {
         if (num_ref_idx_active == 2)
             ref_idx = 1 - dp->f(1);
         else
             ref_idx = dp->ue();
     } else {
-        cabac_context_t* ctx = slice->mot_ctx->ref_no_contexts;
+        cabac_context_t* ctx = slice.mot_ctx->ref_no_contexts;
         uint8_t ctxIdxInc = ref_idx_ctxIdxInc(&mb, list, x0, y0);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 4, 5 };
 
@@ -594,21 +590,18 @@ uint8_t Parser::parse_ref_idx(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0)
     return ref_idx;
 }
 
-int16_t Parser::parse_mvd(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0, uint8_t comp)
+int16_t Parser::SyntaxElement::parse_mvd(uint8_t list, uint8_t x0, uint8_t y0, uint8_t comp)
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
     cabac_engine_t* dep_dp = &dp->de_cabac;
 
     int16_t mvd = 0;
 
-    if (!pps->entropy_coding_mode_flag) 
+    if (!pps.entropy_coding_mode_flag) 
         mvd = dp->se();
     else {
-        cabac_context_t* ctx = (comp == 0) ? slice->mot_ctx->mvd_x_contexts
-                                         : slice->mot_ctx->mvd_y_contexts;
+        cabac_context_t* ctx = (comp == 0) ? slice.mot_ctx->mvd_x_contexts
+                                         : slice.mot_ctx->mvd_y_contexts;
         uint8_t ctxIdxInc = mvd_ctxIdxInc(&mb, list, x0, y0, comp);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 3, 4, 5, 6 };
 
@@ -618,18 +611,14 @@ int16_t Parser::parse_mvd(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0, uint8_
     return mvd;
 }
 
-uint8_t Parser::parse_coded_block_pattern(mb_t& mb)
+uint8_t Parser::SyntaxElement::parse_coded_block_pattern()
 {
-    slice_t* slice = mb.p_Slice;
-    sps_t* sps = slice->active_sps;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
     cabac_engine_t* dep_dp = &dp->de_cabac;
 
     uint8_t coded_block_pattern = 0;
 
-    if (!pps->entropy_coding_mode_flag) {
+    if (!pps.entropy_coding_mode_flag) {
         //! gives CBP value from codeword number, both for intra and inter
         static const uint8_t NCBP[2][48][2] = {
             { { 15,  0 } , {  0,  1 } , {  7,  2 } , { 11,  4 } , { 13,  8 } , { 14,  3 },
@@ -650,7 +639,7 @@ uint8_t Parser::parse_coded_block_pattern(mb_t& mb)
               { 33, 29 } , { 34, 30 } , { 36, 22 } , { 40, 25 } , { 38, 38 } , { 41, 41 } }
         };
 
-        bool normal  = (sps->chroma_format_idc == 0 || sps->chroma_format_idc == 3 ? 0 : 1);
+        bool normal  = (sps.chroma_format_idc == 0 || sps.chroma_format_idc == 3 ? 0 : 1);
         bool inter   = (mb.is_intra_block ? 0 : 1);
         int  cbp_idx = dp->ue();
         coded_block_pattern = NCBP[normal][cbp_idx][inter];
@@ -659,14 +648,14 @@ uint8_t Parser::parse_coded_block_pattern(mb_t& mb)
             for (int mb_x = 0; mb_x < 4; mb_x += 2) {
                 int ctxIdxInc = cbp_ctxIdxInc(&mb, mb_x, mb_y, coded_block_pattern);
 
-                cabac_context_t* ctx = slice->mot_ctx->cbp_l_contexts;
+                cabac_context_t* ctx = slice.mot_ctx->cbp_l_contexts;
                 if (dep_dp->decode_decision(ctx + ctxIdxInc))
                     coded_block_pattern += (1 << (mb_y + (mb_x >> 1)));
             }
         }
 
-        if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
-            cabac_context_t* ctx = slice->mot_ctx->cbp_c_contexts;
+        if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
+            cabac_context_t* ctx = slice.mot_ctx->cbp_c_contexts;
             int condTermFlagA = mb.mb_left && (mb.mb_left->mb_type == IPCM || mb.mb_left->CodedBlockPatternChroma) ? 1 : 0;
             int condTermFlagB = mb.mb_up   && (mb.mb_up  ->mb_type == IPCM || mb.mb_up  ->CodedBlockPatternChroma) ? 1 : 0;
             int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
@@ -684,21 +673,18 @@ uint8_t Parser::parse_coded_block_pattern(mb_t& mb)
     return coded_block_pattern;
 }
 
-int8_t Parser::parse_mb_qp_delta(mb_t& mb)
+int8_t Parser::SyntaxElement::parse_mb_qp_delta()
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    data_partition_t* dp = &slice->partArr[0];
+    data_partition_t* dp = &slice.partArr[0];
     cabac_engine_t* dep_dp = &dp->de_cabac;
 
     int8_t mb_qp_delta;
 
-    if (!pps->entropy_coding_mode_flag)
+    if (!pps.entropy_coding_mode_flag)
         mb_qp_delta = dp->se();
     else {
-        cabac_context_t* ctx = slice->mot_ctx->delta_qp_contexts;
-        uint8_t ctxIdxInc = slice->last_dquant != 0 ? 1 : 0;
+        cabac_context_t* ctx = slice.mot_ctx->delta_qp_contexts;
+        uint8_t ctxIdxInc = slice.last_dquant != 0 ? 1 : 0;
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 2, 3 };
 
         mb_qp_delta = dep_dp->u(ctx, ctxIdxIncs, 2);

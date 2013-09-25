@@ -13,8 +13,22 @@ using vio::h264::cabac_context_t;
 using vio::h264::cabac_engine_t;
 
 
-namespace vio {
+namespace vio  {
 namespace h264 {
+
+
+Parser::Residual::Residual(mb_t& _mb) :
+    sps { *_mb.p_Slice->active_sps },
+    pps { *_mb.p_Slice->active_pps },
+    slice { *_mb.p_Slice },
+    mb { _mb }
+{
+}
+
+Parser::Residual::~Residual()
+{
+}
+
 
 #define IS_I16MB(MB) ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
 
@@ -163,10 +177,9 @@ static const uint8_t run_before_code[15][16] = {
 };
 
 
-uint8_t Parser::parse_coeff_token(mb_t& mb, int nC)
+uint8_t Parser::Residual::parse_coeff_token(int nC)
 {
-    slice_t* slice = mb.p_Slice;
-    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     if (nC >= 8) {
         int code = dp->read_bits(6);
@@ -232,10 +245,9 @@ static int16_t parse_level(data_partition_t *currStream, uint8_t level_prefix, u
 }
 */
 
-uint8_t Parser::parse_total_zeros(mb_t& mb, int yuv, int tzVlcIndex)
+uint8_t Parser::Residual::parse_total_zeros(int yuv, int tzVlcIndex)
 {
-    slice_t* slice = mb.p_Slice;
-    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int tab = tzVlcIndex - 1;
 
@@ -252,10 +264,9 @@ uint8_t Parser::parse_total_zeros(mb_t& mb, int yuv, int tzVlcIndex)
     return -1;
 }
 
-uint8_t Parser::parse_run_before(mb_t& mb, uint8_t zerosLeft)
+uint8_t Parser::Residual::parse_run_before(uint8_t zerosLeft)
 {
-    slice_t* slice = mb.p_Slice;
-    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int tab = min<int>(zerosLeft, 7) - 1;
 
@@ -272,13 +283,10 @@ uint8_t Parser::parse_run_before(mb_t& mb, uint8_t zerosLeft)
     return -1;
 }
 
-void Parser::residual_block_cavlc(mb_t& mb, uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
-                                  ColorPlane pl, bool chroma, bool ac, int blkIdx)
+void Parser::Residual::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
+                                            ColorPlane pl, bool chroma, bool ac, int blkIdx)
 {
-    slice_t* slice = mb.p_Slice;
-    sps_t* sps = slice->active_sps;
-
-    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int i = chroma ? blkIdx % 2 : ((blkIdx / 4) % 2) * 2 + (blkIdx % 4) % 2;
     int j = chroma ? blkIdx / 2 : ((blkIdx / 4) / 2) * 2 + (blkIdx % 4) / 2;
@@ -286,11 +294,11 @@ void Parser::residual_block_cavlc(mb_t& mb, uint8_t ctxBlockCat, uint8_t startId
     int levelVal[16], runVal[16];
     int nC;
     if (chroma && !ac)
-        nC = sps->ChromaArrayType == 1 ? -1 : sps->ChromaArrayType == 2 ? -2 : 0;
+        nC = sps.ChromaArrayType == 1 ? -1 : sps.ChromaArrayType == 2 ? -2 : 0;
     else
-        nC = slice->neighbour.predict_nnz(&mb, pl, i * 4, j * 4);
+        nC = slice.neighbour.predict_nnz(&mb, pl, i * 4, j * 4);
 
-    uint8_t coeff_token  = this->parse_coeff_token(mb, nC);
+    uint8_t coeff_token  = this->parse_coeff_token(nC);
     uint8_t TotalCoeff   = coeff_token >> 2;
     uint8_t TrailingOnes = coeff_token % 4;
 
@@ -344,13 +352,13 @@ void Parser::residual_block_cavlc(mb_t& mb, uint8_t ctxBlockCat, uint8_t startId
         int zerosLeft = 0;
         if (TotalCoeff < maxNumCoeff) {
             int yuv = maxNumCoeff == 4 ? 0 : maxNumCoeff == 8 ? 1 : 2;
-            zerosLeft = this->parse_total_zeros(mb, yuv, TotalCoeff);
+            zerosLeft = this->parse_total_zeros(yuv, TotalCoeff);
         }
 
         for (int i = TotalCoeff - 1; i > 0; i--) {
 //        for (i = 0; i < TotalCoeff - 1; i++) {
             if (zerosLeft > 0)
-                runVal[i] = this->parse_run_before(mb, zerosLeft);
+                runVal[i] = this->parse_run_before(zerosLeft);
             else
                 runVal[i] = 0;
             zerosLeft -= runVal[i];
@@ -370,18 +378,18 @@ void Parser::residual_block_cavlc(mb_t& mb, uint8_t ctxBlockCat, uint8_t startId
             //coeffLevel[start_scan + coeffNum] = levelVal[k];
             if (!chroma) {
                 if (!ac)
-                    slice->decoder.coeff_luma_dc(&mb, pl, i, j, coeffNum, levelVal[k]);
+                    slice.decoder.coeff_luma_dc(&mb, pl, i, j, coeffNum, levelVal[k]);
                 else {
                     int x0 = !mb.transform_size_8x8_flag ? i : (i & ~1);
                     int y0 = !mb.transform_size_8x8_flag ? j : (j & ~1);
                     int c0 = !mb.transform_size_8x8_flag ? coeffNum : coeffNum * 4 + (blkIdx % 4);
-                    slice->decoder.coeff_luma_ac(&mb, pl, x0, y0, c0, levelVal[k]);
+                    slice.decoder.coeff_luma_ac(&mb, pl, x0, y0, c0, levelVal[k]);
                 }
             } else {
                 if (!ac)
-                    slice->decoder.coeff_chroma_dc(&mb, pl, i, j, coeffNum, levelVal[k]);
+                    slice.decoder.coeff_chroma_dc(&mb, pl, i, j, coeffNum, levelVal[k]);
                 else
-                    slice->decoder.coeff_chroma_ac(&mb, pl, i, j, coeffNum, levelVal[k]);
+                    slice.decoder.coeff_chroma_ac(&mb, pl, i, j, coeffNum, levelVal[k]);
             }
         }
     }
@@ -603,20 +611,17 @@ static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_cont
 }
 
 
-void Parser::residual_block_cabac(mb_t& mb, uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
-                                  ColorPlane pl, bool chroma, bool ac, int blkIdx)
+void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
+                                            ColorPlane pl, bool chroma, bool ac, int blkIdx)
 {
-    slice_t* slice = mb.p_Slice;
-    sps_t* sps = slice->active_sps;
-
-    data_partition_t* dp = &slice->partArr[slice->dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int context;
     if (!chroma) {
         if (!ac)
             context = LUMA_16DC;
         else {
-            if (pl == PLANE_Y || sps->separate_colour_plane_flag)
+            if (pl == PLANE_Y || sps.separate_colour_plane_flag)
                 context = mb.transform_size_8x8_flag ? LUMA_8x8 : IS_I16MB(&mb) ? LUMA_16AC : LUMA_4x4;
             else if (pl == PLANE_U)
                 context = mb.transform_size_8x8_flag ? CB_8x8 : IS_I16MB(&mb) ? CB_16AC : CB_4x4;
@@ -625,14 +630,14 @@ void Parser::residual_block_cabac(mb_t& mb, uint8_t ctxBlockCat, uint8_t startId
         }
     } else {
         if (!ac)
-            context = sps->ChromaArrayType == 1 ? CHROMA_DC : CHROMA_DC_2x4;
+            context = sps.ChromaArrayType == 1 ? CHROMA_DC : CHROMA_DC_2x4;
         else
             context = CHROMA_AC;
     }
 
     int coded_block_flag = 1; // always one for 8x8 mode
-    if (sps->chroma_format_idc == YUV444 || context != LUMA_8x8) {
-        cabac_context_t* ctx = slice->mot_ctx->bcbp_contexts + type2ctx_bcbp[context];
+    if (sps.chroma_format_idc == YUV444 || context != LUMA_8x8) {
+        cabac_context_t* ctx = slice.mot_ctx->bcbp_contexts + type2ctx_bcbp[context];
         int ctxIdxInc = coded_block_flag_ctxIdxInc(&mb, pl, chroma, ac, blkIdx);
 
         coded_block_flag = dp->de_cabac.decode_decision(ctx + ctxIdxInc);
@@ -643,11 +648,11 @@ void Parser::residual_block_cabac(mb_t& mb, uint8_t ctxBlockCat, uint8_t startId
     if (!coded_block_flag)
         return;
 
-    bool field = slice->field_pic_flag || mb.mb_field_decoding_flag;
+    bool field = slice.field_pic_flag || mb.mb_field_decoding_flag;
     const uint8_t* pos2ctx_Map  = pos2ctx_map [field][context];
     const uint8_t* pos2ctx_Last = pos2ctx_last[context];
-    cabac_context_t* map_ctx  = slice->mot_ctx->map_contexts [field] + type2ctx_map[context];
-    cabac_context_t* last_ctx = slice->mot_ctx->last_contexts[field] + type2ctx_map[context];
+    cabac_context_t* map_ctx  = slice.mot_ctx->map_contexts [field] + type2ctx_map[context];
+    cabac_context_t* last_ctx = slice.mot_ctx->last_contexts[field] + type2ctx_map[context];
 
     int coeff_val[64], *coeff;
     int numCoeff = endIdx + 1;
@@ -666,7 +671,7 @@ void Parser::residual_block_cabac(mb_t& mb, uint8_t ctxBlockCat, uint8_t startId
         ii++;
     }
 
-    cabac_context_t* one_ctx = slice->mot_ctx->one_contexts + type2ctx_one[context];
+    cabac_context_t* one_ctx = slice.mot_ctx->one_contexts + type2ctx_one[context];
 
     coeff = coeff_val + numCoeff - 1;
     *coeff = 1;
@@ -696,45 +701,42 @@ void Parser::residual_block_cabac(mb_t& mb, uint8_t ctxBlockCat, uint8_t startId
             //    assert(startIdx + ii < numCoeff);
             if (!chroma) {
                 if (!ac)
-                    slice->decoder.coeff_luma_dc(&mb, pl, i, j, ii, *coeff);
+                    slice.decoder.coeff_luma_dc(&mb, pl, i, j, ii, *coeff);
                 else
-                    slice->decoder.coeff_luma_ac(&mb, pl, i, j, ii, *coeff);
+                    slice.decoder.coeff_luma_ac(&mb, pl, i, j, ii, *coeff);
             } else {
                 if (!ac)
-                    slice->decoder.coeff_chroma_dc(&mb, pl, i, j, ii, *coeff);
+                    slice.decoder.coeff_chroma_dc(&mb, pl, i, j, ii, *coeff);
                 else
-                    slice->decoder.coeff_chroma_ac(&mb, pl, i, j, ii, *coeff);
+                    slice.decoder.coeff_chroma_ac(&mb, pl, i, j, ii, *coeff);
             }
         }
         coeff--;
     }
 }
 
-void Parser::residual_luma(mb_t& mb, ColorPlane pl)
+void Parser::Residual::residual_luma(ColorPlane pl)
 {
-    slice_t* slice = mb.p_Slice;
-    pps_t* pps = slice->active_pps;
-
-    auto residual_block = !pps->entropy_coding_mode_flag ?
-        std::mem_fn(&Parser::residual_block_cavlc) :
-        std::mem_fn(&Parser::residual_block_cabac);
+    auto residual_block = !pps.entropy_coding_mode_flag ?
+        std::mem_fn(&Parser::Residual::residual_block_cavlc) :
+        std::mem_fn(&Parser::Residual::residual_block_cabac);
 
     if (IS_I16MB(&mb) && !mb.dpl_flag) {
-        residual_block(this, mb, LUMA_16DC, 0, 15, 16, pl, false, false, 0);
+        residual_block(this, LUMA_16DC, 0, 15, 16, pl, false, false, 0);
 
-        slice->decoder.transform_luma_dc(&mb, pl);
+        slice.decoder.transform_luma_dc(&mb, pl);
     }
 
     for (int i8x8 = 0; i8x8 < 4; i8x8++) {
-        if (!mb.transform_size_8x8_flag || !pps->entropy_coding_mode_flag) {
+        if (!mb.transform_size_8x8_flag || !pps.entropy_coding_mode_flag) {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
                 if (mb.CodedBlockPatternLuma & (1 << i8x8)) {
                     if (IS_I16MB(&mb))
-                        residual_block(this, mb, LUMA_16AC, 1, 14, 15, pl, false, true, i8x8 * 4 + i4x4);
+                        residual_block(this, LUMA_16AC, 1, 14, 15, pl, false, true, i8x8 * 4 + i4x4);
                     else
-                        residual_block(this, mb, LUMA_4x4, 0, 15, 16, pl, false, true, i8x8 * 4 + i4x4);
+                        residual_block(this, LUMA_4x4, 0, 15, 16, pl, false, true, i8x8 * 4 + i4x4);
                 } else {
-                    if (!pps->entropy_coding_mode_flag) {
+                    if (!pps.entropy_coding_mode_flag) {
                         int i = (i8x8 % 2) * 2 + (i4x4 % 2);
                         int j = (i8x8 / 2) * 2 + (i4x4 / 2);
                         mb.nz_coeff[pl][j][i] = 0;
@@ -742,10 +744,10 @@ void Parser::residual_luma(mb_t& mb, ColorPlane pl)
                 }
             }
         } else if (mb.CodedBlockPatternLuma & (1 << i8x8))
-            residual_block(this, mb, LUMA_8x8, 0, 63, 64, pl, false, true, i8x8 * 4);
+            residual_block(this, LUMA_8x8, 0, 63, 64, pl, false, true, i8x8 * 4);
         else {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
-                if (!pps->entropy_coding_mode_flag) {
+                if (!pps.entropy_coding_mode_flag) {
                     int i = (i8x8 % 2) * 2 + (i4x4 % 2);
                     int j = (i8x8 / 2) * 2 + (i4x4 / 2);
                     mb.nz_coeff[pl][j][i] = 0;
@@ -755,23 +757,19 @@ void Parser::residual_luma(mb_t& mb, ColorPlane pl)
     }
 }
 
-void Parser::residual_chroma(mb_t& mb)
+void Parser::Residual::residual_chroma()
 {
-    slice_t* slice = mb.p_Slice;
-    sps_t* sps = slice->active_sps;
-    pps_t* pps = slice->active_pps;
+    int NumC8x8 = 4 / (sps.SubWidthC * sps.SubHeightC);
 
-    int NumC8x8 = 4 / (sps->SubWidthC * sps->SubHeightC);
-
-    auto residual_block = !pps->entropy_coding_mode_flag ?
-        std::mem_fn(&Parser::residual_block_cavlc) :
-        std::mem_fn(&Parser::residual_block_cabac);
+    auto residual_block = !pps.entropy_coding_mode_flag ?
+        std::mem_fn(&Parser::Residual::residual_block_cavlc) :
+        std::mem_fn(&Parser::Residual::residual_block_cabac);
 
     if (mb.CodedBlockPatternChroma & 3) {
         for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
-            residual_block(this, mb, CHROMA_DC, 0, 4 * NumC8x8 - 1, 4 * NumC8x8, (ColorPlane)(iCbCr+1), true, false, 0);
+            residual_block(this, CHROMA_DC, 0, 4 * NumC8x8 - 1, 4 * NumC8x8, (ColorPlane)(iCbCr+1), true, false, 0);
 
-            slice->decoder.transform_chroma_dc(&mb, (ColorPlane)(iCbCr + 1));
+            slice.decoder.transform_chroma_dc(&mb, (ColorPlane)(iCbCr + 1));
         }
     }
 
@@ -779,9 +777,9 @@ void Parser::residual_chroma(mb_t& mb)
         for (int i8x8 = 0; i8x8 < NumC8x8; i8x8++) {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
                 if (mb.CodedBlockPatternChroma & 2)
-                    residual_block(this, mb, CHROMA_AC, 1, 14, 15, (ColorPlane)(iCbCr+1), true, true, i8x8 * 4 + i4x4);
+                    residual_block(this, CHROMA_AC, 1, 14, 15, (ColorPlane)(iCbCr+1), true, true, i8x8 * 4 + i4x4);
                 else {
-                    if (!pps->entropy_coding_mode_flag) {
+                    if (!pps.entropy_coding_mode_flag) {
                         int i = (i4x4 % 2);
                         int j = (i4x4 / 2) + (i8x8 * 2);
                         mb.nz_coeff[iCbCr + 1][j][i] = 0;
@@ -792,17 +790,14 @@ void Parser::residual_chroma(mb_t& mb)
     }
 }
 
-void Parser::residual(mb_t& mb)
+void Parser::Residual::residual()
 {
-    slice_t* slice = mb.p_Slice;
-    sps_t* sps = slice->active_sps;
-
-    this->residual_luma(mb, PLANE_Y);
-    if (sps->ChromaArrayType == 1 || sps->ChromaArrayType == 2)
-        this->residual_chroma(mb);
-    else if (sps->ChromaArrayType == 3) {
-        this->residual_luma(mb, PLANE_U);
-        this->residual_luma(mb, PLANE_V);
+    this->residual_luma(PLANE_Y);
+    if (sps.ChromaArrayType == 1 || sps.ChromaArrayType == 2)
+        this->residual_chroma();
+    else if (sps.ChromaArrayType == 3) {
+        this->residual_luma(PLANE_U);
+        this->residual_luma(PLANE_V);
     }
 }
 
