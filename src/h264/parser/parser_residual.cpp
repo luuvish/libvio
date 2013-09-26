@@ -2,15 +2,9 @@
 
 #include "global.h"
 #include "slice.h"
-#include "bitstream_cabac.h"
-#include "data_partition.h"
 #include "macroblock.h"
 
 #include "neighbour.h"
-
-
-using vio::h264::cabac_context_t;
-using vio::h264::cabac_engine_t;
 
 
 namespace vio  {

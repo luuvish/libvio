@@ -23,22 +23,15 @@
 
 #include "global.h"
 #include "slice.h"
-#include "dpb.h"
-#include "bitstream_cabac.h"
-#include "data_partition.h"
 #include "macroblock.h"
-#include "fmo.h"
-#include "image.h"
 #include "neighbour.h"
 
 #include "parser.h"
 
-
-using vio::h264::cabac_context_t;
-using vio::h264::cabac_engine_t;
+#include <functional>
 
 
-namespace vio {
+namespace vio  {
 namespace h264 {
 
 
@@ -46,22 +39,15 @@ Parser::SyntaxElement::SyntaxElement(mb_t& _mb) :
     sps { *_mb.p_Slice->active_sps },
     pps { *_mb.p_Slice->active_pps },
     slice { *_mb.p_Slice },
-    mb { _mb }
+    mb { _mb },
+    cavlc { _mb.p_Slice->partArr[0] },
+    cabac { _mb.p_Slice->partArr[0].de_cabac },
+    contexts { *_mb.p_Slice->mot_ctx }
 {
 }
 
 Parser::SyntaxElement::~SyntaxElement()
 {
-}
-
-Parser::SyntaxElement& Parser::SyntaxElement::operator = (const SyntaxElement& se)
-{
-    this->sps   = se.sps;
-    this->pps   = se.pps;
-    this->slice = se.slice;
-    this->mb    = se.mb;
-
-    return *this;
 }
 
 
@@ -205,94 +191,99 @@ static int cbp_ctxIdxInc(mb_t* mb, uint8_t x0, uint8_t y0, uint8_t coded_block_p
 }
 
 
-uint32_t Parser::SyntaxElement::parse_mb_skip_run()
+uint32_t Parser::SyntaxElement::mb_skip_run()
 {
-    data_partition_t* dp = &slice.partArr[0];
-
     uint32_t mb_skip_run = 0;
 
     if (!pps.entropy_coding_mode_flag)
-        mb_skip_run = dp->ue();
+        mb_skip_run = cavlc.ue();
 
     return mb_skip_run;
 }
 
-bool Parser::SyntaxElement::parse_mb_skip_flag()
+bool Parser::SyntaxElement::mb_skip_flag()
 {
-    data_partition_t* dp = &slice.partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
     bool mb_skip_flag = 0;
 
     if (pps.entropy_coding_mode_flag) {
-        cabac_context_t* ctx = slice.mot_ctx->skip_contexts;
+        cabac_context_t* ctx = contexts.skip_contexts;
 
         int condTermFlagA = mb.mb_left && !mb.mb_left->mb_skip_flag ? 1 : 0;
         int condTermFlagB = mb.mb_up   && !mb.mb_up  ->mb_skip_flag ? 1 : 0;
         int ctxIdxInc = condTermFlagA + condTermFlagB;
 
-        mb_skip_flag = dep_dp->decode_decision(ctx + ctxIdxInc);
+        mb_skip_flag = cabac.decode_decision(ctx + ctxIdxInc);
     }
 
     return mb_skip_flag;
 }
 
-bool Parser::SyntaxElement::parse_mb_field_decoding_flag()
+bool Parser::SyntaxElement::mb_field_decoding_flag()
 {
-    data_partition_t* dp = &slice.partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
     bool mb_field_decoding_flag;
 
     if (!pps.entropy_coding_mode_flag)
-        mb_field_decoding_flag = dp->f(1);
+        mb_field_decoding_flag = cavlc.f(1);
     else {
-        cabac_context_t* ctx = slice.mot_ctx->mb_aff_contexts;
+        cabac_context_t* ctx = contexts.mb_aff_contexts;
 
         int condTermFlagA = mb.mbAvailA && slice.mb_data[mb.mbAddrA].mb_field_decoding_flag ? 1 : 0;
         int condTermFlagB = mb.mbAvailB && slice.mb_data[mb.mbAddrB].mb_field_decoding_flag ? 1 : 0;
         int ctxIdxInc = condTermFlagA + condTermFlagB;
 
-        mb_field_decoding_flag = dep_dp->decode_decision(ctx + ctxIdxInc);
+        mb_field_decoding_flag = cabac.decode_decision(ctx + ctxIdxInc);
     }
 
     return mb_field_decoding_flag;
 }
 
-static uint8_t parse_mb_type_i_slice(mb_t* mb)
+uint8_t Parser::SyntaxElement::mb_type()
 {
-    slice_t* slice = mb->p_Slice;
+    uint8_t mb_type;
 
-    data_partition_t* dp = &slice->partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
-    uint8_t mb_type = 0;
-
-    if (slice->slice_type == SI_slice) {
-        cabac_context_t* ctx = slice->mot_ctx->mb_type_contexts; // ctxIdxOffset = 0
-
-        int condTermFlagA = mb->mb_left && mb->mb_left->mb_type != SI4MB ? 1 : 0;
-        int condTermFlagB = mb->mb_up   && mb->mb_up  ->mb_type != SI4MB ? 1 : 0;
-        int ctxIdxInc = condTermFlagA + condTermFlagB;
-
-        mb_type = dep_dp->decode_decision(ctx + ctxIdxInc);
+    if (!pps.entropy_coding_mode_flag) {
+        mb_type = cavlc.ue();
+        mb_type += (slice.slice_type == P_slice || slice.slice_type == SP_slice) ? 1 : 0;
+    } else {
+        auto reading =
+            slice.slice_type == I_slice || slice.slice_type == SI_slice ? std::mem_fn(&Parser::SyntaxElement::mb_type_i_slice) :
+            slice.slice_type == P_slice || slice.slice_type == SP_slice ? std::mem_fn(&Parser::SyntaxElement::mb_type_p_slice) :
+                                                                          std::mem_fn(&Parser::SyntaxElement::mb_type_b_slice);
+        mb_type = reading(this);
     }
 
-    if (slice->slice_type == I_slice || mb_type == 1) {
-        cabac_context_t* ctx = slice->mot_ctx->mb_type_contexts + 3; // ctxIdxOffset = 3
+    return mb_type;
+}
 
-        int condTermFlagA = mb->mb_left && mb->mb_left->mb_type != I4MB && mb->mb_left->mb_type != I8MB ? 1 : 0;
-        int condTermFlagB = mb->mb_up   && mb->mb_up  ->mb_type != I4MB && mb->mb_up  ->mb_type != I8MB ? 1 : 0;
+uint8_t Parser::SyntaxElement::mb_type_i_slice()
+{
+    uint8_t mb_type = 0;
+
+    if (slice.slice_type == SI_slice) {
+        cabac_context_t* ctx = contexts.mb_type_contexts; // ctxIdxOffset = 0
+
+        int condTermFlagA = mb.mb_left && mb.mb_left->mb_type != SI4MB ? 1 : 0;
+        int condTermFlagB = mb.mb_up   && mb.mb_up  ->mb_type != SI4MB ? 1 : 0;
         int ctxIdxInc = condTermFlagA + condTermFlagB;
 
-        if (dep_dp->decode_decision(ctx + ctxIdxInc)) {
-            if (!dep_dp->decode_terminate()) {
+        mb_type = cabac.decode_decision(ctx + ctxIdxInc);
+    }
+
+    if (slice.slice_type == I_slice || mb_type == 1) {
+        cabac_context_t* ctx = contexts.mb_type_contexts + 3; // ctxIdxOffset = 3
+
+        int condTermFlagA = mb.mb_left && mb.mb_left->mb_type != I4MB && mb.mb_left->mb_type != I8MB ? 1 : 0;
+        int condTermFlagB = mb.mb_up   && mb.mb_up  ->mb_type != I4MB && mb.mb_up  ->mb_type != I8MB ? 1 : 0;
+        int ctxIdxInc = condTermFlagA + condTermFlagB;
+
+        if (cabac.decode_decision(ctx + ctxIdxInc)) {
+            if (!cabac.decode_terminate()) {
                 mb_type += 1;
-                mb_type += dep_dp->decode_decision(ctx + 3) * 12;
-                if (dep_dp->decode_decision(ctx + 4))
-                    mb_type += dep_dp->decode_decision(ctx + 5) * 4 + 4;
-                mb_type += dep_dp->decode_decision(ctx + 6) * 2;
-                mb_type += dep_dp->decode_decision(ctx + 7);
+                mb_type += cabac.decode_decision(ctx + 3) * 12;
+                if (cabac.decode_decision(ctx + 4))
+                    mb_type += cabac.decode_decision(ctx + 5) * 4 + 4;
+                mb_type += cabac.decode_decision(ctx + 6) * 2;
+                mb_type += cabac.decode_decision(ctx + 7);
             } else
                 mb_type += 25;
         }
@@ -301,35 +292,30 @@ static uint8_t parse_mb_type_i_slice(mb_t* mb)
     return mb_type;
 }
 
-static uint8_t pares_mb_type_p_slice(mb_t* mb)
+uint8_t Parser::SyntaxElement::mb_type_p_slice()
 {
-    slice_t* slice = mb->p_Slice;
-
-    data_partition_t* dp = &slice->partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
     uint8_t mb_type = 1;
 
-    cabac_context_t* ctx = slice->mot_ctx->mb_type_contexts; // ctxIdxOffset = 14
-    if (!dep_dp->decode_decision(ctx + 0)) {
-        if (!dep_dp->decode_decision(ctx + 1))
-            mb_type += dep_dp->decode_decision(ctx + 2) * 3;
+    cabac_context_t* ctx = contexts.mb_type_contexts; // ctxIdxOffset = 14
+    if (!cabac.decode_decision(ctx + 0)) {
+        if (!cabac.decode_decision(ctx + 1))
+            mb_type += cabac.decode_decision(ctx + 2) * 3;
         else
-            mb_type -= dep_dp->decode_decision(ctx + 3) - 2;
+            mb_type -= cabac.decode_decision(ctx + 3) - 2;
     } else
         mb_type += 5;
 
     if (mb_type == 6) {
-        ctx = slice->mot_ctx->mb_type_contexts + 3; // ctxIdxOffset = 17
+        ctx = contexts.mb_type_contexts + 3; // ctxIdxOffset = 17
 
-        if (dep_dp->decode_decision(ctx + 0)) {
-            if (!dep_dp->decode_terminate()) {
+        if (cabac.decode_decision(ctx + 0)) {
+            if (!cabac.decode_terminate()) {
                 mb_type += 1;
-                mb_type += dep_dp->decode_decision(ctx + 1) * 12;
-                if (dep_dp->decode_decision(ctx + 2))
-                    mb_type += dep_dp->decode_decision(ctx + 2) * 4 + 4;
-                mb_type += dep_dp->decode_decision(ctx + 3) * 2;
-                mb_type += dep_dp->decode_decision(ctx + 3);
+                mb_type += cabac.decode_decision(ctx + 1) * 12;
+                if (cabac.decode_decision(ctx + 2))
+                    mb_type += cabac.decode_decision(ctx + 2) * 4 + 4;
+                mb_type += cabac.decode_decision(ctx + 3) * 2;
+                mb_type += cabac.decode_decision(ctx + 3);
             } else
                 mb_type += 25;
         }
@@ -338,37 +324,32 @@ static uint8_t pares_mb_type_p_slice(mb_t* mb)
     return mb_type;
 }
 
-static uint8_t parse_mb_type_b_slice(mb_t *mb)
+uint8_t Parser::SyntaxElement::mb_type_b_slice()
 {
-    slice_t* slice = mb->p_Slice;
-
-    data_partition_t* dp = &slice->partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
     uint8_t mb_type = 0;
 
-    int condTermFlagA = mb->mb_left && mb->mb_left->mb_type != 0 ? 1 : 0;
-    int condTermFlagB = mb->mb_up   && mb->mb_up  ->mb_type != 0 ? 1 : 0;
+    int condTermFlagA = mb.mb_left && mb.mb_left->mb_type != 0 ? 1 : 0;
+    int condTermFlagB = mb.mb_up   && mb.mb_up  ->mb_type != 0 ? 1 : 0;
     int ctxIdxInc = condTermFlagA + condTermFlagB;
 
-    cabac_context_t* ctx = slice->mot_ctx->mb_type_contexts; // ctxIdxOffset = 27
-    if (dep_dp->decode_decision(ctx + ctxIdxInc)) {
+    cabac_context_t* ctx = contexts.mb_type_contexts; // ctxIdxOffset = 27
+    if (cabac.decode_decision(ctx + ctxIdxInc)) {
         mb_type = 1;
-        if (!dep_dp->decode_decision(ctx + 3))
-            mb_type += dep_dp->decode_decision(ctx + 5);
+        if (!cabac.decode_decision(ctx + 3))
+            mb_type += cabac.decode_decision(ctx + 5);
         else {
             mb_type += 2;
-            if (!dep_dp->decode_decision(ctx + 4)) {
-                mb_type += dep_dp->decode_decision(ctx + 5) * 4;
-                mb_type += dep_dp->decode_decision(ctx + 5) * 2;
-                mb_type += dep_dp->decode_decision(ctx + 5);
+            if (!cabac.decode_decision(ctx + 4)) {
+                mb_type += cabac.decode_decision(ctx + 5) * 4;
+                mb_type += cabac.decode_decision(ctx + 5) * 2;
+                mb_type += cabac.decode_decision(ctx + 5);
             } else {
                 mb_type += 9;
-                mb_type += dep_dp->decode_decision(ctx + 5) * 8; 
-                mb_type += dep_dp->decode_decision(ctx + 5) * 4;
-                mb_type += dep_dp->decode_decision(ctx + 5) * 2;
+                mb_type += cabac.decode_decision(ctx + 5) * 8; 
+                mb_type += cabac.decode_decision(ctx + 5) * 4;
+                mb_type += cabac.decode_decision(ctx + 5) * 2;
                 if (mb_type < 22)
-                    mb_type += dep_dp->decode_decision(ctx + 5);
+                    mb_type += cabac.decode_decision(ctx + 5);
 
                 if (mb_type == 22)
                     mb_type = 23;
@@ -381,15 +362,15 @@ static uint8_t parse_mb_type_b_slice(mb_t *mb)
     }
 
     if (mb_type == 23) {
-        ctx = slice->mot_ctx->mb_type_contexts + 5; // ctxIdxOffset = 32
-        if (dep_dp->decode_decision(ctx + 0)) {
-            if (!dep_dp->decode_terminate()) {
+        ctx = contexts.mb_type_contexts + 5; // ctxIdxOffset = 32
+        if (cabac.decode_decision(ctx + 0)) {
+            if (!cabac.decode_terminate()) {
                 mb_type += 1;
-                mb_type += dep_dp->decode_decision(ctx + 1) * 12;
-                if (dep_dp->decode_decision(ctx + 2))
-                    mb_type += dep_dp->decode_decision(ctx + 2) * 4 + 4;
-                mb_type += dep_dp->decode_decision(ctx + 3) * 2;
-                mb_type += dep_dp->decode_decision(ctx + 3);
+                mb_type += cabac.decode_decision(ctx + 1) * 12;
+                if (cabac.decode_decision(ctx + 2))
+                    mb_type += cabac.decode_decision(ctx + 2) * 4 + 4;
+                mb_type += cabac.decode_decision(ctx + 3) * 2;
+                mb_type += cabac.decode_decision(ctx + 3);
             } else
                 mb_type += 25;
         }
@@ -398,167 +379,125 @@ static uint8_t parse_mb_type_b_slice(mb_t *mb)
     return mb_type;
 }
 
-uint32_t Parser::SyntaxElement::parse_mb_type()
+uint8_t Parser::SyntaxElement::sub_mb_type()
 {
-    data_partition_t* dp = &slice.partArr[0];
-
-    uint32_t mb_type;
-
-    if (!pps.entropy_coding_mode_flag) {
-        mb_type = dp->ue();
-        mb_type += (slice.slice_type == P_slice || slice.slice_type == SP_slice) ? 1 : 0;
-    } else {
-        uint8_t (*reading)(mb_t*) =
-            slice.slice_type == I_slice || slice.slice_type == SI_slice ? parse_mb_type_i_slice :
-            slice.slice_type == P_slice || slice.slice_type == SP_slice ? pares_mb_type_p_slice :
-                                                                            parse_mb_type_b_slice;
-        mb_type = reading(&mb);
-    }
-
-    return mb_type;
-}
-
-static uint8_t parse_sub_mb_type_p_slice(mb_t* mb)
-{
-    slice_t* slice = mb->p_Slice;
-
-    data_partition_t* dp = &slice->partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
-    cabac_context_t* ctx = slice->mot_ctx->b8_type_contexts; // ctxIdxOffset = 21
-
-    uint8_t sub_mb_type = 0;
-
-    if (!dep_dp->decode_decision(ctx + 0)) {
-        sub_mb_type += 1;
-        if (dep_dp->decode_decision(ctx + 1))
-            sub_mb_type += dep_dp->decode_decision(ctx + 2) ? 1 : 2;
-    }
-
-    return sub_mb_type;
-}
-
-static uint8_t parse_sub_mb_type_b_slice(mb_t* mb)
-{
-    slice_t* slice = mb->p_Slice;
-
-    data_partition_t* dp = &slice->partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
-    cabac_context_t* ctx = slice->mot_ctx->b8_type_contexts; // ctxIdxOffset = 36
-
-    uint8_t sub_mb_type = 0;
-
-    if (dep_dp->decode_decision(ctx)) {
-        sub_mb_type += 1;
-        if (dep_dp->decode_decision(ctx + 1)) {
-            sub_mb_type += 2;
-            if (dep_dp->decode_decision(ctx + 2)) {
-                sub_mb_type += 4;
-                if (dep_dp->decode_decision(ctx + 3))
-                    sub_mb_type += 4;
-                else
-                    sub_mb_type += dep_dp->decode_decision(ctx + 3) * 2;
-            } else
-                sub_mb_type += dep_dp->decode_decision(ctx + 3) * 2;
-        }
-        sub_mb_type += dep_dp->decode_decision(ctx + 3);
-    }
-
-    return sub_mb_type;
-}
-
-uint8_t Parser::SyntaxElement::parse_sub_mb_type()
-{
-    data_partition_t* dp = &slice.partArr[0];
-
     uint8_t sub_mb_type;
 
     if (!pps.entropy_coding_mode_flag) 
-        sub_mb_type = dp->ue();
+        sub_mb_type = cavlc.ue();
     else {
         if (slice.slice_type == P_slice || slice.slice_type == SP_slice)
-            sub_mb_type = parse_sub_mb_type_p_slice(&mb);
+            sub_mb_type = this->sub_mb_type_p_slice();
         else
-            sub_mb_type = parse_sub_mb_type_b_slice(&mb);
+            sub_mb_type = this->sub_mb_type_b_slice();
     }
 
     return sub_mb_type;
 }
 
-
-bool Parser::SyntaxElement::parse_transform_size_8x8_flag()
+uint8_t Parser::SyntaxElement::sub_mb_type_p_slice()
 {
-    data_partition_t* dp = &slice.partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
+    cabac_context_t* ctx = contexts.b8_type_contexts; // ctxIdxOffset = 21
 
+    uint8_t sub_mb_type = 0;
+
+    if (!cabac.decode_decision(ctx + 0)) {
+        sub_mb_type += 1;
+        if (cabac.decode_decision(ctx + 1))
+            sub_mb_type += cabac.decode_decision(ctx + 2) ? 1 : 2;
+    }
+
+    return sub_mb_type;
+}
+
+uint8_t Parser::SyntaxElement::sub_mb_type_b_slice()
+{
+    cabac_context_t* ctx = contexts.b8_type_contexts; // ctxIdxOffset = 36
+
+    uint8_t sub_mb_type = 0;
+
+    if (cabac.decode_decision(ctx)) {
+        sub_mb_type += 1;
+        if (cabac.decode_decision(ctx + 1)) {
+            sub_mb_type += 2;
+            if (cabac.decode_decision(ctx + 2)) {
+                sub_mb_type += 4;
+                if (cabac.decode_decision(ctx + 3))
+                    sub_mb_type += 4;
+                else
+                    sub_mb_type += cabac.decode_decision(ctx + 3) * 2;
+            } else
+                sub_mb_type += cabac.decode_decision(ctx + 3) * 2;
+        }
+        sub_mb_type += cabac.decode_decision(ctx + 3);
+    }
+
+    return sub_mb_type;
+}
+
+bool Parser::SyntaxElement::transform_size_8x8_flag()
+{
     bool transform_size_8x8_flag;
 
     if (!pps.entropy_coding_mode_flag)
-        transform_size_8x8_flag = dp->f(1);
+        transform_size_8x8_flag = cavlc.f(1);
     else {
-        cabac_context_t* ctx = slice.mot_ctx->transform_size_contexts;
+        cabac_context_t* ctx = contexts.transform_size_contexts;
 
         int condTermFlagA = mb.mb_left && mb.mb_left->transform_size_8x8_flag ? 1 : 0;
         int condTermFlagB = mb.mb_up   && mb.mb_up  ->transform_size_8x8_flag ? 1 : 0;
         int ctxIdxInc = condTermFlagA + condTermFlagB;
 
-        transform_size_8x8_flag = dep_dp->decode_decision(ctx + ctxIdxInc);
+        transform_size_8x8_flag = cabac.decode_decision(ctx + ctxIdxInc);
     }
 
     return transform_size_8x8_flag;
 }
 
-int8_t Parser::SyntaxElement::parse_intra_pred_mode()
+int8_t Parser::SyntaxElement::intra_pred_mode()
 {
-    data_partition_t* dp = &slice.partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
     int8_t intra_pred_mode = 0;
 
     if (!pps.entropy_coding_mode_flag) {
-        if (dp->f(1))
+        if (cavlc.f(1))
             intra_pred_mode = -1;
         else
-            intra_pred_mode = dp->f(3);
+            intra_pred_mode = cavlc.f(3);
     } else {
-        cabac_context_t* ctx = slice.mot_ctx->ipr_contexts;
+        cabac_context_t* ctx = contexts.ipr_contexts;
 
-        if (dep_dp->decode_decision(ctx))
+        if (cabac.decode_decision(ctx))
             intra_pred_mode = -1;
         else {
             uint8_t ctxIdxIncs[] = { 0 };
-            intra_pred_mode = dep_dp->fl(ctx + 1, ctxIdxIncs, 0, 7);
+            intra_pred_mode = cabac.fl(ctx + 1, ctxIdxIncs, 0, 7);
         }
     }
 
     return intra_pred_mode;
 }
 
-uint8_t Parser::SyntaxElement::parse_intra_chroma_pred_mode()
+uint8_t Parser::SyntaxElement::intra_chroma_pred_mode()
 {
-    data_partition_t* dp = &slice.partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
     uint8_t intra_chroma_pred_mode;
 
     if (!pps.entropy_coding_mode_flag)
-        intra_chroma_pred_mode = dp->ue();
+        intra_chroma_pred_mode = cavlc.ue();
     else {
-        cabac_context_t* ctx = slice.mot_ctx->cipr_contexts;
+        cabac_context_t* ctx = contexts.cipr_contexts;
 
         int condTermFlagA = mb.mb_left && mb.mb_left->intra_chroma_pred_mode != 0 && mb.mb_left->mb_type != IPCM ? 1 : 0;
         int condTermFlagB = mb.mb_up   && mb.mb_up  ->intra_chroma_pred_mode != 0 && mb.mb_up  ->mb_type != IPCM ? 1 : 0;
         uint8_t ctxIdxInc = condTermFlagA + condTermFlagB;
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 3, 3 };
 
-        intra_chroma_pred_mode = dep_dp->tu(ctx, ctxIdxIncs, 1, 3);
+        intra_chroma_pred_mode = cabac.tu(ctx, ctxIdxIncs, 1, 3);
     }
 
     return intra_chroma_pred_mode;
 }
 
-uint8_t Parser::SyntaxElement::parse_ref_idx(uint8_t list, uint8_t x0, uint8_t y0)
+uint8_t Parser::SyntaxElement::ref_idx(uint8_t list, uint8_t x0, uint8_t y0)
 {
     bool refidx_present =
         slice.slice_type == B_slice || !slice.allrefzero || mb.mb_type != P8x8;
@@ -569,53 +508,43 @@ uint8_t Parser::SyntaxElement::parse_ref_idx(uint8_t list, uint8_t x0, uint8_t y
     if (!refidx_present || num_ref_idx_active <= 1)
         return 0;
 
-    data_partition_t* dp = &slice.partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
     uint8_t ref_idx = 0;
 
     if (!pps.entropy_coding_mode_flag) {
         if (num_ref_idx_active == 2)
-            ref_idx = 1 - dp->f(1);
+            ref_idx = 1 - cavlc.f(1);
         else
-            ref_idx = dp->ue();
+            ref_idx = cavlc.ue();
     } else {
-        cabac_context_t* ctx = slice.mot_ctx->ref_no_contexts;
+        cabac_context_t* ctx = contexts.ref_no_contexts;
         uint8_t ctxIdxInc = ref_idx_ctxIdxInc(&mb, list, x0, y0);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 4, 5 };
 
-        ref_idx = dep_dp->u(ctx, ctxIdxIncs, 2);
+        ref_idx = cabac.u(ctx, ctxIdxIncs, 2);
     }
 
     return ref_idx;
 }
 
-int16_t Parser::SyntaxElement::parse_mvd(uint8_t list, uint8_t x0, uint8_t y0, uint8_t comp)
+int16_t Parser::SyntaxElement::mvd(uint8_t list, uint8_t x0, uint8_t y0, uint8_t comp)
 {
-    data_partition_t* dp = &slice.partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
     int16_t mvd = 0;
 
     if (!pps.entropy_coding_mode_flag) 
-        mvd = dp->se();
+        mvd = cavlc.se();
     else {
-        cabac_context_t* ctx = (comp == 0) ? slice.mot_ctx->mvd_x_contexts
-                                         : slice.mot_ctx->mvd_y_contexts;
+        cabac_context_t* ctx = (comp == 0) ? contexts.mvd_x_contexts : contexts.mvd_y_contexts;
         uint8_t ctxIdxInc = mvd_ctxIdxInc(&mb, list, x0, y0, comp);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 3, 4, 5, 6 };
 
-        mvd = dep_dp->ueg(ctx, ctxIdxIncs, 4, 9, 3);
+        mvd = cabac.ueg(ctx, ctxIdxIncs, 4, 9, 3);
     }
 
     return mvd;
 }
 
-uint8_t Parser::SyntaxElement::parse_coded_block_pattern()
+uint8_t Parser::SyntaxElement::coded_block_pattern()
 {
-    data_partition_t* dp = &slice.partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
     uint8_t coded_block_pattern = 0;
 
     if (!pps.entropy_coding_mode_flag) {
@@ -641,31 +570,31 @@ uint8_t Parser::SyntaxElement::parse_coded_block_pattern()
 
         bool normal  = (sps.chroma_format_idc == 0 || sps.chroma_format_idc == 3 ? 0 : 1);
         bool inter   = (mb.is_intra_block ? 0 : 1);
-        int  cbp_idx = dp->ue();
+        int  cbp_idx = cavlc.ue();
         coded_block_pattern = NCBP[normal][cbp_idx][inter];
     } else {
         for (int mb_y = 0; mb_y < 4; mb_y += 2) {
             for (int mb_x = 0; mb_x < 4; mb_x += 2) {
                 int ctxIdxInc = cbp_ctxIdxInc(&mb, mb_x, mb_y, coded_block_pattern);
 
-                cabac_context_t* ctx = slice.mot_ctx->cbp_l_contexts;
-                if (dep_dp->decode_decision(ctx + ctxIdxInc))
+                cabac_context_t* ctx = contexts.cbp_l_contexts;
+                if (cabac.decode_decision(ctx + ctxIdxInc))
                     coded_block_pattern += (1 << (mb_y + (mb_x >> 1)));
             }
         }
 
         if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
-            cabac_context_t* ctx = slice.mot_ctx->cbp_c_contexts;
+            cabac_context_t* ctx = contexts.cbp_c_contexts;
             int condTermFlagA = mb.mb_left && (mb.mb_left->mb_type == IPCM || mb.mb_left->CodedBlockPatternChroma) ? 1 : 0;
             int condTermFlagB = mb.mb_up   && (mb.mb_up  ->mb_type == IPCM || mb.mb_up  ->CodedBlockPatternChroma) ? 1 : 0;
             int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
 
-            if (dep_dp->decode_decision(ctx + ctxIdxInc)) {
+            if (cabac.decode_decision(ctx + ctxIdxInc)) {
                 condTermFlagA = mb.mb_left && (mb.mb_left->mb_type == IPCM || mb.mb_left->CodedBlockPatternChroma == 2) ? 1 : 0;
                 condTermFlagB = mb.mb_up   && (mb.mb_up  ->mb_type == IPCM || mb.mb_up  ->CodedBlockPatternChroma == 2) ? 1 : 0;
                 ctxIdxInc = condTermFlagA + 2 * condTermFlagB + 4;
 
-                coded_block_pattern += dep_dp->decode_decision(ctx + ctxIdxInc) ? 32 : 16;
+                coded_block_pattern += cabac.decode_decision(ctx + ctxIdxInc) ? 32 : 16;
             }
         }
     }
@@ -673,21 +602,18 @@ uint8_t Parser::SyntaxElement::parse_coded_block_pattern()
     return coded_block_pattern;
 }
 
-int8_t Parser::SyntaxElement::parse_mb_qp_delta()
+int8_t Parser::SyntaxElement::mb_qp_delta()
 {
-    data_partition_t* dp = &slice.partArr[0];
-    cabac_engine_t* dep_dp = &dp->de_cabac;
-
     int8_t mb_qp_delta;
 
     if (!pps.entropy_coding_mode_flag)
-        mb_qp_delta = dp->se();
+        mb_qp_delta = cavlc.se();
     else {
-        cabac_context_t* ctx = slice.mot_ctx->delta_qp_contexts;
+        cabac_context_t* ctx = contexts.delta_qp_contexts;
         uint8_t ctxIdxInc = slice.last_dquant != 0 ? 1 : 0;
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 2, 3 };
 
-        mb_qp_delta = dep_dp->u(ctx, ctxIdxIncs, 2);
+        mb_qp_delta = cabac.u(ctx, ctxIdxIncs, 2);
         if (mb_qp_delta & 1)
             mb_qp_delta = ((mb_qp_delta + 1) >> 1);
         else

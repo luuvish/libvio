@@ -25,6 +25,10 @@
 #define _VIO_H264_PARSER_H_
 
 
+#include "bitstream_cabac.h"
+#include "data_partition.h"
+
+
 namespace vio  {
 namespace h264 {
 
@@ -42,27 +46,34 @@ protected:
         SyntaxElement(mb_t& mb);
         ~SyntaxElement();
 
-        SyntaxElement& operator = (const SyntaxElement& se);
+        uint32_t    mb_skip_run();
+        bool        mb_skip_flag();
+        bool        mb_field_decoding_flag();
+        uint8_t     mb_type();
+        uint8_t     mb_type_i_slice();
+        uint8_t     mb_type_p_slice();
+        uint8_t     mb_type_b_slice();
+        uint8_t     sub_mb_type();
+        uint8_t     sub_mb_type_p_slice();
+        uint8_t     sub_mb_type_b_slice();
 
-        uint32_t    parse_mb_skip_run            ();
-        bool        parse_mb_skip_flag           ();
-        bool        parse_mb_field_decoding_flag ();
-        uint32_t    parse_mb_type                ();
-        uint8_t     parse_sub_mb_type            ();
-
-        bool        parse_transform_size_8x8_flag();
-        int8_t      parse_intra_pred_mode        ();
-        uint8_t     parse_intra_chroma_pred_mode ();
-        uint8_t     parse_ref_idx                (uint8_t list, uint8_t x0, uint8_t y0);
-        int16_t     parse_mvd                    (uint8_t list, uint8_t x0, uint8_t y0, uint8_t xy);
-        uint8_t     parse_coded_block_pattern    ();
-        int8_t      parse_mb_qp_delta            ();
+        bool        transform_size_8x8_flag();
+        int8_t      intra_pred_mode();
+        uint8_t     intra_chroma_pred_mode();
+        uint8_t     ref_idx(uint8_t list, uint8_t x0, uint8_t y0);
+        int16_t     mvd(uint8_t list, uint8_t x0, uint8_t y0, uint8_t xy);
+        uint8_t     coded_block_pattern();
+        int8_t      mb_qp_delta();
 
     private:
         sps_t&      sps;
         pps_t&      pps;
         slice_t&    slice;
         mb_t&       mb;
+
+        data_partition_t& cavlc;
+        cabac_engine_t&   cabac;
+        cabac_contexts_t& contexts;
     };
 
     class Residual {

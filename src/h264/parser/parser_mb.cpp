@@ -439,14 +439,14 @@ void Parser::Macroblock::parse()
                 slice.prescan_skip_read = false;
                 mb.mb_skip_flag = slice.prescan_skip_flag;
             } else {
-                mb.mb_skip_flag = se.parse_mb_skip_flag();
+                mb.mb_skip_flag = se.mb_skip_flag();
                 if (mb.mb_skip_flag)
                     slice.last_dquant = 0;
                 mb.ei_flag = 0;
             }
         } else {
             if (slice.mb_skip_run == -1)
-                slice.mb_skip_run = se.parse_mb_skip_run();
+                slice.mb_skip_run = se.mb_skip_run();
             mb.mb_skip_flag = (slice.mb_skip_run > 0);
             if (mb.mb_skip_flag)
                 mb.ei_flag = 0;
@@ -478,13 +478,13 @@ void Parser::Macroblock::parse()
                     //check_next_mb
                     slice.last_dquant = 0;
                     slice.prescan_skip_read = true;
-                    slice.prescan_skip_flag = se.parse_mb_skip_flag();
+                    slice.prescan_skip_flag = se.mb_skip_flag();
                     if (slice.prescan_skip_flag)
                         slice.last_dquant = 0;
                     mb.ei_flag = 0;
                     if (!slice.prescan_skip_flag) {
                         slice.prescan_mb_field_decoding_read = true;
-                        slice.prescan_mb_field_decoding_flag = se.parse_mb_field_decoding_flag();
+                        slice.prescan_mb_field_decoding_flag = se.mb_field_decoding_flag();
                         slice.mb_data[slice.current_mb_nr-1].mb_field_decoding_flag = slice.prescan_mb_field_decoding_flag;
                     }
 
@@ -517,7 +517,7 @@ void Parser::Macroblock::parse()
                 slice.prescan_mb_field_decoding_read = false;
                 mb.mb_field_decoding_flag = slice.prescan_mb_field_decoding_flag;
             } else
-                mb.mb_field_decoding_flag = se.parse_mb_field_decoding_flag();
+                mb.mb_field_decoding_flag = se.mb_field_decoding_flag();
         }
     }
 
@@ -526,7 +526,7 @@ void Parser::Macroblock::parse()
 
 
     if (moreDataFlag) {
-        mb.mb_type = se.parse_mb_type();
+        mb.mb_type = se.mb_type();
         mb.ei_flag = 0;
     }
 
@@ -650,7 +650,7 @@ void Parser::Macroblock::parse_intra()
 
     mb.transform_size_8x8_flag = 0;
     if (mb.mb_type == I4MB && pps.transform_8x8_mode_flag) {
-        mb.transform_size_8x8_flag = se.parse_transform_size_8x8_flag();
+        mb.transform_size_8x8_flag = se.transform_size_8x8_flag();
         if (mb.transform_size_8x8_flag) {
             mb.mb_type = I8MB;
             for (int i = 0; i < 4; i++) {
@@ -678,7 +678,7 @@ void Parser::Macroblock::parse_inter()
     mb.transform_size_8x8_flag = 0;
     if (mb.mb_type == P8x8) {
         for (int mbPartIdx = 0; mbPartIdx < 4; mbPartIdx++) {
-            int val = se.parse_sub_mb_type();
+            int val = se.sub_mb_type();
 
             //const uint8_t (*sub_mb_types)[5] = slice->slice_type == B_slice ?
             //    sub_mb_types_b_slice : sub_mb_types_p_slice;
@@ -719,7 +719,7 @@ void Parser::Macroblock::parse_ipred_modes()
         this->parse_ipred_4x4_modes();
 
     if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
-        mb.intra_chroma_pred_mode = se.parse_intra_chroma_pred_mode();
+        mb.intra_chroma_pred_mode = se.intra_chroma_pred_mode();
 
         assert(mb.intra_chroma_pred_mode >= IntraPrediction::Intra_Chroma_DC ||
                mb.intra_chroma_pred_mode <= IntraPrediction::Intra_Chroma_Plane);
@@ -731,7 +731,7 @@ void Parser::Macroblock::parse_ipred_4x4_modes()
     for (int luma4x4BlkIdx = 0; luma4x4BlkIdx < 16; luma4x4BlkIdx++) {
         int bx = ((luma4x4BlkIdx / 4) % 2) * 8 + ((luma4x4BlkIdx % 4) % 2) * 4;
         int by = ((luma4x4BlkIdx / 4) / 2) * 8 + ((luma4x4BlkIdx % 4) / 2) * 4;
-        int val = se.parse_intra_pred_mode();
+        int val = se.intra_pred_mode();
 
         bool    prev_intra4x4_pred_mode_flag = val == -1;
         uint8_t rem_intra4x4_pred_mode       = val;
@@ -788,7 +788,7 @@ void Parser::Macroblock::parse_ipred_8x8_modes()
     for (int luma8x8BlkIdx = 0; luma8x8BlkIdx < 4; luma8x8BlkIdx++) {
         int bx = (luma8x8BlkIdx % 2) * 8;
         int by = (luma8x8BlkIdx / 2) * 8;
-        int val = se.parse_intra_pred_mode();
+        int val = se.intra_pred_mode();
 
         bool    prev_intra8x8_pred_mode_flag = val == -1;
         uint8_t rem_intra8x8_pred_mode       = val;
@@ -893,7 +893,7 @@ void Parser::Macroblock::parse_ref_pic_idx(int list)
 
             if ((mb.SubMbPredMode[k] == list || mb.SubMbPredMode[k] == BI_PRED) &&
                 mb.SubMbType[k] != 0) {
-                uint8_t refframe = se.parse_ref_idx(list, i0, j0);
+                uint8_t refframe = se.ref_idx(list, i0, j0);
                 for (int j = 0; j < step_v0; j++) {
                     for (int i = 0; i < step_h0; i++)
                         mv_info[mb.mb.y * 4 + j0 + j][mb.mb.x * 4 + i0 + i].ref_idx[list] = refframe;
@@ -943,7 +943,7 @@ void Parser::Macroblock::parse_motion_vector(int list, int step_h4, int step_v4,
 
     int16_t curr_mvd[2];
     for (int k = 0; k < 2; ++k)
-        curr_mvd[k] = se.parse_mvd(list, i, j, k);
+        curr_mvd[k] = se.mvd(list, i, j, k);
 
     MotionVector curr_mv;
     curr_mv.mv_x = curr_mvd[0] + pred_mv.mv_x;
@@ -967,7 +967,7 @@ void Parser::Macroblock::parse_cbp_qp()
 #define IS_DIRECT(MB) ((MB)->mb_type == 0 && slice.slice_type == B_SLICE)
     // read CBP if not new intra mode
     if (!IS_I16MB(&mb)) {
-        uint8_t coded_block_pattern = se.parse_coded_block_pattern();
+        uint8_t coded_block_pattern = se.coded_block_pattern();
         mb.CodedBlockPatternLuma   = coded_block_pattern % 16;
         mb.CodedBlockPatternChroma = coded_block_pattern / 16;
         if (pps.entropy_coding_mode_flag) {
@@ -985,14 +985,14 @@ void Parser::Macroblock::parse_cbp_qp()
             (mb.CodedBlockPatternLuma) && pps.transform_8x8_mode_flag;
 
         if (need_transform_size_flag)
-            mb.transform_size_8x8_flag = se.parse_transform_size_8x8_flag();
+            mb.transform_size_8x8_flag = se.transform_size_8x8_flag();
     }
 
     //=====   DQUANT   =====
     //----------------------
     // Delta quant only if nonzero coeffs
     if (IS_I16MB(&mb) || mb.CodedBlockPatternLuma != 0 || mb.CodedBlockPatternChroma != 0) {
-        mb.mb_qp_delta = se.parse_mb_qp_delta();
+        mb.mb_qp_delta = se.mb_qp_delta();
 
         if (pps.entropy_coding_mode_flag)        
             slice.last_dquant = mb.mb_qp_delta;
