@@ -43,29 +43,22 @@ loc_t operator + (const loc_t& l, const loc_t& r);
 loc_t operator - (const loc_t& l, const loc_t& r);
 
 
-void CheckAvailabilityOfNeighbors(mb_t* mb);
-void CheckAvailabilityOfNeighborsCABAC(mb_t* mb);
-
-void getNeighbour      (mb_t* mb, int xN, int yN, int mb_size[2], PixelPos *pix);
-void get4x4Neighbour   (mb_t* mb, int xN, int yN, int mb_size[2], PixelPos *pix);
-
-void get_neighbors     (mb_t* mb, PixelPos *block, int mb_x, int mb_y, int blockshape_x);
-void check_dp_neighbors(mb_t* mb);
+void get_neighbors(mb_t* mb, PixelPos *block, int mb_x, int mb_y, int blockshape_x);
 
 
 struct neighbour_t {
     loc_t get_location(slice_t* slice, int mbAddr, const pos_t& offset={0,0});
+    loc_t get_location_c(slice_t* slice, int mbAddr, const pos_t& offset={0,0});
     mb_t* get_mb      (slice_t* slice, const loc_t& loc);
+    mb_t* get_mb_c    (slice_t* slice, const loc_t& loc);
     int   get_mbaddr  (slice_t* slice, const loc_t& loc);
     pos_t get_blkpos  (slice_t* slice, const loc_t& loc);
+    pos_t get_blkpos_c(slice_t* slice, const loc_t& loc);
 
-    pos_t get_position(slice_t* slice, int mbAddr, int blkIdx=0);
-    int   get_blkIdx  (slice_t* slice, const pos_t& pos);
+    pos_t get_position(slice_t* slice, int mbAddr, int blkIdx);
+    mb_t* get_mb      (slice_t* slice, int mbAddr, const pos_t& offset={0,0});
+    pos_t get_blkpos  (slice_t* slice, int mbAddr, const pos_t& offset={0,0});
 
-    void  get_mb2pos(slice_t* slice, int mbAddr, int& xI, int& yI);
-    void  get_mb2blk(slice_t* slice, int mbAddr, int& xpos, int& ypos);
-    mb_t* get_pos2mb(slice_t* slice, int xP, int yP, int& mbAddr);
-    int   get_pos2mb(slice_t* slice, int xP, int yP);
     int   predict_nnz(mb_t* mb, int pl, int i, int j);
 };
 

@@ -16,10 +16,8 @@ using namespace vio::h264;
 void macroblock_t::init(slice_t* slice)
 {
     sps_t* sps = slice->active_sps;
-    pps_t* pps = slice->active_pps;
 
     this->p_Slice = slice;
-    this->p_Vid   = slice->p_Vid;
     this->mbAddrX = slice->current_mb_nr;
     // Save the slice number of this macroblock. When the macroblock below
     // is coded it will use this to decide if prediction for above is possible
@@ -61,27 +59,30 @@ void macroblock_t::init(slice_t* slice)
         slice->is_reset_coeff = 1;
     }
 
-    this->mixedModeEdgeFlag = 0;
-
     this->update_qp(slice->SliceQpY);
-
-    CheckAvailabilityOfNeighbors(this);
 
     this->mb_field_decoding_flag = 0;
     if (slice->MbaffFrameFlag) {
         bool prevMbSkipped = (this->mbAddrX % 2 == 1) ?
             slice->mb_data[this->mbAddrX - 1].mb_skip_flag : 0;
         if (this->mbAddrX % 2 == 0 || prevMbSkipped) {
-            if (this->mbAvailA)
-                this->mb_field_decoding_flag = slice->mb_data[this->mbAddrA].mb_field_decoding_flag;
-            else if (this->mbAvailB)
-                this->mb_field_decoding_flag = slice->mb_data[this->mbAddrB].mb_field_decoding_flag;
+            int topMbAddr = this->mbAddrX & ~1;
+
+            loc_t locA = slice->neighbour.get_location(slice, topMbAddr, {-1, 0});
+            loc_t locB = slice->neighbour.get_location(slice, topMbAddr, {0, -1});
+            mb_t* mbA  = slice->neighbour.get_mb      (slice, locA);
+            mb_t* mbB  = slice->neighbour.get_mb      (slice, locB);
+
+            mbA = mbA && mbA->slice_nr == this->slice_nr ? mbA : nullptr;
+            mbB = mbB && mbB->slice_nr == this->slice_nr ? mbB : nullptr;
+
+            if (mbA)
+                this->mb_field_decoding_flag = mbA->mb_field_decoding_flag;
+            else if (mbB)
+                this->mb_field_decoding_flag = mbB->mb_field_decoding_flag;
         } else
             this->mb_field_decoding_flag = slice->mb_data[this->mbAddrX - 1].mb_field_decoding_flag;
     }
-
-    if (pps->entropy_coding_mode_flag)
-        CheckAvailabilityOfNeighborsCABAC(this);
 }
 
 bool macroblock_t::close(slice_t* slice)

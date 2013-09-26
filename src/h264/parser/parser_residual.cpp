@@ -24,9 +24,6 @@ Parser::Residual::~Residual()
 }
 
 
-#define IS_I16MB(MB) ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
-
-
 // Table 9-5 coeff_token mapping to TotalCoeff(coeff_token) and TrailingOnes(coeff_token)
 static const uint8_t coeff_token_length[5][4][17] = {
     //  0 <= nC < 2
@@ -410,35 +407,51 @@ static int coded_block_flag_ctxIdxInc(mb_t* mb, int pl, bool chroma, bool ac, in
     int bit_pos_a = 0;
     int bit_pos_b = 0;
 
-    int mb_size[2][2] = {
-        { MB_BLOCK_SIZE, MB_BLOCK_SIZE },
-        { sps->MbWidthC, sps->MbHeightC }
-    };
-    PixelPos block_a, block_b;
-    get4x4Neighbour(mb, i * 4 - 1, j * 4, mb_size[!chroma ? IS_LUMA : IS_CHROMA], &block_a);
-    get4x4Neighbour(mb, i * 4, j * 4 - 1, mb_size[!chroma ? IS_LUMA : IS_CHROMA], &block_b);
+    loc_t locA, locB;
+    pos_t posA, posB;
+    mb_t* mbA, *mbB;
+    if (!chroma) {
+        locA = slice->neighbour.get_location(slice, mb->mbAddrX, {i * 4 - 1, j * 4});
+        locB = slice->neighbour.get_location(slice, mb->mbAddrX, {i * 4, j * 4 - 1});
+        mbA  = slice->neighbour.get_mb      (slice, locA);
+        mbB  = slice->neighbour.get_mb      (slice, locB);
+        posA = slice->neighbour.get_blkpos  (slice, locA);
+        posB = slice->neighbour.get_blkpos  (slice, locB);
+    } else {
+        locA = slice->neighbour.get_location_c(slice, mb->mbAddrX, {i * 4 - 1, j * 4});
+        locB = slice->neighbour.get_location_c(slice, mb->mbAddrX, {i * 4, j * 4 - 1});
+        mbA  = slice->neighbour.get_mb_c      (slice, locA);
+        mbB  = slice->neighbour.get_mb_c      (slice, locB);
+        posA = slice->neighbour.get_blkpos_c  (slice, locA);
+        posB = slice->neighbour.get_blkpos_c  (slice, locB);
+    }
+
+    mbA = mbA && mbA->slice_nr == mb->slice_nr ? mbA : nullptr;
+    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbB : nullptr;
+
+    int nW = chroma ? sps->MbWidthC  : 16;
+    int nH = chroma ? sps->MbHeightC : 16;
     if (ac) {
-        if (block_a.available)
-            bit_pos_a = 4 * block_a.y + block_a.x;
-        if (block_b.available)
-            bit_pos_b = 4 * block_b.y + block_b.x;
+        if (mbA)
+            bit_pos_a = ((posA.y % nH) & 12) + (posA.x % nW) / 4;
+        if (mbB)
+            bit_pos_b = ((posB.y % nH) & 12) + (posB.x % nW) / 4;
     }
 
     int condTermFlagA = (mb->is_intra_block ? 1 : 0);
     int condTermFlagB = (mb->is_intra_block ? 1 : 0);
-    if (block_a.available) {
-        mb_t* mb_a = &slice->mb_data[block_a.mb_addr];
-        if (mb_a->mb_type == IPCM)
+
+    if (mbA) {
+        if (mbA->mb_type == IPCM)
             condTermFlagA = 1;
         else
-            condTermFlagA = (mb_a->cbp_bits[temp_pl] >> (bit + bit_pos_a)) & 1;
+            condTermFlagA = (mbA->cbp_bits[temp_pl] >> (bit + bit_pos_a)) & 1;
     }
-    if (block_b.available) {
-        mb_t* mb_b = &slice->mb_data[block_b.mb_addr];
-        if (mb_b->mb_type == IPCM)
+    if (mbB) {
+        if (mbB->mb_type == IPCM)
             condTermFlagB = 1;
         else
-            condTermFlagB = (mb_b->cbp_bits[temp_pl] >> (bit + bit_pos_b)) & 1;
+            condTermFlagB = (mbB->cbp_bits[temp_pl] >> (bit + bit_pos_b)) & 1;
     }
     int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
 
@@ -610,6 +623,7 @@ void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startId
 {
     data_partition_t* dp = &slice.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
+#define IS_I16MB(MB) ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
     int context;
     if (!chroma) {
         if (!ac)
@@ -628,6 +642,7 @@ void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startId
         else
             context = CHROMA_AC;
     }
+#undef IS_I16MB
 
     int coded_block_flag = 1; // always one for 8x8 mode
     if (sps.chroma_format_idc == YUV444 || context != LUMA_8x8) {
@@ -715,6 +730,7 @@ void Parser::Residual::residual_luma(ColorPlane pl)
         std::mem_fn(&Parser::Residual::residual_block_cavlc) :
         std::mem_fn(&Parser::Residual::residual_block_cabac);
 
+#define IS_I16MB(MB) ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
     if (IS_I16MB(&mb) && !mb.dpl_flag) {
         residual_block(this, LUMA_16DC, 0, 15, 16, pl, false, false, 0);
 
@@ -749,6 +765,7 @@ void Parser::Residual::residual_luma(ColorPlane pl)
             }
         }
     }
+#undef IS_I16MB
 }
 
 void Parser::Residual::residual_chroma()

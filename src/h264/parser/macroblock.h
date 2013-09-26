@@ -75,14 +75,8 @@ enum {
 
 struct macroblock_t {
     slice_t*    p_Slice;
-    video_par*  p_Vid;
     int         mbAddrX;
-    int         mbAddrA, mbAddrB, mbAddrC, mbAddrD;
-    bool        mbAvailA, mbAvailB, mbAvailC, mbAvailD;
     BlockPos    mb;
-
-    macroblock_t* mb_up;   //!< pointer to neighboring MB (CABAC)
-    macroblock_t* mb_left; //!< pointer to neighboring MB (CABAC)
 
     bool        is_intra_block;
 
@@ -122,9 +116,8 @@ struct macroblock_t {
     uint64_t    cbp_blks[3];       // deblock
 
     bool        fieldMbInFrameFlag;
-    bool        mixedModeEdgeFlag;
     bool        filterVerEdgeFlag[2][4];
-    bool        filterHorEdgeFlag[2][4];
+    bool        filterHorEdgeFlag[2][5];
     uint8_t     strength_ver[4][16]; // bS
     uint8_t     strength_hor[5][16]; // bS
 

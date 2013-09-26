@@ -425,7 +425,7 @@ void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
  */
 void ercWriteMBMODEandMV(mb_t *currMB)
 {
-  VideoParameters *p_Vid = currMB->p_Vid;
+  VideoParameters *p_Vid = currMB->p_Slice->p_Vid;
   int i, ii, jj, currMBNum = currMB->mbAddrX; //p_Vid->currentSlice->current_mb_nr;
   storable_picture *dec_picture = p_Vid->dec_picture;
   int mbx = xPosMB(currMBNum, dec_picture->size_x), mby = yPosMB(currMBNum, dec_picture->size_x);
@@ -438,10 +438,10 @@ void ercWriteMBMODEandMV(mb_t *currMB)
     for (i=0; i<4; ++i)
     {
       pRegion             = currRegion + i;
-      pRegion->regionMode = (currMB->mb_type  ==I16MB  ? REGMODE_INTRA      :
+      pRegion->regionMode = (currMB->mb_type == I16MB ? REGMODE_INTRA :
         currMB->SubMbType[i]==I4MB ? REGMODE_INTRA_8x8  :
-        currMB->SubMbType[i]==0      ? REGMODE_INTER_COPY :
-        currMB->SubMbType[i]==1      ? REGMODE_INTER_PRED : REGMODE_INTER_PRED_8x8);
+        currMB->SubMbType[i]==0    ? REGMODE_INTER_COPY :
+        currMB->SubMbType[i]==1    ? REGMODE_INTER_PRED : REGMODE_INTER_PRED_8x8);
       if (currMB->SubMbType[i]==0 || currMB->SubMbType[i]==I4MB)  // INTRA OR COPY
       {
         pRegion->mv[0]    = 0;

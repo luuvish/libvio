@@ -83,18 +83,16 @@ void Deblock::strength_vertical(mb_t* MbQ, int edge)
 
     slice_t* slice = MbQ->p_Slice;
     int mvlimit = (slice->field_pic_flag || MbQ->fieldMbInFrameFlag) ? 2 : 4;
-    pic_motion_params** mv_info = MbQ->p_Vid->dec_picture->mv_info;
+    pic_motion_params** mv_info = slice->p_Vid->dec_picture->mv_info;
 
     int dy = (1 + MbQ->fieldMbInFrameFlag);
 
     loc_t locQ = slice->neighbour.get_location(slice, MbQ->mbAddrX, {edge * 4, 0});
     pos_t posQ = slice->neighbour.get_blkpos(slice, locQ);
 
-    loc_t locP = locQ - loc_t{4, 0};
+    loc_t locP = locQ - loc_t{1, 0};
     mb_t* MbP  = slice->neighbour.get_mb    (slice, locP);
     pos_t posP = slice->neighbour.get_blkpos(slice, locP);
-
-    MbQ->mixedModeEdgeFlag = (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag);
 
     bool verticalEdgeFlag  = 1;
     bool mixedModeEdgeFlag = slice->MbaffFrameFlag &&
@@ -163,20 +161,19 @@ void Deblock::strength_horizontal(mb_t* MbQ, int edge)
 
     slice_t* slice = MbQ->p_Slice;
     int mvlimit = (slice->field_pic_flag || MbQ->fieldMbInFrameFlag) ? 2 : 4;
-    pic_motion_params** mv_info = MbQ->p_Vid->dec_picture->mv_info;
+    pic_motion_params** mv_info = slice->p_Vid->dec_picture->mv_info;
 
-    int dy = (1 + MbQ->fieldMbInFrameFlag);
+    bool fieldModeInFrameFilteringFlag = MbQ->fieldMbInFrameFlag ||
+                                         ((edge == 0 || edge == 4) && MbQ->filterHorEdgeFlag[0][4]);
+    int dy = (1 + fieldModeInFrameFilteringFlag);
 
     loc_t locQ = slice->neighbour.get_location(slice, MbQ->mbAddrX) +
                  loc_t{0, edge == 4 ? 1 : dy * edge * 4};
     pos_t posQ = slice->neighbour.get_blkpos(slice, locQ);
 
-    loc_t locP = locQ - loc_t{0, dy * 4};
+    loc_t locP = locQ - loc_t{0, dy};
     mb_t* MbP  = slice->neighbour.get_mb    (slice, locP);
     pos_t posP = slice->neighbour.get_blkpos(slice, locP);
-    posP.y = MbQ->fieldMbInFrameFlag ? locP.y / 32 * 32 + (locP.y % 32) / 2 + 16 * (locP.y & 1) : locP.y;
-
-    MbQ->mixedModeEdgeFlag = (MbQ->mb_field_decoding_flag != MbP->mb_field_decoding_flag);
 
     bool verticalEdgeFlag  = 0;
     bool mixedModeEdgeFlag = slice->MbaffFrameFlag &&
@@ -238,9 +235,10 @@ void Deblock::strength(mb_t* MbQ)
     if (slice->disable_deblocking_filter_idc != 1) {
         MbQ->fieldMbInFrameFlag = slice->MbaffFrameFlag && MbQ->mb_field_decoding_flag;
 
+        int dy = (1 + MbQ->fieldMbInFrameFlag);
         loc_t locQ = slice->neighbour.get_location(slice, MbQ->mbAddrX);
-        mb_t* MbL  = slice->neighbour.get_mb(slice, locQ - loc_t{16, 0});
-        mb_t* MbU  = slice->neighbour.get_mb(slice, locQ - loc_t{0, 16});
+        mb_t* MbL  = slice->neighbour.get_mb(slice, locQ - loc_t{1, 0});
+        mb_t* MbU  = slice->neighbour.get_mb(slice, locQ - loc_t{0, dy});
 
         bool filterLeftMbEdgeFlag = 0;
         bool filterTopMbEdgeFlag  = 0;
@@ -253,13 +251,15 @@ void Deblock::strength(mb_t* MbQ)
             filterTopMbEdgeFlag  = MbU && MbU->slice_nr == MbQ->slice_nr;
         }
 
-        for (int dir = 0; dir < 2; dir++) {
-            MbQ->filterVerEdgeFlag[dir][0] = filterLeftMbEdgeFlag;
-            MbQ->filterHorEdgeFlag[dir][0] = filterTopMbEdgeFlag;
-            for (int edge = 1; edge < 4; edge++) {
-                MbQ->filterVerEdgeFlag[dir][edge] = filterInternalEdgesFlag;
-                MbQ->filterHorEdgeFlag[dir][edge] = filterInternalEdgesFlag;
+        for (int chroma = 0; chroma < 2; ++chroma) {
+            MbQ->filterVerEdgeFlag[chroma][0] = filterLeftMbEdgeFlag;
+            MbQ->filterHorEdgeFlag[chroma][0] = filterTopMbEdgeFlag;
+            for (int edge = 1; edge < 4; ++edge) {
+                MbQ->filterVerEdgeFlag[chroma][edge] = filterInternalEdgesFlag;
+                MbQ->filterHorEdgeFlag[chroma][edge] = filterInternalEdgesFlag;
             }
+            MbQ->filterHorEdgeFlag[chroma][4] = filterTopMbEdgeFlag &&
+                !MbQ->mb_field_decoding_flag && MbU->mb_field_decoding_flag;
         }
 
         if (MbQ->transform_size_8x8_flag) {
@@ -276,20 +276,14 @@ void Deblock::strength(mb_t* MbQ)
             MbQ->filterHorEdgeFlag[1][1] = MbQ->filterHorEdgeFlag[1][3] = 0;
         }
 
-        bool mixedModeEdgeFlag = 0;
         for (int edge = 0; edge < 4; ++edge) {
             if (MbQ->filterVerEdgeFlag[0][edge])
                 this->strength_vertical(MbQ, edge);
             if (MbQ->filterHorEdgeFlag[0][edge])
                 this->strength_horizontal(MbQ, edge);
-
-            if (MbQ->filterHorEdgeFlag[0][edge] &&
-                edge == 0 && !MbQ->mb_field_decoding_flag && MbQ->mixedModeEdgeFlag) {
-                mixedModeEdgeFlag = MbQ->mixedModeEdgeFlag;
+            if (edge == 0 && MbQ->filterHorEdgeFlag[0][4])
                 this->strength_horizontal(MbQ, 4);
-            }
         }
-        MbQ->mixedModeEdgeFlag = mixedModeEdgeFlag;
     }
 }
 
@@ -514,10 +508,8 @@ void Deblock::filter_horizontal(mb_t* MbQ)
 
     if (slice->disable_deblocking_filter_idc != 1) {
         for (int edge = 0; edge < 4; ++edge) {
-            bool mixed = (edge == 0) && !MbQ->mb_field_decoding_flag && MbQ->mixedModeEdgeFlag;
-
             if (MbQ->filterHorEdgeFlag[0][edge]) {
-                if (!mixed)
+                if (!((edge == 0) && MbQ->filterHorEdgeFlag[0][4]))
                     this->filter_edge(MbQ, false, PLANE_Y, false, MbQ->fieldMbInFrameFlag, edge * 4);
                 else {
                     this->filter_edge(MbQ, false, PLANE_Y, false, true, 0);
@@ -525,7 +517,7 @@ void Deblock::filter_horizontal(mb_t* MbQ)
                 }
             }
             if (sps->ChromaArrayType != 0 && MbQ->filterHorEdgeFlag[1][edge]) {
-                if (!mixed) {
+                if (!((edge == 0) && MbQ->filterHorEdgeFlag[1][4])) {
                     this->filter_edge(MbQ, true, PLANE_U, false, MbQ->fieldMbInFrameFlag, edge * 4);
                     this->filter_edge(MbQ, true, PLANE_V, false, MbQ->fieldMbInFrameFlag, edge * 4);
                 } else {
@@ -605,19 +597,18 @@ static void MbAffPostProc(VideoParameters *p_Vid)
     imgpel*** imgUV = dec_picture->imgUV;
 
     imgpel temp_buffer[32][16];
-    int x0, y0;
 
     for (int mbAddr = 0; mbAddr < dec_picture->PicSizeInMbs; mbAddr += 2) {
         if (dec_picture->motion.mb_field_decoding_flag[mbAddr]) {
-            slice->neighbour.get_mb2pos(slice, mbAddr, x0, y0);
-            update_mbaff_macroblock_data(imgY + y0, temp_buffer, x0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+            loc_t loc = slice->neighbour.get_location(slice, mbAddr);
+            update_mbaff_macroblock_data(imgY + loc.y, temp_buffer, loc.x, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
             if (dec_picture->chroma_format_idc != YUV400) {
-                x0 = (short) ((x0 * sps->MbWidthC ) >> 4);
-                y0 = (short) ((y0 * sps->MbHeightC) >> 4);
+                loc.x = (short) ((loc.x * sps->MbWidthC ) >> 4);
+                loc.y = (short) ((loc.y * sps->MbHeightC) >> 4);
 
-                update_mbaff_macroblock_data(imgUV[0] + y0, temp_buffer, x0, sps->MbWidthC, sps->MbHeightC);
-                update_mbaff_macroblock_data(imgUV[1] + y0, temp_buffer, x0, sps->MbWidthC, sps->MbHeightC);
+                update_mbaff_macroblock_data(imgUV[0] + loc.y, temp_buffer, loc.x, sps->MbWidthC, sps->MbHeightC);
+                update_mbaff_macroblock_data(imgUV[1] + loc.y, temp_buffer, loc.x, sps->MbWidthC, sps->MbHeightC);
             }
         }
     }

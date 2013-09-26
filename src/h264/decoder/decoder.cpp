@@ -41,7 +41,7 @@ static const int BLOCK_STEP[8][2] = {
 };
 
 
-namespace vio {
+namespace vio  {
 namespace h264 {
 
 
@@ -127,7 +127,7 @@ void Decoder::set_chroma_vector(mb_t& mb)
 {
     slice_t& slice = *mb.p_Slice;
 
-    VideoParameters* p_Vid = mb.p_Vid;
+    VideoParameters* p_Vid = slice.p_Vid;
 
     if (!slice.MbaffFrameFlag) {
         if (!slice.field_pic_flag) {

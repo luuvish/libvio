@@ -60,10 +60,18 @@ protected:
         bool        transform_size_8x8_flag();
         int8_t      intra_pred_mode();
         uint8_t     intra_chroma_pred_mode();
-        uint8_t     ref_idx(uint8_t list, uint8_t x0, uint8_t y0);
-        int16_t     mvd(uint8_t list, uint8_t x0, uint8_t y0, uint8_t xy);
+        uint8_t     ref_idx_l(uint8_t list, uint8_t x0, uint8_t y0);
+        int16_t     mvd_l(uint8_t list, uint8_t x0, uint8_t y0, uint8_t xy);
         uint8_t     coded_block_pattern();
         int8_t      mb_qp_delta();
+
+        uint8_t     coeff_token(int nC);
+        uint8_t     total_zeros(int yuv, int tzVlcIndex);
+        uint8_t     run_before(uint8_t zerosLeft);
+        bool        coded_block_flag();
+        bool        significant_coeff_flag();
+        bool        last_significant_coeff_flag();
+        uint16_t    coeff_abs_level_minus1();
 
     private:
         sps_t&      sps;

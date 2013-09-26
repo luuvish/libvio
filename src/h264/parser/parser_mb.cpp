@@ -1,13 +1,7 @@
-#include <math.h>
-
 #include "global.h"
 #include "slice.h"
-#include "dpb.h"
-#include "bitstream_cabac.h"
-#include "data_partition.h"
 #include "macroblock.h"
 #include "fmo.h"
-#include "image.h"
 #include "neighbour.h"
 
 #include "parser.h"
@@ -16,12 +10,8 @@
 #include "transform.h"
 
 
-using namespace vio::h264;
-using vio::h264::cabac_engine_t;
-
-
 // Table 7-11 mb_t types for I slices
-const uint8_t mb_types_i_slice[26][5] = {
+static const uint8_t mb_types_i_slice[26][5] = {
     { I_NxN  , Intra_NxN  , NA,  0,  0 },
     { I_16x16, Intra_16x16,  0,  0,  0 },
     { I_16x16, Intra_16x16,  1,  0,  0 },
@@ -51,13 +41,13 @@ const uint8_t mb_types_i_slice[26][5] = {
 };
 
 // Table 7-12 Macroblock type with value 0 for SI slices
-const uint8_t mb_types_si_slice[1][5] = {
+static const uint8_t mb_types_si_slice[1][5] = {
     { SI     , Intra_4x4  , NA, NA, NA }
     // [1..26] are mb_types_i_slice[0..25]
 };
 
 // Table 7-13 mb_t type value 0 to 4 for P and SP slices
-const uint8_t mb_types_p_slice[5][6] = {
+static const uint8_t mb_types_p_slice[5][6] = {
 //  { P_Skip   , 1, Pred_L0,      NA, 16, 16 },
     { P_16x16  , 1, Pred_L0,      NA, 16, 16 },
     { P_16x8   , 2, Pred_L0, Pred_L0, 16,  8 },
@@ -68,7 +58,7 @@ const uint8_t mb_types_p_slice[5][6] = {
 };
 
 // Table 7-14 mb_t type value 0 to 22 for B slices
-const uint8_t mb_types_b_slice[23][6] = {
+static const uint8_t mb_types_b_slice[23][6] = {
 //  { B_Skip        , NA, Direct ,      NA,  8,  8 },
     { B_Direct_16x16, NA, Direct ,      NA,  8,  8 },
     { B_16x16       ,  1, Pred_L0,      NA, 16, 16 },
@@ -97,7 +87,7 @@ const uint8_t mb_types_b_slice[23][6] = {
 };
 
 // Table 7-17 Sub-macroblock types in P macroblocks
-const uint8_t sub_mb_types_p_slice[4][5] = {
+static const uint8_t sub_mb_types_p_slice[4][5] = {
     { P_8x8, 1, Pred_L0, 8, 8 },
     { P_8x4, 2, Pred_L0, 8, 4 },
     { P_4x8, 2, Pred_L0, 4, 8 },
@@ -105,7 +95,7 @@ const uint8_t sub_mb_types_p_slice[4][5] = {
 };
 
 // Table 7-18 Sub-macroblock types in B macroblocks
-const uint8_t sub_mb_types_b_slice[14][5] = {
+static const uint8_t sub_mb_types_b_slice[14][5] = {
 //  {           NA, 4, Direct , 4, 4 },
     { B_Direct_8x8, 4, Direct , 4, 4 },
     { B_8x8       , 1, Pred_L0, 8, 8 },
@@ -344,7 +334,7 @@ static void skip_macroblock(mb_t* mb)
         a_mv      = mv_info->mv     [LIST_0];
 
         if (slice->MbaffFrameFlag) {
-            auto mb_a = &mb->p_Vid->mb_data[pos[0].mb_addr];
+            auto mb_a = &slice->mb_data[pos[0].mb_addr];
             if (mb->mb_field_decoding_flag && !mb_a->mb_field_decoding_flag) {
                 a_ref_idx *= 2;
                 a_mv.mv_y /= 2;
@@ -361,7 +351,7 @@ static void skip_macroblock(mb_t* mb)
         b_mv      = mv_info->mv     [LIST_0];
 
         if (slice->MbaffFrameFlag) {
-            auto mb_b = &mb->p_Vid->mb_data[pos[1].mb_addr];
+            auto mb_b = &slice->mb_data[pos[1].mb_addr];
             if (mb->mb_field_decoding_flag && !mb_b->mb_field_decoding_flag) {
                 b_ref_idx *= 2;
                 b_mv.mv_y /= 2;
@@ -462,16 +452,11 @@ void Parser::Macroblock::parse()
                     //get next MB
                     ++slice.current_mb_nr;
 
-                    mb_t *currMB;
-                    currMB = &slice.mb_data[slice.current_mb_nr];
-                    currMB->p_Vid    = slice.p_Vid;
+                    mb_t *currMB = &slice.mb_data[slice.current_mb_nr];
                     currMB->p_Slice  = &slice;
                     currMB->slice_nr = slice.current_slice_nr;
                     currMB->mb_field_decoding_flag = slice.mb_data[slice.current_mb_nr-1].mb_field_decoding_flag;
                     currMB->mbAddrX  = slice.current_mb_nr;
-
-                    CheckAvailabilityOfNeighbors(currMB);
-                    CheckAvailabilityOfNeighborsCABAC(currMB);
 
                     SyntaxElement se { *currMB };
 
@@ -490,8 +475,6 @@ void Parser::Macroblock::parse()
 
                     //reset
                     slice.current_mb_nr--;
-
-                    CheckAvailabilityOfNeighborsCABAC(currMB);
                 }
             } else {
                 if (slice.mb_skip_run == 1)
@@ -520,10 +503,6 @@ void Parser::Macroblock::parse()
                 mb.mb_field_decoding_flag = se.mb_field_decoding_flag();
         }
     }
-
-    if (pps.entropy_coding_mode_flag)
-        CheckAvailabilityOfNeighborsCABAC(&mb);
-
 
     if (moreDataFlag) {
         mb.mb_type = se.mb_type();
@@ -736,38 +715,41 @@ void Parser::Macroblock::parse_ipred_4x4_modes()
         bool    prev_intra4x4_pred_mode_flag = val == -1;
         uint8_t rem_intra4x4_pred_mode       = val;
 
-        int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-        PixelPos left_block, top_block;
-        get4x4Neighbour(&mb, bx - 1, by    , mb_size, &left_block);
-        get4x4Neighbour(&mb, bx    , by - 1, mb_size, &top_block );
+        loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {bx - 1, by});
+        loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {bx, by - 1});
+        mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
+        mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
+        pos_t posA = slice.neighbour.get_blkpos  (&slice, locA);
+        pos_t posB = slice.neighbour.get_blkpos  (&slice, locB);
+
+        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
+        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
         //get from array and decode
         if (pps.constrained_intra_pred_flag) {
-            left_block.available &= slice.mb_data[left_block.mb_addr].is_intra_block;
-            top_block.available  &= slice.mb_data[top_block.mb_addr ].is_intra_block;
+            mbA = mbA && mbA->is_intra_block ? mbA : nullptr;
+            mbB = mbB && mbB->is_intra_block ? mbB : nullptr;
         }
         // !! KS: not sure if the following is still correct...
         if (slice.slice_type == SI_slice) { // need support for MBINTLC1
-            left_block.available &= slice.mb_data[left_block.mb_addr].mb_type == SI4MB;
-            top_block.available  &= slice.mb_data[top_block.mb_addr ].mb_type == SI4MB;
+            mbA = mbA && mbA->mb_type == SI4MB ? mbA : nullptr;
+            mbB = mbB && mbB->mb_type == SI4MB ? mbB : nullptr;
         }
 
-        bool dcPredModePredictedFlag = !left_block.available || !top_block.available;
+        bool dcPredModePredictedFlag = !mbA || !mbB;
 
         int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
         uint8_t intraMxMPredModeA = IntraPrediction::Intra_4x4_DC;
         uint8_t intraMxMPredModeB = IntraPrediction::Intra_4x4_DC;
         if (!dcPredModePredictedFlag) {
-            uint8_t left_mb_type = slice.mb_data[left_block.mb_addr].mb_type;
-            uint8_t top_mb_type  = slice.mb_data[top_block.mb_addr ].mb_type;
-            if (left_mb_type == I8MB)
-                intraMxMPredModeA = slice.mb_data[left_block.mb_addr].Intra8x8PredMode[scan[left_block.y * 4 + left_block.x] / 4];
-            else if (left_mb_type == I4MB)
-                intraMxMPredModeA = slice.mb_data[left_block.mb_addr].Intra4x4PredMode[scan[left_block.y * 4 + left_block.x]];
-            if (top_mb_type == I8MB)
-                intraMxMPredModeB = slice.mb_data[top_block.mb_addr].Intra8x8PredMode[scan[top_block.y * 4 + top_block.x] / 4];
-            else if (top_mb_type == I4MB)
-                intraMxMPredModeB = slice.mb_data[top_block.mb_addr].Intra4x4PredMode[scan[top_block.y * 4 + top_block.x]];
+            if (mbA->mb_type == I8MB)
+                intraMxMPredModeA = mbA->Intra8x8PredMode[scan[(posA.y & 12) + (posA.x & 15) / 4] / 4];
+            else if (mbA->mb_type == I4MB)
+                intraMxMPredModeA = mbA->Intra4x4PredMode[scan[(posA.y & 12) + (posA.x & 15) / 4]];
+            if (mbB->mb_type == I8MB)
+                intraMxMPredModeB = mbB->Intra8x8PredMode[scan[(posB.y & 12) + (posB.x & 15) / 4] / 4];
+            else if (mbB->mb_type == I4MB)
+                intraMxMPredModeB = mbB->Intra4x4PredMode[scan[(posB.y & 12) + (posB.x & 15) / 4]];
         }
 
         uint8_t predIntra4x4PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
@@ -793,33 +775,36 @@ void Parser::Macroblock::parse_ipred_8x8_modes()
         bool    prev_intra8x8_pred_mode_flag = val == -1;
         uint8_t rem_intra8x8_pred_mode       = val;
 
-        int mb_size[2] = { MB_BLOCK_SIZE, MB_BLOCK_SIZE };
-        PixelPos left_block, top_block;
-        get4x4Neighbour(&mb, bx - 1, by    , mb_size, &left_block);
-        get4x4Neighbour(&mb, bx    , by - 1, mb_size, &top_block);
+        loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {bx - 1, by});
+        loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {bx, by - 1});
+        mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
+        mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
+        pos_t posA = slice.neighbour.get_blkpos  (&slice, locA);
+        pos_t posB = slice.neighbour.get_blkpos  (&slice, locB);
+
+        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
+        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
         //get from array and decode
         if (pps.constrained_intra_pred_flag) {
-            left_block.available &= slice.mb_data[left_block.mb_addr].is_intra_block;
-            top_block.available  &= slice.mb_data[top_block.mb_addr ].is_intra_block;
+            mbA = mbA && mbA->is_intra_block ? mbA : nullptr;
+            mbB = mbB && mbB->is_intra_block ? mbB : nullptr;
         }
 
-        bool dcPredModePredictedFlag = !left_block.available || !top_block.available;
+        bool dcPredModePredictedFlag = !mbA || !mbB;
 
         int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
         uint8_t intraMxMPredModeA = IntraPrediction::Intra_8x8_DC;
         uint8_t intraMxMPredModeB = IntraPrediction::Intra_8x8_DC;
         if (!dcPredModePredictedFlag) {
-            uint8_t left_mb_type = slice.mb_data[left_block.mb_addr].mb_type;
-            uint8_t top_mb_type  = slice.mb_data[top_block.mb_addr ].mb_type;
-            if (left_mb_type == I8MB)
-                intraMxMPredModeA = slice.mb_data[left_block.mb_addr].Intra8x8PredMode[scan[left_block.y * 4 + left_block.x] / 4];
-            else if (left_mb_type == I4MB)
-                intraMxMPredModeA = slice.mb_data[left_block.mb_addr].Intra4x4PredMode[scan[left_block.y * 4 + left_block.x]];
-            if (top_mb_type == I8MB)
-                intraMxMPredModeB = slice.mb_data[top_block.mb_addr].Intra8x8PredMode[scan[top_block.y * 4 + top_block.x] / 4];
-            else if (top_mb_type == I4MB)
-                intraMxMPredModeB = slice.mb_data[top_block.mb_addr].Intra4x4PredMode[scan[top_block.y * 4 + top_block.x]];
+            if (mbA->mb_type == I8MB)
+                intraMxMPredModeA = mbA->Intra8x8PredMode[scan[(posA.y & 12) + (posA.x & 15) / 4] / 4];
+            else if (mbA->mb_type == I4MB)
+                intraMxMPredModeA = mbA->Intra4x4PredMode[scan[(posA.y & 12) + (posA.x & 15) / 4]];
+            if (mbB->mb_type == I8MB)
+                intraMxMPredModeB = mbB->Intra8x8PredMode[scan[(posB.y & 12) + (posB.x & 15) / 4] / 4];
+            else if (mbB->mb_type == I4MB)
+                intraMxMPredModeB = mbB->Intra4x4PredMode[scan[(posB.y & 12) + (posB.x & 15) / 4]];
         }
 
         uint8_t predIntra8x8PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
@@ -893,7 +878,7 @@ void Parser::Macroblock::parse_ref_pic_idx(int list)
 
             if ((mb.SubMbPredMode[k] == list || mb.SubMbPredMode[k] == BI_PRED) &&
                 mb.SubMbType[k] != 0) {
-                uint8_t refframe = se.ref_idx(list, i0, j0);
+                uint8_t refframe = se.ref_idx_l(list, i0, j0);
                 for (int j = 0; j < step_v0; j++) {
                     for (int i = 0; i < step_h0; i++)
                         mv_info[mb.mb.y * 4 + j0 + j][mb.mb.x * 4 + i0 + i].ref_idx[list] = refframe;
@@ -943,7 +928,7 @@ void Parser::Macroblock::parse_motion_vector(int list, int step_h4, int step_v4,
 
     int16_t curr_mvd[2];
     for (int k = 0; k < 2; ++k)
-        curr_mvd[k] = se.mvd(list, i, j, k);
+        curr_mvd[k] = se.mvd_l(list, i, j, k);
 
     MotionVector curr_mv;
     curr_mv.mv_x = curr_mvd[0] + pred_mv.mv_x;
@@ -1011,7 +996,21 @@ void Parser::Macroblock::parse_cbp_qp()
                 mb.ei_flag  = 1;
                 mb.dpl_flag = 1;
             }
-            check_dp_neighbors(&mb);
+
+            loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {-1, 0});
+            loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {0, -1});
+            mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
+            mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
+            mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
+            mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
+
+            if (!(pps.constrained_intra_pred_flag && mb.is_intra_block)) {
+                if (mbA)
+                    mb.dpl_flag |= mbA->dpl_flag;
+                if (mbB)
+                    mb.dpl_flag |= mbB->dpl_flag;
+            }
+
             if (mb.dpl_flag) {
                 mb.CodedBlockPatternLuma   = 0;
                 mb.CodedBlockPatternChroma = 0;
@@ -1040,9 +1039,9 @@ static const uint8_t QP_SCALE_CR[52] = {
 
 void macroblock_t::update_qp(int qp)
 {
-    VideoParameters* p_Vid = this->p_Vid;
-    sps_t* sps = p_Vid->active_sps;
-    pps_t* pps = p_Vid->active_pps;
+    slice_t* slice = this->p_Slice;
+    sps_t* sps = slice->active_sps;
+    pps_t* pps = slice->active_pps;
     int QpOffset[2] = { pps->chroma_qp_index_offset, pps->second_chroma_qp_index_offset };
 
     this->QpY          = qp;

@@ -80,7 +80,7 @@ static void bi_prediction(imgpel *mb_pred,
                           mb_t *currMB, ColorPlane pl, short l0_refframe, short l1_refframe)
 {
     int weight0, weight1, offset, denom, color_clip;
-    VideoParameters *p_Vid = currMB->p_Vid;
+    VideoParameters *p_Vid = currMB->p_Slice->p_Vid;
     sps_t *sps = p_Vid->active_sps;
     int weighted_bipred_idc = p_Vid->active_pps->weighted_bipred_idc;
     if (weighted_bipred_idc) {
@@ -312,9 +312,9 @@ void InterPrediction::get_block_luma(storable_picture *curr_ref, int x_pos, int 
                     imgpel **block, int shift_x, int maxold_x, int maxold_y,
                     ColorPlane pl, mb_t *currMB)
 {
-    slice_t *currSlice = currMB->p_Slice;
-    sps_t *sps = currSlice->active_sps;
-    int **tmp_res = currSlice->tmp_res;
+    slice_t* slice = currMB->p_Slice;
+    sps_t* sps = slice->active_sps;
+    int **tmp_res = slice->tmp_res;
     int max_imgpel_value = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
     imgpel no_ref_value = (imgpel) (pl ? (1 << (sps->BitDepthC - 1)) : (1 << (sps->BitDepthY - 1)));
 
@@ -323,10 +323,8 @@ void InterPrediction::get_block_luma(storable_picture *curr_ref, int x_pos, int 
         return;
     }
 
-    imgpel **cur_imgY = (currMB->p_Vid->active_sps->separate_colour_plane_flag
-                      && currMB->p_Slice->colour_plane_id > PLANE_Y)
-                      ? curr_ref->imgUV[currMB->p_Slice->colour_plane_id-1]
-                      : curr_ref->cur_imgY;
+    imgpel **cur_imgY = (sps->separate_colour_plane_flag && slice->colour_plane_id > PLANE_Y) ?
+                        curr_ref->imgUV[slice->colour_plane_id-1] : curr_ref->cur_imgY;
     int dx = (x_pos & 3);
     int dy = (y_pos & 3);
     x_pos >>= 2;
@@ -469,9 +467,9 @@ void InterPrediction::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, int 
 
     static const int mv_mul = 16;
     int vec1_x, vec1_y, vec2_x, vec2_y;
-    VideoParameters *p_Vid = currMB->p_Vid;    
     slice_t *currSlice = currMB->p_Slice;
     sps_t *sps = currSlice->active_sps;
+    VideoParameters *p_Vid = currSlice->p_Vid;
 
     storable_picture* dec_picture = currSlice->dec_picture;
 
