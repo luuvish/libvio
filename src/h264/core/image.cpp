@@ -51,7 +51,6 @@ static void setup_buffers(VideoParameters *p_Vid, int layer_id)
     {
       p_Vid->mb_data = cps->mb_data;
     }
-    p_Vid->PicPos = cps->PicPos;
     p_Vid->img2buf = cps->img2buf;
     p_Vid->last_dec_layer_id = layer_id;
   }

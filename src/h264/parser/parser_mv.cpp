@@ -8,6 +8,9 @@
 #define INVALIDINDEX  (-135792468)
 
 
+static const mv_t zero_mv = {0, 0};
+
+
 static inline int RSD(int x)
 {
     return (x & 2) ? (x | 1) : (x & ~1);
@@ -41,235 +44,459 @@ static inline int imedian(int a, int b, int c)
     }
 }
 
-void macroblock_t::GetMotionVectorPredictorMBAFF(
-    PixelPos* block, MotionVector* pmv,
-    short ref_frame, pic_motion_params** mv_info,
-    int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y)
+mv_t macroblock_t::GetMVPredictor(char ref_frame, int list, int i, int j, int step_h4, int step_v4)
 {
-    slice_t* slice = this->p_Slice;
-    int mv_a, mv_b, mv_c, pred_vec = 0;
-    int mvPredType, rFrameL, rFrameU, rFrameUR;
-    int hv;
+    slice_t& slice = *this->p_Slice;
+    mb_t& mb = *this;
 
-    mvPredType = MVPRED_MEDIAN;
+    loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {i * 4 - 1      , j * 4    });
+    loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {i * 4          , j * 4 - 1});
+    loc_t locC = slice.neighbour.get_location(&slice, mb.mbAddrX, {i * 4 + step_h4, j * 4 - 1});
+    loc_t locD = slice.neighbour.get_location(&slice, mb.mbAddrX, {i * 4 - 1      , j * 4 - 1});
+    mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
+    mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
+    mb_t* mbC  = slice.neighbour.get_mb      (&slice, locC);
+    mb_t* mbD  = slice.neighbour.get_mb      (&slice, locD);
+    pos_t posA = slice.neighbour.get_blkpos  (&slice, locA);
+    pos_t posB = slice.neighbour.get_blkpos  (&slice, locB);
+    pos_t posC = slice.neighbour.get_blkpos  (&slice, locC);
+    pos_t posD = slice.neighbour.get_blkpos  (&slice, locD);
 
-    if (this->mb_field_decoding_flag) {
-        rFrameL  = block[0].available
-            ? (slice->mb_data[block[0].mb_addr].mb_field_decoding_flag
-            ? mv_info[block[0].pos_y][block[0].pos_x].ref_idx[list]
-            : mv_info[block[0].pos_y][block[0].pos_x].ref_idx[list] * 2) : -1;
-        rFrameU  = block[1].available
-            ? (slice->mb_data[block[1].mb_addr].mb_field_decoding_flag
-            ? mv_info[block[1].pos_y][block[1].pos_x].ref_idx[list]
-            : mv_info[block[1].pos_y][block[1].pos_x].ref_idx[list] * 2) : -1;
-        rFrameUR = block[2].available
-            ? (slice->mb_data[block[2].mb_addr].mb_field_decoding_flag
-            ? mv_info[block[2].pos_y][block[2].pos_x].ref_idx[list]
-            : mv_info[block[2].pos_y][block[2].pos_x].ref_idx[list] * 2) : -1;
-    } else {
-        rFrameL = block[0].available
-            ? (slice->mb_data[block[0].mb_addr].mb_field_decoding_flag
-            ? mv_info[block[0].pos_y][block[0].pos_x].ref_idx[list] >>1
-            : mv_info[block[0].pos_y][block[0].pos_x].ref_idx[list]) : -1;
-        rFrameU  = block[1].available
-            ? (slice->mb_data[block[1].mb_addr].mb_field_decoding_flag
-            ? mv_info[block[1].pos_y][block[1].pos_x].ref_idx[list] >>1
-            : mv_info[block[1].pos_y][block[1].pos_x].ref_idx[list]) : -1;
-        rFrameUR = block[2].available
-            ? (slice->mb_data[block[2].mb_addr].mb_field_decoding_flag
-            ? mv_info[block[2].pos_y][block[2].pos_x].ref_idx[list] >>1
-            : mv_info[block[2].pos_y][block[2].pos_x].ref_idx[list]) : -1;
+    mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
+    mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
+    mbC = mbC && mbC->slice_nr == mb.slice_nr ? mbC : nullptr;
+    mbD = mbD && mbD->slice_nr == mb.slice_nr ? mbD : nullptr;
+
+    if (j > 0) {
+        if (i < 2) { // first column of 8x8 blocks
+            if (j == 2) {
+                if (step_h4 == 16)
+                    mbC = nullptr;
+            } else if (i * 4 + step_h4 == 8)
+                mbC = nullptr;
+        } else if (i * 4 + step_h4 == 16)
+            mbC = nullptr;
+    }
+
+    if (!mbC) {
+        mbC  = mbD;
+        posC = posD;
+    }
+
+    char refIdxA = -1;
+    mv_t mvA = zero_mv;
+    if (mbA) {
+        auto mv_info = &slice.dec_picture->mv_info[posA.y / 4][posA.x / 4];
+        refIdxA = mv_info->ref_idx[list];
+        mvA     = mv_info->mv     [list];
+        if (mb.mb_field_decoding_flag && !mbA->mb_field_decoding_flag) {
+            if (refIdxA >= 0)
+                refIdxA *= 2;
+            mvA.mv_y /= 2;
+        }
+        if (!mb.mb_field_decoding_flag && mbA->mb_field_decoding_flag) {
+            refIdxA >>= 1;
+            mvA.mv_y *= 2;
+        }
+    }
+    char refIdxB = -1;
+    mv_t mvB = zero_mv;
+    if (mbB) {
+        auto mv_info = &slice.dec_picture->mv_info[posB.y / 4][posB.x / 4];
+        refIdxB = mv_info->ref_idx[list];
+        mvB     = mv_info->mv     [list];
+        if (mb.mb_field_decoding_flag && !mbB->mb_field_decoding_flag) {
+            if (refIdxB >= 0)
+                refIdxB *= 2;
+            mvB.mv_y /= 2;
+        }
+        if (!mb.mb_field_decoding_flag && mbB->mb_field_decoding_flag) {
+            refIdxB >>= 1;
+            mvB.mv_y *= 2;
+        }
+    }
+    char refIdxC = -1;
+    mv_t mvC = zero_mv;
+    if (mbC) {
+        auto mv_info = &slice.dec_picture->mv_info[posC.y / 4][posC.x / 4];
+        refIdxC = mv_info->ref_idx[list];
+        mvC     = mv_info->mv     [list];
+        if (mb.mb_field_decoding_flag && !mbC->mb_field_decoding_flag) {
+            if (refIdxC >= 0)
+                refIdxC *= 2;
+            mvC.mv_y /= 2;
+        }
+        if (!mb.mb_field_decoding_flag && mbC->mb_field_decoding_flag) {
+            refIdxC >>= 1;
+            mvC.mv_y *= 2;
+        }
     }
 
     /* Prediction if only one of the neighbors uses the reference frame
      *  we are checking
      */
-    if (rFrameL == ref_frame && rFrameU != ref_frame && rFrameUR != ref_frame)       
-        mvPredType = MVPRED_L;
-    else if (rFrameL != ref_frame && rFrameU == ref_frame && rFrameUR != ref_frame)  
-        mvPredType = MVPRED_U;
-    else if (rFrameL != ref_frame && rFrameU != ref_frame && rFrameUR == ref_frame)  
-        mvPredType = MVPRED_UR;
-    // Directional predictions
-    if (blockshape_x == 8 && blockshape_y == 16) {
-        if (mb_x == 0) {
-            if (rFrameL == ref_frame)
-                mvPredType = MVPRED_L;
-        } else {
-            if (rFrameUR == ref_frame)
-                mvPredType = MVPRED_UR;
-        }
-    } else if (blockshape_x == 16 && blockshape_y == 8) {
-        if (mb_y == 0) {
-            if (rFrameU == ref_frame)
-                mvPredType = MVPRED_U;
-        } else {
-            if (rFrameL == ref_frame)
-                mvPredType = MVPRED_L;
-        }
-    }
-
-    for (hv = 0; hv < 2; hv++) {
-        if (hv == 0) {
-            mv_a = block[0].available ? mv_info[block[0].pos_y][block[0].pos_x].mv[list].mv_x : 0;
-            mv_b = block[1].available ? mv_info[block[1].pos_y][block[1].pos_x].mv[list].mv_x : 0;
-            mv_c = block[2].available ? mv_info[block[2].pos_y][block[2].pos_x].mv[list].mv_x : 0;
-        } else {
-            if (this->mb_field_decoding_flag) {
-                mv_a = block[0].available
-                    ? slice->mb_data[block[0].mb_addr].mb_field_decoding_flag
-                    ? mv_info[block[0].pos_y][block[0].pos_x].mv[list].mv_y
-                    : mv_info[block[0].pos_y][block[0].pos_x].mv[list].mv_y / 2
-                    : 0;
-                mv_b = block[1].available
-                    ? slice->mb_data[block[1].mb_addr].mb_field_decoding_flag
-                    ? mv_info[block[1].pos_y][block[1].pos_x].mv[list].mv_y
-                    : mv_info[block[1].pos_y][block[1].pos_x].mv[list].mv_y / 2
-                    : 0;
-                mv_c = block[2].available
-                    ? slice->mb_data[block[2].mb_addr].mb_field_decoding_flag
-                    ? mv_info[block[2].pos_y][block[2].pos_x].mv[list].mv_y
-                    : mv_info[block[2].pos_y][block[2].pos_x].mv[list].mv_y / 2
-                    : 0;
-            } else {
-                mv_a = block[0].available
-                    ? slice->mb_data[block[0].mb_addr].mb_field_decoding_flag
-                    ? mv_info[block[0].pos_y][block[0].pos_x].mv[list].mv_y * 2
-                    : mv_info[block[0].pos_y][block[0].pos_x].mv[list].mv_y
-                    : 0;
-                mv_b = block[1].available
-                    ? slice->mb_data[block[1].mb_addr].mb_field_decoding_flag
-                    ? mv_info[block[1].pos_y][block[1].pos_x].mv[list].mv_y * 2
-                    : mv_info[block[1].pos_y][block[1].pos_x].mv[list].mv_y
-                    : 0;
-                mv_c = block[2].available
-                    ? slice->mb_data[block[2].mb_addr].mb_field_decoding_flag
-                    ? mv_info[block[2].pos_y][block[2].pos_x].mv[list].mv_y * 2
-                    : mv_info[block[2].pos_y][block[2].pos_x].mv[list].mv_y
-                    : 0;
-            }
-        }
-
-        switch (mvPredType) {
-        case MVPRED_MEDIAN:
-            if (!(block[1].available || block[2].available))
-                pred_vec = mv_a;
-            else
-                pred_vec = imedian(mv_a, mv_b, mv_c);
-            break;
-        case MVPRED_L:
-            pred_vec = mv_a;
-            break;
-        case MVPRED_U:
-            pred_vec = mv_b;
-            break;
-        case MVPRED_UR:
-            pred_vec = mv_c;
-            break;
-        default:
-            break;
-        }
-
-        if (hv == 0)
-            pmv->mv_x = (short) pred_vec;
-        else
-            pmv->mv_y = (short) pred_vec;
-    }
-}
-
-void macroblock_t::GetMotionVectorPredictorNormal(
-    PixelPos* block, MotionVector* pmv,
-    short ref_frame, pic_motion_params** mv_info,
-    int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y)
-{
     int mvPredType = MVPRED_MEDIAN;
-
-    int rFrameL    = block[0].available ? mv_info[block[0].pos_y][block[0].pos_x].ref_idx[list] : -1;
-    int rFrameU    = block[1].available ? mv_info[block[1].pos_y][block[1].pos_x].ref_idx[list] : -1;
-    int rFrameUR   = block[2].available ? mv_info[block[2].pos_y][block[2].pos_x].ref_idx[list] : -1;
-
-    /* Prediction if only one of the neighbors uses the reference frame
-     *  we are checking
-     */
-    if (rFrameL == ref_frame && rFrameU != ref_frame && rFrameUR != ref_frame)       
+    if (refIdxA == ref_frame && refIdxB != ref_frame && refIdxC != ref_frame)       
         mvPredType = MVPRED_L;
-    else if(rFrameL != ref_frame && rFrameU == ref_frame && rFrameUR != ref_frame)  
+    else if (refIdxA != ref_frame && refIdxB == ref_frame && refIdxC != ref_frame)  
         mvPredType = MVPRED_U;
-    else if(rFrameL != ref_frame && rFrameU != ref_frame && rFrameUR == ref_frame)  
+    else if (refIdxA != ref_frame && refIdxB != ref_frame && refIdxC == ref_frame)  
         mvPredType = MVPRED_UR;
 
     // Directional predictions
-    if (blockshape_x == 8 && blockshape_y == 16) {
-        if (mb_x == 0) {
-            if (rFrameL == ref_frame)
+    if (step_h4 == 8 && step_v4 == 16) {
+        if (i == 0) {
+            if (refIdxA == ref_frame)
                 mvPredType = MVPRED_L;
         } else {
-            if (rFrameUR == ref_frame)
+            if (refIdxC == ref_frame)
                 mvPredType = MVPRED_UR;
         }
-    } else if (blockshape_x == 16 && blockshape_y == 8) {
-        if (mb_y == 0) {
-            if (rFrameU == ref_frame)
+    } else if (step_h4 == 16 && step_v4 == 8) {
+        if (j == 0) {
+            if (refIdxB == ref_frame)
                 mvPredType = MVPRED_U;
         } else {
-            if (rFrameL == ref_frame)
+            if (refIdxA == ref_frame)
                 mvPredType = MVPRED_L;
         }
     }
 
+    mv_t pred_mv;
     switch (mvPredType) {
     case MVPRED_MEDIAN:
-        if (!(block[1].available || block[2].available)) {
-            if (block[0].available)
-                *pmv = mv_info[block[0].pos_y][block[0].pos_x].mv[list];
-            else
-                *pmv = zero_mv;
-        } else {
-            MotionVector *mv_a = block[0].available ? &mv_info[block[0].pos_y][block[0].pos_x].mv[list] : (MotionVector *) &zero_mv;
-            MotionVector *mv_b = block[1].available ? &mv_info[block[1].pos_y][block[1].pos_x].mv[list] : (MotionVector *) &zero_mv;
-            MotionVector *mv_c = block[2].available ? &mv_info[block[2].pos_y][block[2].pos_x].mv[list] : (MotionVector *) &zero_mv;
-
-            pmv->mv_x = (short) imedian(mv_a->mv_x, mv_b->mv_x, mv_c->mv_x);
-            pmv->mv_y = (short) imedian(mv_a->mv_y, mv_b->mv_y, mv_c->mv_y);
+        if (!(mbB || mbC))
+            pred_mv = mvA;
+        else {
+            pred_mv.mv_x = imedian(mvA.mv_x, mvB.mv_x, mvC.mv_x);
+            pred_mv.mv_y = imedian(mvA.mv_y, mvB.mv_y, mvC.mv_y);
         }
         break;
     case MVPRED_L:
-        if (block[0].available)
-            *pmv = mv_info[block[0].pos_y][block[0].pos_x].mv[list];
-        else
-            *pmv = zero_mv;
+        pred_mv = mvA;
         break;
     case MVPRED_U:
-        if (block[1].available)
-            *pmv = mv_info[block[1].pos_y][block[1].pos_x].mv[list];
-        else
-            *pmv = zero_mv;
+        pred_mv = mvB;
         break;
     case MVPRED_UR:
-        if (block[2].available)
-            *pmv = mv_info[block[2].pos_y][block[2].pos_x].mv[list];
-        else
-            *pmv = zero_mv;
+        pred_mv = mvC;
         break;
     default:
         break;
     }
+
+    return pred_mv;
 }
 
-void macroblock_t::GetMVPredictor(PixelPos* block, MotionVector* pmv,
-                                  short ref_frame, pic_motion_params** mv_info,
-                                  int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y)
+mv_t macroblock_t::GetMVPredictor2(char& ref_frame, int list, int i, int j, int step_h4, int step_v4)
+{
+    slice_t& slice = *this->p_Slice;
+    mb_t& mb = *this;
+
+    loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {i * 4 - 1      , j * 4    });
+    loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {i * 4          , j * 4 - 1});
+    loc_t locC = slice.neighbour.get_location(&slice, mb.mbAddrX, {i * 4 + step_h4, j * 4 - 1});
+    loc_t locD = slice.neighbour.get_location(&slice, mb.mbAddrX, {i * 4 - 1      , j * 4 - 1});
+    mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
+    mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
+    mb_t* mbC  = slice.neighbour.get_mb      (&slice, locC);
+    mb_t* mbD  = slice.neighbour.get_mb      (&slice, locD);
+    pos_t posA = slice.neighbour.get_blkpos  (&slice, locA);
+    pos_t posB = slice.neighbour.get_blkpos  (&slice, locB);
+    pos_t posC = slice.neighbour.get_blkpos  (&slice, locC);
+    pos_t posD = slice.neighbour.get_blkpos  (&slice, locD);
+
+    mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
+    mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
+    mbC = mbC && mbC->slice_nr == mb.slice_nr ? mbC : nullptr;
+    mbD = mbD && mbD->slice_nr == mb.slice_nr ? mbD : nullptr;
+
+    if (j > 0) {
+        if (i < 2) { // first column of 8x8 blocks
+            if (j == 2) {
+                if (step_h4 == 16)
+                    mbC = nullptr;
+            } else if (i * 4 + step_h4 == 8)
+                mbC = nullptr;
+        } else if (i * 4 + step_h4 == 16)
+            mbC = nullptr;
+    }
+
+    if (!mbC) {
+        mbC  = mbD;
+        posC = posD;
+    }
+
+    char refIdxA = -1;
+    mv_t mvA = zero_mv;
+    if (mbA) {
+        auto mv_info = &slice.dec_picture->mv_info[posA.y / 4][posA.x / 4];
+        refIdxA = mv_info->ref_idx[list];
+        mvA     = mv_info->mv     [list];
+        if (mb.mb_field_decoding_flag && !mbA->mb_field_decoding_flag) {
+            if (refIdxA >= 0)
+                refIdxA *= 2;
+            mvA.mv_y /= 2;
+        }
+        if (!mb.mb_field_decoding_flag && mbA->mb_field_decoding_flag) {
+            refIdxA >>= 1;
+            mvA.mv_y *= 2;
+        }
+    }
+    char refIdxB = -1;
+    mv_t mvB = zero_mv;
+    if (mbB) {
+        auto mv_info = &slice.dec_picture->mv_info[posB.y / 4][posB.x / 4];
+        refIdxB = mv_info->ref_idx[list];
+        mvB     = mv_info->mv     [list];
+        if (mb.mb_field_decoding_flag && !mbB->mb_field_decoding_flag) {
+            if (refIdxB >= 0)
+                refIdxB *= 2;
+            mvB.mv_y /= 2;
+        }
+        if (!mb.mb_field_decoding_flag && mbB->mb_field_decoding_flag) {
+            refIdxB >>= 1;
+            mvB.mv_y *= 2;
+        }
+    }
+    char refIdxC = -1;
+    mv_t mvC = zero_mv;
+    if (mbC) {
+        auto mv_info = &slice.dec_picture->mv_info[posC.y / 4][posC.x / 4];
+        refIdxC = mv_info->ref_idx[list];
+        mvC     = mv_info->mv     [list];
+        if (mb.mb_field_decoding_flag && !mbC->mb_field_decoding_flag) {
+            if (refIdxC >= 0)
+                refIdxC *= 2;
+            mvC.mv_y /= 2;
+        }
+        if (!mb.mb_field_decoding_flag && mbC->mb_field_decoding_flag) {
+            refIdxC >>= 1;
+            mvC.mv_y *= 2;
+        }
+    }
+
+    ref_frame = (char) min(min((unsigned char) refIdxA, (unsigned char) refIdxB), (unsigned char) refIdxC);
+
+    /* Prediction if only one of the neighbors uses the reference frame
+     *  we are checking
+     */
+    int mvPredType = MVPRED_MEDIAN;
+    if (refIdxA == ref_frame && refIdxB != ref_frame && refIdxC != ref_frame)       
+        mvPredType = MVPRED_L;
+    else if (refIdxA != ref_frame && refIdxB == ref_frame && refIdxC != ref_frame)  
+        mvPredType = MVPRED_U;
+    else if (refIdxA != ref_frame && refIdxB != ref_frame && refIdxC == ref_frame)  
+        mvPredType = MVPRED_UR;
+
+    // Directional predictions
+    if (step_h4 == 8 && step_v4 == 16) {
+        if (i == 0) {
+            if (refIdxA == ref_frame)
+                mvPredType = MVPRED_L;
+        } else {
+            if (refIdxC == ref_frame)
+                mvPredType = MVPRED_UR;
+        }
+    } else if (step_h4 == 16 && step_v4 == 8) {
+        if (j == 0) {
+            if (refIdxB == ref_frame)
+                mvPredType = MVPRED_U;
+        } else {
+            if (refIdxA == ref_frame)
+                mvPredType = MVPRED_L;
+        }
+    }
+
+    mv_t pred_mv;
+    switch (mvPredType) {
+    case MVPRED_MEDIAN:
+        if (!(mbB || mbC))
+            pred_mv = mvA;
+        else {
+            pred_mv.mv_x = imedian(mvA.mv_x, mvB.mv_x, mvC.mv_x);
+            pred_mv.mv_y = imedian(mvA.mv_y, mvB.mv_y, mvC.mv_y);
+        }
+        break;
+    case MVPRED_L:
+        pred_mv = mvA;
+        break;
+    case MVPRED_U:
+        pred_mv = mvB;
+        break;
+    case MVPRED_UR:
+        pred_mv = mvC;
+        break;
+    default:
+        break;
+    }
+
+    return pred_mv;
+}
+
+void macroblock_t::skip_macroblock()
 {
     slice_t* slice = this->p_Slice;
+    pps_t* pps = slice->active_pps;
+    int list_offset = slice->MbaffFrameFlag && this->mb_field_decoding_flag ?
+                      this->mbAddrX % 2 ? 4 : 2 : 0;
 
-    if (slice->MbaffFrameFlag)
-        this->GetMotionVectorPredictorMBAFF(block, pmv, ref_frame, mv_info,
-                                            list, mb_x, mb_y, blockshape_x, blockshape_y);
-    else
-        this->GetMotionVectorPredictorNormal(block, pmv, ref_frame, mv_info,
-                                             list, mb_x, mb_y, blockshape_x, blockshape_y);
+    loc_t locA = slice->neighbour.get_location(slice, this->mbAddrX, {-1,  0});
+    loc_t locB = slice->neighbour.get_location(slice, this->mbAddrX, { 0, -1});
+    loc_t locC = slice->neighbour.get_location(slice, this->mbAddrX, {16, -1});
+    loc_t locD = slice->neighbour.get_location(slice, this->mbAddrX, {-1, -1});
+    mb_t* mbA  = slice->neighbour.get_mb      (slice, locA);
+    mb_t* mbB  = slice->neighbour.get_mb      (slice, locB);
+    mb_t* mbC  = slice->neighbour.get_mb      (slice, locC);
+    mb_t* mbD  = slice->neighbour.get_mb      (slice, locD);
+    pos_t posA = slice->neighbour.get_blkpos  (slice, locA);
+    pos_t posB = slice->neighbour.get_blkpos  (slice, locB);
+    pos_t posC = slice->neighbour.get_blkpos  (slice, locC);
+    pos_t posD = slice->neighbour.get_blkpos  (slice, locD);
+
+    mbA = mbA && mbA->slice_nr == this->slice_nr ? mbA : nullptr;
+    mbB = mbB && mbB->slice_nr == this->slice_nr ? mbB : nullptr;
+    mbC = mbC && mbC->slice_nr == this->slice_nr ? mbC : nullptr;
+    mbD = mbD && mbD->slice_nr == this->slice_nr ? mbD : nullptr;
+
+    if (!mbC) {
+        mbC  = mbD;
+        posC = posD;
+    }
+
+    int refIdxA = 0;
+    mv_t mvA = zero_mv;
+    if (mbA) {
+        auto mv_info = &slice->dec_picture->mv_info[posA.y / 4][posA.x / 4];
+        refIdxA = mv_info->ref_idx[LIST_0];
+        mvA     = mv_info->mv     [LIST_0];
+        if (this->mb_field_decoding_flag && !mbA->mb_field_decoding_flag) {
+            refIdxA  *= 2;
+            mvA.mv_y /= 2;
+        }
+        if (!this->mb_field_decoding_flag && mbA->mb_field_decoding_flag) {
+            refIdxA >>= 1;
+            mvA.mv_y *= 2;
+        }
+    }
+
+    int refIdxB = 0;
+    mv_t mvB = zero_mv;
+    if (mbB) {
+        auto mv_info = &slice->dec_picture->mv_info[posB.y / 4][posB.x / 4];
+        refIdxB = mv_info->ref_idx[LIST_0];
+        mvB     = mv_info->mv     [LIST_0];
+        if (this->mb_field_decoding_flag && !mbB->mb_field_decoding_flag) {
+            refIdxB  *= 2;
+            mvB.mv_y /= 2;
+        }
+        if (!this->mb_field_decoding_flag && mbB->mb_field_decoding_flag) {
+            refIdxB >>= 1;
+            mvB.mv_y *= 2;
+        }
+    }
+
+    this->CodedBlockPatternLuma   = 0;
+    this->CodedBlockPatternChroma = 0;
+    if (!pps->entropy_coding_mode_flag)
+        memset(this->nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
+
+    auto mv_info = slice->dec_picture->mv_info;
+    storable_picture* cur_pic = slice->listX[list_offset][0];
+
+    bool zeroMotionA = !mbA || (refIdxA == 0 && mvA.mv_x == 0 && mvA.mv_y == 0);
+    bool zeroMotionB = !mbB || (refIdxB == 0 && mvB.mv_x == 0 && mvB.mv_y == 0);
+    mv_t pred_mv;
+    if (zeroMotionA || zeroMotionB)
+        pred_mv = zero_mv;
+    else {
+        int rFrameL = -1;
+        mv_t mvA = zero_mv;
+        if (mbA) {
+            rFrameL = mv_info[posA.y / 4][posA.x / 4].ref_idx[LIST_0];
+            if (this->mb_field_decoding_flag && !mbA->mb_field_decoding_flag)
+                rFrameL *= 2;
+            if (!this->mb_field_decoding_flag && mbA->mb_field_decoding_flag)
+                rFrameL >>= 1;
+            mvA = mv_info[posA.y / 4][posA.x / 4].mv[LIST_0];
+            if (this->mb_field_decoding_flag && !mbA->mb_field_decoding_flag)
+                mvA.mv_y /= 2;
+            if (!this->mb_field_decoding_flag && mbA->mb_field_decoding_flag)
+                mvA.mv_y *= 2;
+        }
+        int rFrameU = -1;
+        mv_t mvB = zero_mv;
+        if (mbB) {
+            rFrameU = mv_info[posB.y / 4][posB.x / 4].ref_idx[LIST_0];
+            if (this->mb_field_decoding_flag && !mbB->mb_field_decoding_flag)
+                rFrameU *= 2;
+            if (!this->mb_field_decoding_flag && mbB->mb_field_decoding_flag)
+                rFrameU >>= 1;
+            mvB = mv_info[posB.y / 4][posB.x / 4].mv[LIST_0];
+            if (this->mb_field_decoding_flag && !mbB->mb_field_decoding_flag)
+                mvB.mv_y /= 2;
+            if (!this->mb_field_decoding_flag && mbB->mb_field_decoding_flag)
+                mvB.mv_y *= 2;
+        }
+        int rFrameUR = -1;
+        mv_t mvC = zero_mv;
+        if (mbC) {
+            rFrameUR = mv_info[posC.y / 4][posC.x / 4].ref_idx[LIST_0];
+            if (this->mb_field_decoding_flag && !mbC->mb_field_decoding_flag)
+                rFrameUR *= 2;
+            if (!this->mb_field_decoding_flag && mbC->mb_field_decoding_flag)
+                rFrameUR >>= 1;
+            mvC = mv_info[posC.y / 4][posC.x / 4].mv[LIST_0];
+            if (this->mb_field_decoding_flag && !mbC->mb_field_decoding_flag)
+                mvC.mv_y /= 2;
+            if (!this->mb_field_decoding_flag && mbC->mb_field_decoding_flag)
+                mvC.mv_y *= 2;
+        }
+
+        /* Prediction if only one of the neighbors uses the reference frame
+         *  we are checking
+         */
+        short ref_frame = 0;
+        int mvPredType = MVPRED_MEDIAN;
+        if (rFrameL == ref_frame && rFrameU != ref_frame && rFrameUR != ref_frame)       
+            mvPredType = MVPRED_L;
+        else if (rFrameL != ref_frame && rFrameU == ref_frame && rFrameUR != ref_frame)  
+            mvPredType = MVPRED_U;
+        else if (rFrameL != ref_frame && rFrameU != ref_frame && rFrameUR == ref_frame)  
+            mvPredType = MVPRED_UR;
+
+        switch (mvPredType) {
+        case MVPRED_MEDIAN:
+            if (!(mbB || mbC))
+                pred_mv = mvA;
+            else {
+                pred_mv.mv_x = imedian(mvA.mv_x, mvB.mv_x, mvC.mv_x);
+                pred_mv.mv_y = imedian(mvA.mv_y, mvB.mv_y, mvC.mv_y);
+            }
+            break;
+        case MVPRED_L:
+            pred_mv = mvA;
+            break;
+        case MVPRED_U:
+            pred_mv = mvB;
+            break;
+        case MVPRED_UR:
+            pred_mv = mvC;
+            break;
+        default:
+            break;
+        }
+    }
+
+    for (int y = 0; y < 4; ++y) {
+        for (int x = 0; x < 4; ++x) {
+            auto mv = &mv_info[this->mb.y * 4 + y][this->mb.x * 4 + x];
+            mv->ref_pic[LIST_0] = cur_pic;
+            mv->ref_idx[LIST_0] = 0;
+            mv->mv     [LIST_0] = pred_mv;
+        }
+    }
 }
-
 
 void macroblock_t::get_direct_temporal(bool dir)
 {
@@ -470,54 +697,6 @@ int macroblock_t::get_colocated_info(storable_picture* list1, int i, int j)
     return moving;  
 }
 
-inline void macroblock_t::set_direct_references(const PixelPos* pix, char* l0_rFrame, char* l1_rFrame, pic_motion_params** mv_info)
-{
-    slice_t* slice = this->p_Slice;
-
-    if (!pix->available) {
-        *l0_rFrame = -1;
-        *l1_rFrame = -1;
-        return;
-    }
-
-    char* ref_idx = mv_info[pix->pos_y][pix->pos_x].ref_idx;
-    if (!slice->MbaffFrameFlag ||
-        (this->mb_field_decoding_flag == slice->mb_data[pix->mb_addr].mb_field_decoding_flag)) {
-        *l0_rFrame = ref_idx[LIST_0];
-        *l1_rFrame = ref_idx[LIST_1];
-    } else if (this->mb_field_decoding_flag) {
-        *l0_rFrame = (ref_idx[LIST_0] < 0) ? ref_idx[LIST_0] : ref_idx[LIST_0] * 2;
-        *l1_rFrame = (ref_idx[LIST_1] < 0) ? ref_idx[LIST_1] : ref_idx[LIST_1] * 2;
-    } else {
-        *l0_rFrame = (ref_idx[LIST_0] >> 1);
-        *l1_rFrame = (ref_idx[LIST_1] >> 1);
-    }
-}
-
-void macroblock_t::prepare_direct_params(MotionVector* pmvl0, MotionVector* pmvl1, char* l0_rFrame, char* l1_rFrame)
-{
-    slice_t* slice = this->p_Slice;
-    storable_picture* dec_picture = slice->dec_picture;
-
-    PixelPos pix[4];
-    get_neighbors(this, pix, 0, 0, 16);
-
-    char l0_refA, l0_refB, l0_refC;
-    char l1_refA, l1_refB, l1_refC;
-    auto mv_info = dec_picture->mv_info;
-    this->set_direct_references(&pix[0], &l0_refA, &l1_refA, mv_info);
-    this->set_direct_references(&pix[1], &l0_refB, &l1_refB, mv_info);
-    this->set_direct_references(&pix[2], &l0_refC, &l1_refC, mv_info);
-
-    *l0_rFrame = (char) min(min((unsigned char) l0_refA, (unsigned char) l0_refB), (unsigned char) l0_refC);
-    *l1_rFrame = (char) min(min((unsigned char) l1_refA, (unsigned char) l1_refB), (unsigned char) l1_refC);
-
-    if (*l0_rFrame >=0)
-        this->GetMVPredictor(pix, pmvl0, *l0_rFrame, mv_info, LIST_0, 0, 0, 16, 16);
-    if (*l1_rFrame >=0)
-        this->GetMVPredictor(pix, pmvl1, *l1_rFrame, mv_info, LIST_1, 0, 0, 16, 16);
-}
-
 void macroblock_t::get_direct_spatial(bool dir)
 {
     bool has_direct = (this->SubMbType[0] == 0) | (this->SubMbType[1] == 0) |
@@ -535,8 +714,8 @@ void macroblock_t::get_direct_spatial(bool dir)
     storable_picture** list1 = slice->listX[LIST_1 + list_offset];
 
     char l0_rFrame, l1_rFrame;
-    MotionVector pmvl0, pmvl1;
-    this->prepare_direct_params(&pmvl0, &pmvl1, &l0_rFrame, &l1_rFrame);
+    mv_t pmvl0 = this->GetMVPredictor2(l0_rFrame, LIST_0, 0, 0, 16, 16);
+    mv_t pmvl1 = this->GetMVPredictor2(l1_rFrame, LIST_1, 0, 0, 16, 16);
 
     int pred_dir = 0;
     if (l0_rFrame < 0 && l1_rFrame < 0)

@@ -10,6 +10,9 @@
 #include "transform.h"
 
 
+static const mv_t zero_mv = {0, 0};
+
+
 // Table 7-11 mb_t types for I slices
 static const uint8_t mb_types_i_slice[26][5] = {
     { I_NxN  , Intra_NxN  , NA,  0,  0 },
@@ -294,104 +297,6 @@ void interpret_mb_mode(mb_t* mb)
 }
 
 
-static void init_macroblock(mb_t* mb)
-{
-    slice_t* slice = mb->p_Slice;
-    pic_motion_params** mv_info = slice->dec_picture->mv_info; 
-    int slice_no = slice->current_slice_nr;
-
-    for (int y = 0; y < BLOCK_SIZE; y++) {
-        for (int x = 0; x < BLOCK_SIZE; x++) {
-            auto mv = &mv_info[mb->mb.y * 4 + y][mb->mb.x * 4 + x];
-            mv->slice_no = slice_no;
-            for (int list = 0; list < 2; list++) {
-                mv->ref_pic[list] = NULL;
-                mv->ref_idx[list] = -1;
-                mv->mv     [list] = zero_mv;
-            }
-        }
-    }
-}
-
-
-static void skip_macroblock(mb_t* mb)
-{
-    slice_t* slice = mb->p_Slice;
-    pps_t* pps = slice->active_pps;
-    int list_offset = slice->MbaffFrameFlag && mb->mb_field_decoding_flag ?
-                      mb->mbAddrX % 2 ? 4 : 2 : 0;
-
-    int          a_ref_idx = 0;
-    int          b_ref_idx = 0;
-    MotionVector a_mv;
-    MotionVector b_mv;
-
-    PixelPos pos[4];
-    get_neighbors(mb, pos, 0, 0, MB_BLOCK_SIZE);
-    if (pos[0].available) {
-        auto mv_info = &slice->dec_picture->mv_info[pos[0].pos_y][pos[0].pos_x];
-        a_ref_idx = mv_info->ref_idx[LIST_0];
-        a_mv      = mv_info->mv     [LIST_0];
-
-        if (slice->MbaffFrameFlag) {
-            auto mb_a = &slice->mb_data[pos[0].mb_addr];
-            if (mb->mb_field_decoding_flag && !mb_a->mb_field_decoding_flag) {
-                a_ref_idx *= 2;
-                a_mv.mv_y /= 2;
-            }
-            if (!mb->mb_field_decoding_flag && mb_a->mb_field_decoding_flag) {
-                a_ref_idx >>= 1;
-                a_mv.mv_y *= 2;
-            }
-        }
-    }
-    if (pos[1].available) {
-        auto mv_info = &slice->dec_picture->mv_info[pos[1].pos_y][pos[1].pos_x];
-        b_ref_idx = mv_info->ref_idx[LIST_0];
-        b_mv      = mv_info->mv     [LIST_0];
-
-        if (slice->MbaffFrameFlag) {
-            auto mb_b = &slice->mb_data[pos[1].mb_addr];
-            if (mb->mb_field_decoding_flag && !mb_b->mb_field_decoding_flag) {
-                b_ref_idx *= 2;
-                b_mv.mv_y /= 2;
-            }
-            if (!mb->mb_field_decoding_flag && mb_b->mb_field_decoding_flag) {
-                b_ref_idx >>= 1;
-                b_mv.mv_y *= 2;
-            }
-        }
-    }
-
-    mb->CodedBlockPatternLuma   = 0;
-    mb->CodedBlockPatternChroma = 0;
-    if (!pps->entropy_coding_mode_flag)
-        memset(mb->nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
-
-    pic_motion_params** mv_info = slice->dec_picture->mv_info;
-    storable_picture* cur_pic = slice->listX[list_offset][0];
-
-    bool zeroMotionA = !pos[0].available || (a_ref_idx == 0 && a_mv.mv_x == 0 && a_mv.mv_y == 0);
-    bool zeroMotionB = !pos[1].available || (b_ref_idx == 0 && b_mv.mv_x == 0 && b_mv.mv_y == 0);
-    MotionVector pred_mv;
-    if (zeroMotionA || zeroMotionB)
-        pred_mv = zero_mv;
-    else
-        mb->GetMVPredictor(pos, &pred_mv, 0, mv_info, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
-
-    for (int y = 0; y < BLOCK_SIZE; y++) {
-        for (int x = 0; x < BLOCK_SIZE; x++) {
-            auto mv = &mv_info[mb->mb.y * 4 + y][mb->mb.x * 4 + x];
-            mv->ref_pic[LIST_0] = cur_pic;
-            mv->ref_idx[LIST_0] = 0;
-            mv->mv     [LIST_0] = pred_mv;
-        }
-    }
-}
-
-
-
-
 namespace vio  {
 namespace h264 {
 
@@ -538,7 +443,18 @@ void Parser::Macroblock::parse_i_pcm()
     mb.noSubMbPartSizeLessThan8x8Flag = 1;
     mb.transform_size_8x8_flag = 0;
 
-    init_macroblock(&mb);
+    auto mv_info = slice.dec_picture->mv_info; 
+    for (int y = 0; y < 4; ++y) {
+        for (int x = 0; x < 4; ++x) {
+            auto& mv = mv_info[mb.mb.y * 4 + y][mb.mb.x * 4 + x];
+            mv.slice_no = mb.slice_nr;
+            for (int list = 0; list < 2; list++) {
+                mv.ref_pic[list] = NULL;
+                mv.ref_idx[list] = -1;
+                mv.mv     [list] = zero_mv;
+            }
+        }
+    }
 
     if (slice.dp_mode && slice.dpB_NotPresent) {
         for (int y = 0; y < 16; y++) {
@@ -581,21 +497,19 @@ void Parser::Macroblock::parse_i_pcm()
 
 void Parser::Macroblock::parse_skip()
 {
-    pic_motion_params** mv_info = slice.dec_picture->mv_info;
-    int slice_no = slice.current_slice_nr;
-
     mb.transform_size_8x8_flag = 0;
     if (pps.constrained_intra_pred_flag)
         mb.is_intra_block = 0;
 
-    for (int y = 0; y < BLOCK_SIZE; y++) {
-        for (int x = 0; x < BLOCK_SIZE; x++) {
-            auto mv = &mv_info[mb.mb.y * 4 + y][mb.mb.x * 4 + x];
-            mv->slice_no = slice_no;
+    auto mv_info = slice.dec_picture->mv_info;
+    for (int y = 0; y < 4; ++y) {
+        for (int x = 0; x < 4; ++x) {
+            auto& mv = mv_info[mb.mb.y * 4 + y][mb.mb.x * 4 + x];
+            mv.slice_no = mb.slice_nr;
             if (slice.slice_type != B_slice) {
-                mv->ref_pic[LIST_1] = NULL;
-                mv->ref_idx[LIST_1] = -1;
-                mv->mv     [LIST_1] = zero_mv;
+                mv.ref_pic[LIST_1] = NULL;
+                mv.ref_idx[LIST_1] = -1;
+                mv.mv     [LIST_1] = zero_mv;
             }
         }
     }
@@ -619,7 +533,7 @@ void Parser::Macroblock::parse_skip()
             re.residual();
         }
     } else
-        skip_macroblock(&mb);
+        mb.skip_macroblock();
 }
 
 void Parser::Macroblock::parse_intra()
@@ -639,7 +553,19 @@ void Parser::Macroblock::parse_intra()
         }
     }
 
-    init_macroblock(&mb);
+    auto mv_info = slice.dec_picture->mv_info; 
+    for (int y = 0; y < 4; ++y) {
+        for (int x = 0; x < 4; ++x) {
+            auto& mv = mv_info[mb.mb.y * 4 + y][mb.mb.x * 4 + x];
+            mv.slice_no = mb.slice_nr;
+            for (int list = 0; list < 2; list++) {
+                mv.ref_pic[list] = NULL;
+                mv.ref_idx[list] = -1;
+                mv.mv     [list] = zero_mv;
+            }
+        }
+    }
+
     this->parse_ipred_modes();
     this->parse_cbp_qp();
 
@@ -682,7 +608,19 @@ void Parser::Macroblock::parse_inter()
     if (pps.constrained_intra_pred_flag)
         mb.is_intra_block = 0;
 
-    init_macroblock(&mb);
+    auto mv_info = slice.dec_picture->mv_info; 
+    for (int y = 0; y < 4; ++y) {
+        for (int x = 0; x < 4; ++x) {
+            auto& mv = mv_info[mb.mb.y * 4 + y][mb.mb.x * 4 + x];
+            mv.slice_no = mb.slice_nr;
+            for (int list = 0; list < 2; list++) {
+                mv.ref_pic[list] = NULL;
+                mv.ref_idx[list] = -1;
+                mv.mv     [list] = zero_mv;
+            }
+        }
+    }
+
     this->parse_motion_info();
     this->parse_cbp_qp();
 
@@ -915,25 +853,21 @@ void Parser::Macroblock::parse_motion_vectors(int list)
 
 void Parser::Macroblock::parse_motion_vector(int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx)
 {
-    pic_motion_params **mv_info = slice.dec_picture->mv_info;
     //const uint8_t (*sub_mb_types)[5] = mb.p_Slice->slice_type == B_slice ?
     //                                   sub_mb_types_b_slice : sub_mb_types_p_slice;
     //int step_h4 = sub_mb_types[mb.sub_mb_type[kk]][3];
     //int step_v4 = sub_mb_types[mb.sub_mb_type[kk]][4];
 
-    PixelPos block[4]; // neighbor blocks
-    MotionVector pred_mv;
-    get_neighbors(&mb, block, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4);
-    mb.GetMVPredictor(block, &pred_mv, cur_ref_idx, mv_info, list, BLOCK_SIZE * i, BLOCK_SIZE * j, step_h4, step_v4);
-
     int16_t curr_mvd[2];
     for (int k = 0; k < 2; ++k)
         curr_mvd[k] = se.mvd_l(list, i, j, k);
 
-    MotionVector curr_mv;
+    mv_t pred_mv = mb.GetMVPredictor(cur_ref_idx, list, i, j, step_h4, step_v4);
+    mv_t curr_mv;
     curr_mv.mv_x = curr_mvd[0] + pred_mv.mv_x;
     curr_mv.mv_y = curr_mvd[1] + pred_mv.mv_y;
 
+    auto mv_info = slice.dec_picture->mv_info;
     int i4 = mb.mb.x * 4 + i;
     int j4 = mb.mb.y * 4 + j;
     for (int jj = 0; jj < step_v4 / 4; ++jj) {

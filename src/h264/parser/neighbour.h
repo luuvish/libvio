@@ -43,9 +43,6 @@ loc_t operator + (const loc_t& l, const loc_t& r);
 loc_t operator - (const loc_t& l, const loc_t& r);
 
 
-void get_neighbors(mb_t* mb, PixelPos *block, int mb_x, int mb_y, int blockshape_x);
-
-
 struct neighbour_t {
     loc_t get_location(slice_t* slice, int mbAddr, const pos_t& offset={0,0});
     loc_t get_location_c(slice_t* slice, int mbAddr, const pos_t& offset={0,0});

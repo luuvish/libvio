@@ -48,7 +48,6 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
     int i;
     CodingParameters *cps = p_Vid->p_EncodePar[layer_id];
     sps_t *sps = p_Vid->active_sps;
-    BlockPos* PicPos;
     int FrameSizeInMbs = sps->PicWidthInMbs * sps->FrameHeightInMbs;
 
     if (p_Vid->global_init_done[layer_id])
@@ -64,14 +63,6 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
     } else {
         if (((cps->mb_data) = (mb_t *) calloc(FrameSizeInMbs, sizeof(mb_t))) == NULL)
             no_mem_exit("init_global_buffers: cps->mb_data");
-    }
-
-    if (((cps->PicPos) = (BlockPos*) calloc(FrameSizeInMbs + 1, sizeof(BlockPos))) == NULL)
-        no_mem_exit("init_global_buffers: PicPos");
-    PicPos = cps->PicPos;
-    for (i = 0; i < (int) FrameSizeInMbs + 1; i++) {
-        PicPos[i].x = (short) (i % sps->PicWidthInMbs);
-        PicPos[i].y = (short) (i / sps->PicWidthInMbs);
     }
 
     int pic_unit_bitsize_on_disk = max(sps->BitDepthY, sps->BitDepthC) > 8 ? 16 : 8;

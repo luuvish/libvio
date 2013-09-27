@@ -35,7 +35,7 @@ public:
     void deblock(VideoParameters* p_Vid);
 
 private:
-    int  compare_mvs(const MotionVector* mv0, const MotionVector* mv1, int mvlimit);
+    int  compare_mvs(const mv_t* mv0, const mv_t* mv1, int mvlimit);
     int  bs_compare_mvs(const pic_motion_params* mv_info_p, const pic_motion_params* mv_info_q, int mvlimit);
 
     void strength_vertical  (mb_t* MbQ, int edge);

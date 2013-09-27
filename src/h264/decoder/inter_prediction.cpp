@@ -437,7 +437,7 @@ static void get_block_chroma(storable_picture *curr_ref, int x_pos, int y_pos,
 }
 
 
-static void check_motion_vector_range(const MotionVector *mv, slice_t *pSlice)
+static void check_motion_vector_range(const mv_t *mv, slice_t *pSlice)
 {  
     if (mv->mv_x > 8191 || mv->mv_x < -8192)
         fprintf(stderr,"WARNING! Horizontal motion vector %d is out of allowed range {-8192, 8191} in picture %d, macroblock %d\n", mv->mv_x, pSlice->p_Vid->number, pSlice->current_mb_nr);
@@ -491,7 +491,7 @@ void InterPrediction::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, int 
     imgpel **tmp_block_l2 = currSlice->tmp_block_l2;
     imgpel **tmp_block_l3 = currSlice->tmp_block_l3;
 
-    MotionVector *l0_mv_array, *l1_mv_array;
+    mv_t *l0_mv_array, *l1_mv_array;
     short l0_refframe, l1_refframe;
     storable_picture *list0, *list1;
 

@@ -1,13 +1,6 @@
 #ifndef _MACROBLOCK_H_
 #define _MACROBLOCK_H_
 
-#include "global.h"
-#include "dpb.h"
-
-struct slice_t;
-struct video_par;
-struct inp_par;
-
 
 enum {
     PSKIP        =  0,
@@ -76,7 +69,11 @@ enum {
 struct macroblock_t {
     slice_t*    p_Slice;
     int         mbAddrX;
-    BlockPos    mb;
+
+    struct {
+        short x;
+        short y;
+    } mb;
 
     bool        is_intra_block;
 
@@ -92,10 +89,10 @@ struct macroblock_t {
     int8_t      mb_qp_delta;
 
     uint8_t     intra_chroma_pred_mode;
-    uint8_t     ref_idx_l0 [4];
-    uint8_t     ref_idx_l1 [4];
-    int16_t     mvd_l0     [4][4][2];
-    int16_t     mvd_l1     [4][4][2];
+    uint8_t     ref_idx_l0[4];
+    uint8_t     ref_idx_l1[4];
+    int16_t     mvd_l0    [4][4][2];
+    int16_t     mvd_l1    [4][4][2];
 
     uint8_t     SubMbType    [4];
     uint8_t     SubMbPredMode[4];
@@ -125,22 +122,14 @@ struct macroblock_t {
     void        init(slice_t *slice);
     bool        close(slice_t *slice);
 
-    void        GetMotionVectorPredictorMBAFF(PixelPos* block, MotionVector* pmv,
-                                      short ref_frame, pic_motion_params** mv_info,
-                                      int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
-    void        GetMotionVectorPredictorNormal(PixelPos* block, MotionVector* pmv,
-                                      short ref_frame, pic_motion_params** mv_info,
-                                      int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
-    void        GetMVPredictor       (PixelPos* block, MotionVector* pmv,
-                                      short ref_frame, pic_motion_params** mv_info,
-                                      int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
+    mv_t        GetMVPredictor(char ref_frame, int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
+    mv_t        GetMVPredictor2(char& ref_frame, int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
+    void        skip_macroblock();
 
-    int         get_colocated_info   (storable_picture* list1, int i, int j);
-    void        set_direct_references(const PixelPos* pix, char* l0_rFrame, char* l1_rFrame, pic_motion_params** mv_info);
-    void        prepare_direct_params(MotionVector* pmvl0, MotionVector* pmvl1, char* l0_rFrame, char* l1_rFrame);
-    void        get_direct_temporal  (bool dir=true);
-    void        get_direct_spatial   (bool dir=true);
-    int         get_inter8x8         (int block8x8);
+    int         get_colocated_info (storable_picture* list1, int i, int j);
+    void        get_direct_temporal(bool dir=true);
+    void        get_direct_spatial (bool dir=true);
+    int         get_inter8x8       (int block8x8);
 
     void        update_qp(int qp);
 };

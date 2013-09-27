@@ -126,12 +126,6 @@ typedef enum
   NUM_SLICE_TYPES = 5
 } SliceType;
 
-typedef enum
-{
-  IS_LUMA = 0,
-  IS_CHROMA = 1
-} Component_Type;
-
 
 #define ET_SIZE 300      //!< size of error text buffer
 extern char errortext[ET_SIZE]; //!< buffer for error message for exit with error()
@@ -152,27 +146,14 @@ typedef enum {
     CbComp = 2
 } Color_Component;
 
-typedef struct pix_pos {
-    int   available;
-    int   mb_addr;
-    short x;
-    short y;
-    short pos_x;
-    short pos_y;
-} PixelPos;
-
 // Motion Vector structure
-typedef struct {
-    short mv_x;
-    short mv_y;
-} MotionVector;
+struct motion_vector_t {
+    int16_t mv_x;
+    int16_t mv_y;
+};
 
-static const MotionVector zero_mv = {0, 0};
+using mv_t = motion_vector_t;
 
-typedef struct {
-    short x;
-    short y;
-} BlockPos;
 
 /***********************************************************************
  * N e w   D a t a    t y p e s   f o r    T M L
@@ -207,7 +188,6 @@ typedef struct coding_par {
 
     struct macroblock_t *mb_data;               //!< array containing all MBs of a whole frame
     struct macroblock_t *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
-    BlockPos *PicPos;  
 } CodingParameters;
 
 struct decoded_picture_buffer_t;
@@ -370,7 +350,6 @@ typedef struct video_par {
     // global picture format dependent buffers, memory allocation in decod.c
     struct macroblock_t *mb_data;               //!< array containing all MBs of a whole frame
     struct macroblock_t *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
-    BlockPos *PicPos;
 
 
   // picture error concealment

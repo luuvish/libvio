@@ -252,11 +252,6 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
       cps->mb_data = NULL;
     }
   }
-  if(cps->PicPos)
-  {
-    free(cps->PicPos);
-    cps->PicPos = NULL;
-  }
 
   p_Vid->global_init_done[layer_id] = 0;
 }

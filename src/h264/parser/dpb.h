@@ -12,7 +12,7 @@ struct pic_motion_params_old {
 
 struct pic_motion_params {
     storable_picture* ref_pic[2];  //!< referrence picture pointer
-    MotionVector      mv[2];       //!< motion vector  
+    mv_t      mv[2];       //!< motion vector  
     char              ref_idx[2];  //!< reference picture   [list][subblock_y][subblock_x]
     byte              slice_no;
 };

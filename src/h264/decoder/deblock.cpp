@@ -33,7 +33,7 @@ namespace vio  {
 namespace h264 {
 
 
-inline int Deblock::compare_mvs(const MotionVector* mv0, const MotionVector* mv1, int mvlimit)
+inline int Deblock::compare_mvs(const mv_t* mv0, const mv_t* mv1, int mvlimit)
 {
     return (abs(mv0->mv_x - mv1->mv_x) >= 4) | (abs(mv0->mv_y - mv1->mv_y) >= mvlimit);
 }
