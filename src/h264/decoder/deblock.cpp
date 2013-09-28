@@ -532,7 +532,7 @@ void Deblock::filter_horizontal(mb_t* MbQ)
 void Deblock::deblock_pic(VideoParameters* p_Vid)
 {
     slice_t* slice = p_Vid->ppSliceList[0];
-    mb_t* mb_data = slice->mb_data;
+    mb_t* mb_data = slice->neighbour.mb_data;
 
     for (int mbAddr = 0; mbAddr < slice->PicSizeInMbs; ++mbAddr) {
         mb_t* mb = &mb_data[mbAddr];

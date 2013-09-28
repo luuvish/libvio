@@ -25,25 +25,6 @@ enum {
 };
 
 
-static inline int imedian(int a, int b, int c)
-{
-    if (a > b) { // a > b
-        if (b > c)
-            return b; // a > b > c
-        else if (a > c)
-            return c; // a > c > b
-        else
-            return a; // c > a > b
-    } else { // b > a
-        if (a > c)
-            return a; // b > a > c
-        else if (b > c)
-            return c; // b > c > a
-        else
-            return b; // c > b > a
-    }
-}
-
 mv_t Parser::Macroblock::GetMVPredictor(char ref_frame, int list, int i, int j, int step_h4, int step_v4)
 {
     nb_t nbA = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {i * 4 - 1      , j * 4    });
@@ -154,8 +135,8 @@ mv_t Parser::Macroblock::GetMVPredictor(char ref_frame, int list, int i, int j, 
         if (!(nbB.mb || nbC.mb))
             pred_mv = mvA;
         else {
-            pred_mv.mv_x = imedian(mvA.mv_x, mvB.mv_x, mvC.mv_x);
-            pred_mv.mv_y = imedian(mvA.mv_y, mvB.mv_y, mvC.mv_y);
+            pred_mv.mv_x = median(mvA.mv_x, mvB.mv_x, mvC.mv_x);
+            pred_mv.mv_y = median(mvA.mv_y, mvB.mv_y, mvC.mv_y);
         }
         break;
     case MVPRED_L:
@@ -286,8 +267,8 @@ mv_t Parser::Macroblock::GetMVPredictor2(char& ref_frame, int list, int i, int j
         if (!(nbB.mb || nbC.mb))
             pred_mv = mvA;
         else {
-            pred_mv.mv_x = imedian(mvA.mv_x, mvB.mv_x, mvC.mv_x);
-            pred_mv.mv_y = imedian(mvA.mv_y, mvB.mv_y, mvC.mv_y);
+            pred_mv.mv_x = median(mvA.mv_x, mvB.mv_x, mvC.mv_x);
+            pred_mv.mv_y = median(mvA.mv_y, mvB.mv_y, mvC.mv_y);
         }
         break;
     case MVPRED_L:
@@ -429,8 +410,8 @@ void Parser::Macroblock::skip_macroblock()
             if (!(nbB.mb || nbC.mb))
                 pred_mv = mvA;
             else {
-                pred_mv.mv_x = imedian(mvA.mv_x, mvB.mv_x, mvC.mv_x);
-                pred_mv.mv_y = imedian(mvA.mv_y, mvB.mv_y, mvC.mv_y);
+                pred_mv.mv_x = median(mvA.mv_x, mvB.mv_x, mvC.mv_x);
+                pred_mv.mv_y = median(mvA.mv_y, mvB.mv_y, mvC.mv_y);
             }
             break;
         case MVPRED_L:

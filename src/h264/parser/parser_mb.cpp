@@ -370,7 +370,7 @@ void Parser::Macroblock::parse()
             if (pps.entropy_coding_mode_flag) {
                 if (mb.mb_skip_flag) {
                     //get next MB
-                    mb_t& nextMb = slice.mb_data[mb.mbAddrX + 1];
+                    mb_t& nextMb = slice.neighbour.mb_data[mb.mbAddrX + 1];
                     nextMb.p_Slice  = &slice;
                     nextMb.slice_nr = mb.slice_nr;
                     nextMb.mbAddrX  = mb.mbAddrX + 1;
@@ -407,7 +407,7 @@ void Parser::Macroblock::parse()
 
     if (moreDataFlag) {
         bool prevMbSkipped = (CurrMbAddr % 2 == 1) ?
-            slice.mb_data[CurrMbAddr - 1].mb_skip_flag : 0;
+            slice.neighbour.mb_data[CurrMbAddr - 1].mb_skip_flag : 0;
         if (slice.MbaffFrameFlag &&
             (CurrMbAddr % 2 == 0 || (CurrMbAddr % 2 == 1 && prevMbSkipped))) {
             if (slice.parser.prescan_mb_field_decoding_read) {

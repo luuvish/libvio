@@ -31,12 +31,33 @@ namespace h264 {
 
 class InterPrediction {
 public:
-    void motion_compensation(mb_t* mb);
+	InterPrediction();
+	~InterPrediction();
 
-    void get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y, imgpel **block,
+    void        fill_wp_params(slice_t *currSlice);
+
+    void        motion_compensation(mb_t* mb);
+
+    void        get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y, imgpel **block,
                         int shift_x,int maxold_x,int maxold_y, ColorPlane pl, mb_t* mb);
 
-    void perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y);
+    void        perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y);
+
+    void        set_chroma_vector(mb_t& mb);
+
+protected:
+	void        check_motion_vector_range(mb_t& mb, const mv_t *mv, slice_t *pSlice);
+	int         CheckVertMV(mb_t *currMB, int vec_y, int block_size_y);
+
+private:
+    char        chroma_vector_adjustment[6][32];
+    int         max_mb_vmv_r;
+
+    int   **    tmp_res;
+    imgpel**    tmp_block_l0;
+    imgpel**    tmp_block_l1;
+    imgpel**    tmp_block_l2;
+    imgpel**    tmp_block_l3;
 };
 
 

@@ -606,11 +606,9 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   sps_t *sps = p_Vid->active_sps;
   int ref_frame = max (mv[2], 0); // !!KS: quick fix, we sometimes seem to get negative ref_pic here, so restrict to zero and above
   int mb_nr = y/16*(sps->PicWidthInMbs)+x/16;
-  int **tmp_res = NULL;
   
   mb_t *currMB = &p_Vid->mb_data[mb_nr];   // intialization code deleted, see below, StW  
   currSlice = currMB->p_Slice;
-  tmp_res = currSlice->tmp_res;
 
     int mb_cr_size_x = sps->chroma_format_idc == YUV400 ? 0 :
                        sps->chroma_format_idc == YUV444 ? 16 : 8;

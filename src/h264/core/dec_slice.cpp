@@ -20,106 +20,6 @@ using vio::h264::mb_t;
 
 
 
-static void fill_wp_params(slice_t *currSlice)
-{
-    if (currSlice->slice_type == B_SLICE) {
-        int i, j, k;
-        int comp;
-        int log_weight_denom;
-        int tb, td;  
-        int tx,DistScaleFactor;
-
-        int max_l0_ref = currSlice->num_ref_idx_l0_active_minus1 + 1;
-        int max_l1_ref = currSlice->num_ref_idx_l1_active_minus1 + 1;
-
-        if (currSlice->active_pps->weighted_bipred_idc == 2) {
-            currSlice->luma_log2_weight_denom = 5;
-            currSlice->chroma_log2_weight_denom = 5;
-
-            for (i = 0; i < MAX_REFERENCE_PICTURES; ++i) {
-                for (comp = 0; comp < 3; ++comp) {
-                    log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
-                    currSlice->wp_weight[0][i][comp] = 1 << log_weight_denom;
-                    currSlice->wp_weight[1][i][comp] = 1 << log_weight_denom;
-                    currSlice->wp_offset[0][i][comp] = 0;
-                    currSlice->wp_offset[1][i][comp] = 0;
-                }
-            }
-        }
-
-        for (i = 0; i < max_l0_ref; ++i) {
-            for (j = 0; j < max_l1_ref; ++j) {
-                for (comp = 0; comp < 3; ++comp) {
-                    log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
-                    if (currSlice->active_pps->weighted_bipred_idc == 1) {
-                        currSlice->wbp_weight[0][i][j][comp] =  currSlice->wp_weight[0][i][comp];
-                        currSlice->wbp_weight[1][i][j][comp] =  currSlice->wp_weight[1][j][comp];
-                    } else if (currSlice->active_pps->weighted_bipred_idc == 2) {
-                        td = clip3(-128,127,currSlice->listX[LIST_1][j]->poc - currSlice->listX[LIST_0][i]->poc);
-                        if (td == 0 || currSlice->listX[LIST_1][j]->is_long_term || currSlice->listX[LIST_0][i]->is_long_term) {
-                            currSlice->wbp_weight[0][i][j][comp] = 32;
-                            currSlice->wbp_weight[1][i][j][comp] = 32;
-                        } else {
-                            tb = clip3(-128,127,currSlice->ThisPOC - currSlice->listX[LIST_0][i]->poc);
-
-                            tx = (16384 + abs(td/2))/td;
-                            DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);
-
-                            currSlice->wbp_weight[1][i][j][comp] = DistScaleFactor >> 2;
-                            currSlice->wbp_weight[0][i][j][comp] = 64 - currSlice->wbp_weight[1][i][j][comp];
-                            if (currSlice->wbp_weight[1][i][j][comp] < -64 || currSlice->wbp_weight[1][i][j][comp] > 128) {
-                                currSlice->wbp_weight[0][i][j][comp] = 32;
-                                currSlice->wbp_weight[1][i][j][comp] = 32;
-                                currSlice->wp_offset[0][i][comp] = 0;
-                                currSlice->wp_offset[1][j][comp] = 0;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (currSlice->MbaffFrameFlag) {
-            for (i = 0; i < 2 * max_l0_ref; ++i) {
-                for (j = 0; j < 2 * max_l1_ref; ++j) {
-                    for (comp = 0; comp < 3; ++comp) {
-                        for (k = 2; k < 6; k += 2) {
-                            currSlice->wp_offset[k+0][i][comp] = currSlice->wp_offset[0][i>>1][comp];
-                            currSlice->wp_offset[k+1][j][comp] = currSlice->wp_offset[1][j>>1][comp];
-
-                            log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
-                            if (currSlice->active_pps->weighted_bipred_idc == 1) {
-                                currSlice->wbp_weight[k+0][i][j][comp] =  currSlice->wp_weight[0][i>>1][comp];
-                                currSlice->wbp_weight[k+1][i][j][comp] =  currSlice->wp_weight[1][j>>1][comp];
-                            } else if (currSlice->active_pps->weighted_bipred_idc == 2) {
-                                td = clip3(-128, 127, currSlice->listX[k+LIST_1][j]->poc - currSlice->listX[k+LIST_0][i]->poc);
-                                if (td == 0 || currSlice->listX[k+LIST_1][j]->is_long_term || currSlice->listX[k+LIST_0][i]->is_long_term) {
-                                    currSlice->wbp_weight[k+0][i][j][comp] =   32;
-                                    currSlice->wbp_weight[k+1][i][j][comp] =   32;
-                                } else {
-                                    tb = clip3(-128,127,((k==2)?currSlice->TopFieldOrderCnt:currSlice->BottomFieldOrderCnt) - currSlice->listX[k+LIST_0][i]->poc);
-
-                                    tx = (16384 + abs(td/2))/td;
-                                    DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);
-
-                                    currSlice->wbp_weight[k+1][i][j][comp] = DistScaleFactor >> 2;
-                                    currSlice->wbp_weight[k+0][i][j][comp] = 64 - currSlice->wbp_weight[k+1][i][j][comp];
-                                    if (currSlice->wbp_weight[k+1][i][j][comp] < -64 || currSlice->wbp_weight[k+1][i][j][comp] > 128) {
-                                        currSlice->wbp_weight[k+1][i][j][comp] = 32;
-                                        currSlice->wbp_weight[k+0][i][j][comp] = 32;
-                                        currSlice->wp_offset[k+0][i][comp] = 0;
-                                        currSlice->wp_offset[k+1][j][comp] = 0;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 static void compute_colocated(slice_t *currSlice, storable_picture **listX[6])
 {
     int i, j;
@@ -242,7 +142,7 @@ bool slice_t::init()
 
     if ((this->active_pps->weighted_bipred_idc > 0 && this->slice_type == B_SLICE) ||
         (this->active_pps->weighted_pred_flag && this->slice_type != I_SLICE))
-        fill_wp_params(this);
+        this->decoder.fill_wp_params(*this);
 
 
     if (current_header != SOP && current_header != SOS)
@@ -252,7 +152,7 @@ bool slice_t::init()
         p_Vid->mb_data     = p_Vid->mb_data_JV    [this->colour_plane_id];
         p_Vid->dec_picture = p_Vid->dec_picture_JV[this->colour_plane_id];
     }
-    this->mb_data     = p_Vid->mb_data;
+    this->neighbour.mb_data = p_Vid->mb_data;
     this->dec_picture = p_Vid->dec_picture;
 
     if (this->slice_type == B_SLICE)
@@ -269,24 +169,24 @@ void slice_t::decode()
     bool end_of_slice = 0;
 
     while (!end_of_slice) { // loop over macroblocks
-        mb_t *currMB = &this->mb_data[this->parser.current_mb_nr]; 
+        mb_t& mb = this->neighbour.mb_data[this->parser.current_mb_nr]; 
 
         // Initializes the current macroblock
-        currMB->init(*this);
+        mb.init(*this);
         // Get the syntax elements from the NAL
-        this->parser.parse(*currMB);
-        this->decoder.decode(*currMB);
+        this->parser.parse(mb);
+        this->decoder.decode(mb);
 
-        if (this->MbaffFrameFlag && currMB->mb_field_decoding_flag) {
+        if (this->MbaffFrameFlag && mb.mb_field_decoding_flag) {
             this->num_ref_idx_l0_active_minus1 = ((this->num_ref_idx_l0_active_minus1 + 1) >> 1) - 1;
             this->num_ref_idx_l1_active_minus1 = ((this->num_ref_idx_l1_active_minus1 + 1) >> 1) - 1;
         }
 
 #if (DISABLE_ERC == 0)
-        ercWriteMBMODEandMV(currMB);
+        ercWriteMBMODEandMV(&mb);
 #endif
 
-        end_of_slice = currMB->close(*this);
+        end_of_slice = mb.close(*this);
 
         ++this->num_dec_mb;
     }

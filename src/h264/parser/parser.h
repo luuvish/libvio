@@ -49,6 +49,7 @@ public:
     void        update_qp(mb_t& mb, int qp);
     int         get_inter8x8(mb_t& mb, int block8x8);
 
+public:
     uint32_t    current_mb_nr;
 
     int         dp_mode;

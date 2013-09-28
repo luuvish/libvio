@@ -41,6 +41,7 @@ public:
     ~Decoder();
 
     void        assign_quant_params(slice_t& slice);
+    void        fill_wp_params(slice_t& slice);
 
     void        decode(mb_t& mb);
 
@@ -60,7 +61,6 @@ public:
                                int shift_x,int maxold_x,int maxold_y, ColorPlane pl, mb_t* mb);
 
 protected:
-    void        set_chroma_vector   (mb_t& mb);
     void        decode_one_component(mb_t& mb, ColorPlane curr_plane);
     void        mb_pred_ipcm        (mb_t& mb);
     void        mb_pred_intra       (mb_t& mb, ColorPlane curr_plane);

@@ -66,7 +66,7 @@ void macroblock_t::init(slice_t& slice)
     mb.mb_field_decoding_flag = 0;
     if (slice.MbaffFrameFlag) {
         bool prevMbSkipped = (mb.mbAddrX % 2 == 1) ?
-            slice.mb_data[mb.mbAddrX - 1].mb_skip_flag : 0;
+            slice.neighbour.mb_data[mb.mbAddrX - 1].mb_skip_flag : 0;
         if (mb.mbAddrX % 2 == 0 || prevMbSkipped) {
             int topMbAddr = mb.mbAddrX & ~1;
 
@@ -80,7 +80,7 @@ void macroblock_t::init(slice_t& slice)
             else if (mbB)
                 mb.mb_field_decoding_flag = mbB->mb_field_decoding_flag;
         } else
-            mb.mb_field_decoding_flag = slice.mb_data[mb.mbAddrX - 1].mb_field_decoding_flag;
+            mb.mb_field_decoding_flag = slice.neighbour.mb_data[mb.mbAddrX - 1].mb_field_decoding_flag;
     }
 }
 

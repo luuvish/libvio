@@ -67,12 +67,18 @@ void Decoder::assign_quant_params(slice_t& slice)
     this->transform->assign_quant_params(&slice);
 }
 
+void Decoder::fill_wp_params(slice_t& slice)
+{
+    this->inter_prediction->fill_wp_params(&slice);
+}
+
+
 void Decoder::decode(mb_t& mb)
 {
     slice_t& slice = *mb.p_Slice;
     const sps_t& sps = *slice.active_sps;
 
-    this->set_chroma_vector(mb);
+    this->inter_prediction->set_chroma_vector(mb);
 
     this->decode_one_component(mb, PLANE_Y);
 
@@ -121,78 +127,6 @@ void Decoder::get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, i
 {
     this->inter_prediction->get_block_luma(curr_ref, x_pos, y_pos, block_size_x, block_size_y, block,
                                            shift_x, maxold_x, maxold_y, pl, mb);
-}
-
-void Decoder::set_chroma_vector(mb_t& mb)
-{
-    slice_t& slice = *mb.p_Slice;
-
-    VideoParameters* p_Vid = slice.p_Vid;
-
-    if (!slice.MbaffFrameFlag) {
-        if (!slice.field_pic_flag) {
-            for (int l = LIST_0; l <= LIST_1; l++) {
-                for (int k = 0; k < slice.listXsize[l]; k++)
-                    slice.chroma_vector_adjustment[l][k] = 0; 
-            }
-        } else if (!slice.bottom_field_flag) {
-            for (int l = LIST_0; l <= LIST_1; l++) {
-                for (int k = 0; k < slice.listXsize[l]; k++) {
-                    if (p_Vid->structure != slice.listX[l][k]->structure)
-                        slice.chroma_vector_adjustment[l][k] = -2; 
-                    else
-                        slice.chroma_vector_adjustment[l][k] = 0; 
-                }
-            }
-        } else {
-            for (int l = LIST_0; l <= LIST_1; l++) {
-                for (int k = 0; k < slice.listXsize[l]; k++) {
-                    if (p_Vid->structure != slice.listX[l][k]->structure)
-                        slice.chroma_vector_adjustment[l][k] = 2; 
-                    else
-                        slice.chroma_vector_adjustment[l][k] = 0; 
-                }
-            }
-        }
-    } else {
-        int mb_nr = (mb.mbAddrX & 0x01);
-
-        //////////////////////////
-        // find out the correct list offsets
-        if (mb.mb_field_decoding_flag) {
-            int list_offset = slice.MbaffFrameFlag && mb.mb_field_decoding_flag ?
-                              mb.mbAddrX % 2 ? 4 : 2 : 0;
-
-            for (int l = LIST_0 + list_offset; l <= LIST_1 + list_offset; l++) {
-                for (int k = 0; k < slice.listXsize[l]; k++) {
-                    if (mb_nr == 0 && slice.listX[l][k]->structure == BOTTOM_FIELD)
-                        slice.chroma_vector_adjustment[l][k] = -2; 
-                    else if (mb_nr == 1 && slice.listX[l][k]->structure == TOP_FIELD)
-                        slice.chroma_vector_adjustment[l][k] = 2; 
-                    else
-                        slice.chroma_vector_adjustment[l][k] = 0; 
-                }
-            }
-        } else {
-            for (int l = LIST_0; l <= LIST_1; l++) {
-                for(int k = 0; k < slice.listXsize[l]; k++)
-                    slice.chroma_vector_adjustment[l][k] = 0; 
-            }
-        }
-    }
-
-    int max_vmv_r;
-    const sps_t& sps = *slice.active_sps;
-    if (sps.level_idc <= 10)
-        max_vmv_r = 64 * 4;
-    else if (sps.level_idc <= 20)
-        max_vmv_r = 128 * 4;
-    else if (sps.level_idc <= 30)
-        max_vmv_r = 256 * 4;
-    else
-        max_vmv_r = 512 * 4; // 512 pixels in quarter pixels
-
-    slice.max_mb_vmv_r = slice.field_pic_flag || mb.mb_field_decoding_flag ? max_vmv_r >> 1 : max_vmv_r;
 }
 
 void Decoder::decode_one_component(mb_t& mb, ColorPlane curr_plane)

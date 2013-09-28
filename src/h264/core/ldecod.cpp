@@ -531,12 +531,6 @@ static void FreeDecPicList(DecodedPicList *pDecPicList)
 
 static void free_slice(slice_t *currSlice)
 {
-    free_mem2Dint(currSlice->tmp_res);
-    free_mem2Dpel(currSlice->tmp_block_l0);
-    free_mem2Dpel(currSlice->tmp_block_l1);
-    free_mem2Dpel(currSlice->tmp_block_l2);
-    free_mem2Dpel(currSlice->tmp_block_l3);
-
     free_mem3Dpel(currSlice->mb_pred);
 
     free_mem3Dint(currSlice->wp_weight );

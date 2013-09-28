@@ -179,12 +179,6 @@ struct slice_t {
 
     imgpel***   mb_pred; // IntraPrediction()
 
-    imgpel**    tmp_block_l0; // InterPrediction()
-    imgpel**    tmp_block_l1; // InterPrediction()
-    int   **    tmp_res;
-    imgpel**    tmp_block_l2; // InterPrediction()
-    imgpel**    tmp_block_l3; // InterPrediction()
-
     Neighbour   neighbour;
     Parser      parser;
     Decoder     decoder;
@@ -198,12 +192,9 @@ struct slice_t {
 #endif
 
     // for signalling to the neighbour logic that this is a deblocker call
-    int           max_mb_vmv_r; //!< maximum vertical motion vector range in luma quarter pixel units for the current level_idc
 
     int           erc_mvperMB;
-    mb_t*             mb_data;
     storable_picture* dec_picture;
-    char              chroma_vector_adjustment[6][32];
 
     bool        init();
     void        decode();

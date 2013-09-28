@@ -32,6 +32,25 @@ namespace vio  {
 namespace h264 {
 
 
+InterPrediction::InterPrediction()
+{
+    get_mem2Dint(&this->tmp_res, 16 + 5, 16 + 5);
+    get_mem2Dpel(&this->tmp_block_l0, 16, 16);
+    get_mem2Dpel(&this->tmp_block_l1, 16, 16);
+    get_mem2Dpel(&this->tmp_block_l2, 16, 16);
+    get_mem2Dpel(&this->tmp_block_l3, 16, 16);
+}
+
+InterPrediction::~InterPrediction()
+{
+    free_mem2Dint(this->tmp_res);
+    free_mem2Dpel(this->tmp_block_l0);
+    free_mem2Dpel(this->tmp_block_l1);
+    free_mem2Dpel(this->tmp_block_l2);
+    free_mem2Dpel(this->tmp_block_l3);
+}
+
+
 static inline int RSHIFT_RND(int x, int a)
 {
     return (a > 0) ? ((x + (1 << (a-1) )) >> a) : (x << (-a));
@@ -314,7 +333,7 @@ void InterPrediction::get_block_luma(storable_picture *curr_ref, int x_pos, int 
 {
     slice_t* slice = currMB->p_Slice;
     sps_t* sps = slice->active_sps;
-    int **tmp_res = slice->tmp_res;
+    int **tmp_res = this->tmp_res;
     int max_imgpel_value = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
     imgpel no_ref_value = (imgpel) (pl ? (1 << (sps->BitDepthC - 1)) : (1 << (sps->BitDepthY - 1)));
 
@@ -437,18 +456,18 @@ static void get_block_chroma(storable_picture *curr_ref, int x_pos, int y_pos,
 }
 
 
-static void check_motion_vector_range(mb_t& mb, const mv_t *mv, slice_t *pSlice)
+void InterPrediction::check_motion_vector_range(mb_t& mb, const mv_t *mv, slice_t *pSlice)
 {
     if (mv->mv_x > 8191 || mv->mv_x < -8192)
         fprintf(stderr, "WARNING! Horizontal motion vector %d is out of allowed range {-8192, 8191} in picture %d, macroblock %d\n",
                 mv->mv_x, pSlice->p_Vid->number, mb.mbAddrX);
-    if ((mv->mv_y > pSlice->max_mb_vmv_r - 1) || (mv->mv_y < -pSlice->max_mb_vmv_r))
+    if ((mv->mv_y > this->max_mb_vmv_r - 1) || (mv->mv_y < -this->max_mb_vmv_r))
         fprintf(stderr, "WARNING! Vertical motion vector %d is out of allowed range {%d, %d} in picture %d, macroblock %d\n",
-                mv->mv_y, -pSlice->max_mb_vmv_r, pSlice->max_mb_vmv_r - 1,
+                mv->mv_y, -this->max_mb_vmv_r, this->max_mb_vmv_r - 1,
                 pSlice->p_Vid->number, mb.mbAddrX);
 }
 
-static int CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
+int InterPrediction::CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
 {
     storable_picture *dec_picture = currMB->p_Slice->dec_picture;
     int y_pos = vec_y >> 2;
@@ -489,10 +508,10 @@ void InterPrediction::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, int 
     int shift_x  = dec_picture->iLumaStride;
     int maxold_x = dec_picture->size_x_m1;
     int maxold_y = (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;   
-    imgpel **tmp_block_l0 = currSlice->tmp_block_l0;
-    imgpel **tmp_block_l1 = currSlice->tmp_block_l1;
-    imgpel **tmp_block_l2 = currSlice->tmp_block_l2;
-    imgpel **tmp_block_l3 = currSlice->tmp_block_l3;
+    imgpel **tmp_block_l0 = this->tmp_block_l0;
+    imgpel **tmp_block_l1 = this->tmp_block_l1;
+    imgpel **tmp_block_l2 = this->tmp_block_l2;
+    imgpel **tmp_block_l3 = this->tmp_block_l3;
 
     mv_t *l0_mv_array, *l1_mv_array;
     short l0_refframe, l1_refframe;
@@ -582,13 +601,13 @@ void InterPrediction::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, int 
 
         if (pred_dir != 2) {
             if (chroma_format_idc == 1)
-                vec1_y_cr = vec1_y + currSlice->chroma_vector_adjustment[pred_dir + list_offset][l0_refframe]; 
+                vec1_y_cr = vec1_y + this->chroma_vector_adjustment[pred_dir + list_offset][l0_refframe]; 
             else
                 vec1_y_cr = vec1_y;
         } else {
             if (chroma_format_idc == 1) {
-                vec1_y_cr = vec1_y + currSlice->chroma_vector_adjustment[LIST_0 + list_offset][l0_refframe]; 
-                vec2_y_cr = vec2_y + currSlice->chroma_vector_adjustment[LIST_1 + list_offset][l1_refframe]; 
+                vec1_y_cr = vec1_y + this->chroma_vector_adjustment[LIST_0 + list_offset][l0_refframe]; 
+                vec2_y_cr = vec2_y + this->chroma_vector_adjustment[LIST_1 + list_offset][l1_refframe]; 
             } else {
                 vec1_y_cr = vec1_y;
                 vec2_y_cr = vec2_y;
@@ -617,6 +636,178 @@ void InterPrediction::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, int 
             bi_prediction(&currSlice->mb_pred[2][joff_cr][ioff_cr],
                           tmp_block_l2[0], tmp_block_l3[0], block_size_y_cr, block_size_x_cr,
                           currMB, (ColorPlane)2, l0_refframe, l1_refframe);
+        }
+    }
+}
+
+void InterPrediction::set_chroma_vector(mb_t& mb)
+{
+    slice_t& slice = *mb.p_Slice;
+
+    VideoParameters* p_Vid = slice.p_Vid;
+
+    if (!slice.MbaffFrameFlag) {
+        if (!slice.field_pic_flag) {
+            for (int l = LIST_0; l <= LIST_1; l++) {
+                for (int k = 0; k < slice.listXsize[l]; k++)
+                    this->chroma_vector_adjustment[l][k] = 0; 
+            }
+        } else if (!slice.bottom_field_flag) {
+            for (int l = LIST_0; l <= LIST_1; l++) {
+                for (int k = 0; k < slice.listXsize[l]; k++) {
+                    if (p_Vid->structure != slice.listX[l][k]->structure)
+                        this->chroma_vector_adjustment[l][k] = -2; 
+                    else
+                        this->chroma_vector_adjustment[l][k] = 0; 
+                }
+            }
+        } else {
+            for (int l = LIST_0; l <= LIST_1; l++) {
+                for (int k = 0; k < slice.listXsize[l]; k++) {
+                    if (p_Vid->structure != slice.listX[l][k]->structure)
+                        this->chroma_vector_adjustment[l][k] = 2; 
+                    else
+                        this->chroma_vector_adjustment[l][k] = 0; 
+                }
+            }
+        }
+    } else {
+        int mb_nr = (mb.mbAddrX & 0x01);
+
+        //////////////////////////
+        // find out the correct list offsets
+        if (mb.mb_field_decoding_flag) {
+            int list_offset = slice.MbaffFrameFlag && mb.mb_field_decoding_flag ?
+                              mb.mbAddrX % 2 ? 4 : 2 : 0;
+
+            for (int l = LIST_0 + list_offset; l <= LIST_1 + list_offset; l++) {
+                for (int k = 0; k < slice.listXsize[l]; k++) {
+                    if (mb_nr == 0 && slice.listX[l][k]->structure == BOTTOM_FIELD)
+                        this->chroma_vector_adjustment[l][k] = -2; 
+                    else if (mb_nr == 1 && slice.listX[l][k]->structure == TOP_FIELD)
+                        this->chroma_vector_adjustment[l][k] = 2; 
+                    else
+                        this->chroma_vector_adjustment[l][k] = 0; 
+                }
+            }
+        } else {
+            for (int l = LIST_0; l <= LIST_1; l++) {
+                for(int k = 0; k < slice.listXsize[l]; k++)
+                    this->chroma_vector_adjustment[l][k] = 0; 
+            }
+        }
+    }
+
+    int max_vmv_r;
+    const sps_t& sps = *slice.active_sps;
+    if (sps.level_idc <= 10)
+        max_vmv_r = 64 * 4;
+    else if (sps.level_idc <= 20)
+        max_vmv_r = 128 * 4;
+    else if (sps.level_idc <= 30)
+        max_vmv_r = 256 * 4;
+    else
+        max_vmv_r = 512 * 4; // 512 pixels in quarter pixels
+
+    this->max_mb_vmv_r = slice.field_pic_flag || mb.mb_field_decoding_flag ? max_vmv_r >> 1 : max_vmv_r;
+}
+
+void InterPrediction::fill_wp_params(slice_t *currSlice)
+{
+    if (currSlice->slice_type == B_SLICE) {
+        int i, j, k;
+        int comp;
+        int log_weight_denom;
+        int tb, td;  
+        int tx,DistScaleFactor;
+
+        int max_l0_ref = currSlice->num_ref_idx_l0_active_minus1 + 1;
+        int max_l1_ref = currSlice->num_ref_idx_l1_active_minus1 + 1;
+
+        if (currSlice->active_pps->weighted_bipred_idc == 2) {
+            currSlice->luma_log2_weight_denom = 5;
+            currSlice->chroma_log2_weight_denom = 5;
+
+            for (i = 0; i < MAX_REFERENCE_PICTURES; ++i) {
+                for (comp = 0; comp < 3; ++comp) {
+                    log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
+                    currSlice->wp_weight[0][i][comp] = 1 << log_weight_denom;
+                    currSlice->wp_weight[1][i][comp] = 1 << log_weight_denom;
+                    currSlice->wp_offset[0][i][comp] = 0;
+                    currSlice->wp_offset[1][i][comp] = 0;
+                }
+            }
+        }
+
+        for (i = 0; i < max_l0_ref; ++i) {
+            for (j = 0; j < max_l1_ref; ++j) {
+                for (comp = 0; comp < 3; ++comp) {
+                    log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
+                    if (currSlice->active_pps->weighted_bipred_idc == 1) {
+                        currSlice->wbp_weight[0][i][j][comp] =  currSlice->wp_weight[0][i][comp];
+                        currSlice->wbp_weight[1][i][j][comp] =  currSlice->wp_weight[1][j][comp];
+                    } else if (currSlice->active_pps->weighted_bipred_idc == 2) {
+                        td = clip3(-128,127,currSlice->listX[LIST_1][j]->poc - currSlice->listX[LIST_0][i]->poc);
+                        if (td == 0 || currSlice->listX[LIST_1][j]->is_long_term || currSlice->listX[LIST_0][i]->is_long_term) {
+                            currSlice->wbp_weight[0][i][j][comp] = 32;
+                            currSlice->wbp_weight[1][i][j][comp] = 32;
+                        } else {
+                            tb = clip3(-128,127,currSlice->ThisPOC - currSlice->listX[LIST_0][i]->poc);
+
+                            tx = (16384 + abs(td/2))/td;
+                            DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);
+
+                            currSlice->wbp_weight[1][i][j][comp] = DistScaleFactor >> 2;
+                            currSlice->wbp_weight[0][i][j][comp] = 64 - currSlice->wbp_weight[1][i][j][comp];
+                            if (currSlice->wbp_weight[1][i][j][comp] < -64 || currSlice->wbp_weight[1][i][j][comp] > 128) {
+                                currSlice->wbp_weight[0][i][j][comp] = 32;
+                                currSlice->wbp_weight[1][i][j][comp] = 32;
+                                currSlice->wp_offset[0][i][comp] = 0;
+                                currSlice->wp_offset[1][j][comp] = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (currSlice->MbaffFrameFlag) {
+            for (i = 0; i < 2 * max_l0_ref; ++i) {
+                for (j = 0; j < 2 * max_l1_ref; ++j) {
+                    for (comp = 0; comp < 3; ++comp) {
+                        for (k = 2; k < 6; k += 2) {
+                            currSlice->wp_offset[k+0][i][comp] = currSlice->wp_offset[0][i>>1][comp];
+                            currSlice->wp_offset[k+1][j][comp] = currSlice->wp_offset[1][j>>1][comp];
+
+                            log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
+                            if (currSlice->active_pps->weighted_bipred_idc == 1) {
+                                currSlice->wbp_weight[k+0][i][j][comp] =  currSlice->wp_weight[0][i>>1][comp];
+                                currSlice->wbp_weight[k+1][i][j][comp] =  currSlice->wp_weight[1][j>>1][comp];
+                            } else if (currSlice->active_pps->weighted_bipred_idc == 2) {
+                                td = clip3(-128, 127, currSlice->listX[k+LIST_1][j]->poc - currSlice->listX[k+LIST_0][i]->poc);
+                                if (td == 0 || currSlice->listX[k+LIST_1][j]->is_long_term || currSlice->listX[k+LIST_0][i]->is_long_term) {
+                                    currSlice->wbp_weight[k+0][i][j][comp] =   32;
+                                    currSlice->wbp_weight[k+1][i][j][comp] =   32;
+                                } else {
+                                    tb = clip3(-128,127,((k==2)?currSlice->TopFieldOrderCnt:currSlice->BottomFieldOrderCnt) - currSlice->listX[k+LIST_0][i]->poc);
+
+                                    tx = (16384 + abs(td/2))/td;
+                                    DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);
+
+                                    currSlice->wbp_weight[k+1][i][j][comp] = DistScaleFactor >> 2;
+                                    currSlice->wbp_weight[k+0][i][j][comp] = 64 - currSlice->wbp_weight[k+1][i][j][comp];
+                                    if (currSlice->wbp_weight[k+1][i][j][comp] < -64 || currSlice->wbp_weight[k+1][i][j][comp] > 128) {
+                                        currSlice->wbp_weight[k+1][i][j][comp] = 32;
+                                        currSlice->wbp_weight[k+0][i][j][comp] = 32;
+                                        currSlice->wp_offset[k+0][i][comp] = 0;
+                                        currSlice->wp_offset[k+1][j][comp] = 0;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

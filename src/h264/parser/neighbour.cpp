@@ -59,7 +59,7 @@ loc_t Neighbour::get_location(slice_t* slice, bool chroma, int mbAddr, const pos
     } else {
         loc.x = (mbAddr / 2) % sps->PicWidthInMbs * maxW;
         loc.y = (mbAddr / 2) / sps->PicWidthInMbs * maxH * 2;
-        mb_t* mb = &slice->mb_data[mbAddr];
+        mb_t* mb = &this->mb_data[mbAddr];
         loc.x += offset.x;
         if (mb->mb_field_decoding_flag == 0) {
             loc.y += mbAddr % 2 * maxH;
@@ -90,7 +90,7 @@ mb_t* Neighbour::get_mb(slice_t* slice, bool chroma, int mbAddr, const pos_t& of
     } else {
         loc.x = (mbAddr / 2) % sps->PicWidthInMbs * maxW;
         loc.y = (mbAddr / 2) / sps->PicWidthInMbs * maxH * 2;
-        mb_t* mb = &slice->mb_data[mbAddr];
+        mb_t* mb = &this->mb_data[mbAddr];
         loc.x += offset.x;
         if (mb->mb_field_decoding_flag == 0) {
             loc.y += mbAddr % 2 * maxH;
@@ -110,7 +110,7 @@ mb_t* Neighbour::get_mb(slice_t* slice, bool chroma, int mbAddr, const pos_t& of
         ((loc.y / maxH) * sps->PicWidthInMbs + (loc.x / maxW)) :
         ((loc.y / (maxH * 2)) * sps->PicWidthInMbs + (loc.x / maxW)) * 2;
 
-    mb_t* mb = &slice->mb_data[mbAddr];
+    mb_t* mb = &this->mb_data[mbAddr];
     if (slice->MbaffFrameFlag)
         mb += ((mb->mb_field_decoding_flag == 0) ? (loc.y & maxH) : (loc.y & 1)) ? 1 : 0;
     return mb;
@@ -133,7 +133,7 @@ nb_t Neighbour::get_neighbour(slice_t* slice, bool chroma, int mbAddr, const pos
     } else {
         loc.x = (mbAddr / 2) % sps->PicWidthInMbs * maxW;
         loc.y = (mbAddr / 2) / sps->PicWidthInMbs * maxH * 2;
-        mb_t* mb = &slice->mb_data[mbAddr];
+        mb_t* mb = &this->mb_data[mbAddr];
         loc.x += offset.x;
         if (mb->mb_field_decoding_flag == 0) {
             loc.y += mbAddr % 2 * maxH;
@@ -153,7 +153,7 @@ nb_t Neighbour::get_neighbour(slice_t* slice, bool chroma, int mbAddr, const pos
         ((loc.y / maxH) * sps->PicWidthInMbs + (loc.x / maxW)) :
         ((loc.y / (maxH * 2)) * sps->PicWidthInMbs + (loc.x / maxW)) * 2;
 
-    mb_t* mb = &slice->mb_data[mbAddr];
+    mb_t* mb = &this->mb_data[mbAddr];
     pos_t pos {loc.x, loc.y};
     if (slice->MbaffFrameFlag) {
         if (mb->mb_field_decoding_flag == 0)
@@ -183,7 +183,7 @@ mb_t* Neighbour::get_mb(slice_t* slice, bool chroma, const loc_t& loc)
         ((loc.y / maxH) * sps->PicWidthInMbs + (loc.x / maxW)) :
         ((loc.y / (maxH * 2)) * sps->PicWidthInMbs + (loc.x / maxW)) * 2;
 
-    mb_t* mb = &slice->mb_data[mbAddr];
+    mb_t* mb = &this->mb_data[mbAddr];
     if (slice->MbaffFrameFlag)
         mb += ((mb->mb_field_decoding_flag == 0) ? (loc.y & maxH) : (loc.y & 1)) ? 1 : 0;
     return mb;
@@ -205,7 +205,7 @@ nb_t Neighbour::get_neighbour(slice_t* slice, bool chroma, const loc_t& loc)
         ((loc.y / maxH) * sps->PicWidthInMbs + (loc.x / maxW)) :
         ((loc.y / (maxH * 2)) * sps->PicWidthInMbs + (loc.x / maxW)) * 2;
 
-    mb_t* mb = &slice->mb_data[mbAddr];
+    mb_t* mb = &this->mb_data[mbAddr];
     pos_t pos {loc.x, loc.y};
     if (slice->MbaffFrameFlag) {
         if (mb->mb_field_decoding_flag == 0)
@@ -237,7 +237,7 @@ pos_t Neighbour::get_position(slice_t* slice, int mbAddr, int blkIdx)
     } else {
         pos.x = (mbAddr / 2) % sps->PicWidthInMbs * 16;
         pos.y = (mbAddr / 2) / sps->PicWidthInMbs * 32;
-        mb_t* mb = &slice->mb_data[mbAddr];
+        mb_t* mb = &this->mb_data[mbAddr];
         pos.x += blkX * 4;
         if (mb->mb_field_decoding_flag == 0) {
             pos.y += mbAddr % 2 * 16;

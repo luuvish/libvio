@@ -57,6 +57,8 @@ using nb_t = neighbour_t;
 
 class Neighbour {
 public:
+    mb_t*       mb_data;
+
     loc_t get_location (slice_t* slice, bool chroma, int mbAddr, const pos_t& offset={0,0});
     mb_t* get_mb       (slice_t* slice, bool chroma, int mbAddr, const pos_t& offset={0,0});
     nb_t  get_neighbour(slice_t* slice, bool chroma, int mbAddr, const pos_t& offset={0,0});
