@@ -170,7 +170,7 @@ static const uint8_t run_before_code[15][16] = {
 
 uint8_t Parser::Residual::parse_coeff_token(int nC)
 {
-    data_partition_t* dp = &slice.parser.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     if (nC >= 8) {
         int code = dp->read_bits(6);
@@ -238,7 +238,7 @@ static int16_t parse_level(data_partition_t *currStream, uint8_t level_prefix, u
 
 uint8_t Parser::Residual::parse_total_zeros(int yuv, int tzVlcIndex)
 {
-    data_partition_t* dp = &slice.parser.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int tab = tzVlcIndex - 1;
 
@@ -257,7 +257,7 @@ uint8_t Parser::Residual::parse_total_zeros(int yuv, int tzVlcIndex)
 
 uint8_t Parser::Residual::parse_run_before(uint8_t zerosLeft)
 {
-    data_partition_t* dp = &slice.parser.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int tab = min<int>(zerosLeft, 7) - 1;
 
@@ -277,7 +277,7 @@ uint8_t Parser::Residual::parse_run_before(uint8_t zerosLeft)
 void Parser::Residual::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
                                             ColorPlane pl, bool chroma, bool ac, int blkIdx)
 {
-    data_partition_t* dp = &slice.parser.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int i = chroma ? blkIdx % 2 : ((blkIdx / 4) % 2) * 2 + (blkIdx % 4) % 2;
     int j = chroma ? blkIdx / 2 : ((blkIdx / 4) / 2) * 2 + (blkIdx % 4) / 2;
@@ -604,7 +604,7 @@ static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_cont
 void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
                                             ColorPlane pl, bool chroma, bool ac, int blkIdx)
 {
-    data_partition_t* dp = &slice.parser.partArr[slice.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
 #define IS_I16MB(MB) ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
     int context;

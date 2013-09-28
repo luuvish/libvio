@@ -32,12 +32,6 @@ namespace vio  {
 namespace h264 {
 
 
-//! Data Partitioning Modes
-typedef enum {
-    PAR_DP_1,   //!< no data partitioning is supported
-    PAR_DP_3    //!< data partitioning with 3 partitions
-} PAR_DP_TYPE;
-
 //! values for nal_unit_type
 typedef enum {
     NALU_TYPE_SLICE    =  1,

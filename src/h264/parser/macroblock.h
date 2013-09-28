@@ -108,6 +108,8 @@ struct macroblock_t {
     bool        ei_flag;
     bool        dpl_flag;
 
+    int         allrefzero;
+
 
     bool        mb_skip_flag;
     bool        mb_field_decoding_flag;

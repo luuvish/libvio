@@ -146,7 +146,7 @@ static void interpret_mb_mode_P(mb_t* mb)
         memset(mb->SubMbPredMode,  0, 4 * sizeof(char));
     } else if (mbmode == 4 || mbmode == 5) {
         mb->mb_type = P8x8;
-        mb->p_Slice->allrefzero = (mbmode == 5);
+        mb->allrefzero = mbmode == 5;
     } else if (mbmode == 6) {
         mb->is_intra_block = true;
         mb->mb_type = I4MB;
@@ -343,23 +343,21 @@ void Parser::Macroblock::parse()
     int CurrMbAddr = mb.mbAddrX;
     bool moreDataFlag = 1;
 
-    data_partition_t* dp = &slice.parser.partArr[0];
-
     if (slice.slice_type != I_slice && slice.slice_type != SI_slice) {
         if (pps.entropy_coding_mode_flag) {
-            if (slice.prescan_skip_read) {
-                slice.prescan_skip_read = false;
-                mb.mb_skip_flag = slice.prescan_skip_flag;
+            if (slice.parser.prescan_skip_read) {
+                slice.parser.prescan_skip_read = false;
+                mb.mb_skip_flag = slice.parser.prescan_skip_flag;
             } else {
                 mb.mb_skip_flag = se.mb_skip_flag();
                 if (mb.mb_skip_flag)
-                    slice.last_dquant = 0;
+                    slice.parser.last_dquant = 0;
                 mb.ei_flag = 0;
             }
         } else {
-            if (slice.mb_skip_run == -1)
-                slice.mb_skip_run = se.mb_skip_run();
-            mb.mb_skip_flag = (slice.mb_skip_run > 0);
+            if (slice.parser.mb_skip_run == -1)
+                slice.parser.mb_skip_run = se.mb_skip_run();
+            mb.mb_skip_flag = (slice.parser.mb_skip_run > 0);
             if (mb.mb_skip_flag)
                 mb.ei_flag = 0;
         }
@@ -372,43 +370,37 @@ void Parser::Macroblock::parse()
             if (pps.entropy_coding_mode_flag) {
                 if (mb.mb_skip_flag) {
                     //get next MB
-                    ++slice.current_mb_nr;
-
-                    mb_t *currMB = &slice.mb_data[slice.current_mb_nr];
-                    currMB->p_Slice  = &slice;
-                    currMB->slice_nr = slice.current_slice_nr;
-                    currMB->mb_field_decoding_flag = slice.mb_data[slice.current_mb_nr-1].mb_field_decoding_flag;
-                    currMB->mbAddrX  = slice.current_mb_nr;
-
-                    SyntaxElement se { *currMB };
+                    mb_t& nextMb = slice.mb_data[mb.mbAddrX + 1];
+                    nextMb.p_Slice  = &slice;
+                    nextMb.slice_nr = mb.slice_nr;
+                    nextMb.mbAddrX  = mb.mbAddrX + 1;
+                    nextMb.mb_field_decoding_flag = mb.mb_field_decoding_flag;
+                    SyntaxElement se { nextMb };
 
                     //check_next_mb
-                    slice.last_dquant = 0;
-                    slice.prescan_skip_read = true;
-                    slice.prescan_skip_flag = se.mb_skip_flag();
-                    if (slice.prescan_skip_flag)
-                        slice.last_dquant = 0;
+                    slice.parser.last_dquant = 0;
+                    slice.parser.prescan_skip_read = true;
+                    slice.parser.prescan_skip_flag = se.mb_skip_flag();
+                    if (slice.parser.prescan_skip_flag)
+                        slice.parser.last_dquant = 0;
                     mb.ei_flag = 0;
-                    if (!slice.prescan_skip_flag) {
-                        slice.prescan_mb_field_decoding_read = true;
-                        slice.prescan_mb_field_decoding_flag = se.mb_field_decoding_flag();
-                        slice.mb_data[slice.current_mb_nr-1].mb_field_decoding_flag = slice.prescan_mb_field_decoding_flag;
+                    if (!slice.parser.prescan_skip_flag) {
+                        slice.parser.prescan_mb_field_decoding_read = true;
+                        slice.parser.prescan_mb_field_decoding_flag = se.mb_field_decoding_flag();
+                        mb.mb_field_decoding_flag = slice.parser.prescan_mb_field_decoding_flag;
                     }
-
-                    //reset
-                    slice.current_mb_nr--;
                 }
             } else {
-                if (slice.mb_skip_run == 1)
-                    mb.mb_field_decoding_flag = dp->next_bits(1);
+                if (slice.parser.mb_skip_run == 1)
+                    mb.mb_field_decoding_flag = slice.parser.partArr[0].next_bits(1);
             }
         }
 
         if (pps.entropy_coding_mode_flag) {
             if (mb.mb_skip_flag)
-                slice.mb_skip_run = 0;
+                slice.parser.mb_skip_run = 0;
         } else
-            slice.mb_skip_run--;
+            --slice.parser.mb_skip_run;
 
         moreDataFlag = !mb.mb_skip_flag;
     }
@@ -418,9 +410,9 @@ void Parser::Macroblock::parse()
             slice.mb_data[CurrMbAddr - 1].mb_skip_flag : 0;
         if (slice.MbaffFrameFlag &&
             (CurrMbAddr % 2 == 0 || (CurrMbAddr % 2 == 1 && prevMbSkipped))) {
-            if (slice.prescan_mb_field_decoding_read) {
-                slice.prescan_mb_field_decoding_read = false;
-                mb.mb_field_decoding_flag = slice.prescan_mb_field_decoding_flag;
+            if (slice.parser.prescan_mb_field_decoding_read) {
+                slice.parser.prescan_mb_field_decoding_read = false;
+                mb.mb_field_decoding_flag = slice.parser.prescan_mb_field_decoding_flag;
             } else
                 mb.mb_field_decoding_flag = se.mb_field_decoding_flag();
         }
@@ -473,7 +465,7 @@ void Parser::Macroblock::parse_i_pcm()
         }
     }
 
-    if (slice.dp_mode && slice.dpB_NotPresent) {
+    if (slice.parser.dp_mode && slice.dpB_NotPresent) {
         for (int y = 0; y < 16; y++) {
             for (int x = 0; x < 16; x++)
                 slice.decoder.transform->cof[0][y][x] = 1 << (sps.BitDepthY - 1);
@@ -488,7 +480,7 @@ void Parser::Macroblock::parse_i_pcm()
             }
         }
     } else {
-        data_partition_t* dp = &slice.parser.partArr[slice.dp_mode ? 1 : 0];
+        data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? 1 : 0];
 
         if (dp->frame_bitoffset & 7)
             dp->f(8 - (dp->frame_bitoffset & 7));
@@ -539,10 +531,10 @@ void Parser::Macroblock::parse_skip()
 
         mb.noSubMbPartSizeLessThan8x8Flag = sps.direct_8x8_inference_flag;
 
-        if (slice.mb_skip_run >= 0) {
+        if (slice.parser.mb_skip_run >= 0) {
             if (pps.entropy_coding_mode_flag) {
-                slice.is_reset_coeff = true;
-                slice.mb_skip_run = -1;
+                slice.parser.is_reset_coeff = true;
+                slice.parser.mb_skip_run = -1;
             } else
                 memset(mb.nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
         } else {
@@ -899,7 +891,7 @@ void Parser::Macroblock::parse_cbp_qp()
         mb.CodedBlockPatternChroma = coded_block_pattern / 16;
         if (pps.entropy_coding_mode_flag) {
             if (!mb.CodedBlockPatternLuma && !mb.CodedBlockPatternChroma)
-                slice.last_dquant = 0;
+                slice.parser.last_dquant = 0;
         }
 
         //============= Transform size flag for INTER MBs =============
@@ -922,7 +914,7 @@ void Parser::Macroblock::parse_cbp_qp()
         mb.mb_qp_delta = se.mb_qp_delta();
 
         if (pps.entropy_coding_mode_flag)        
-            slice.last_dquant = mb.mb_qp_delta;
+            slice.parser.last_dquant = mb.mb_qp_delta;
 
         assert(mb.mb_qp_delta >= -(26 + sps.QpBdOffsetY / 2) &&
                mb.mb_qp_delta <=  (25 + sps.QpBdOffsetY / 2));
@@ -931,7 +923,7 @@ void Parser::Macroblock::parse_cbp_qp()
             ((slice.SliceQpY + mb.mb_qp_delta + 52 + 2 * sps.QpBdOffsetY)
                 % (52 + sps.QpBdOffsetY)) - sps.QpBdOffsetY;
 
-        if (slice.dp_mode) {
+        if (slice.parser.dp_mode) {
             if (!mb.is_intra_block && slice.dpC_NotPresent)
                 mb.dpl_flag = 1;
             if (mb.is_intra_block && slice.dpB_NotPresent) {

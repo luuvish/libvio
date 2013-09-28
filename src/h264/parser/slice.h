@@ -112,7 +112,7 @@ struct slice_t {
   //uint32_t    long_term_pic_num;                                    // ue(v)
   //uint32_t    long_term_frame_idx;                                  // ue(v)
   //uint32_t    max_long_term_frame_idx_plus1;                        // ue(v)
-    DecRefPicMarking_t       *dec_ref_pic_marking_buffer; //!< stores the memory management control operations
+    DecRefPicMarking_t* dec_ref_pic_marking_buffer;
 
     uint8_t     cabac_init_idc;                                       // ue(v)
     int8_t      slice_qp_delta;                                       // se(v)
@@ -123,7 +123,7 @@ struct slice_t {
     int8_t      slice_beta_offset_div2;                               // se(v)
     uint32_t    slice_group_change_cycle;                             // u(v)
 
-    PictureStructure    structure;     //!< Identify picture structure type
+    PictureStructure    structure;
     bool        MbaffFrameFlag;
     uint32_t    PicHeightInMbs;
     uint32_t    PicHeightInSampleL;
@@ -145,44 +145,23 @@ struct slice_t {
     int         ThisPOC;
     int         framepoc;
 
-    int8_t      PrevQpY;
-
-    bool        prescan_skip_read;
-    bool        prescan_skip_flag;
-    bool        prescan_mb_field_decoding_read;
-    bool        prescan_mb_field_decoding_flag;
-
     //weighted prediction
-    unsigned short            weighted_pred_flag;
-    unsigned short            weighted_bipred_idc;
-    int                    ***wp_weight;  // weight in [list][index][component] order
-    int                    ***wp_offset;  // offset in [list][index][component] order
-    int                   ****wbp_weight; //weight in [list][fw_index][bw_index][component] order
+    uint16_t    weighted_pred_flag;
+    uint16_t    weighted_bipred_idc;
+    int32_t***  wp_weight;  // weight in [list][index][component] order
+    int32_t***  wp_offset;  // offset in [list][index][component] order
+    int32_t**** wbp_weight; // weight in [list][fw_index][bw_index][component] order
 
-
-
-
-
-    //information need to move to slice;
-    unsigned int              current_mb_nr; // bitstream order
-    unsigned int              num_dec_mb;
-    short                     current_slice_nr;
-    int                       mb_skip_run;                   //!< Current count of number of skipped macroblocks in a row
-    int                       allrefzero;
-    //end;
-
-
-    int                       max_part_nr;
-    int                       dp_mode;       //!< data partitioning mode
-    int                       current_header;
-    int                       last_dquant;
+    unsigned    num_dec_mb;
+    short       current_slice_nr;
+    int         current_header;
 
 #if (MVC_EXTENSION_ENABLE)
-    int                       view_id;
-    int                       inter_view_flag;
-    int                       anchor_pic_flag;
+    int         view_id;
+    int         inter_view_flag;
+    int         anchor_pic_flag;
 
-    NALUnitHeaderMVCExt_t     NaluHeaderMVCExt;
+    NALUnitHeaderMVCExt_t NaluHeaderMVCExt;
 #endif
 
     //slice header information;
@@ -192,15 +171,12 @@ struct slice_t {
 
     int         mvscale[6][MAX_REFERENCE_PICTURES];
 
-
     int         layer_id;
 
 
     int         dpB_NotPresent;    //!< non-zero, if data partition B is lost
     int         dpC_NotPresent;    //!< non-zero, if data partition C is lost
 
-    bool        is_reset_coeff;
-    bool        is_reset_coeff_cr;
     imgpel***   mb_pred; // IntraPrediction()
 
     imgpel**    tmp_block_l0; // InterPrediction()
@@ -222,9 +198,9 @@ struct slice_t {
 #endif
 
     // for signalling to the neighbour logic that this is a deblocker call
-    int                       max_mb_vmv_r; //!< maximum vertical motion vector range in luma quarter pixel units for the current level_idc
+    int           max_mb_vmv_r; //!< maximum vertical motion vector range in luma quarter pixel units for the current level_idc
 
-    int                       erc_mvperMB;
+    int           erc_mvperMB;
     mb_t*             mb_data;
     storable_picture* dec_picture;
     char              chroma_vector_adjustment[6][32];

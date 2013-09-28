@@ -265,7 +265,7 @@ int Neighbour::predict_nnz(mb_t* mb, int pl, int i, int j)
     nbA.mb = nbA.mb && nbA.mb->slice_nr == mb->slice_nr ? nbA.mb : nullptr;
     nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
 
-    if (pps->constrained_intra_pred_flag && slice->dp_mode == vio::h264::PAR_DP_3) {
+    if (pps->constrained_intra_pred_flag && slice->parser.dp_mode == vio::h264::PAR_DP_3) {
         if (mb->is_intra_block) {
             nbA.mb = nbA.mb && nbA.mb->is_intra_block ? nbA.mb : nullptr;
             nbB.mb = nbB.mb && nbB.mb->is_intra_block ? nbB.mb : nullptr;

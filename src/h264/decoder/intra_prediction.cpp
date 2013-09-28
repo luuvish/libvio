@@ -801,40 +801,40 @@ void IntraPrediction::intra_pred_4x4(mb_t* mb, ColorPlane pl, int ioff, int joff
     switch (pred_mode) {
     case Intra_4x4_Vertical:
         if (!available[1])
-            printf ("warning: Intra_4x4_Vertical prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_4x4_Vertical prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_4x4_Horizontal:
         if (!available[0])
-            printf ("warning: Intra_4x4_Horizontal prediction mode not allowed at mb %d\n",(int) slice->current_mb_nr);
+            printf ("warning: Intra_4x4_Horizontal prediction mode not allowed at mb %d\n",mb->mbAddrX);
         break;
     case Intra_4x4_DC:
         break;
     case Intra_4x4_Diagonal_Down_Left:
         if (!available[1])
-            printf ("warning: Intra_4x4_Diagonal_Down_Left prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_4x4_Diagonal_Down_Left prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_4x4_Diagonal_Down_Right:
         if (!available[3])
-            printf ("warning: Intra_4x4_Diagonal_Down_Right prediction mode not allowed at mb %d\n",(int) slice->current_mb_nr);
+            printf ("warning: Intra_4x4_Diagonal_Down_Right prediction mode not allowed at mb %d\n",mb->mbAddrX);
         break;
     case Intra_4x4_Vertical_Right:
         if (!available[3])
-            printf ("warning: Intra_4x4_Vertical_Right prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_4x4_Vertical_Right prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_4x4_Horizontal_Down:  
         if (!available[3])
-            printf ("warning: Intra_4x4_Horizontal_Down prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_4x4_Horizontal_Down prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_4x4_Vertical_Left:
         if (!available[1])
-            printf ("warning: Intra_4x4_Vertical_Left prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_4x4_Vertical_Left prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_4x4_Horizontal_Up:
         if (!available[0])
-            printf ("warning: Intra_4x4_Horizontal_Up prediction mode not allowed at mb %d\n",(int) slice->current_mb_nr);
+            printf ("warning: Intra_4x4_Horizontal_Up prediction mode not allowed at mb %d\n",mb->mbAddrX);
         break;
     default:
-        printf("Error: illegal intra_4x4 prediction mode: %d\n", (int) pred_mode);
+        printf("Error: illegal intra_4x4 prediction mode: %d\n", pred_mode);
         break;
     }
 
@@ -885,40 +885,40 @@ void IntraPrediction::intra_pred_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff
     switch (pred_mode) {
     case Intra_8x8_Vertical:
         if (!available[1])
-            printf ("warning: Intra_8x8_Vertical prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_8x8_Vertical prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_8x8_Horizontal:
         if (!available[0])
-            printf ("warning: Intra_8x8_Horizontal prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_8x8_Horizontal prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_8x8_DC:
         break;
     case Intra_8x8_Diagonal_Down_Left:
         if (!available[1])
-            printf ("warning: Intra_8x8_Diagonal_Down_Left prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_8x8_Diagonal_Down_Left prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_8x8_Diagonal_Down_Right:
         if (!available[3])
-            printf ("warning: Intra_8x8_Diagonal_Down_Right prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_8x8_Diagonal_Down_Right prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_8x8_Vertical_Right:
         if (!available[3])
-            printf ("warning: Intra_8x8_Vertical_Right prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_8x8_Vertical_Right prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_8x8_Horizontal_Down:  
         if (!available[3])
-            printf ("warning: Intra_8x8_Horizontal_Down prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_8x8_Horizontal_Down prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_8x8_Vertical_Left:
         if (!available[1])
-            printf ("warning: Intra_4x4_Vertical_Left prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_4x4_Vertical_Left prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     case Intra_8x8_Horizontal_Up:
         if (!available[0])
-            printf ("warning: Intra_8x8_Horizontal_Up prediction mode not allowed at mb %d\n", (int) slice->current_mb_nr);
+            printf ("warning: Intra_8x8_Horizontal_Up prediction mode not allowed at mb %d\n", mb->mbAddrX);
         break;
     default:
-        printf("Error: illegal intra_8x8 prediction mode: %d\n", (int) pred_mode);
+        printf("Error: illegal intra_8x8 prediction mode: %d\n", pred_mode);
         break;
     }
 

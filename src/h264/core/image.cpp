@@ -415,8 +415,6 @@ static slice_t *malloc_slice(InputParameters *p_Inp, VideoParameters *p_Vid)
         error(errortext,100);
     }
 
-    currSlice->max_part_nr = 3;  //! assume data partitioning (worst case) for the following mallocs()
-
     memory_size += get_mem3Dint(&(currSlice->wp_weight), 2, MAX_REFERENCE_PICTURES, 3);
     memory_size += get_mem3Dint(&(currSlice->wp_offset), 6, MAX_REFERENCE_PICTURES, 3);
     memory_size += get_mem4Dint(&(currSlice->wbp_weight), 6, MAX_REFERENCE_PICTURES, MAX_REFERENCE_PICTURES, 3);

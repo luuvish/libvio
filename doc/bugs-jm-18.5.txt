@@ -39,3 +39,6 @@
 
 12. concealIPCMcoeffs()
     for (k = 0; k < 2; ++k), cof[plane]에서 plane 1,2를 초기화하지 않고 0,1를 초기화 함.
+
+13. interpret_mb_mode_P()
+    allrefzero flag는 macroblock 마다 세팅되므로 Macroblock structure에 저장되는 것이 맞다.

@@ -33,6 +33,12 @@ namespace vio  {
 namespace h264 {
 
 
+//! Data Partitioning Modes
+enum {
+    PAR_DP_1,   //!< no data partitioning is supported
+    PAR_DP_3    //!< data partitioning with 3 partitions
+};
+
 class Parser {
 public:
     void        parse(sps_t& sps);
@@ -43,8 +49,25 @@ public:
     void        update_qp(mb_t& mb, int qp);
     int         get_inter8x8(mb_t& mb, int block8x8);
 
+    uint32_t    current_mb_nr;
+
+    int         dp_mode;
+
     data_partition_t partArr[3];
     cabac_contexts_t mot_ctx;
+
+    int         mb_skip_run;
+
+    bool        prescan_skip_read;
+    bool        prescan_skip_flag;
+    bool        prescan_mb_field_decoding_read;
+    bool        prescan_mb_field_decoding_flag;
+
+    int         last_dquant;
+    int8_t      PrevQpY;
+
+    bool        is_reset_coeff;
+    bool        is_reset_coeff_cr;
 
 protected:
     class SyntaxElement {

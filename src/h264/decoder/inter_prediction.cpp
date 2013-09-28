@@ -437,12 +437,15 @@ static void get_block_chroma(storable_picture *curr_ref, int x_pos, int y_pos,
 }
 
 
-static void check_motion_vector_range(const mv_t *mv, slice_t *pSlice)
-{  
+static void check_motion_vector_range(mb_t& mb, const mv_t *mv, slice_t *pSlice)
+{
     if (mv->mv_x > 8191 || mv->mv_x < -8192)
-        fprintf(stderr,"WARNING! Horizontal motion vector %d is out of allowed range {-8192, 8191} in picture %d, macroblock %d\n", mv->mv_x, pSlice->p_Vid->number, pSlice->current_mb_nr);
-    if (mv->mv_y > (pSlice->max_mb_vmv_r - 1) || mv->mv_y < (-pSlice->max_mb_vmv_r))
-        fprintf(stderr,"WARNING! Vertical motion vector %d is out of allowed range {%d, %d} in picture %d, macroblock %d\n", mv->mv_y, (-pSlice->max_mb_vmv_r), (pSlice->max_mb_vmv_r - 1), pSlice->p_Vid->number, pSlice->current_mb_nr);
+        fprintf(stderr, "WARNING! Horizontal motion vector %d is out of allowed range {-8192, 8191} in picture %d, macroblock %d\n",
+                mv->mv_x, pSlice->p_Vid->number, mb.mbAddrX);
+    if ((mv->mv_y > pSlice->max_mb_vmv_r - 1) || (mv->mv_y < -pSlice->max_mb_vmv_r))
+        fprintf(stderr, "WARNING! Vertical motion vector %d is out of allowed range {%d, %d} in picture %d, macroblock %d\n",
+                mv->mv_y, -pSlice->max_mb_vmv_r, pSlice->max_mb_vmv_r - 1,
+                pSlice->p_Vid->number, mb.mbAddrX);
 }
 
 static int CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
@@ -514,11 +517,11 @@ void InterPrediction::perform_mc(mb_t *currMB, ColorPlane pl, int pred_dir, int 
     else
         block_y_aff = currMB->mb.y * 4;
 
-    check_motion_vector_range(l0_mv_array, currSlice);
+    check_motion_vector_range(*currMB, l0_mv_array, currSlice);
     vec1_x = i4 * mv_mul + l0_mv_array->mv_x;
     vec1_y = (block_y_aff + j) * mv_mul + l0_mv_array->mv_y;
     if (pred_dir == 2) {
-        check_motion_vector_range(l1_mv_array, currSlice);
+        check_motion_vector_range(*currMB, l1_mv_array, currSlice);
         vec2_x = i4 * mv_mul + l1_mv_array->mv_x;
         vec2_y = (block_y_aff + j) * mv_mul + l1_mv_array->mv_y;
     }

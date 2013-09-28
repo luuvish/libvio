@@ -430,7 +430,7 @@ void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
 void ercWriteMBMODEandMV(mb_t *currMB)
 {
   VideoParameters *p_Vid = currMB->p_Slice->p_Vid;
-  int i, ii, jj, currMBNum = currMB->mbAddrX; //p_Vid->currentSlice->current_mb_nr;
+  int i, ii, jj, currMBNum = currMB->mbAddrX;
   storable_picture *dec_picture = p_Vid->dec_picture;
   int mbx = xPosMB(currMBNum, dec_picture->size_x), mby = yPosMB(currMBNum, dec_picture->size_x);
   objectBuffer_t *currRegion, *pRegion;

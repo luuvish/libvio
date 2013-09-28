@@ -199,12 +199,12 @@ bool slice_t::init()
     p_Vid->active_pps = this->active_pps;
     int current_header = this->current_header;
 
-    this->mb_skip_run = -1;
+    this->parser.mb_skip_run = -1;
 
-    this->prescan_skip_read = false;
-    this->prescan_mb_field_decoding_read = false;
+    this->parser.prescan_skip_read = false;
+    this->parser.prescan_mb_field_decoding_read = false;
 
-    this->PrevQpY = this->SliceQpY;
+    this->parser.PrevQpY = this->SliceQpY;
 
     init_lists(this);
 
@@ -237,7 +237,7 @@ bool slice_t::init()
 
     if (this->active_pps->entropy_coding_mode_flag) {
         this->parser.mot_ctx.init(this->slice_type, this->cabac_init_idc, this->SliceQpY);
-        this->last_dquant = 0;
+        this->parser.last_dquant = 0;
     }
 
     if ((this->active_pps->weighted_bipred_idc > 0 && this->slice_type == B_SLICE) ||
@@ -269,7 +269,7 @@ void slice_t::decode()
     bool end_of_slice = 0;
 
     while (!end_of_slice) { // loop over macroblocks
-        mb_t *currMB = &this->mb_data[this->current_mb_nr]; 
+        mb_t *currMB = &this->mb_data[this->parser.current_mb_nr]; 
 
         // Initializes the current macroblock
         currMB->init(*this);
@@ -287,5 +287,7 @@ void slice_t::decode()
 #endif
 
         end_of_slice = currMB->close(*this);
+
+        ++this->num_dec_mb;
     }
 }

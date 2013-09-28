@@ -1072,7 +1072,7 @@ void Transform::inverse_transform_inter(mb_t* mb, ColorPlane pl)
     }
 
     if (mb->CodedBlockPatternLuma)
-        slice->is_reset_coeff = false;
+        slice->parser.is_reset_coeff = false;
 
     if (sps->chroma_format_idc == YUV400 || sps->chroma_format_idc == YUV444)
         return;
@@ -1090,7 +1090,7 @@ void Transform::inverse_transform_inter(mb_t* mb, ColorPlane pl)
     }
 
     if (mb->CodedBlockPatternChroma)
-        slice->is_reset_coeff_cr = false;
+        slice->parser.is_reset_coeff_cr = false;
 }
 
 
@@ -1283,7 +1283,7 @@ void Transform::inverse_transform_sp(mb_t* mb, ColorPlane pl)
     for (int j = 0; j < 16; ++j)
         memcpy(&curr_img[mb->mb.y * 16 + j][mb->mb.x * 16], &this->mb_rec[pl][j][0], 16 * sizeof (imgpel));
 
-    slice->is_reset_coeff = false;
+    slice->parser.is_reset_coeff = false;
 
     if (sps->chroma_format_idc == YUV400 || sps->chroma_format_idc == YUV444)
         return;
@@ -1293,7 +1293,7 @@ void Transform::inverse_transform_sp(mb_t* mb, ColorPlane pl)
         this->inverse_transform_chroma(mb, (ColorPlane)(uv + 1));
     }
 
-    slice->is_reset_coeff_cr = false;
+    slice->parser.is_reset_coeff_cr = false;
 }
 
 

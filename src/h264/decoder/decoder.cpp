@@ -80,8 +80,8 @@ void Decoder::decode(mb_t& mb)
         this->decode_one_component(mb, PLANE_U);
         this->decode_one_component(mb, PLANE_V);
 
-        slice.is_reset_coeff    = false;
-        slice.is_reset_coeff_cr = false;
+        slice.parser.is_reset_coeff    = false;
+        slice.parser.is_reset_coeff_cr = false;
     }
 }
 
@@ -276,9 +276,9 @@ void Decoder::mb_pred_ipcm(mb_t& mb)
     mb.cbp_blks[0] = 0xFFFF;
 
     //For CABAC decoding of Dquant
-    slice.last_dquant = 0;
-    slice.is_reset_coeff = false;
-    slice.is_reset_coeff_cr = false;
+    slice.parser.last_dquant = 0;
+    slice.parser.is_reset_coeff = false;
+    slice.parser.is_reset_coeff_cr = false;
 }
 
 void Decoder::mb_pred_intra(mb_t& mb, ColorPlane curr_plane)
@@ -308,7 +308,7 @@ void Decoder::mb_pred_intra(mb_t& mb, ColorPlane curr_plane)
     }
 
     if (mb.mb_type == I16MB || mb.CodedBlockPatternLuma != 0 || mb.CodedBlockPatternChroma != 0)
-        slice.is_reset_coeff = false;
+        slice.parser.is_reset_coeff = false;
 
     if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
         this->intra_prediction->intra_pred_chroma(&mb);
@@ -316,7 +316,7 @@ void Decoder::mb_pred_intra(mb_t& mb, ColorPlane curr_plane)
         for (int uv = 0; uv < 2; uv++)
             this->transform->inverse_transform_chroma(&mb, (ColorPlane)(uv + 1));
         if (mb.CodedBlockPatternChroma)
-            slice.is_reset_coeff_cr = false;
+            slice.parser.is_reset_coeff_cr = false;
     }
 }
 
@@ -368,7 +368,7 @@ void Decoder::mb_pred_p_inter(mb_t& mb, ColorPlane curr_plane)
     else
         this->transform->inverse_transform_inter(&mb, curr_plane);
     if (mb.CodedBlockPatternLuma != 0 || mb.CodedBlockPatternChroma != 0)
-        slice.is_reset_coeff = false;
+        slice.parser.is_reset_coeff = false;
 }
 
 void Decoder::mb_pred_b_inter8x8(mb_t& mb, ColorPlane curr_plane)
@@ -413,7 +413,7 @@ void Decoder::mb_pred_b_inter8x8(mb_t& mb, ColorPlane curr_plane)
     else
         this->transform->inverse_transform_inter(&mb, curr_plane);
     if (mb.CodedBlockPatternLuma != 0 || mb.CodedBlockPatternChroma != 0)
-        slice.is_reset_coeff = false;
+        slice.parser.is_reset_coeff = false;
 }
 
 

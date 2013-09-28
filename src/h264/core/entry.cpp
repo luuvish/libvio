@@ -99,8 +99,7 @@ static int parse_idr(slice_t *currSlice)
 
     currSlice->idr_flag = (nalu->nal_unit_type == NALU_TYPE_IDR);
     currSlice->nal_ref_idc = nalu->nal_ref_idc;
-    currSlice->dp_mode = PAR_DP_1;
-    currSlice->max_part_nr = 1;
+    currSlice->parser.dp_mode = PAR_DP_1;
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->svc_extension_flag != 0)
 #endif
@@ -167,9 +166,9 @@ static int parse_idr(slice_t *currSlice)
 
     // From here on, p_Vid->active_sps, p_Vid->active_pps and the slice header are valid
     if (currSlice->MbaffFrameFlag)
-        currSlice->current_mb_nr = currSlice->first_mb_in_slice << 1;
+        currSlice->parser.current_mb_nr = currSlice->first_mb_in_slice << 1;
     else
-        currSlice->current_mb_nr = currSlice->first_mb_in_slice;
+        currSlice->parser.current_mb_nr = currSlice->first_mb_in_slice;
 
     if (p_Vid->active_pps->entropy_coding_mode_flag)
         currSlice->parser.partArr[0].de_cabac.init(&currSlice->parser.partArr[0]);
@@ -196,8 +195,7 @@ static int parse_dpa(slice_t *currSlice)
 
     currSlice->idr_flag    = 0;
     currSlice->nal_ref_idc = nalu->nal_ref_idc;
-    currSlice->dp_mode     = PAR_DP_3;
-    currSlice->max_part_nr = 3;
+    currSlice->parser.dp_mode = PAR_DP_3;
 #if MVC_EXTENSION_ENABLE
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[0];
 #endif
@@ -230,9 +228,9 @@ static int parse_dpa(slice_t *currSlice)
 
     // From here on, p_Vid->active_sps, p_Vid->active_pps and the slice header are valid
     if (currSlice->MbaffFrameFlag)
-        currSlice->current_mb_nr = currSlice->first_mb_in_slice << 1;
+        currSlice->parser.current_mb_nr = currSlice->first_mb_in_slice << 1;
     else
-        currSlice->current_mb_nr = currSlice->first_mb_in_slice;
+        currSlice->parser.current_mb_nr = currSlice->first_mb_in_slice;
 
     // Now I need to read the slice ID, which depends on the value of
     // redundant_pic_cnt_present_flag
@@ -316,8 +314,8 @@ int read_new_slice(slice_t *currSlice)
     data_partition_t* dp = &currSlice->parser.partArr[0];
 
     currSlice->num_dec_mb        = 0;
-    currSlice->is_reset_coeff    = 0;
-    currSlice->is_reset_coeff_cr = 0;
+    currSlice->parser.is_reset_coeff    = false;
+    currSlice->parser.is_reset_coeff_cr = false;
 
     for (;;) {
 #if (MVC_EXTENSION_ENABLE)

@@ -517,7 +517,7 @@ uint8_t Parser::SyntaxElement::intra_chroma_pred_mode()
 uint8_t Parser::SyntaxElement::ref_idx_l(uint8_t list, uint8_t x0, uint8_t y0)
 {
     bool refidx_present =
-        slice.slice_type == B_slice || !slice.allrefzero || mb.mb_type != P8x8;
+        slice.slice_type == B_slice || !mb.allrefzero || mb.mb_type != P8x8;
     int num_ref_idx_active = list == LIST_0 ?
         slice.num_ref_idx_l0_active_minus1 + 1 :
         slice.num_ref_idx_l1_active_minus1 + 1;
@@ -633,7 +633,7 @@ int8_t Parser::SyntaxElement::mb_qp_delta()
         mb_qp_delta = cavlc.se();
     else {
         cabac_context_t* ctx = contexts.delta_qp_contexts;
-        uint8_t ctxIdxInc = slice.last_dquant != 0 ? 1 : 0;
+        uint8_t ctxIdxInc = slice.parser.last_dquant != 0 ? 1 : 0;
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 2, 3 };
 
         mb_qp_delta = cabac.u(ctx, ctxIdxIncs, 2);
