@@ -1,5 +1,32 @@
-#ifndef _MACROBLOCK_H_
-#define _MACROBLOCK_H_
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : macroblock.h
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
+
+#ifndef _VIO_H264_MACROBLOCK_H_
+#define _VIO_H264_MACROBLOCK_H_
+
+
+namespace vio  {
+namespace h264 {
 
 
 enum {
@@ -78,8 +105,8 @@ struct macroblock_t {
     bool        is_intra_block;
 
     short       slice_nr;
-    char        ei_flag;
-    char        dpl_flag;
+    bool        ei_flag;
+    bool        dpl_flag;
 
 
     bool        mb_skip_flag;
@@ -118,23 +145,16 @@ struct macroblock_t {
     uint8_t     strength_ver[4][16]; // bS
     uint8_t     strength_hor[5][16]; // bS
 
-    void        create(slice_t *slice);
-    void        init(slice_t *slice);
-    bool        close(slice_t *slice);
-
-    mv_t        GetMVPredictor(char ref_frame, int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
-    mv_t        GetMVPredictor2(char& ref_frame, int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
-    void        skip_macroblock();
-
-    int         get_colocated_info (storable_picture* list1, int i, int j);
-    void        get_direct_temporal(bool dir=true);
-    void        get_direct_spatial (bool dir=true);
-    int         get_inter8x8       (int block8x8);
-
-    void        update_qp(int qp);
+    void        create(slice_t& slice);
+    void        init(slice_t& slice);
+    bool        close(slice_t& slice);
 };
 
 using mb_t = macroblock_t;
 
+    
+}
+}
 
-#endif
+
+#endif // _VIO_H264_MACROBLOCK_H_

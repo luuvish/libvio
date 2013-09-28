@@ -10,6 +10,9 @@
 #include "output.h"
 #include "parset.h"
 #include "sei.h"
+
+using vio::h264::mb_t;
+
 #include "erc_api.h"
 #include "output.h"
 #include "h264decoder.h"
@@ -539,11 +542,6 @@ static void free_slice(slice_t *currSlice)
     free_mem3Dint(currSlice->wp_weight );
     free_mem3Dint(currSlice->wp_offset );
     free_mem4Dint(currSlice->wbp_weight);
-
-    delete []currSlice->partArr;
-
-    // delete all context models
-    delete currSlice->mot_ctx;
 
     for (int i = 0; i < 6; i++) {
         if (currSlice->listX[i]) {

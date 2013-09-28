@@ -19,6 +19,7 @@ struct cabac_contexts_t;
 }}
 
 using vio::h264::cabac_contexts_t;
+using vio::h264::mb_t;
 
 using vio::h264::Neighbour;
 using vio::h264::Parser;
@@ -185,31 +186,28 @@ struct slice_t {
 #endif
 
     //slice header information;
-    int                       ref_flag[17]; //!< 0: i-th previous frame is incorrect
-    char                      listXsize[6];
-    struct storable_picture **listX[6];
+    int                ref_flag[17]; //!< 0: i-th previous frame is incorrect
+    char               listXsize[6];
+    storable_picture** listX[6];
 
-    data_partition_t* partArr;      //!< array of partitions
-    cabac_contexts_t* mot_ctx;      //!< pointer to struct of context models for use in CABAC
-
-    int                       mvscale[6][MAX_REFERENCE_PICTURES];
+    int         mvscale[6][MAX_REFERENCE_PICTURES];
 
 
-    int                       layer_id;
+    int         layer_id;
 
 
-    int                       dpB_NotPresent;    //!< non-zero, if data partition B is lost
-    int                       dpC_NotPresent;    //!< non-zero, if data partition C is lost
+    int         dpB_NotPresent;    //!< non-zero, if data partition B is lost
+    int         dpC_NotPresent;    //!< non-zero, if data partition C is lost
 
-    bool                      is_reset_coeff;
-    bool                      is_reset_coeff_cr;
-    imgpel                 ***mb_pred; // IntraPrediction()
+    bool        is_reset_coeff;
+    bool        is_reset_coeff_cr;
+    imgpel***   mb_pred; // IntraPrediction()
 
-    imgpel                  **tmp_block_l0; // InterPrediction()
-    imgpel                  **tmp_block_l1; // InterPrediction()
-    int                     **tmp_res;
-    imgpel                  **tmp_block_l2; // InterPrediction()
-    imgpel                  **tmp_block_l3; // InterPrediction()
+    imgpel**    tmp_block_l0; // InterPrediction()
+    imgpel**    tmp_block_l1; // InterPrediction()
+    int   **    tmp_res;
+    imgpel**    tmp_block_l2; // InterPrediction()
+    imgpel**    tmp_block_l3; // InterPrediction()
 
     Neighbour   neighbour;
     Parser      parser;

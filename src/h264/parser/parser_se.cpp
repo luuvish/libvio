@@ -12,7 +12,7 @@
  *
  * ===========================================================================
  *
- *  File      : parser.cpp
+ *  File      : parser_se.cpp
  *  Author(s) : Luuvish
  *  Version   : 1.0
  *  Revision  :
@@ -40,9 +40,9 @@ Parser::SyntaxElement::SyntaxElement(mb_t& _mb) :
     pps { *_mb.p_Slice->active_pps },
     slice { *_mb.p_Slice },
     mb { _mb },
-    cavlc { _mb.p_Slice->partArr[0] },
-    cabac { _mb.p_Slice->partArr[0].de_cabac },
-    contexts { *_mb.p_Slice->mot_ctx }
+    cavlc { _mb.p_Slice->parser.partArr[0] },
+    cabac { _mb.p_Slice->parser.partArr[0].de_cabac },
+    contexts { _mb.p_Slice->parser.mot_ctx }
 {
 }
 

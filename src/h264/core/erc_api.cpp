@@ -1,5 +1,9 @@
 #include "global.h"
 #include "memalloc.h"
+
+using vio::h264::mb_t;
+using namespace vio::h264;
+
 #include "erc_api.h"
 #include "slice.h"
 #include "macroblock.h"

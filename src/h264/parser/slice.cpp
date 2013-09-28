@@ -9,7 +9,7 @@
 void slice_header(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
-    data_partition_t *s = &currSlice->partArr[0];
+    data_partition_t *s = &currSlice->parser.partArr[0];
 
     currSlice->first_mb_in_slice = s->ue("SH: first_mb_in_slice");
     p_Vid->type = currSlice->slice_type = s->ue("SH: slice_type") % 5;
@@ -214,7 +214,7 @@ void slice_header(slice_t *currSlice)
 
 void ref_pic_list_modification(slice_t *currSlice)
 {
-    data_partition_t *s = &currSlice->partArr[0];
+    data_partition_t *s = &currSlice->parser.partArr[0];
 
     currSlice->ref_pic_list_modification_flag_l0 = 0;
     if (currSlice->slice_type != I_slice && currSlice->slice_type != SI_slice) {
@@ -252,7 +252,7 @@ void ref_pic_list_modification(slice_t *currSlice)
 #if (MVC_EXTENSION_ENABLE)
 void ref_pic_list_mvc_modification(slice_t *currSlice)
 {
-    data_partition_t *s = &currSlice->partArr[0];
+    data_partition_t *s = &currSlice->parser.partArr[0];
 
     currSlice->ref_pic_list_modification_flag_l0 = 0;
     if (currSlice->slice_type != I_slice && currSlice->slice_type != SI_slice) {
@@ -296,7 +296,7 @@ void ref_pic_list_mvc_modification(slice_t *currSlice)
 
 void pred_weight_table(slice_t *currSlice)
 {
-    data_partition_t *s = &currSlice->partArr[0];
+    data_partition_t *s = &currSlice->parser.partArr[0];
 
     sps_t *sps = currSlice->active_sps;
     int i, j;
@@ -400,7 +400,7 @@ void pred_weight_table(slice_t *currSlice)
 
 void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *s, slice_t *currSlice)
 {
-    //data_partition_t *s = currSlice->partArr[0].bitstream;
+    //data_partition_t *s = currSlice->parser.partArr[0].bitstream;
 
     sps_t *sps = currSlice->active_sps;
     int val;

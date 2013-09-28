@@ -1,16 +1,36 @@
+/*
+ * ===========================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * ===========================================================================
+ *
+ *  File      : parser_mb.cpp
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * ===========================================================================
+ */
+
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "fmo.h"
-#include "neighbour.h"
-
 #include "parser.h"
-
 #include "intra_prediction.h"
 #include "transform.h"
 
 
-static const mv_t zero_mv = {0, 0};
+namespace vio  {
+namespace h264 {
 
 
 // Table 7-11 mb_t types for I slices
@@ -297,9 +317,6 @@ void interpret_mb_mode(mb_t* mb)
 }
 
 
-namespace vio  {
-namespace h264 {
-
 void Parser::parse(mb_t& mb)
 {
     Macroblock mbp { mb };
@@ -326,7 +343,7 @@ void Parser::Macroblock::parse()
     int CurrMbAddr = mb.mbAddrX;
     bool moreDataFlag = 1;
 
-    data_partition_t* dp = &slice.partArr[0];
+    data_partition_t* dp = &slice.parser.partArr[0];
 
     if (slice.slice_type != I_slice && slice.slice_type != SI_slice) {
         if (pps.entropy_coding_mode_flag) {
@@ -451,7 +468,7 @@ void Parser::Macroblock::parse_i_pcm()
             for (int list = 0; list < 2; list++) {
                 mv.ref_pic[list] = NULL;
                 mv.ref_idx[list] = -1;
-                mv.mv     [list] = zero_mv;
+                mv.mv     [list] = {0, 0};
             }
         }
     }
@@ -471,7 +488,7 @@ void Parser::Macroblock::parse_i_pcm()
             }
         }
     } else {
-        data_partition_t* dp = &slice.partArr[slice.dp_mode ? 1 : 0];
+        data_partition_t* dp = &slice.parser.partArr[slice.dp_mode ? 1 : 0];
 
         if (dp->frame_bitoffset & 7)
             dp->f(8 - (dp->frame_bitoffset & 7));
@@ -509,16 +526,16 @@ void Parser::Macroblock::parse_skip()
             if (slice.slice_type != B_slice) {
                 mv.ref_pic[LIST_1] = NULL;
                 mv.ref_idx[LIST_1] = -1;
-                mv.mv     [LIST_1] = zero_mv;
+                mv.mv     [LIST_1] = {0, 0};
             }
         }
     }
 
     if (slice.slice_type == B_slice) {
         if (slice.direct_spatial_mv_pred_flag)
-            mb.get_direct_spatial();
+            this->get_direct_spatial();
         else
-            mb.get_direct_temporal();
+            this->get_direct_temporal();
 
         mb.noSubMbPartSizeLessThan8x8Flag = sps.direct_8x8_inference_flag;
 
@@ -533,7 +550,7 @@ void Parser::Macroblock::parse_skip()
             re.residual();
         }
     } else
-        mb.skip_macroblock();
+        this->skip_macroblock();
 }
 
 void Parser::Macroblock::parse_intra()
@@ -561,7 +578,7 @@ void Parser::Macroblock::parse_intra()
             for (int list = 0; list < 2; list++) {
                 mv.ref_pic[list] = NULL;
                 mv.ref_idx[list] = -1;
-                mv.mv     [list] = zero_mv;
+                mv.mv     [list] = {0, 0};
             }
         }
     }
@@ -616,7 +633,7 @@ void Parser::Macroblock::parse_inter()
             for (int list = 0; list < 2; list++) {
                 mv.ref_pic[list] = NULL;
                 mv.ref_idx[list] = -1;
-                mv.mv     [list] = zero_mv;
+                mv.mv     [list] = {0, 0};
             }
         }
     }
@@ -756,9 +773,9 @@ void Parser::Macroblock::parse_motion_info()
 {
     if (slice.slice_type == B_slice && mb.mb_type == P8x8) {
         if (slice.direct_spatial_mv_pred_flag)
-            mb.get_direct_spatial(false);
+            this->get_direct_spatial(false);
         else
-            mb.get_direct_temporal(true);
+            this->get_direct_temporal(true);
     }
 
     this->parse_ref_pic_idx(LIST_0);
@@ -853,7 +870,7 @@ void Parser::Macroblock::parse_motion_vector(int list, int step_h4, int step_v4,
     for (int k = 0; k < 2; ++k)
         curr_mvd[k] = se.mvd_l(list, i, j, k);
 
-    mv_t pred_mv = mb.GetMVPredictor(cur_ref_idx, list, i, j, step_h4, step_v4);
+    mv_t pred_mv = this->GetMVPredictor(cur_ref_idx, list, i, j, step_h4, step_v4);
     mv_t curr_mv;
     curr_mv.mv_x = curr_mvd[0] + pred_mv.mv_x;
     curr_mv.mv_y = curr_mvd[1] + pred_mv.mv_y;
@@ -943,13 +960,8 @@ void Parser::Macroblock::parse_cbp_qp()
 #undef IS_DIRECT
 #undef IS_I16MB
 
-    mb.update_qp(slice.SliceQpY);
+    slice.parser.update_qp(mb, slice.SliceQpY);
 }
-
-
-}
-}
-
 
 // Table 8-15 Specification of QPc as a function of qPi
 
@@ -960,26 +972,31 @@ static const uint8_t QP_SCALE_CR[52] = {
     35, 36, 36, 37, 37, 37, 38, 38, 38, 39, 39, 39, 39
 };
 
-void macroblock_t::update_qp(int qp)
+void Parser::update_qp(mb_t& mb, int qp)
 {
-    slice_t* slice = this->p_Slice;
-    sps_t* sps = slice->active_sps;
-    pps_t* pps = slice->active_pps;
-    int QpOffset[2] = { pps->chroma_qp_index_offset, pps->second_chroma_qp_index_offset };
+    slice_t& slice = *mb.p_Slice;
+    sps_t& sps = *slice.active_sps;
+    pps_t& pps = *slice.active_pps;
 
-    this->QpY          = qp;
-    this->qp_scaled[0] = qp + sps->QpBdOffsetY;
+    int QpOffset[2] = { pps.chroma_qp_index_offset, pps.second_chroma_qp_index_offset };
+
+    mb.QpY          = qp;
+    mb.qp_scaled[0] = qp + sps.QpBdOffsetY;
 
     for (int i = 0; i < 2; i++) {
-        int8_t QpI = clip3(-(sps->QpBdOffsetC), 51, this->QpY + QpOffset[i]);
+        int8_t QpI = clip3(-(sps.QpBdOffsetC), 51, mb.QpY + QpOffset[i]);
         int8_t QpC = QpI < 30 ? QpI : QP_SCALE_CR[QpI];
-        this->QpC[i]           = QpC;
-        this->qp_scaled[i + 1] = QpC + sps->QpBdOffsetC;
+        mb.QpC[i]           = QpC;
+        mb.qp_scaled[i + 1] = QpC + sps.QpBdOffsetC;
 
-        int8_t QsI = clip3(-(sps->QpBdOffsetC), 51, this->p_Slice->QsY + QpOffset[i]);
+        int8_t QsI = clip3(-(sps.QpBdOffsetC), 51, slice.QsY + QpOffset[i]);
         int8_t QsC = QsI < 30 ? QsI : QP_SCALE_CR[QsI];
-        this->QsC[i]           = QsC;
+        mb.QsC[i]           = QsC;
     }
 
-    this->TransformBypassModeFlag = (sps->qpprime_y_zero_transform_bypass_flag && this->qp_scaled[0] == 0);
+    mb.TransformBypassModeFlag = (sps.qpprime_y_zero_transform_bypass_flag && mb.qp_scaled[0] == 0);
+}
+
+
+}
 }

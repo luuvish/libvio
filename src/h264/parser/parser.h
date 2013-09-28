@@ -40,6 +40,12 @@ public:
     void        parse(slice_t& slice);
     void        parse(mb_t& mb);
 
+    void        update_qp(mb_t& mb, int qp);
+    int         get_inter8x8(mb_t& mb, int block8x8);
+
+    data_partition_t partArr[3];
+    cabac_contexts_t mot_ctx;
+
 protected:
     class SyntaxElement {
     public:
@@ -129,6 +135,14 @@ protected:
         void        parse_motion_vector(int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx);
 
         void        parse_cbp_qp();
+
+        mv_t        GetMVPredictor(char ref_frame, int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
+        mv_t        GetMVPredictor2(char& ref_frame, int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
+        void        skip_macroblock();
+
+        int         get_colocated_info (storable_picture* list1, int i, int j);
+        void        get_direct_temporal(bool dir=true);
+        void        get_direct_spatial (bool dir=true);
 
     private:
         sps_t&      sps;

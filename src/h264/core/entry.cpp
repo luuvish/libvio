@@ -17,6 +17,8 @@
 #include "macroblock.h"
 #include "neighbour.h"
 
+using vio::h264::mb_t;
+
 #include "erc_api.h"
 #include "dpb.h"
 
@@ -102,7 +104,7 @@ static int parse_idr(slice_t *currSlice)
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->svc_extension_flag != 0)
 #endif
-        currSlice->partArr[0].init(nalu);
+        currSlice->parser.partArr[0].init(nalu);
 
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->svc_extension_flag == 0) {
@@ -170,7 +172,7 @@ static int parse_idr(slice_t *currSlice)
         currSlice->current_mb_nr = currSlice->first_mb_in_slice;
 
     if (p_Vid->active_pps->entropy_coding_mode_flag)
-        currSlice->partArr[0].de_cabac.init(&currSlice->partArr[0]);
+        currSlice->parser.partArr[0].de_cabac.init(&currSlice->parser.partArr[0]);
     p_Vid->recovery_point = 0;
     return current_header;
 }
@@ -199,7 +201,7 @@ static int parse_dpa(slice_t *currSlice)
 #if MVC_EXTENSION_ENABLE
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[0];
 #endif
-    dp = &currSlice->partArr[0];
+    dp = &currSlice->parser.partArr[0];
     dp->init(nalu);
 #if MVC_EXTENSION_ENABLE
     currSlice->view_id = GetBaseViewId(p_Vid, &p_Vid->active_subset_sps);
@@ -246,7 +248,7 @@ static int parse_dpa(slice_t *currSlice)
 
     if ( NALU_TYPE_DPB == nalu->nal_unit_type) {
         // we got a DPB
-        dp = &currSlice->partArr[1];
+        dp = &currSlice->parser.partArr[1];
         dp->init(nalu);
 
         slice_id_b = dp->ue("NALU: DP_B slice_id");
@@ -270,7 +272,7 @@ static int parse_dpa(slice_t *currSlice)
 
     // check if we got DP_C
     if ( NALU_TYPE_DPC == nalu->nal_unit_type) {
-        dp = &currSlice->partArr[2];
+        dp = &currSlice->parser.partArr[2];
         dp->init(nalu);
 
         currSlice->dpC_NotPresent = 0;
@@ -311,7 +313,7 @@ int read_new_slice(slice_t *currSlice)
 
     nalu_t *nalu = p_Vid->nalu; 
     int current_header = 0;
-    data_partition_t* dp = &currSlice->partArr[0];
+    data_partition_t* dp = &currSlice->parser.partArr[0];
 
     currSlice->num_dec_mb        = 0;
     currSlice->is_reset_coeff    = 0;

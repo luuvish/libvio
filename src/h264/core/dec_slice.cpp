@@ -1,6 +1,3 @@
-#include <math.h>
-#include <limits.h>
-
 #include "global.h"
 #include "slice.h"
 #include "image.h"
@@ -15,6 +12,8 @@
 #include "memalloc.h"
 #include "macroblock.h"
 #include "neighbour.h"
+
+using vio::h264::mb_t;
 
 #include "erc_api.h"
 #include "dpb.h"
@@ -237,7 +236,7 @@ bool slice_t::init()
                                                                : p_Vid->Is_redundant_correct;
 
     if (this->active_pps->entropy_coding_mode_flag) {
-        this->mot_ctx->init(this->slice_type, this->cabac_init_idc, this->SliceQpY);
+        this->parser.mot_ctx.init(this->slice_type, this->cabac_init_idc, this->SliceQpY);
         this->last_dquant = 0;
     }
 
@@ -273,7 +272,7 @@ void slice_t::decode()
         mb_t *currMB = &this->mb_data[this->current_mb_nr]; 
 
         // Initializes the current macroblock
-        currMB->init(this);
+        currMB->init(*this);
         // Get the syntax elements from the NAL
         this->parser.parse(*currMB);
         this->decoder.decode(*currMB);
@@ -287,6 +286,6 @@ void slice_t::decode()
         ercWriteMBMODEandMV(currMB);
 #endif
 
-        end_of_slice = currMB->close(this);
+        end_of_slice = currMB->close(*this);
     }
 }

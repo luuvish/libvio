@@ -265,7 +265,7 @@ void Decoder::mb_pred_ipcm(mb_t& mb)
     }
 
     // for deblocking filter
-    mb.update_qp(0);
+    slice.parser.update_qp(mb, 0);
 
     memset(mb.nz_coeff, 16, 3 * 16 * sizeof(byte));
 
@@ -384,7 +384,7 @@ void Decoder::mb_pred_b_inter8x8(mb_t& mb, ColorPlane curr_plane)
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
         for (int i0 = 0; i0 < 4; i0 += step_h0) {
             int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-            pred_dirs[block8x8] = mb.get_inter8x8(block8x8);
+            pred_dirs[block8x8] = slice.parser.get_inter8x8(mb, block8x8);
         }
     }
 

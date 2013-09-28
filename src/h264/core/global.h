@@ -19,9 +19,10 @@
 
 #include "parset.h"
 #include "bitstream.h"
-
+#include "macroblock.h"
 
 using vio::h264::bitstream_t;
+using vio::h264::mb_t;
 
 
 typedef enum {
@@ -186,8 +187,8 @@ typedef struct coding_par {
     //padding info;
     void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
-    struct macroblock_t *mb_data;               //!< array containing all MBs of a whole frame
-    struct macroblock_t *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
+    mb_t *mb_data;               //!< array containing all MBs of a whole frame
+    mb_t *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
 } CodingParameters;
 
 struct decoded_picture_buffer_t;
@@ -263,6 +264,14 @@ typedef struct snr_par
     float msse[3];                                //!< Average component SSE 
 } SNRParameters;
 
+struct tone_mapping_struct_s;
+struct frame_store;
+struct sei_params;
+struct concealment_node;
+struct object_buffer;
+struct ercVariables_s;
+struct storable_picture;
+
 // video parameters
 typedef struct video_par {
     InputParameters      *p_Inp;
@@ -287,23 +296,23 @@ typedef struct video_par {
     bool global_init_done[2];
 
 #if (ENABLE_OUTPUT_TONEMAPPING)
-    struct tone_mapping_struct_s *seiToneMapping;
+    tone_mapping_struct_s *seiToneMapping;
 #endif
 
     int              iNumOfSlicesAllocated;
     int              iSliceNumOfCurrPic;
-    struct slice_t **ppSliceList;
-    struct slice_t  *pNextSlice;
-    int              newframe;
+    slice_t **ppSliceList;
+    slice_t  *pNextSlice;
+    int       newframe;
 
-    struct nalu_t *nalu;
+    nalu_t *nalu;
 
     DecodedPicList *pDecOuputPic;
     pps_t *pNextPPS;
     bool first_sps; // use only for print first sps
 
 
-    struct frame_store *out_buffer;
+    frame_store *out_buffer;
 
     // Timing related variables
     std::chrono::system_clock::time_point start_time;
@@ -337,7 +346,7 @@ typedef struct video_par {
     sub_sps_t   SubsetSeqParSet[MAXSPS];
 #endif
 
-  struct sei_params        *p_SEI;
+  sei_params        *p_SEI;
 
   int number;                                 //!< frame number
 
@@ -348,15 +357,15 @@ typedef struct video_par {
   int structure;                     //!< Identify picture structure type
 
     // global picture format dependent buffers, memory allocation in decod.c
-    struct macroblock_t *mb_data;               //!< array containing all MBs of a whole frame
-    struct macroblock_t *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
+    mb_t *mb_data;               //!< array containing all MBs of a whole frame
+    mb_t *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
 
 
   // picture error concealment
   // concealment_head points to first node in list, concealment_end points to
   // last node in list. Initialize both to NULL, meaning no nodes in list yet
-  struct concealment_node *concealment_head;
-  struct concealment_node *concealment_end;
+  concealment_node *concealment_head;
+  concealment_node *concealment_end;
 
   unsigned int pre_frame_num;           //!< store the frame_num in the last decoded slice. For detecting gap in frame_num.
   int non_conforming_stream;
@@ -395,21 +404,21 @@ typedef struct video_par {
   int Is_redundant_correct;        //!< if redundant frame is correct, 0:incorrect
 
 
-  struct frame_store *last_out_fs;
+  frame_store *last_out_fs;
   int pocs_in_dpb[100];
 
-  struct storable_picture *dec_picture;
-  struct storable_picture *dec_picture_JV[MAX_PLANE];  //!< dec_picture to be used during 4:4:4 independent mode decoding
-  struct storable_picture *no_reference_picture; //!< dummy storable picture for recovery point
+  storable_picture *dec_picture;
+  storable_picture *dec_picture_JV[MAX_PLANE];  //!< dec_picture to be used during 4:4:4 independent mode decoding
+  storable_picture *no_reference_picture; //!< dummy storable picture for recovery point
 
   // Error parameters
-  struct object_buffer  *erc_object_list;
-  struct ercVariables_s *erc_errorVar;
+  object_buffer  *erc_object_list;
+  ercVariables_s *erc_errorVar;
 
   int erc_mvperMB;
-  struct video_par *erc_img;
+  video_par *erc_img;
 
-  struct storable_picture *pending_output;
+  storable_picture *pending_output;
   int    recovery_flag;
 
   void (*buf2img)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int o_size_x, int o_size_y, int symbol_size_in_bytes, int bitshift);

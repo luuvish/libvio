@@ -1,13 +1,15 @@
 #include <limits.h>
 
 #include "global.h"
-#include "erc_api.h"
 #include "slice.h"
 #include "image.h"
 #include "dpb.h"
 #include "memalloc.h"
 #include "output.h"
 
+using vio::h264::mb_t;
+
+#include "erc_api.h"
 
 static inline int is_short_ref(storable_picture *s)
 {
