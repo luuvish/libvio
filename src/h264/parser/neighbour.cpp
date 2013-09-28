@@ -27,6 +27,10 @@
 #include "neighbour.h"
 
 
+namespace vio  {
+namespace h264 {
+
+
 loc_t operator + (const loc_t& l, const loc_t& r)
 {
     return { l.x + r.x, l.y + r.y };
@@ -38,24 +42,27 @@ loc_t operator - (const loc_t& l, const loc_t& r)
 }
 
 
-loc_t neighbour_t::get_location(slice_t* slice, int mbAddr, const pos_t& offset)
+loc_t Neighbour::get_location(slice_t* slice, bool chroma, int mbAddr, const pos_t& offset)
 {
     sps_t* sps = slice->active_sps;
+
+    int maxW = !chroma ? 16 : sps->MbWidthC;
+    int maxH = !chroma ? 16 : sps->MbHeightC;
 
     loc_t loc {};
 
     if (slice->MbaffFrameFlag == 0) {
-        loc.x = mbAddr % sps->PicWidthInMbs * 16;
-        loc.y = mbAddr / sps->PicWidthInMbs * 16;
+        loc.x = mbAddr % sps->PicWidthInMbs * maxW;
+        loc.y = mbAddr / sps->PicWidthInMbs * maxH;
         loc.x += offset.x;
         loc.y += offset.y;
     } else {
-        loc.x = (mbAddr / 2) % sps->PicWidthInMbs * 16;
-        loc.y = (mbAddr / 2) / sps->PicWidthInMbs * 32;
+        loc.x = (mbAddr / 2) % sps->PicWidthInMbs * maxW;
+        loc.y = (mbAddr / 2) / sps->PicWidthInMbs * maxH * 2;
         mb_t* mb = &slice->mb_data[mbAddr];
         loc.x += offset.x;
         if (mb->mb_field_decoding_flag == 0) {
-            loc.y += mbAddr % 2 * 16;
+            loc.y += mbAddr % 2 * maxH;
             loc.y += offset.y;
         } else {
             loc.y += mbAddr % 2;
@@ -66,24 +73,27 @@ loc_t neighbour_t::get_location(slice_t* slice, int mbAddr, const pos_t& offset)
     return loc;
 }
 
-loc_t neighbour_t::get_location_c(slice_t* slice, int mbAddr, const pos_t& offset)
+mb_t* Neighbour::get_mb(slice_t* slice, bool chroma, int mbAddr, const pos_t& offset)
 {
     sps_t* sps = slice->active_sps;
+
+    int maxW = !chroma ? 16 : sps->MbWidthC;
+    int maxH = !chroma ? 16 : sps->MbHeightC;
 
     loc_t loc {};
 
     if (slice->MbaffFrameFlag == 0) {
-        loc.x = mbAddr % sps->PicWidthInMbs * sps->MbWidthC;
-        loc.y = mbAddr / sps->PicWidthInMbs * sps->MbHeightC;
+        loc.x = mbAddr % sps->PicWidthInMbs * maxW;
+        loc.y = mbAddr / sps->PicWidthInMbs * maxH;
         loc.x += offset.x;
         loc.y += offset.y;
     } else {
-        loc.x = (mbAddr / 2) % sps->PicWidthInMbs * sps->MbWidthC;
-        loc.y = (mbAddr / 2) / sps->PicWidthInMbs * sps->MbHeightC * 2;
+        loc.x = (mbAddr / 2) % sps->PicWidthInMbs * maxW;
+        loc.y = (mbAddr / 2) / sps->PicWidthInMbs * maxH * 2;
         mb_t* mb = &slice->mb_data[mbAddr];
         loc.x += offset.x;
         if (mb->mb_field_decoding_flag == 0) {
-            loc.y += mbAddr % 2 * sps->MbHeightC;
+            loc.y += mbAddr % 2 * maxH;
             loc.y += offset.y;
         } else {
             loc.y += mbAddr % 2;
@@ -91,119 +101,126 @@ loc_t neighbour_t::get_location_c(slice_t* slice, int mbAddr, const pos_t& offse
         }
     }
 
-    return loc;
-}
-
-mb_t* neighbour_t::get_mb(slice_t* slice, const loc_t& loc)
-{
-    sps_t* sps = slice->active_sps;
-
-    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * 16)
+    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * maxW)
         return nullptr;
-    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * 16)
+    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * maxH)
         return nullptr;
 
-    int mbAddr = (slice->MbaffFrameFlag == 0) ?
-        ((loc.y / 16) * sps->PicWidthInMbs + (loc.x / 16)) :
-        ((loc.y / 32) * sps->PicWidthInMbs + (loc.x / 16)) * 2;
+    mbAddr = (slice->MbaffFrameFlag == 0) ?
+        ((loc.y / maxH) * sps->PicWidthInMbs + (loc.x / maxW)) :
+        ((loc.y / (maxH * 2)) * sps->PicWidthInMbs + (loc.x / maxW)) * 2;
 
     mb_t* mb = &slice->mb_data[mbAddr];
     if (slice->MbaffFrameFlag)
-        mb += ((mb->mb_field_decoding_flag == 0) ? (loc.y & 16) : (loc.y & 1)) ? 1 : 0;
+        mb += ((mb->mb_field_decoding_flag == 0) ? (loc.y & maxH) : (loc.y & 1)) ? 1 : 0;
     return mb;
 }
 
-mb_t* neighbour_t::get_mb_c(slice_t* slice, const loc_t& loc)
+nb_t Neighbour::get_neighbour(slice_t* slice, bool chroma, int mbAddr, const pos_t& offset)
 {
     sps_t* sps = slice->active_sps;
 
-    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * sps->MbWidthC)
+    int maxW = !chroma ? 16 : sps->MbWidthC;
+    int maxH = !chroma ? 16 : sps->MbHeightC;
+
+    loc_t loc {};
+
+    if (slice->MbaffFrameFlag == 0) {
+        loc.x = mbAddr % sps->PicWidthInMbs * maxW;
+        loc.y = mbAddr / sps->PicWidthInMbs * maxH;
+        loc.x += offset.x;
+        loc.y += offset.y;
+    } else {
+        loc.x = (mbAddr / 2) % sps->PicWidthInMbs * maxW;
+        loc.y = (mbAddr / 2) / sps->PicWidthInMbs * maxH * 2;
+        mb_t* mb = &slice->mb_data[mbAddr];
+        loc.x += offset.x;
+        if (mb->mb_field_decoding_flag == 0) {
+            loc.y += mbAddr % 2 * maxH;
+            loc.y += offset.y;
+        } else {
+            loc.y += mbAddr % 2;
+            loc.y += offset.y * 2;
+        }
+    }
+
+    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * maxW)
+        return {nullptr, 0, 0};
+    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * maxH)
+        return {nullptr, 0, 0};
+
+    mbAddr = (slice->MbaffFrameFlag == 0) ?
+        ((loc.y / maxH) * sps->PicWidthInMbs + (loc.x / maxW)) :
+        ((loc.y / (maxH * 2)) * sps->PicWidthInMbs + (loc.x / maxW)) * 2;
+
+    mb_t* mb = &slice->mb_data[mbAddr];
+    pos_t pos {loc.x, loc.y};
+    if (slice->MbaffFrameFlag) {
+        if (mb->mb_field_decoding_flag == 0)
+            mb += (loc.y & maxH) ? 1 : 0;
+        else {
+            mb += (loc.y & 1) ? 1 : 0;
+            pos.y = loc.y / (maxH * 2) * (maxH * 2) + (loc.y % (maxH * 2)) / 2 + (loc.y & 1) * maxH;
+        }
+    }
+
+    return {mb, pos.x, pos.y};
+}
+
+mb_t* Neighbour::get_mb(slice_t* slice, bool chroma, const loc_t& loc)
+{
+    sps_t* sps = slice->active_sps;
+
+    int maxW = !chroma ? 16 : sps->MbWidthC;
+    int maxH = !chroma ? 16 : sps->MbHeightC;
+
+    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * maxW)
         return nullptr;
-    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * sps->MbHeightC)
+    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * maxH)
         return nullptr;
 
     int mbAddr = (slice->MbaffFrameFlag == 0) ?
-        ((loc.y / sps->MbHeightC      ) * sps->PicWidthInMbs + (loc.x / sps->MbWidthC)) :
-        ((loc.y / (sps->MbHeightC * 2)) * sps->PicWidthInMbs + (loc.x / sps->MbWidthC)) * 2;
+        ((loc.y / maxH) * sps->PicWidthInMbs + (loc.x / maxW)) :
+        ((loc.y / (maxH * 2)) * sps->PicWidthInMbs + (loc.x / maxW)) * 2;
 
     mb_t* mb = &slice->mb_data[mbAddr];
     if (slice->MbaffFrameFlag)
-        mb += ((mb->mb_field_decoding_flag == 0) ? (loc.y & sps->MbHeightC) : (loc.y & 1)) ? 1 : 0;
+        mb += ((mb->mb_field_decoding_flag == 0) ? (loc.y & maxH) : (loc.y & 1)) ? 1 : 0;
     return mb;
 }
 
-int neighbour_t::get_mbaddr(slice_t* slice, const loc_t& loc)
+nb_t Neighbour::get_neighbour(slice_t* slice, bool chroma, const loc_t& loc)
 {
     sps_t* sps = slice->active_sps;
 
-    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * 16)
-        return -1;
-    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * 16)
-        return -1;
+    int maxW = !chroma ? 16 : sps->MbWidthC;
+    int maxH = !chroma ? 16 : sps->MbHeightC;
+
+    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * maxW)
+        return {nullptr, 0, 0};
+    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * maxH)
+        return {nullptr, 0, 0};
 
     int mbAddr = (slice->MbaffFrameFlag == 0) ?
-        ((loc.y / 16) * sps->PicWidthInMbs + (loc.x / 16)) :
-        ((loc.y / 32) * sps->PicWidthInMbs + (loc.x / 16)) * 2;
+        ((loc.y / maxH) * sps->PicWidthInMbs + (loc.x / maxW)) :
+        ((loc.y / (maxH * 2)) * sps->PicWidthInMbs + (loc.x / maxW)) * 2;
 
+    mb_t* mb = &slice->mb_data[mbAddr];
+    pos_t pos {loc.x, loc.y};
     if (slice->MbaffFrameFlag) {
-        mb_t* mb = &slice->mb_data[mbAddr];
-        mbAddr += ((mb->mb_field_decoding_flag == 0) ? (loc.y & 16) : (loc.y & 1)) ? 1 : 0;
+        if (mb->mb_field_decoding_flag == 0)
+            mb += (loc.y & maxH) ? 1 : 0;
+        else {
+            mb += (loc.y & 1) ? 1 : 0;
+            pos.y = loc.y / (maxH * 2) * (maxH * 2) + (loc.y % (maxH * 2)) / 2 + (loc.y & 1) * maxH;
+        }
     }
-    return mbAddr;
+
+    return {mb, pos.x, pos.y};
 }
 
-pos_t neighbour_t::get_blkpos(slice_t* slice, const loc_t& loc)
-{
-    sps_t* sps = slice->active_sps;
 
-    pos_t pos {};
-
-    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * 16)
-        return pos;
-    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * 16)
-        return pos;
-
-    int mbAddr = (slice->MbaffFrameFlag == 0) ?
-        ((loc.y / 16) * sps->PicWidthInMbs + (loc.x / 16)) :
-        ((loc.y / 32) * sps->PicWidthInMbs + (loc.x / 16)) * 2;
-
-    pos.x = loc.x;
-    pos.y = loc.y;
-    if (slice->MbaffFrameFlag) {
-        mb_t* mb = &slice->mb_data[mbAddr];
-        if (mb->mb_field_decoding_flag)
-            pos.y = loc.y / 32 * 32 + (loc.y % 32) / 2 + 16 * (loc.y & 1);
-    }
-    return pos;
-}
-
-pos_t neighbour_t::get_blkpos_c(slice_t* slice, const loc_t& loc)
-{
-    sps_t* sps = slice->active_sps;
-
-    pos_t pos {};
-
-    if (loc.x < 0 || loc.x >= sps->PicWidthInMbs * sps->MbWidthC)
-        return pos;
-    if (loc.y < 0 || loc.y >= slice->PicHeightInMbs * sps->MbHeightC)
-        return pos;
-
-    int mbAddr = (slice->MbaffFrameFlag == 0) ?
-        ((loc.y / sps->MbHeightC      ) * sps->PicWidthInMbs + (loc.x / sps->MbWidthC)) :
-        ((loc.y / (sps->MbHeightC * 2)) * sps->PicWidthInMbs + (loc.x / sps->MbWidthC)) * 2;
-
-    pos.x = loc.x;
-    pos.y = loc.y;
-    if (slice->MbaffFrameFlag) {
-        mb_t* mb = &slice->mb_data[mbAddr];
-        if (mb->mb_field_decoding_flag)
-            pos.y = loc.y / (sps->MbHeightC * 2) * (sps->MbHeightC * 2) +
-                    (loc.y % (sps->MbHeightC * 2)) / 2 + sps->MbHeightC * (loc.y & 1);
-    }
-    return pos;
-}
-
-pos_t neighbour_t::get_position(slice_t* slice, int mbAddr, int blkIdx)
+pos_t Neighbour::get_position(slice_t* slice, int mbAddr, int blkIdx)
 {
     sps_t* sps = slice->active_sps;
 
@@ -235,70 +252,59 @@ pos_t neighbour_t::get_position(slice_t* slice, int mbAddr, int blkIdx)
 }
 
 
-int neighbour_t::predict_nnz(mb_t* mb, int pl, int i, int j)
+int Neighbour::predict_nnz(mb_t* mb, int pl, int i, int j)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
     pps_t* pps = slice->active_pps;
 
-    loc_t locA, locB;
-    mb_t* mbA, *mbB;
-    pos_t posA, posB;
-    if (pl == 0 || sps->separate_colour_plane_flag) {
-        locA = slice->neighbour.get_location(slice, mb->mbAddrX, {i - 1, j});
-        locB = slice->neighbour.get_location(slice, mb->mbAddrX, {i, j - 1});
-        mbA  = slice->neighbour.get_mb      (slice, locA);
-        mbB  = slice->neighbour.get_mb      (slice, locB);
-        posA = slice->neighbour.get_blkpos  (slice, locA);
-        posB = slice->neighbour.get_blkpos  (slice, locB);
-    } else {
-        locA = slice->neighbour.get_location_c(slice, mb->mbAddrX, {i - 1, j});
-        locB = slice->neighbour.get_location_c(slice, mb->mbAddrX, {i, j - 1});
-        mbA  = slice->neighbour.get_mb_c      (slice, locA);
-        mbB  = slice->neighbour.get_mb_c      (slice, locB);
-        posA = slice->neighbour.get_blkpos_c  (slice, locA);
-        posB = slice->neighbour.get_blkpos_c  (slice, locB);
-    }
+    bool chroma = !(pl == 0 || sps->separate_colour_plane_flag);
 
-    mbA = mbA && mbA->slice_nr == mb->slice_nr ? mbA : nullptr;
-    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbB : nullptr;
+    nb_t nbA = slice->neighbour.get_neighbour(slice, chroma, mb->mbAddrX, {i - 1, j});
+    nb_t nbB = slice->neighbour.get_neighbour(slice, chroma, mb->mbAddrX, {i, j - 1});
+    nbA.mb = nbA.mb && nbA.mb->slice_nr == mb->slice_nr ? nbA.mb : nullptr;
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
 
     if (pps->constrained_intra_pred_flag && slice->dp_mode == vio::h264::PAR_DP_3) {
         if (mb->is_intra_block) {
-            mbA = mbA && mbA->is_intra_block ? mbA : nullptr;
-            mbB = mbB && mbB->is_intra_block ? mbB : nullptr;
+            nbA.mb = nbA.mb && nbA.mb->is_intra_block ? nbA.mb : nullptr;
+            nbB.mb = nbB.mb && nbB.mb->is_intra_block ? nbB.mb : nullptr;
         }
     }
 
-    int nW = pl == 0 || sps->separate_colour_plane_flag ? 16 : sps->MbWidthC;
-    int nH = pl == 0 || sps->separate_colour_plane_flag ? 16 : sps->MbHeightC;
+    int nW = !chroma ? 16 : sps->MbWidthC;
+    int nH = !chroma ? 16 : sps->MbHeightC;
 
     uint8_t nA = 0;
-    if (mbA) {
-        //if (mbA->mb_type == PSKIP || mbA->mb_type == BSKIP_DIRECT)
+    if (nbA.mb) {
+        //if (nbA.mb->mb_type == PSKIP || nbA.mb->mb_type == BSKIP_DIRECT)
         //    nA = 0;
-        //else if (mbA->mb_type != IPCM && (mbA->cbp & 15) == 0)
+        //else if (nbA.mb->mb_type != IPCM && (nbA.mb->cbp & 15) == 0)
         //    nA = 0;
-        //else if (mbA->mb_type == IPCM)
+        //else if (nbA.mb->mb_type == IPCM)
         //    nA = 16;
         //else
-            nA = mbA->nz_coeff[pl][(posA.y % nH) / 4][(posA.x % nW) / 4];
+            nA = nbA.mb->nz_coeff[pl][(nbA.y % nH) / 4][(nbA.x % nW) / 4];
     }
 
     uint8_t nB = 0;
-    if (mbB) {
-        //if (mbB->mb_type == PSKIP || mbB->mb_type == BSKIP_DIRECT)
+    if (nbB.mb) {
+        //if (nbB.mb->mb_type == PSKIP || nbB.mb->mb_type == BSKIP_DIRECT)
         //    nB = 0;
-        //else if (mbB->mb_type != IPCM && (mbB->cbp & 15) == 0)
+        //else if (nbB.mb->mb_type != IPCM && (nbB.mb->cbp & 15) == 0)
         //    nB = 0;
-        //else if (mbB->mb_type == IPCM)
+        //else if (nbB.mb->mb_type == IPCM)
         //    nB = 16;
         //else
-            nB = mbB->nz_coeff[pl][(posB.y % nH) / 4][(posB.x % nW) / 4];
+            nB = nbB.mb->nz_coeff[pl][(nbB.y % nH) / 4][(nbB.x % nW) / 4];
     }
 
     uint8_t nC = nA + nB;
-    if (mbA && mbB)
+    if (nbA.mb && nbB.mb)
         nC = (nC + 1) >> 1;
     return nC;
+}
+
+    
+}
 }

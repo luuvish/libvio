@@ -68,11 +68,8 @@ void macroblock_t::init(slice_t* slice)
         if (this->mbAddrX % 2 == 0 || prevMbSkipped) {
             int topMbAddr = this->mbAddrX & ~1;
 
-            loc_t locA = slice->neighbour.get_location(slice, topMbAddr, {-1, 0});
-            loc_t locB = slice->neighbour.get_location(slice, topMbAddr, {0, -1});
-            mb_t* mbA  = slice->neighbour.get_mb      (slice, locA);
-            mb_t* mbB  = slice->neighbour.get_mb      (slice, locB);
-
+            mb_t* mbA = slice->neighbour.get_mb(slice, false, topMbAddr, {-1, 0});
+            mb_t* mbB = slice->neighbour.get_mb(slice, false, topMbAddr, {0, -1});
             mbA = mbA && mbA->slice_nr == this->slice_nr ? mbA : nullptr;
             mbB = mbB && mbB->slice_nr == this->slice_nr ? mbB : nullptr;
 

@@ -55,38 +55,33 @@ static int ref_idx_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
 {
     slice_t* slice = mb->p_Slice;
 
-    loc_t locA = slice->neighbour.get_location(slice, mb->mbAddrX, {x0 * 4 - 1, y0 * 4});
-    loc_t locB = slice->neighbour.get_location(slice, mb->mbAddrX, {x0 * 4, y0 * 4 - 1});
-    mb_t* mbA  = slice->neighbour.get_mb      (slice, locA);
-    mb_t* mbB  = slice->neighbour.get_mb      (slice, locB);
-    pos_t posA = slice->neighbour.get_blkpos  (slice, locA);
-    pos_t posB = slice->neighbour.get_blkpos  (slice, locB);
-
-    mbA = mbA && mbA->slice_nr == mb->slice_nr ? mbA : nullptr;
-    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbB : nullptr;
+    nb_t nbA = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4 - 1, y0 * 4});
+    nb_t nbB = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4, y0 * 4 - 1});
+    nbA.mb = nbA.mb && nbA.mb->slice_nr == mb->slice_nr ? nbA.mb : nullptr;
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
 
     int condTermFlagA = 0;
     int condTermFlagB = 0;
     int ctxIdxInc;
 
 #define IS_DIRECT(MB) ((MB)->mb_type == 0 && (slice->slice_type == B_SLICE))
-    if (mbA) {
-        int b8a = ((posA.y / 4) & 2) + ((posA.x / 8) & 1);
-        auto mv_info = &slice->dec_picture->mv_info[posA.y / 4][posA.x / 4];
-        if (!(mbA->mb_type == IPCM || IS_DIRECT(mbA) ||
-             (mbA->SubMbType[b8a] == 0 && mbA->SubMbPredMode[b8a] == 2))) {
-            if (slice->MbaffFrameFlag && !mb->mb_field_decoding_flag && mbA->mb_field_decoding_flag)
+    if (nbA.mb) {
+        int b8a = ((nbA.y / 4) & 2) + ((nbA.x / 8) & 1);
+        auto mv_info = &slice->dec_picture->mv_info[nbA.y / 4][nbA.x / 4];
+        if (!(nbA.mb->mb_type == IPCM || IS_DIRECT(nbA.mb) ||
+             (nbA.mb->SubMbType[b8a] == 0 && nbA.mb->SubMbPredMode[b8a] == 2))) {
+            if (slice->MbaffFrameFlag && !mb->mb_field_decoding_flag && nbA.mb->mb_field_decoding_flag)
                 condTermFlagA = (mv_info->ref_idx[list] > 1 ? 1 : 0);
             else
                 condTermFlagA = (mv_info->ref_idx[list] > 0 ? 1 : 0);
         }
     }
-    if (mbB) {
-        int b8b = ((posB.y / 4) & 2) + ((posB.x / 8) & 1);
-        auto mv_info = &slice->dec_picture->mv_info[posB.y / 4][posB.x / 4];
-        if (!(mbB->mb_type == IPCM || IS_DIRECT(mbB) ||
-             (mbB->SubMbType[b8b] == 0 && mbB->SubMbPredMode[b8b] == 2))) {
-            if (slice->MbaffFrameFlag && !mb->mb_field_decoding_flag && mbB->mb_field_decoding_flag)
+    if (nbB.mb) {
+        int b8b = ((nbB.y / 4) & 2) + ((nbB.x / 8) & 1);
+        auto mv_info = &slice->dec_picture->mv_info[nbB.y / 4][nbB.x / 4];
+        if (!(nbB.mb->mb_type == IPCM || IS_DIRECT(nbB.mb) ||
+             (nbB.mb->SubMbType[b8b] == 0 && nbB.mb->SubMbPredMode[b8b] == 2))) {
+            if (slice->MbaffFrameFlag && !mb->mb_field_decoding_flag && nbB.mb->mb_field_decoding_flag)
                 condTermFlagB = (mv_info->ref_idx[list] > 1 ? 1 : 0);
             else
                 condTermFlagB = (mv_info->ref_idx[list] > 0 ? 1 : 0);
@@ -103,36 +98,31 @@ static int mvd_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, bool co
 {
     slice_t* slice = mb->p_Slice;
 
-    loc_t locA = slice->neighbour.get_location(slice, mb->mbAddrX, {x0 * 4 - 1, y0 * 4});
-    loc_t locB = slice->neighbour.get_location(slice, mb->mbAddrX, {x0 * 4, y0 * 4 - 1});
-    mb_t* mbA  = slice->neighbour.get_mb      (slice, locA);
-    mb_t* mbB  = slice->neighbour.get_mb      (slice, locB);
-    pos_t posA = slice->neighbour.get_blkpos  (slice, locA);
-    pos_t posB = slice->neighbour.get_blkpos  (slice, locB);
-
-    mbA = mbA && mbA->slice_nr == mb->slice_nr ? mbA : nullptr;
-    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbB : nullptr;
+    nb_t nbA = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4 - 1, y0 * 4});
+    nb_t nbB = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4, y0 * 4 - 1});
+    nbA.mb = nbA.mb && nbA.mb->slice_nr == mb->slice_nr ? nbA.mb : nullptr;
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
 
     int absMvdCompA = 0;
     int absMvdCompB = 0;
 
-    if (mbA) {
-        auto mvd = list == 0 ? mbA->mvd_l0 : mbA->mvd_l1;
-        absMvdCompA = abs(mvd[(posA.y & 15) / 4][(posA.x & 15) / 4][comp]);
+    if (nbA.mb) {
+        auto mvd = list == 0 ? nbA.mb->mvd_l0 : nbA.mb->mvd_l1;
+        absMvdCompA = abs(mvd[(nbA.y & 15) / 4][(nbA.x & 15) / 4][comp]);
         if (slice->MbaffFrameFlag && comp) {
-            if (!mb->mb_field_decoding_flag && mbA->mb_field_decoding_flag)
+            if (!mb->mb_field_decoding_flag && nbA.mb->mb_field_decoding_flag)
                 absMvdCompA *= 2;
-            else if (mb->mb_field_decoding_flag && !mbA->mb_field_decoding_flag)
+            else if (mb->mb_field_decoding_flag && !nbA.mb->mb_field_decoding_flag)
                 absMvdCompA /= 2;
         }
     }
-    if (mbB) {
-        auto mvd = list == 0 ? mbB->mvd_l0 : mbB->mvd_l1;
-        absMvdCompB = abs(mvd[(posB.y & 15) / 4][(posB.x & 15) / 4][comp]);
+    if (nbB.mb) {
+        auto mvd = list == 0 ? nbB.mb->mvd_l0 : nbB.mb->mvd_l1;
+        absMvdCompB = abs(mvd[(nbB.y & 15) / 4][(nbB.x & 15) / 4][comp]);
         if (slice->MbaffFrameFlag && comp) {
-            if (!mb->mb_field_decoding_flag && mbB->mb_field_decoding_flag)
+            if (!mb->mb_field_decoding_flag && nbB.mb->mb_field_decoding_flag)
                 absMvdCompB *= 2;
-            else if (mb->mb_field_decoding_flag && !mbB->mb_field_decoding_flag)
+            else if (mb->mb_field_decoding_flag && !nbB.mb->mb_field_decoding_flag)
                 absMvdCompB /= 2;
         }
     }
@@ -147,29 +137,25 @@ static int cbp_ctxIdxInc(mb_t* mb, uint8_t x0, uint8_t y0, uint8_t coded_block_p
 {
     slice_t* slice = mb->p_Slice;
 
-    loc_t locA = slice->neighbour.get_location(slice, mb->mbAddrX, {x0 * 4 - 1, y0 * 4});
-    loc_t locB = slice->neighbour.get_location(slice, mb->mbAddrX, {x0 * 4, y0 * 4 - 1});
-    mb_t* mbA  = slice->neighbour.get_mb      (slice, locA);
-    mb_t* mbB  = slice->neighbour.get_mb      (slice, locB);
-    pos_t posA = slice->neighbour.get_blkpos  (slice, locA);
-
-    mbA = mbA && mbA->slice_nr == mb->slice_nr ? mbA : nullptr;
-    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbB : nullptr;
+    nb_t nbA = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4 - 1, y0 * 4});
+    nb_t nbB = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4, y0 * 4 - 1});
+    nbA.mb = nbA.mb && nbA.mb->slice_nr == mb->slice_nr ? nbA.mb : nullptr;
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
 
     int cbp_a = 0x3F, cbp_b = 0x3F;
     int cbp_a_idx = 0, cbp_b_idx = 0;
     if (x0 == 0) {
-        if (mbA && mbA->mb_type != IPCM) {
-            cbp_a = mbA->CodedBlockPatternLuma;
-            cbp_a_idx = (((posA.y & 15) / 4) & ~1) + 1;
+        if (nbA.mb && nbA.mb->mb_type != IPCM) {
+            cbp_a = nbA.mb->CodedBlockPatternLuma;
+            cbp_a_idx = (((nbA.y & 15) / 4) & ~1) + 1;
         }
     } else {
         cbp_a = coded_block_pattern;
         cbp_a_idx = y0;
     }
     if (y0 == 0) {
-        if (mbB && mbB->mb_type != IPCM) {
-            cbp_b = mbB->CodedBlockPatternLuma;
+        if (nbB.mb && nbB.mb->mb_type != IPCM) {
+            cbp_b = nbB.mb->CodedBlockPatternLuma;
             cbp_b_idx = (x0 / 2) + 2;
         }
     } else {
@@ -202,11 +188,8 @@ bool Parser::SyntaxElement::mb_skip_flag()
     if (pps.entropy_coding_mode_flag) {
         cabac_context_t* ctx = contexts.skip_contexts;
 
-        loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {-1, 0});
-        loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {0, -1});
-        mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-        mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
-
+        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
         mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
         mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -231,11 +214,8 @@ bool Parser::SyntaxElement::mb_field_decoding_flag()
 
         int topMbAddr = slice.MbaffFrameFlag ? mb.mbAddrX & ~1 : mb.mbAddrX;
 
-        loc_t locA = slice.neighbour.get_location(&slice, topMbAddr, {-1, 0});
-        loc_t locB = slice.neighbour.get_location(&slice, topMbAddr, {0, -1});
-        mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-        mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
-
+        mb_t* mbA = slice.neighbour.get_mb(&slice, false, topMbAddr, {-1, 0});
+        mb_t* mbB = slice.neighbour.get_mb(&slice, false, topMbAddr, {0, -1});
         mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
         mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -274,11 +254,8 @@ uint8_t Parser::SyntaxElement::mb_type_i_slice()
     if (slice.slice_type == SI_slice) {
         cabac_context_t* ctx = contexts.mb_type_contexts; // ctxIdxOffset = 0
 
-        loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {-1, 0});
-        loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {0, -1});
-        mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-        mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
-
+        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
         mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
         mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -292,11 +269,8 @@ uint8_t Parser::SyntaxElement::mb_type_i_slice()
     if (slice.slice_type == I_slice || mb_type == 1) {
         cabac_context_t* ctx = contexts.mb_type_contexts + 3; // ctxIdxOffset = 3
 
-        loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {-1, 0});
-        loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {0, -1});
-        mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-        mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
-
+        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
         mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
         mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -356,11 +330,8 @@ uint8_t Parser::SyntaxElement::mb_type_b_slice()
 {
     uint8_t mb_type = 0;
 
-    loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {-1, 0});
-    loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {0, -1});
-    mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-    mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
-
+    mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+    mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -480,11 +451,8 @@ bool Parser::SyntaxElement::transform_size_8x8_flag()
     else {
         cabac_context_t* ctx = contexts.transform_size_contexts;
 
-        loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {-1, 0});
-        loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {0, -1});
-        mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-        mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
-
+        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
         mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
         mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -530,11 +498,8 @@ uint8_t Parser::SyntaxElement::intra_chroma_pred_mode()
     else {
         cabac_context_t* ctx = contexts.cipr_contexts;
 
-        loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {-1, 0});
-        loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {0, -1});
-        mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-        mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
-
+        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
         mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
         mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -638,11 +603,8 @@ uint8_t Parser::SyntaxElement::coded_block_pattern()
         if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
             cabac_context_t* ctx = contexts.cbp_c_contexts;
 
-            loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {-1, 0});
-            loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {0, -1});
-            mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-            mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
-
+            mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+            mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
             mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
             mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 

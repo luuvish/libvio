@@ -71,8 +71,8 @@ struct macroblock_t {
     int         mbAddrX;
 
     struct {
-        short x;
-        short y;
+        int32_t x;
+        int32_t y;
     } mb;
 
     bool        is_intra_block;

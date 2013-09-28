@@ -8,7 +8,6 @@
 #include "macroblock.h"
 
 #include "neighbour.h"
-
 #include "parser.h"
 #include "decoder.h"
 
@@ -21,8 +20,7 @@ struct cabac_contexts_t;
 
 using vio::h264::cabac_contexts_t;
 
-//using vio::h264::neighbour_t;
-
+using vio::h264::Neighbour;
 using vio::h264::Parser;
 using vio::h264::Decoder;
 
@@ -37,20 +35,19 @@ enum {
 
 
 /*! Buffer structure for decoded referenc picture marking commands */
-typedef struct DecRefPicMarking_s
-{
-  int                        memory_management_control_operation;
-  int                        difference_of_pic_nums_minus1;
-  int                        long_term_pic_num;
-  int                        long_term_frame_idx;
-  int                        max_long_term_frame_idx_plus1;
-  struct DecRefPicMarking_s *Next;
-} DecRefPicMarking_t;
+struct DecRefPicMarking_t {
+    int         memory_management_control_operation;
+    int         difference_of_pic_nums_minus1;
+    int         long_term_pic_num;
+    int         long_term_frame_idx;
+    int         max_long_term_frame_idx_plus1;
+    DecRefPicMarking_t* Next;
+};
+
 
 //! slice_t
 struct slice_t {
     video_par*  p_Vid;
-    inp_par*    p_Inp;
     pps_t*      active_pps;
     sps_t*      active_sps;
     int         svc_extension_flag;
@@ -214,8 +211,7 @@ struct slice_t {
     imgpel                  **tmp_block_l2; // InterPrediction()
     imgpel                  **tmp_block_l3; // InterPrediction()
 
-    neighbour_t        neighbour;
-
+    Neighbour   neighbour;
     Parser      parser;
     Decoder     decoder;
 

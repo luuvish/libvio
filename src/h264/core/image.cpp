@@ -540,7 +540,6 @@ int decode_one_frame(DecoderParams *pDecoder)
             ppSliceList[p_Vid->iSliceNumOfCurrPic] = malloc_slice(p_Inp, p_Vid);
         currSlice = ppSliceList[p_Vid->iSliceNumOfCurrPic];
         currSlice->p_Vid = p_Vid;
-        currSlice->p_Inp = p_Inp;
         currSlice->p_Dpb = p_Vid->p_Dpb_layer[0]; //set default value;
 
         current_header = read_new_slice(currSlice);

@@ -83,16 +83,15 @@ void Deblock::strength_vertical(mb_t* MbQ, int edge)
 
     slice_t* slice = MbQ->p_Slice;
     int mvlimit = (slice->field_pic_flag || MbQ->fieldMbInFrameFlag) ? 2 : 4;
-    pic_motion_params** mv_info = slice->p_Vid->dec_picture->mv_info;
+    auto mv_info = slice->p_Vid->dec_picture->mv_info;
 
     int dy = (1 + MbQ->fieldMbInFrameFlag);
 
-    loc_t locQ = slice->neighbour.get_location(slice, MbQ->mbAddrX, {edge * 4, 0});
-    pos_t posQ = slice->neighbour.get_blkpos(slice, locQ);
-
+    loc_t locQ = slice->neighbour.get_location(slice, false, MbQ->mbAddrX, {edge * 4, 0});
     loc_t locP = locQ - loc_t{1, 0};
-    mb_t* MbP  = slice->neighbour.get_mb    (slice, locP);
-    pos_t posP = slice->neighbour.get_blkpos(slice, locP);
+    nb_t nbQ = slice->neighbour.get_neighbour(slice, false, locQ);
+    nb_t nbP = slice->neighbour.get_neighbour(slice, false, locP);
+    mb_t *MbP = nbP.mb;
 
     bool verticalEdgeFlag  = 1;
     bool mixedModeEdgeFlag = slice->MbaffFrameFlag &&
@@ -125,7 +124,7 @@ void Deblock::strength_vertical(mb_t* MbQ, int edge)
 
     for (int y = 0; y < MB_BLOCK_SIZE; ++y) {
         bool intra = MbP->is_intra_block || MbQ->is_intra_block;
-        int  blkP  = (posP.y & 12) + (posP.x & 15) / 4;
+        int  blkP  = (nbP.y & 12) + (nbP.x & 15) / 4;
         int  blkQ  = (y & 12) + edge;
 
         if (edge == 0 && cond_bS4 && intra)
@@ -140,15 +139,15 @@ void Deblock::strength_vertical(mb_t* MbQ, int edge)
         else if (edge > 0 && (MbQ->mb_type == P16x16 || MbQ->mb_type == P16x8))
             StrValue = 0;
         else {
-            auto mv_info_p = &mv_info[posQ.y / 4 + y / 4][posQ.x / 4];
-            auto mv_info_q = &mv_info[posP.y / 4        ][posP.x / 4];
+            auto mv_info_p = &mv_info[nbQ.y / 4 + y / 4][nbQ.x / 4];
+            auto mv_info_q = &mv_info[nbP.y / 4        ][nbP.x / 4];
 
             StrValue = this->bs_compare_mvs(mv_info_p, mv_info_q, mvlimit);
         }
 
         locP.y += dy;
-        MbP  = slice->neighbour.get_mb    (slice, locP);
-        posP = slice->neighbour.get_blkpos(slice, locP);
+        nbP = slice->neighbour.get_neighbour(slice, false, locP);
+        MbP = nbP.mb;
 
         Strength[y] = StrValue;
     }
@@ -167,13 +166,12 @@ void Deblock::strength_horizontal(mb_t* MbQ, int edge)
                                          ((edge == 0 || edge == 4) && MbQ->filterHorEdgeFlag[0][4]);
     int dy = (1 + fieldModeInFrameFilteringFlag);
 
-    loc_t locQ = slice->neighbour.get_location(slice, MbQ->mbAddrX) +
+    loc_t locQ = slice->neighbour.get_location(slice, false, MbQ->mbAddrX) +
                  loc_t{0, edge == 4 ? 1 : dy * edge * 4};
-    pos_t posQ = slice->neighbour.get_blkpos(slice, locQ);
-
     loc_t locP = locQ - loc_t{0, dy};
-    mb_t* MbP  = slice->neighbour.get_mb    (slice, locP);
-    pos_t posP = slice->neighbour.get_blkpos(slice, locP);
+    nb_t nbQ = slice->neighbour.get_neighbour(slice, false, locQ);
+    nb_t nbP = slice->neighbour.get_neighbour(slice, false, locP);
+    mb_t* MbP = nbP.mb;
 
     bool verticalEdgeFlag  = 0;
     bool mixedModeEdgeFlag = slice->MbaffFrameFlag &&
@@ -205,8 +203,8 @@ void Deblock::strength_horizontal(mb_t* MbQ, int edge)
         return;
     }
 
-    int blkP = (posP.y & 12);
-    int blkQ = (posQ.y & 12);
+    int blkP = (nbP.y & 12);
+    int blkQ = (nbQ.y & 12);
 
     for (int x = 0; x < MB_BLOCK_SIZE; x += BLOCK_SIZE) {
         if ((MbQ->cbp_blks[0] & ((uint64_t)1 << (blkQ + x / 4))) != 0 ||
@@ -217,8 +215,8 @@ void Deblock::strength_horizontal(mb_t* MbQ, int edge)
         else if (edge > 0 && edge < BLOCK_SIZE && (MbQ->mb_type == P16x16 || MbQ->mb_type == P8x16))
             StrValue = 0;
         else {
-            auto mv_info_p = &mv_info[posQ.y / 4][posQ.x / 4 + x / 4];
-            auto mv_info_q = &mv_info[posP.y / 4][posP.x / 4 + x / 4];
+            auto mv_info_p = &mv_info[nbQ.y / 4][nbQ.x / 4 + x / 4];
+            auto mv_info_q = &mv_info[nbP.y / 4][nbP.x / 4 + x / 4];
 
             StrValue = this->bs_compare_mvs(mv_info_p, mv_info_q, mvlimit);
         }
@@ -236,9 +234,9 @@ void Deblock::strength(mb_t* MbQ)
         MbQ->fieldMbInFrameFlag = slice->MbaffFrameFlag && MbQ->mb_field_decoding_flag;
 
         int dy = (1 + MbQ->fieldMbInFrameFlag);
-        loc_t locQ = slice->neighbour.get_location(slice, MbQ->mbAddrX);
-        mb_t* MbL  = slice->neighbour.get_mb(slice, locQ - loc_t{1, 0});
-        mb_t* MbU  = slice->neighbour.get_mb(slice, locQ - loc_t{0, dy});
+        loc_t locQ = slice->neighbour.get_location(slice, false, MbQ->mbAddrX);
+        mb_t* MbL  = slice->neighbour.get_mb(slice, false, locQ - loc_t{1, 0});
+        mb_t* MbU  = slice->neighbour.get_mb(slice, false, locQ - loc_t{0, dy});
 
         bool filterLeftMbEdgeFlag = 0;
         bool filterTopMbEdgeFlag  = 0;
@@ -436,7 +434,7 @@ void Deblock::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool ve
 
     int dy = (1 + fieldModeInFrameFilteringFlag);
 
-    loc_t locI = slice->neighbour.get_location(slice, MbQ->mbAddrX);
+    loc_t locI = slice->neighbour.get_location(slice, false, MbQ->mbAddrX);
     int xI = locI.x, yI = locI.y;
     int xP = chromaEdgeFlag == 0 ? xI : (xI / sps->SubWidthC);
     int yP = chromaEdgeFlag == 0 ? yI : (yI + sps->SubHeightC - 1) / sps->SubHeightC;
@@ -446,7 +444,7 @@ void Deblock::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool ve
         xJ += (edge - 1) * (chromaEdgeFlag == 0 ? 1 : sps->SubWidthC);
     else
         yJ += dy * (edge - 1) * (chromaEdgeFlag == 0 ? 1 : sps->SubHeightC) - (edge % 2);
-    mb_t* MbP = slice->neighbour.get_mb(slice, {xJ, yJ});
+    mb_t* MbP = slice->neighbour.get_mb(slice, false, {xJ, yJ});
 
     int incQ = verticalEdgeFlag ? 1 : dy * width;
     int nxtQ = verticalEdgeFlag ? dy * width : 1;
@@ -462,7 +460,7 @@ void Deblock::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool ve
         if (bS > 0) {
             if (verticalEdgeFlag) {
                 yJ = yI + dy * pel * (chromaEdgeFlag == 0 ? 1 : sps->SubHeightC);
-                MbP = slice->neighbour.get_mb(slice, {xJ, yJ + (chromaEdgeFlag && mixed && (pel & 1))});
+                MbP = slice->neighbour.get_mb(slice, false, {xJ, yJ + (chromaEdgeFlag && mixed && (pel & 1))});
             }
 
             int qPp    = pl ? MbP->QpC[pl - 1] : MbP->QpY;
@@ -600,7 +598,7 @@ static void MbAffPostProc(VideoParameters *p_Vid)
 
     for (int mbAddr = 0; mbAddr < dec_picture->PicSizeInMbs; mbAddr += 2) {
         if (dec_picture->motion.mb_field_decoding_flag[mbAddr]) {
-            loc_t loc = slice->neighbour.get_location(slice, mbAddr);
+            loc_t loc = slice->neighbour.get_location(slice, false, mbAddr);
             update_mbaff_macroblock_data(imgY + loc.y, temp_buffer, loc.x, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
 
             if (dec_picture->chroma_format_idc != YUV400) {

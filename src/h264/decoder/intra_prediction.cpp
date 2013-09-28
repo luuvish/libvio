@@ -39,58 +39,48 @@ static void neighbouring_samples_4x4(imgpel* pred, bool* available, mb_t* mb, Co
 
     imgpel** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
 
-    loc_t locA[4];
-    mb_t* mbA [4];
-    pos_t posA[4];
+    nb_t nbA[4];
     for (int i = 0; i < 4; ++i) {
-        locA[i] = slice->neighbour.get_location(slice, mb->mbAddrX, {xO - 1, yO + i});
-        mbA [i] = slice->neighbour.get_mb      (slice, locA[i]);
-        posA[i] = slice->neighbour.get_blkpos  (slice, locA[i]);
-        mbA [i] = mbA[i] && mbA[i]->slice_nr == mb->slice_nr ? mbA[i] : nullptr;
+        nbA[i] = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO - 1, yO + i});
+        nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb->slice_nr ? nbA[i].mb : nullptr;
     }
-    loc_t locB = slice->neighbour.get_location(slice, mb->mbAddrX, {xO    , yO - 1});
-    loc_t locC = slice->neighbour.get_location(slice, mb->mbAddrX, {xO + 4, yO - 1});
-    loc_t locD = slice->neighbour.get_location(slice, mb->mbAddrX, {xO - 1, yO - 1});
-    mb_t* mbB  = slice->neighbour.get_mb      (slice, locB);
-    mb_t* mbC  = slice->neighbour.get_mb      (slice, locC);
-    mb_t* mbD  = slice->neighbour.get_mb      (slice, locD);
-    pos_t posB = slice->neighbour.get_blkpos  (slice, locB);
-    pos_t posC = slice->neighbour.get_blkpos  (slice, locC);
-    pos_t posD = slice->neighbour.get_blkpos  (slice, locD);
-    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbB : nullptr;
-    mbC = mbC && mbC->slice_nr == mb->slice_nr ? mbC : nullptr;
-    mbD = mbD && mbD->slice_nr == mb->slice_nr ? mbD : nullptr;
+    nb_t nbB = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO    , yO - 1});
+    nb_t nbC = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO + 4, yO - 1});
+    nb_t nbD = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO - 1, yO - 1});
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
+    nbC.mb = nbC.mb && nbC.mb->slice_nr == mb->slice_nr ? nbC.mb : nullptr;
+    nbD.mb = nbD.mb && nbD.mb->slice_nr == mb->slice_nr ? nbD.mb : nullptr;
 
-    mbC = mbC && !(xO == 4 && (yO == 4 || yO == 12)) ? mbC : nullptr;
+    nbC.mb = nbC.mb && !(xO == 4 && (yO == 4 || yO == 12)) ? nbC.mb : nullptr;
 
     if (pps->constrained_intra_pred_flag) {
         available[0] = 1;
         for (int i = 0; i < 4; i++)
-            available[0] &= mbA[i] && mbA[i]->is_intra_block ? 1 : 0;
-        available[1] = mbB && mbB->is_intra_block ? 1 : 0;
-        available[2] = mbC && mbC->is_intra_block ? 1 : 0;
-        available[3] = mbD && mbD->is_intra_block ? 1 : 0;
+            available[0] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
+        available[1] = nbB.mb && nbB.mb->is_intra_block ? 1 : 0;
+        available[2] = nbC.mb && nbC.mb->is_intra_block ? 1 : 0;
+        available[3] = nbD.mb && nbD.mb->is_intra_block ? 1 : 0;
     } else {
-        available[0] = mbA[0] ? 1 : 0;
-        available[1] = mbB    ? 1 : 0;
-        available[2] = mbC    ? 1 : 0;
-        available[3] = mbD    ? 1 : 0;
+        available[0] = nbA[0].mb ? 1 : 0;
+        available[1] = nbB.mb    ? 1 : 0;
+        available[2] = nbC.mb    ? 1 : 0;
+        available[3] = nbD.mb    ? 1 : 0;
     }
 
 #define p(x,y) (pred[((y) + 1) * 9 + ((x) + 1)])
     if (available[3]) {
-        imgpel *pix = &img[posD.y][posD.x];
+        imgpel *pix = &img[nbD.y][nbD.x];
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
         for (int y = 0; y < 4; ++y)
-            p(-1, y) = img[posA[y].y][posA[y].x];
+            p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
-        imgpel *pix = &img[posB.y][posB.x];
+        imgpel *pix = &img[nbB.y][nbB.x];
         for (int x = 0; x < 4; ++x)
             p(x, -1) = pix[x];
-        pix = &img[posC.y][posC.x - 4];
+        pix = &img[nbC.y][nbC.x - 4];
         for (int x = 4; x < 8; x++)
             p(x, -1) = available[2] ? pix[x] : p(3, -1);
         available[2] = available[1];
@@ -105,42 +95,32 @@ static void neighbouring_samples_8x8(imgpel* pred, bool* available, mb_t* mb, Co
 
     imgpel** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
 
-    loc_t locA[8];
-    mb_t* mbA [8];
-    pos_t posA[8];
+    nb_t nbA[8];
     for (int i = 0; i < 8; ++i) {
-        locA[i] = slice->neighbour.get_location(slice, mb->mbAddrX, {xO - 1, yO + i});
-        mbA [i] = slice->neighbour.get_mb      (slice, locA[i]);
-        posA[i] = slice->neighbour.get_blkpos  (slice, locA[i]);
-        mbA [i] = mbA[i] && mbA[i]->slice_nr == mb->slice_nr ? mbA[i] : nullptr;
+        nbA[i] = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO - 1, yO + i});
+        nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb->slice_nr ? nbA[i].mb : nullptr;
     }
-    loc_t locB = slice->neighbour.get_location(slice, mb->mbAddrX, {xO    , yO - 1});
-    loc_t locC = slice->neighbour.get_location(slice, mb->mbAddrX, {xO + 8, yO - 1});
-    loc_t locD = slice->neighbour.get_location(slice, mb->mbAddrX, {xO - 1, yO - 1});
-    mb_t* mbB  = slice->neighbour.get_mb      (slice, locB);
-    mb_t* mbC  = slice->neighbour.get_mb      (slice, locC);
-    mb_t* mbD  = slice->neighbour.get_mb      (slice, locD);
-    pos_t posB = slice->neighbour.get_blkpos  (slice, locB);
-    pos_t posC = slice->neighbour.get_blkpos  (slice, locC);
-    pos_t posD = slice->neighbour.get_blkpos  (slice, locD);
-    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbB : nullptr;
-    mbC = mbC && mbC->slice_nr == mb->slice_nr ? mbC : nullptr;
-    mbD = mbD && mbD->slice_nr == mb->slice_nr ? mbD : nullptr;
+    nb_t nbB = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO    , yO - 1});
+    nb_t nbC = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO + 8, yO - 1});
+    nb_t nbD = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO - 1, yO - 1});
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
+    nbC.mb = nbC.mb && nbC.mb->slice_nr == mb->slice_nr ? nbC.mb : nullptr;
+    nbD.mb = nbD.mb && nbD.mb->slice_nr == mb->slice_nr ? nbD.mb : nullptr;
 
-    mbC = mbC && !(xO == 8 && yO == 8) ? mbC : nullptr;
+    nbC.mb = nbC.mb && !(xO == 8 && yO == 8) ? nbC.mb : nullptr;
 
     if (pps->constrained_intra_pred_flag) {
         available[0] = 1;
         for (int i = 0; i < 8; ++i)
-            available[0] &= mbA[i] && mbA[i]->is_intra_block ? 1 : 0;
-        available[1] = mbB && mbB->is_intra_block ? 1 : 0;
-        available[2] = mbC && mbC->is_intra_block ? 1 : 0;
-        available[3] = mbD && mbD->is_intra_block ? 1 : 0;
+            available[0] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
+        available[1] = nbB.mb && nbB.mb->is_intra_block ? 1 : 0;
+        available[2] = nbC.mb && nbC.mb->is_intra_block ? 1 : 0;
+        available[3] = nbD.mb && nbD.mb->is_intra_block ? 1 : 0;
     } else {
-        available[0] = mbA[0] ? 1 : 0;
-        available[1] = mbB    ? 1 : 0;
-        available[2] = mbC    ? 1 : 0;
-        available[3] = mbD    ? 1 : 0;
+        available[0] = nbA[0].mb ? 1 : 0;
+        available[1] = nbB.mb    ? 1 : 0;
+        available[2] = nbC.mb    ? 1 : 0;
+        available[3] = nbD.mb    ? 1 : 0;
     }
 
     imgpel predLF[17 * 17];
@@ -148,18 +128,18 @@ static void neighbouring_samples_8x8(imgpel* pred, bool* available, mb_t* mb, Co
 #define plf(x,y) (pred[((y) + 1) * 17 + ((x) + 1)])
 #define p(x,y) (predLF[((y) + 1) * 17 + ((x) + 1)])
     if (available[3]) {
-        imgpel *pix = &img[posD.y][posD.x];
+        imgpel *pix = &img[nbD.y][nbD.x];
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
         for (int y = 0; y < 8; ++y)
-            p(-1, y) = img[posA[y].y][posA[y].x];
+            p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
-        imgpel *pix = &img[posB.y][posB.x];
+        imgpel *pix = &img[nbB.y][nbB.x];
         for (int x = 0; x < 8; ++x)
             p(x, -1) = pix[x];
-        pix = &img[posC.y][posC.x - 8];
+        pix = &img[nbC.y][nbC.x - 8];
         for (int x = 8; x < 16; ++x)
             p(x, -1) = available[2] ? pix[x] : p(7, -1);
         available[2] = available[1];
@@ -204,49 +184,41 @@ static void neighbouring_samples_16x16(imgpel* pred, bool* available, mb_t* mb, 
 
     imgpel** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
 
-    loc_t locA[16];
-    mb_t* mbA [16];
-    pos_t posA[16];
+    nb_t nbA[16];
     for (int i = 0; i < 16; ++i) {
-        locA[i] = slice->neighbour.get_location(slice, mb->mbAddrX, {xO - 1, yO + i});
-        mbA [i] = slice->neighbour.get_mb      (slice, locA[i]);
-        posA[i] = slice->neighbour.get_blkpos  (slice, locA[i]);
-        mbA [i] = mbA[i] && mbA[i]->slice_nr == mb->slice_nr ? mbA[i] : nullptr;
+        nbA[i] = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO - 1, yO + i});
+        nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb->slice_nr ? nbA[i].mb : nullptr;
     }
-    loc_t locB = slice->neighbour.get_location(slice, mb->mbAddrX, {xO    , yO - 1});
-    loc_t locD = slice->neighbour.get_location(slice, mb->mbAddrX, {xO - 1, yO - 1});
-    mb_t* mbB  = slice->neighbour.get_mb      (slice, locB);
-    mb_t* mbD  = slice->neighbour.get_mb      (slice, locD);
-    pos_t posB = slice->neighbour.get_blkpos  (slice, locB);
-    pos_t posD = slice->neighbour.get_blkpos  (slice, locD);
-    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbB : nullptr;
-    mbD = mbD && mbD->slice_nr == mb->slice_nr ? mbD : nullptr;
+    nb_t nbB = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO    , yO - 1});
+    nb_t nbD = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {xO - 1, yO - 1});
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
+    nbD.mb = nbD.mb && nbD.mb->slice_nr == mb->slice_nr ? nbD.mb : nullptr;
 
     if (pps->constrained_intra_pred_flag) {
         available[0] = 1;
         for (int i = 0; i < 16; ++i)
-            available[0] &= mbA[i] && mbA[i]->is_intra_block ? 1 : 0;
-        available[1] = mbB && mbB->is_intra_block ? 1 : 0;
+            available[0] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
+        available[1] = nbB.mb && nbB.mb->is_intra_block ? 1 : 0;
         available[2] = 0;
-        available[3] = mbD && mbD->is_intra_block ? 1 : 0;
+        available[3] = nbD.mb && nbD.mb->is_intra_block ? 1 : 0;
     } else {
-        available[0] = mbA[0] ? 1 : 0;
-        available[1] = mbB    ? 1 : 0;
+        available[0] = nbA[0].mb ? 1 : 0;
+        available[1] = nbB.mb    ? 1 : 0;
         available[2] = 0;
-        available[3] = mbD    ? 1 : 0;
+        available[3] = nbD.mb    ? 1 : 0;
     }
 
 #define p(x,y) (pred[((y) + 1) * 17 + ((x) + 1)])
     if (available[3]) {
-        imgpel *pix = &img[posD.y][posD.x];
+        imgpel *pix = &img[nbD.y][nbD.x];
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
         for (int y = 0; y < 16; ++y)
-            p(-1, y) = img[posA[y].y][posA[y].x];
+            p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
-        imgpel *pix = &img[posB.y][posB.x];
+        imgpel *pix = &img[nbB.y][nbB.x];
         for (int x = 0; x < 16; ++x)
             p(x, -1) = pix[x];
     }
@@ -261,55 +233,47 @@ static void neighbouring_samples_chroma(imgpel* pred, bool* available, mb_t* mb,
 
     imgpel** img = slice->dec_picture->imgUV[pl - 1];
 
-    loc_t locA[16];
-    mb_t* mbA [16];
-    pos_t posA[16];
+    nb_t nbA[16];
     for (int i = 0; i < sps->MbHeightC; ++i) {
-        locA[i] = slice->neighbour.get_location_c(slice, mb->mbAddrX, {xO - 1, yO + i});
-        mbA [i] = slice->neighbour.get_mb_c      (slice, locA[i]);
-        posA[i] = slice->neighbour.get_blkpos_c  (slice, locA[i]);
-        mbA [i] = mbA[i] && mbA[i]->slice_nr == mb->slice_nr ? mbA[i] : nullptr;
+        nbA[i] = slice->neighbour.get_neighbour(slice, true, mb->mbAddrX, {xO - 1, yO + i});
+        nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb->slice_nr ? nbA[i].mb : nullptr;
     }
-    loc_t locB = slice->neighbour.get_location_c(slice, mb->mbAddrX, {xO    , yO - 1});
-    loc_t locD = slice->neighbour.get_location_c(slice, mb->mbAddrX, {xO - 1, yO - 1});
-    mb_t* mbB  = slice->neighbour.get_mb_c      (slice, locB);
-    mb_t* mbD  = slice->neighbour.get_mb_c      (slice, locD);
-    pos_t posB = slice->neighbour.get_blkpos_c  (slice, locB);
-    pos_t posD = slice->neighbour.get_blkpos_c  (slice, locD);
-    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbB : nullptr;
-    mbD = mbD && mbD->slice_nr == mb->slice_nr ? mbD : nullptr;
+    nb_t nbB = slice->neighbour.get_neighbour(slice, true, mb->mbAddrX, {xO    , yO - 1});
+    nb_t nbD = slice->neighbour.get_neighbour(slice, true, mb->mbAddrX, {xO - 1, yO - 1});
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
+    nbD.mb = nbD.mb && nbD.mb->slice_nr == mb->slice_nr ? nbD.mb : nullptr;
 
     if (pps->constrained_intra_pred_flag) {
         available[0] = 1;
         for (int i = 0; i < sps->MbHeightC / 2; ++i)
-            available[0] &= mbA[i] && mbA[i]->is_intra_block ? 1 : 0;
-        available[1] = mbB && mbB->is_intra_block ? 1 : 0;
+            available[0] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
+        available[1] = nbB.mb && nbB.mb->is_intra_block ? 1 : 0;
         available[2] = 1;
         for (int i = sps->MbHeightC / 2; i < sps->MbHeightC; ++i)
-            available[2] &= mbA[i] && mbA[i]->is_intra_block ? 1 : 0;
-        available[3] = mbD && mbD->is_intra_block ? 1 : 0;
+            available[2] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
+        available[3] = nbD.mb && nbD.mb->is_intra_block ? 1 : 0;
     } else {
-        available[0] = mbA[0] ? 1 : 0;
-        available[1] = mbB ? 1 : 0;
-        available[2] = mbA[0] ? 1 : 0;
-        available[3] = mbD ? 1 : 0;
+        available[0] = nbA[0].mb ? 1 : 0;
+        available[1] = nbB.mb    ? 1 : 0;
+        available[2] = nbA[0].mb ? 1 : 0;
+        available[3] = nbD.mb    ? 1 : 0;
     }
 
 #define p(x,y) (pred[((y) + 1) * 17 + ((x) + 1)])
     if (available[3]) {
-        imgpel *pix = &img[posD.y][posD.x];
+        imgpel *pix = &img[nbD.y][nbD.x];
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
         for (int y = 0; y < sps->MbHeightC / 2; ++y)
-            p(-1, y) = img[posA[y].y][posA[y].x];
+            p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[2]) {
         for (int y = sps->MbHeightC / 2; y < sps->MbHeightC; ++y)
-            p(-1, y) = img[posA[y].y][posA[y].x];
+            p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
-        imgpel *pix = &img[posB.y][posB.x];
+        imgpel *pix = &img[nbB.y][nbB.x];
         for (int x = 0; x < sps->MbWidthC; ++x)
             p(x, -1) = pix[x];
     }

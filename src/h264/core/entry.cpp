@@ -77,7 +77,7 @@ static int is_new_picture(storable_picture *dec_picture, slice_t *currSlice, Old
 static int parse_idr(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
-    InputParameters *p_Inp = currSlice->p_Inp;
+    InputParameters *p_Inp = currSlice->p_Vid->p_Inp;
     nalu_t *nalu = p_Vid->nalu; 
     int current_header = 0;
 
@@ -178,7 +178,7 @@ static int parse_idr(slice_t *currSlice)
 static int parse_dpa(slice_t *currSlice)
 {
     VideoParameters* p_Vid = currSlice->p_Vid;
-    InputParameters* p_Inp = currSlice->p_Inp;
+    InputParameters* p_Inp = currSlice->p_Vid->p_Inp;
     nalu_t* nalu = p_Vid->nalu; 
     data_partition_t* dp;
     int current_header = 0;
@@ -307,7 +307,7 @@ static int parse_dpa(slice_t *currSlice)
 int read_new_slice(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
-    InputParameters *p_Inp = currSlice->p_Inp;
+    InputParameters *p_Inp = currSlice->p_Vid->p_Inp;
 
     nalu_t *nalu = p_Vid->nalu; 
     int current_header = 0;

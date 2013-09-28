@@ -21,8 +21,12 @@
  * ===========================================================================
  */
 
-#ifndef _NEIGHBOUR_H_
-#define _NEIGHBOUR_H_
+#ifndef _VIO_H264_NEIGHBOUR_H_
+#define _VIO_H264_NEIGHBOUR_H_
+
+
+namespace vio  {
+namespace h264 {
 
 
 struct position_t {
@@ -42,22 +46,31 @@ using loc_t = location_t;
 loc_t operator + (const loc_t& l, const loc_t& r);
 loc_t operator - (const loc_t& l, const loc_t& r);
 
-
 struct neighbour_t {
-    loc_t get_location(slice_t* slice, int mbAddr, const pos_t& offset={0,0});
-    loc_t get_location_c(slice_t* slice, int mbAddr, const pos_t& offset={0,0});
-    mb_t* get_mb      (slice_t* slice, const loc_t& loc);
-    mb_t* get_mb_c    (slice_t* slice, const loc_t& loc);
-    int   get_mbaddr  (slice_t* slice, const loc_t& loc);
-    pos_t get_blkpos  (slice_t* slice, const loc_t& loc);
-    pos_t get_blkpos_c(slice_t* slice, const loc_t& loc);
+    mb_t* mb;
+    int   x;
+    int   y;
+};
+
+using nb_t = neighbour_t;
+
+
+class Neighbour {
+public:
+    loc_t get_location (slice_t* slice, bool chroma, int mbAddr, const pos_t& offset={0,0});
+    mb_t* get_mb       (slice_t* slice, bool chroma, int mbAddr, const pos_t& offset={0,0});
+    nb_t  get_neighbour(slice_t* slice, bool chroma, int mbAddr, const pos_t& offset={0,0});
+    mb_t* get_mb       (slice_t* slice, bool chroma, const loc_t& loc);
+    nb_t  get_neighbour(slice_t* slice, bool chroma, const loc_t& loc);
 
     pos_t get_position(slice_t* slice, int mbAddr, int blkIdx);
-    mb_t* get_mb      (slice_t* slice, int mbAddr, const pos_t& offset={0,0});
-    pos_t get_blkpos  (slice_t* slice, int mbAddr, const pos_t& offset={0,0});
 
     int   predict_nnz(mb_t* mb, int pl, int i, int j);
 };
 
+    
+}
+}
 
-#endif /* _NEIGHBOUR_H_ */
+
+#endif // _VIO_H264_NEIGHBOUR_H_

@@ -407,51 +407,34 @@ static int coded_block_flag_ctxIdxInc(mb_t* mb, int pl, bool chroma, bool ac, in
     int bit_pos_a = 0;
     int bit_pos_b = 0;
 
-    loc_t locA, locB;
-    pos_t posA, posB;
-    mb_t* mbA, *mbB;
-    if (!chroma) {
-        locA = slice->neighbour.get_location(slice, mb->mbAddrX, {i * 4 - 1, j * 4});
-        locB = slice->neighbour.get_location(slice, mb->mbAddrX, {i * 4, j * 4 - 1});
-        mbA  = slice->neighbour.get_mb      (slice, locA);
-        mbB  = slice->neighbour.get_mb      (slice, locB);
-        posA = slice->neighbour.get_blkpos  (slice, locA);
-        posB = slice->neighbour.get_blkpos  (slice, locB);
-    } else {
-        locA = slice->neighbour.get_location_c(slice, mb->mbAddrX, {i * 4 - 1, j * 4});
-        locB = slice->neighbour.get_location_c(slice, mb->mbAddrX, {i * 4, j * 4 - 1});
-        mbA  = slice->neighbour.get_mb_c      (slice, locA);
-        mbB  = slice->neighbour.get_mb_c      (slice, locB);
-        posA = slice->neighbour.get_blkpos_c  (slice, locA);
-        posB = slice->neighbour.get_blkpos_c  (slice, locB);
-    }
+    nb_t nbA = slice->neighbour.get_neighbour(slice, chroma, mb->mbAddrX, {i * 4 - 1, j * 4});
+    nb_t nbB = slice->neighbour.get_neighbour(slice, chroma, mb->mbAddrX, {i * 4, j * 4 - 1});
+    nbA.mb = nbA.mb && nbA.mb->slice_nr == mb->slice_nr ? nbA.mb : nullptr;
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
 
-    mbA = mbA && mbA->slice_nr == mb->slice_nr ? mbA : nullptr;
-    mbB = mbB && mbB->slice_nr == mb->slice_nr ? mbB : nullptr;
-
-    int nW = chroma ? sps->MbWidthC  : 16;
-    int nH = chroma ? sps->MbHeightC : 16;
+    int nW = !chroma ? 16 : sps->MbWidthC;
+    int nH = !chroma ? 16 : sps->MbHeightC;
     if (ac) {
-        if (mbA)
-            bit_pos_a = ((posA.y % nH) & 12) + (posA.x % nW) / 4;
-        if (mbB)
-            bit_pos_b = ((posB.y % nH) & 12) + (posB.x % nW) / 4;
+        if (nbA.mb)
+            bit_pos_a = ((nbA.y % nH) & 12) + (nbA.x % nW) / 4;
+        if (nbB.mb)
+            bit_pos_b = ((nbB.y % nH) & 12) + (nbB.x % nW) / 4;
     }
 
     int condTermFlagA = (mb->is_intra_block ? 1 : 0);
     int condTermFlagB = (mb->is_intra_block ? 1 : 0);
 
-    if (mbA) {
-        if (mbA->mb_type == IPCM)
+    if (nbA.mb) {
+        if (nbA.mb->mb_type == IPCM)
             condTermFlagA = 1;
         else
-            condTermFlagA = (mbA->cbp_bits[temp_pl] >> (bit + bit_pos_a)) & 1;
+            condTermFlagA = (nbA.mb->cbp_bits[temp_pl] >> (bit + bit_pos_a)) & 1;
     }
-    if (mbB) {
-        if (mbB->mb_type == IPCM)
+    if (nbB.mb) {
+        if (nbB.mb->mb_type == IPCM)
             condTermFlagB = 1;
         else
-            condTermFlagB = (mbB->cbp_bits[temp_pl] >> (bit + bit_pos_b)) & 1;
+            condTermFlagB = (nbB.mb->cbp_bits[temp_pl] >> (bit + bit_pos_b)) & 1;
     }
     int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
 

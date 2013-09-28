@@ -653,41 +653,37 @@ void Parser::Macroblock::parse_ipred_4x4_modes()
         bool    prev_intra4x4_pred_mode_flag = val == -1;
         uint8_t rem_intra4x4_pred_mode       = val;
 
-        loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {bx - 1, by});
-        loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {bx, by - 1});
-        mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-        mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
-        pos_t posA = slice.neighbour.get_blkpos  (&slice, locA);
-        pos_t posB = slice.neighbour.get_blkpos  (&slice, locB);
+        nb_t nbA = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx - 1, by});
+        nb_t nbB = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx, by - 1});
 
-        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
+        nbA.mb = nbA.mb && nbA.mb->slice_nr == mb.slice_nr ? nbA.mb : nullptr;
+        nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
 
         //get from array and decode
         if (pps.constrained_intra_pred_flag) {
-            mbA = mbA && mbA->is_intra_block ? mbA : nullptr;
-            mbB = mbB && mbB->is_intra_block ? mbB : nullptr;
+            nbA.mb = nbA.mb && nbA.mb->is_intra_block ? nbA.mb : nullptr;
+            nbB.mb = nbB.mb && nbB.mb->is_intra_block ? nbB.mb : nullptr;
         }
         // !! KS: not sure if the following is still correct...
         if (slice.slice_type == SI_slice) { // need support for MBINTLC1
-            mbA = mbA && mbA->mb_type == SI4MB ? mbA : nullptr;
-            mbB = mbB && mbB->mb_type == SI4MB ? mbB : nullptr;
+            nbA.mb = nbA.mb && nbA.mb->mb_type == SI4MB ? nbA.mb : nullptr;
+            nbB.mb = nbB.mb && nbB.mb->mb_type == SI4MB ? nbB.mb : nullptr;
         }
 
-        bool dcPredModePredictedFlag = !mbA || !mbB;
+        bool dcPredModePredictedFlag = !nbA.mb || !nbB.mb;
 
         int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
         uint8_t intraMxMPredModeA = IntraPrediction::Intra_4x4_DC;
         uint8_t intraMxMPredModeB = IntraPrediction::Intra_4x4_DC;
         if (!dcPredModePredictedFlag) {
-            if (mbA->mb_type == I8MB)
-                intraMxMPredModeA = mbA->Intra8x8PredMode[scan[(posA.y & 12) + (posA.x & 15) / 4] / 4];
-            else if (mbA->mb_type == I4MB)
-                intraMxMPredModeA = mbA->Intra4x4PredMode[scan[(posA.y & 12) + (posA.x & 15) / 4]];
-            if (mbB->mb_type == I8MB)
-                intraMxMPredModeB = mbB->Intra8x8PredMode[scan[(posB.y & 12) + (posB.x & 15) / 4] / 4];
-            else if (mbB->mb_type == I4MB)
-                intraMxMPredModeB = mbB->Intra4x4PredMode[scan[(posB.y & 12) + (posB.x & 15) / 4]];
+            if (nbA.mb->mb_type == I8MB)
+                intraMxMPredModeA = nbA.mb->Intra8x8PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4] / 4];
+            else if (nbA.mb->mb_type == I4MB)
+                intraMxMPredModeA = nbA.mb->Intra4x4PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4]];
+            if (nbB.mb->mb_type == I8MB)
+                intraMxMPredModeB = nbB.mb->Intra8x8PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4] / 4];
+            else if (nbB.mb->mb_type == I4MB)
+                intraMxMPredModeB = nbB.mb->Intra4x4PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4]];
         }
 
         uint8_t predIntra4x4PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
@@ -713,36 +709,31 @@ void Parser::Macroblock::parse_ipred_8x8_modes()
         bool    prev_intra8x8_pred_mode_flag = val == -1;
         uint8_t rem_intra8x8_pred_mode       = val;
 
-        loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {bx - 1, by});
-        loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {bx, by - 1});
-        mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-        mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
-        pos_t posA = slice.neighbour.get_blkpos  (&slice, locA);
-        pos_t posB = slice.neighbour.get_blkpos  (&slice, locB);
-
-        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
+        nb_t nbA = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx - 1, by});
+        nb_t nbB = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx, by - 1});
+        nbA.mb = nbA.mb && nbA.mb->slice_nr == mb.slice_nr ? nbA.mb : nullptr;
+        nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
 
         //get from array and decode
         if (pps.constrained_intra_pred_flag) {
-            mbA = mbA && mbA->is_intra_block ? mbA : nullptr;
-            mbB = mbB && mbB->is_intra_block ? mbB : nullptr;
+            nbA.mb = nbA.mb && nbA.mb->is_intra_block ? nbA.mb : nullptr;
+            nbB.mb = nbB.mb && nbB.mb->is_intra_block ? nbB.mb : nullptr;
         }
 
-        bool dcPredModePredictedFlag = !mbA || !mbB;
+        bool dcPredModePredictedFlag = !nbA.mb || !nbB.mb;
 
         int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
         uint8_t intraMxMPredModeA = IntraPrediction::Intra_8x8_DC;
         uint8_t intraMxMPredModeB = IntraPrediction::Intra_8x8_DC;
         if (!dcPredModePredictedFlag) {
-            if (mbA->mb_type == I8MB)
-                intraMxMPredModeA = mbA->Intra8x8PredMode[scan[(posA.y & 12) + (posA.x & 15) / 4] / 4];
-            else if (mbA->mb_type == I4MB)
-                intraMxMPredModeA = mbA->Intra4x4PredMode[scan[(posA.y & 12) + (posA.x & 15) / 4]];
-            if (mbB->mb_type == I8MB)
-                intraMxMPredModeB = mbB->Intra8x8PredMode[scan[(posB.y & 12) + (posB.x & 15) / 4] / 4];
-            else if (mbB->mb_type == I4MB)
-                intraMxMPredModeB = mbB->Intra4x4PredMode[scan[(posB.y & 12) + (posB.x & 15) / 4]];
+            if (nbA.mb->mb_type == I8MB)
+                intraMxMPredModeA = nbA.mb->Intra8x8PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4] / 4];
+            else if (nbA.mb->mb_type == I4MB)
+                intraMxMPredModeA = nbA.mb->Intra4x4PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4]];
+            if (nbB.mb->mb_type == I8MB)
+                intraMxMPredModeB = nbB.mb->Intra8x8PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4] / 4];
+            else if (nbB.mb->mb_type == I4MB)
+                intraMxMPredModeB = nbB.mb->Intra4x4PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4]];
         }
 
         uint8_t predIntra8x8PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
@@ -931,10 +922,8 @@ void Parser::Macroblock::parse_cbp_qp()
                 mb.dpl_flag = 1;
             }
 
-            loc_t locA = slice.neighbour.get_location(&slice, mb.mbAddrX, {-1, 0});
-            loc_t locB = slice.neighbour.get_location(&slice, mb.mbAddrX, {0, -1});
-            mb_t* mbA  = slice.neighbour.get_mb      (&slice, locA);
-            mb_t* mbB  = slice.neighbour.get_mb      (&slice, locB);
+            mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+            mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
             mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
             mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
