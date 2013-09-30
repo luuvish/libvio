@@ -62,14 +62,15 @@ Decoder::~Decoder()
 }
 
 
-void Decoder::assign_quant_params(slice_t& slice)
+void Decoder::init(slice_t& slice)
 {
-    this->transform->assign_quant_params(&slice);
+    this->inter_prediction->init(slice);
+    //this->transform->init(slice);
 }
 
-void Decoder::fill_wp_params(slice_t& slice)
+void Decoder::assign_quant_params(slice_t& slice)
 {
-    this->inter_prediction->fill_wp_params(&slice);
+    this->transform->init(slice);
 }
 
 
@@ -122,7 +123,7 @@ void Decoder::deblock_filter(slice_t& slice)
     this->deblock->deblock(slice.p_Vid);
 }
 
-void Decoder::get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y, imgpel **block,
+void Decoder::get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y, imgpel block[16][16],
                              int shift_x,int maxold_x, int maxold_y, ColorPlane pl, mb_t* mb)
 {
     this->inter_prediction->get_block_luma(curr_ref, x_pos, y_pos, block_size_x, block_size_y, block,
@@ -179,40 +180,23 @@ void Decoder::decode_one_component(mb_t& mb, ColorPlane curr_plane)
 
 void Decoder::mb_pred_ipcm(mb_t& mb)
 {
-    int i, j, k;
     slice_t& slice = *mb.p_Slice;
     const sps_t& sps = *slice.active_sps;
     storable_picture* dec_picture = slice.dec_picture;
 
-    for (i = 0; i < 16; ++i) {
-        for (j = 0; j < 16 ; ++j)
+    for (int i = 0; i < 16; ++i) {
+        for (int j = 0; j < 16 ; ++j)
             dec_picture->imgY[mb.mb.y * 16 + i][mb.mb.x * 16 + j] = (imgpel) this->transform->cof[0][i][j];
     }
 
     if (sps.ChromaArrayType != 0) {
-        for (k = 0; k < 2; ++k) {
-            for (i = 0; i < sps.MbHeightC; ++i) {
-                for (j = 0;j < sps.MbWidthC; ++j)
+        for (int k = 0; k < 2; ++k) {
+            for (int i = 0; i < sps.MbHeightC; ++i) {
+                for (int j = 0;j < sps.MbWidthC; ++j)
                     dec_picture->imgUV[k][mb.mb.y * sps.MbHeightC + i][mb.mb.x * sps.MbWidthC + j] = (imgpel) this->transform->cof[k + 1][i][j];
             }
         }
     }
-
-    // for deblocking filter
-    slice.parser.update_qp(mb, 0);
-
-    memset(mb.nz_coeff, 16, 3 * 16 * sizeof(byte));
-
-    // for CABAC decoding of MB skip flag
-    mb.mb_skip_flag = 0;
-
-    //for deblocking filter CABAC
-    mb.cbp_blks[0] = 0xFFFF;
-
-    //For CABAC decoding of Dquant
-    slice.parser.last_dquant = 0;
-    slice.parser.is_reset_coeff = false;
-    slice.parser.is_reset_coeff_cr = false;
 }
 
 void Decoder::mb_pred_intra(mb_t& mb, ColorPlane curr_plane)

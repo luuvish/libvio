@@ -148,7 +148,7 @@ static int parse_idr(slice_t *currSlice)
         currSlice->p_Dpb = p_Vid->p_Dpb_layer[currSlice->view_id];
 #endif
 
-    currSlice->decoder.assign_quant_params(*currSlice);        
+    currSlice->decoder.assign_quant_params(*currSlice);
 
     // if primary slice is replaced with redundant slice, set the correct image type
     if (currSlice->redundant_pic_cnt && p_Vid->Is_primary_correct == 0 && p_Vid->Is_redundant_correct)
@@ -213,8 +213,7 @@ static int parse_dpa(slice_t *currSlice)
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[currSlice->view_id];
 #endif
 
-    currSlice->decoder.assign_quant_params(*currSlice);        
-
+    currSlice->decoder.assign_quant_params(*currSlice);
 
     if (is_new_picture(p_Vid->dec_picture, currSlice, p_Vid->old_slice)) {
         if (p_Vid->iSliceNumOfCurrPic==0)
@@ -313,9 +312,7 @@ int read_new_slice(slice_t *currSlice)
     int current_header = 0;
     data_partition_t* dp = &currSlice->parser.partArr[0];
 
-    currSlice->num_dec_mb        = 0;
-    currSlice->parser.is_reset_coeff    = false;
-    currSlice->parser.is_reset_coeff_cr = false;
+    currSlice->num_dec_mb = 0;
 
     for (;;) {
 #if (MVC_EXTENSION_ENABLE)

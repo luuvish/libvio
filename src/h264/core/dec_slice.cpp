@@ -99,13 +99,6 @@ bool slice_t::init()
     p_Vid->active_pps = this->active_pps;
     int current_header = this->current_header;
 
-    this->parser.mb_skip_run = -1;
-
-    this->parser.prescan_skip_read = false;
-    this->parser.prescan_mb_field_decoding_read = false;
-
-    this->parser.PrevQpY = this->SliceQpY;
-
     init_lists(this);
 
 #if (MVC_EXTENSION_ENABLE)
@@ -133,16 +126,10 @@ bool slice_t::init()
             this->ref_flag[i] = this->ref_flag[i-1];
     }
     this->ref_flag[0] = this->redundant_pic_cnt == 0 ? p_Vid->Is_primary_correct
-                                                               : p_Vid->Is_redundant_correct;
+                                                     : p_Vid->Is_redundant_correct;
 
-    if (this->active_pps->entropy_coding_mode_flag) {
-        this->parser.mot_ctx.init(this->slice_type, this->cabac_init_idc, this->SliceQpY);
-        this->parser.last_dquant = 0;
-    }
-
-    if ((this->active_pps->weighted_bipred_idc > 0 && this->slice_type == B_SLICE) ||
-        (this->active_pps->weighted_pred_flag && this->slice_type != I_SLICE))
-        this->decoder.fill_wp_params(*this);
+    this->parser.init(*this);
+    this->decoder.init(*this);
 
 
     if (current_header != SOP && current_header != SOS)

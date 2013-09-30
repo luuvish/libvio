@@ -587,7 +587,6 @@ static int concealByTrial(frame *recfr, imgpel *predMB,
 */
 static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, imgpel *predMB)
 {
-  imgpel **tmp_block;
   int i=0, j=0, ii=0, jj=0,i1=0,j1=0,j4=0,i4=0;
   int uv;
   int vec1_x=0,vec1_y=0;
@@ -615,8 +614,8 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
     int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
                        sps->chroma_format_idc == YUV420 ? 8 : 16;
 
-  // This should be allocated only once. 
-  get_mem2Dpel(&tmp_block, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+    // This should be allocated only once. 
+    imgpel tmp_block[16][16];
 
   /* Update coordinates of the current concealed macroblock */
   currMB->mb.x = (short) (x/MB_BLOCK_SIZE);
@@ -726,8 +725,6 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
 
     }
   }
-  // We should allocate this memory only once.
-  free_mem2Dpel(tmp_block); 
 }
 /*!
  ************************************************************************
@@ -906,7 +903,6 @@ static int edgeDistortion (int predBlocks[], int currYBlockNum, imgpel *predMB,
 static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
                                     int x, int y, imgpel *predMB, int list, int current_mb_nr)
 {
-  imgpel **tmp_block;
   int i=0,j=0,ii=0,jj=0,i1=0,j1=0,j4=0,i4=0;
   int uv;
   int vec1_x=0,vec1_y=0;
@@ -934,7 +930,7 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
     int mb_cr_size_y = sps->chroma_format_idc == YUV400 ? 0 :
                        sps->chroma_format_idc == YUV420 ? 8 : 16;
 
-  get_mem2Dpel(&tmp_block, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+    imgpel tmp_block[16][16];
 
   /* Update coordinates of the current concealed macroblock */
 
@@ -1018,7 +1014,6 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
 
     }
   }
-  free_mem2Dpel(tmp_block);
 }
 
 /*!

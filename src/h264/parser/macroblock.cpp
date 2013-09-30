@@ -61,8 +61,6 @@ void macroblock_t::init(slice_t& slice)
         slice.parser.is_reset_coeff = 1;
     }
 
-    slice.parser.update_qp(mb, slice.SliceQpY);
-
     mb.mb_field_decoding_flag = 0;
     if (slice.MbaffFrameFlag) {
         bool prevMbSkipped = (mb.mbAddrX % 2 == 1) ?

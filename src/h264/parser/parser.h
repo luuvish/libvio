@@ -41,12 +41,13 @@ enum {
 
 class Parser {
 public:
+    void        init(slice_t& slice);
+
     void        parse(sps_t& sps);
     void        parse(pps_t& pps);
     void        parse(slice_t& slice);
     void        parse(mb_t& mb);
 
-    void        update_qp(mb_t& mb, int qp);
     int         get_inter8x8(mb_t& mb, int block8x8);
 
 public:
@@ -167,6 +168,8 @@ protected:
         int         get_colocated_info (storable_picture* list1, int i, int j);
         void        get_direct_temporal(bool dir=true);
         void        get_direct_spatial (bool dir=true);
+
+        void        update_qp(int qp);
 
     private:
         sps_t&      sps;

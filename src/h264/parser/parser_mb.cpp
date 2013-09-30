@@ -317,6 +317,25 @@ void interpret_mb_mode(mb_t* mb)
 }
 
 
+void Parser::init(slice_t& slice)
+{
+    this->mb_skip_run = -1;
+
+    this->prescan_skip_read = false;
+    this->prescan_mb_field_decoding_read = false;
+
+    this->PrevQpY = slice.SliceQpY;
+
+    this->is_reset_coeff    = false;
+    this->is_reset_coeff_cr = false;
+
+    if (slice.active_pps->entropy_coding_mode_flag) {
+        this->mot_ctx.init(slice.slice_type, slice.cabac_init_idc, slice.SliceQpY);
+        this->last_dquant = 0;
+    }
+}
+
+
 void Parser::parse(mb_t& mb)
 {
     Macroblock mbp { mb };
@@ -342,6 +361,8 @@ void Parser::Macroblock::parse()
 {
     int CurrMbAddr = mb.mbAddrX;
     bool moreDataFlag = 1;
+
+    this->update_qp(slice.SliceQpY);
 
     if (slice.slice_type != I_slice && slice.slice_type != SI_slice) {
         if (pps.entropy_coding_mode_flag) {
@@ -451,6 +472,22 @@ void Parser::Macroblock::parse_i_pcm()
 {
     mb.noSubMbPartSizeLessThan8x8Flag = 1;
     mb.transform_size_8x8_flag = 0;
+
+    // for deblocking filter
+    this->update_qp(0);
+
+    memset(mb.nz_coeff, 16, 3 * 16 * sizeof(byte));
+
+    // for CABAC decoding of MB skip flag
+    mb.mb_skip_flag = 0;
+
+    //for deblocking filter CABAC
+    mb.cbp_blks[0] = 0xFFFF;
+
+    //For CABAC decoding of Dquant
+    slice.parser.last_dquant = 0;
+    slice.parser.is_reset_coeff = false;
+    slice.parser.is_reset_coeff_cr = false;
 
     auto mv_info = slice.dec_picture->mv_info; 
     for (int y = 0; y < 4; ++y) {
@@ -952,7 +989,7 @@ void Parser::Macroblock::parse_cbp_qp()
 #undef IS_DIRECT
 #undef IS_I16MB
 
-    slice.parser.update_qp(mb, slice.SliceQpY);
+    this->update_qp(slice.SliceQpY);
 }
 
 // Table 8-15 Specification of QPc as a function of qPi
@@ -964,7 +1001,7 @@ static const uint8_t QP_SCALE_CR[52] = {
     35, 36, 36, 37, 37, 37, 38, 38, 38, 39, 39, 39, 39
 };
 
-void Parser::update_qp(mb_t& mb, int qp)
+void Parser::Macroblock::update_qp(int qp)
 {
     slice_t& slice = *mb.p_Slice;
     sps_t& sps = *slice.active_sps;

@@ -40,8 +40,9 @@ public:
     Decoder();
     ~Decoder();
 
+    void        init(slice_t& slice);
+
     void        assign_quant_params(slice_t& slice);
-    void        fill_wp_params(slice_t& slice);
 
     void        decode(mb_t& mb);
 
@@ -57,8 +58,8 @@ public:
 
     // called in erc_do_p.cpp
     void        get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos,
-                               int block_size_x, int block_size_y, imgpel **block,
-                               int shift_x,int maxold_x,int maxold_y, ColorPlane pl, mb_t* mb);
+                               int block_size_x, int block_size_y, imgpel block[16][16],
+                               int shift_x, int maxold_x, int maxold_y, ColorPlane pl, mb_t* mb);
 
 protected:
     void        decode_one_component(mb_t& mb, ColorPlane curr_plane);

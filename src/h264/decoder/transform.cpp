@@ -173,10 +173,10 @@ static const int dequant_coef8[6][8][8] = {
 };
 
 
-void Transform::assign_quant_params(slice_t* slice)
+void Transform::init(slice_t& slice)
 {
-    sps_t* sps = slice->active_sps;
-    pps_t* pps = slice->active_pps;
+    sps_t* sps = slice.active_sps;
+    pps_t* pps = slice.active_pps;
 
     if (!pps->pic_scaling_matrix_present_flag &&
         !sps->seq_scaling_matrix_present_flag) {
@@ -260,10 +260,10 @@ void Transform::assign_quant_params(slice_t* slice)
     this->set_quant(slice);
 }
 
-void Transform::set_quant(slice_t* slice)
+void Transform::set_quant(slice_t& slice)
 {
-    sps_t* sps = slice->active_sps;
-    pps_t* pps = slice->active_pps;
+    sps_t* sps = slice.active_sps;
+    pps_t* pps = slice.active_pps;
 
     for (int k = 0; k < 6; k++) {
         for (int j = 0; j < 4; j++) {
