@@ -63,11 +63,9 @@ public:
 
 protected:
     void        decode_one_component(mb_t& mb, ColorPlane curr_plane);
-    void        mb_pred_ipcm        (mb_t& mb);
+    void        mb_pred_ipcm        (mb_t& mb, ColorPlane curr_plane);
     void        mb_pred_intra       (mb_t& mb, ColorPlane curr_plane);
-    void        mb_pred_skip        (mb_t& mb, ColorPlane curr_plane);
-    void        mb_pred_p_inter     (mb_t& mb, ColorPlane curr_plane);
-    void        mb_pred_b_inter8x8  (mb_t& mb, ColorPlane curr_plane);
+    void        mb_pred_inter       (mb_t& mb, ColorPlane curr_plane);
 
 public:
     IntraPrediction* intra_prediction;

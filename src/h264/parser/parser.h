@@ -128,15 +128,13 @@ protected:
         void        residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
                                          ColorPlane pl, bool chroma, bool ac, int blkIdx);
 
-        uint8_t     parse_coeff_token(int nC);
-        uint8_t     parse_total_zeros(int yuv, int tzVlcIndex);
-        uint8_t     parse_run_before(uint8_t zerosLeft);
-
     private:
         sps_t&      sps;
         pps_t&      pps;
         slice_t&    slice;
         mb_t&       mb;
+
+        SyntaxElement se;
     };
 
     class Macroblock {

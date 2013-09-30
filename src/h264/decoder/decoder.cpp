@@ -33,14 +33,6 @@
 #include "deblock.h"
 
 
-
-//! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
-static const int BLOCK_STEP[8][2] = {
-    {0, 0}, {4, 4}, {4, 2}, {2, 4},
-    {2, 2}, {2, 1}, {1, 2}, {1, 1}
-};
-
-
 namespace vio  {
 namespace h264 {
 
@@ -153,32 +145,15 @@ void Decoder::decode_one_component(mb_t& mb, ColorPlane curr_plane)
         }
     }
 
-    if (mb.mb_type == IPCM) {
-        this->mb_pred_ipcm(mb);
-        return;
-    }
-
-    if (mb.mb_type == I16MB || mb.mb_type == I4MB || mb.mb_type == I8MB) {
+    if (mb.mb_type == IPCM)
+        this->mb_pred_ipcm(mb, curr_plane);
+    else if (mb.mb_type == I16MB || mb.mb_type == I4MB || mb.mb_type == I8MB)
         this->mb_pred_intra(mb, curr_plane);
-        return;
-    }
-
-    if (mb.mb_type == PSKIP && slice.slice_type != B_slice) {
-        this->mb_pred_skip(mb, curr_plane);
-        return;
-    }
-
-    if ((slice.slice_type == B_slice && mb.mb_type == PSKIP) ||
-        slice.slice_type == P_slice || slice.slice_type == SP_slice ||
-        mb.mb_type == P16x16 || mb.mb_type == P16x8 || mb.mb_type == P8x16) {
-        this->mb_pred_p_inter(mb, curr_plane);
-        return;
-    }
-
-    this->mb_pred_b_inter8x8(mb, curr_plane);
+    else
+        this->mb_pred_inter(mb, curr_plane);
 }
 
-void Decoder::mb_pred_ipcm(mb_t& mb)
+void Decoder::mb_pred_ipcm(mb_t& mb, ColorPlane curr_plane)
 {
     slice_t& slice = *mb.p_Slice;
     const sps_t& sps = *slice.active_sps;
@@ -238,28 +213,43 @@ void Decoder::mb_pred_intra(mb_t& mb, ColorPlane curr_plane)
     }
 }
 
-void Decoder::mb_pred_skip(mb_t& mb, ColorPlane curr_plane)
-{
-    slice_t& slice = *mb.p_Slice;
 
-    this->inter_prediction->perform_mc(&mb, curr_plane, LIST_0, 0, 0, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+//! used to control block sizes : Not used/16x16/16x8/8x16/8x8/8x4/4x8/4x4
+static const int BLOCK_STEP[8][2] = {
+    {0, 0}, {4, 4}, {4, 2}, {2, 4},
+    {2, 2}, {2, 1}, {1, 2}, {1, 1}
+};
 
-    if (slice.slice_type == SP_slice)
-        this->transform->inverse_transform_sp(&mb, curr_plane);
-    else
-        this->transform->inverse_transform_inter(&mb, curr_plane);
-}
-
-void Decoder::mb_pred_p_inter(mb_t& mb, ColorPlane curr_plane)
+void Decoder::mb_pred_inter(mb_t& mb, ColorPlane curr_plane)
 {
     slice_t& slice = *mb.p_Slice;
     const sps_t& sps = *slice.active_sps;
 
+    bool p_inter = (slice.slice_type == B_slice && mb.mb_type == PSKIP) ||
+                   slice.slice_type == P_slice || slice.slice_type == SP_slice ||
+                   mb.mb_type == P16x16 || mb.mb_type == P16x8 || mb.mb_type == P8x16;
+
     int step_h0 = BLOCK_STEP[mb.mb_type][0];
     int step_v0 = BLOCK_STEP[mb.mb_type][1];
-    if (mb.mb_type == PSKIP && slice.slice_type == B_slice) {
-        step_h0 = 2;
-        step_v0 = 2;
+
+    int pred_dirs[4];
+
+    if (p_inter) {
+        if (slice.slice_type == B_slice && mb.mb_type == PSKIP) {
+            step_h0 = 2;
+            step_v0 = 2;
+        }
+        if (slice.slice_type != B_slice && mb.mb_type == PSKIP) {
+            step_h0 = 4;
+            step_v0 = 4;
+        }
+    } else {
+        for (int j0 = 0; j0 < 4; j0 += step_v0) {
+            for (int i0 = 0; i0 < 4; i0 += step_h0) {
+                int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
+                pred_dirs[block8x8] = slice.parser.get_inter8x8(mb, block8x8);
+            }
+        }
     }
 
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
@@ -274,50 +264,11 @@ void Decoder::mb_pred_p_inter(mb_t& mb, ColorPlane curr_plane)
                 step_v4 = sps.direct_8x8_inference_flag ? 2 : 1;
             }
 
-            for (int j = j0; j < j0 + step_v0; j += step_v4) {
-                for (int i = i0; i < i0 + step_h0; i += step_h4)
-                    this->inter_prediction->perform_mc(&mb, curr_plane, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
-            }
-        }
-    }
-
-    if (slice.slice_type == SP_slice)
-        this->transform->inverse_transform_sp(&mb, curr_plane);
-    else
-        this->transform->inverse_transform_inter(&mb, curr_plane);
-    if (mb.CodedBlockPatternLuma != 0 || mb.CodedBlockPatternChroma != 0)
-        slice.parser.is_reset_coeff = false;
-}
-
-void Decoder::mb_pred_b_inter8x8(mb_t& mb, ColorPlane curr_plane)
-{
-    slice_t& slice = *mb.p_Slice;
-    const sps_t& sps = *slice.active_sps;
-
-    int step_h0 = BLOCK_STEP[mb.mb_type][0];
-    int step_v0 = BLOCK_STEP[mb.mb_type][1];
-
-    int pred_dirs[4];
-
-    for (int j0 = 0; j0 < 4; j0 += step_v0) {
-        for (int i0 = 0; i0 < 4; i0 += step_h0) {
-            int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-            pred_dirs[block8x8] = slice.parser.get_inter8x8(mb, block8x8);
-        }
-    }
-
-    for (int j0 = 0; j0 < 4; j0 += step_v0) {
-        for (int i0 = 0; i0 < 4; i0 += step_h0) {
-            int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-            int mv_mode  = mb.SubMbType    [block8x8];
-            //int pred_dir = mb.SubMbPredMode[block8x8];
-            int pred_dir = pred_dirs[block8x8];
-            int step_h4  = BLOCK_STEP[mv_mode][0];
-            int step_v4  = BLOCK_STEP[mv_mode][1];
-            if (mv_mode == 0) {
-                step_h4 = sps.direct_8x8_inference_flag ? 2 : 1;
-                step_v4 = sps.direct_8x8_inference_flag ? 2 : 1;
-            }
+            if (p_inter) {
+                if (slice.slice_type != B_slice && mb.mb_type == PSKIP)
+                    pred_dir = 0;
+            } else
+                pred_dir = pred_dirs[block8x8];
 
             for (int j = j0; j < j0 + step_v0; j += step_v4) {
                 for (int i = i0; i < i0 + step_h0; i += step_h4)

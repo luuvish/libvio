@@ -63,14 +63,14 @@ enum {
 };
 
 enum {
-    I_NxN = 0,
-    I_4x4,
+    I_NxN = 8,
+    I_4x4 = 8,
     I_8x8,
     I_16x16,
     I_PCM,
     SI,
 
-    P_Skip,
+    P_Skip = 0,
     P_16x16,
     P_16x8,
     P_8x16,

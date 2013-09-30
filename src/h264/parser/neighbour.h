@@ -70,7 +70,23 @@ public:
     int   predict_nnz(mb_t* mb, int pl, int i, int j);
 };
 
-    
+
+int mb_skip_flag_ctxIdxInc(mb_t& mb);
+int mb_field_decoding_flag_ctxIdxInc(mb_t& mb);
+int mb_type_si_slice_ctxIdxInc(mb_t& mb);
+int mb_type_i_slice_ctxIdxInc(mb_t& mb);
+int mb_type_b_slice_ctxIdxInc(mb_t& mb);
+int transform_size_8x8_flag_ctxIdxInc(mb_t& mb);
+int intra_chroma_pred_mode_ctxIdxInc(mb_t& mb);
+int ref_idx_ctxIdxInc(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0);
+int mvd_ctxIdxInc(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0, bool comp);
+int cbp_luma_ctxIdxInc(mb_t& mb, uint8_t x0, uint8_t y0, uint8_t coded_block_pattern);
+int cbp_chroma_ctxIdxInc(mb_t& mb);
+
+int coded_block_flag_ctxIdxInc(mb_t& mb, int pl, bool chroma, bool ac, int blkIdx);
+void update_coded_block_flag(mb_t* mb, int pl, bool chroma, bool ac, int blkIdx);
+
+
 }
 }
 

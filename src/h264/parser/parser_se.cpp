@@ -51,125 +51,6 @@ Parser::SyntaxElement::~SyntaxElement()
 }
 
 
-static int ref_idx_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0)
-{
-    slice_t* slice = mb->p_Slice;
-
-    nb_t nbA = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4 - 1, y0 * 4});
-    nb_t nbB = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4, y0 * 4 - 1});
-    nbA.mb = nbA.mb && nbA.mb->slice_nr == mb->slice_nr ? nbA.mb : nullptr;
-    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
-
-    int condTermFlagA = 0;
-    int condTermFlagB = 0;
-    int ctxIdxInc;
-
-#define IS_DIRECT(MB) ((MB)->mb_type == 0 && (slice->slice_type == B_SLICE))
-    if (nbA.mb) {
-        int b8a = ((nbA.y / 4) & 2) + ((nbA.x / 8) & 1);
-        auto mv_info = &slice->dec_picture->mv_info[nbA.y / 4][nbA.x / 4];
-        if (!(nbA.mb->mb_type == IPCM || IS_DIRECT(nbA.mb) ||
-             (nbA.mb->SubMbType[b8a] == 0 && nbA.mb->SubMbPredMode[b8a] == 2))) {
-            if (slice->MbaffFrameFlag && !mb->mb_field_decoding_flag && nbA.mb->mb_field_decoding_flag)
-                condTermFlagA = (mv_info->ref_idx[list] > 1 ? 1 : 0);
-            else
-                condTermFlagA = (mv_info->ref_idx[list] > 0 ? 1 : 0);
-        }
-    }
-    if (nbB.mb) {
-        int b8b = ((nbB.y / 4) & 2) + ((nbB.x / 8) & 1);
-        auto mv_info = &slice->dec_picture->mv_info[nbB.y / 4][nbB.x / 4];
-        if (!(nbB.mb->mb_type == IPCM || IS_DIRECT(nbB.mb) ||
-             (nbB.mb->SubMbType[b8b] == 0 && nbB.mb->SubMbPredMode[b8b] == 2))) {
-            if (slice->MbaffFrameFlag && !mb->mb_field_decoding_flag && nbB.mb->mb_field_decoding_flag)
-                condTermFlagB = (mv_info->ref_idx[list] > 1 ? 1 : 0);
-            else
-                condTermFlagB = (mv_info->ref_idx[list] > 0 ? 1 : 0);
-        }
-    }
-#undef IS_DIRECT
-
-    ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
-
-    return ctxIdxInc;
-}
-
-static int mvd_ctxIdxInc(mb_t* mb, uint8_t list, uint8_t x0, uint8_t y0, bool comp)
-{
-    slice_t* slice = mb->p_Slice;
-
-    nb_t nbA = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4 - 1, y0 * 4});
-    nb_t nbB = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4, y0 * 4 - 1});
-    nbA.mb = nbA.mb && nbA.mb->slice_nr == mb->slice_nr ? nbA.mb : nullptr;
-    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
-
-    int absMvdCompA = 0;
-    int absMvdCompB = 0;
-
-    if (nbA.mb) {
-        auto mvd = list == 0 ? nbA.mb->mvd_l0 : nbA.mb->mvd_l1;
-        absMvdCompA = abs(mvd[(nbA.y & 15) / 4][(nbA.x & 15) / 4][comp]);
-        if (slice->MbaffFrameFlag && comp) {
-            if (!mb->mb_field_decoding_flag && nbA.mb->mb_field_decoding_flag)
-                absMvdCompA *= 2;
-            else if (mb->mb_field_decoding_flag && !nbA.mb->mb_field_decoding_flag)
-                absMvdCompA /= 2;
-        }
-    }
-    if (nbB.mb) {
-        auto mvd = list == 0 ? nbB.mb->mvd_l0 : nbB.mb->mvd_l1;
-        absMvdCompB = abs(mvd[(nbB.y & 15) / 4][(nbB.x & 15) / 4][comp]);
-        if (slice->MbaffFrameFlag && comp) {
-            if (!mb->mb_field_decoding_flag && nbB.mb->mb_field_decoding_flag)
-                absMvdCompB *= 2;
-            else if (mb->mb_field_decoding_flag && !nbB.mb->mb_field_decoding_flag)
-                absMvdCompB /= 2;
-        }
-    }
-
-    int absMvdSum = absMvdCompA + absMvdCompB;
-    int ctxIdxInc = (absMvdSum < 3 ? 0 : absMvdSum <= 32 ? 1 : 2);
-
-    return ctxIdxInc;
-}
-
-static int cbp_ctxIdxInc(mb_t* mb, uint8_t x0, uint8_t y0, uint8_t coded_block_pattern)
-{
-    slice_t* slice = mb->p_Slice;
-
-    nb_t nbA = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4 - 1, y0 * 4});
-    nb_t nbB = slice->neighbour.get_neighbour(slice, false, mb->mbAddrX, {x0 * 4, y0 * 4 - 1});
-    nbA.mb = nbA.mb && nbA.mb->slice_nr == mb->slice_nr ? nbA.mb : nullptr;
-    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb->slice_nr ? nbB.mb : nullptr;
-
-    int cbp_a = 0x3F, cbp_b = 0x3F;
-    int cbp_a_idx = 0, cbp_b_idx = 0;
-    if (x0 == 0) {
-        if (nbA.mb && nbA.mb->mb_type != IPCM) {
-            cbp_a = nbA.mb->CodedBlockPatternLuma;
-            cbp_a_idx = (((nbA.y & 15) / 4) & ~1) + 1;
-        }
-    } else {
-        cbp_a = coded_block_pattern;
-        cbp_a_idx = y0;
-    }
-    if (y0 == 0) {
-        if (nbB.mb && nbB.mb->mb_type != IPCM) {
-            cbp_b = nbB.mb->CodedBlockPatternLuma;
-            cbp_b_idx = (x0 / 2) + 2;
-        }
-    } else {
-        cbp_b = coded_block_pattern;
-        cbp_b_idx = (x0 / 2);
-    }
-
-    int condTermFlagA = (cbp_a & (1 << cbp_a_idx)) == 0 ? 1 : 0;
-    int condTermFlagB = (cbp_b & (1 << cbp_b_idx)) == 0 ? 1 : 0;
-    int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
-
-    return ctxIdxInc;
-}
-
 
 uint32_t Parser::SyntaxElement::mb_skip_run()
 {
@@ -187,16 +68,7 @@ bool Parser::SyntaxElement::mb_skip_flag()
 
     if (pps.entropy_coding_mode_flag) {
         cabac_context_t* ctx = contexts.skip_contexts;
-
-        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
-        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
-
-        int condTermFlagA = mbA && !mbA->mb_skip_flag ? 1 : 0;
-        int condTermFlagB = mbB && !mbB->mb_skip_flag ? 1 : 0;
-        int ctxIdxInc = condTermFlagA + condTermFlagB;
-
+        int ctxIdxInc = mb_skip_flag_ctxIdxInc(mb);
         mb_skip_flag = cabac.decode_decision(ctx + ctxIdxInc);
     }
 
@@ -211,18 +83,7 @@ bool Parser::SyntaxElement::mb_field_decoding_flag()
         mb_field_decoding_flag = cavlc.f(1);
     else {
         cabac_context_t* ctx = contexts.mb_aff_contexts;
-
-        int topMbAddr = slice.MbaffFrameFlag ? mb.mbAddrX & ~1 : mb.mbAddrX;
-
-        mb_t* mbA = slice.neighbour.get_mb(&slice, false, topMbAddr, {-1, 0});
-        mb_t* mbB = slice.neighbour.get_mb(&slice, false, topMbAddr, {0, -1});
-        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
-
-        int condTermFlagA = mbA && mbA->mb_field_decoding_flag ? 1 : 0;
-        int condTermFlagB = mbB && mbB->mb_field_decoding_flag ? 1 : 0;
-        int ctxIdxInc = condTermFlagA + condTermFlagB;
-
+        int ctxIdxInc = mb_field_decoding_flag_ctxIdxInc(mb);
         mb_field_decoding_flag = cabac.decode_decision(ctx + ctxIdxInc);
     }
 
@@ -253,31 +114,13 @@ uint8_t Parser::SyntaxElement::mb_type_i_slice()
 
     if (slice.slice_type == SI_slice) {
         cabac_context_t* ctx = contexts.mb_type_contexts; // ctxIdxOffset = 0
-
-        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
-        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
-
-        int condTermFlagA = mbA && mbA->mb_type != SI4MB ? 1 : 0;
-        int condTermFlagB = mbB && mbB->mb_type != SI4MB ? 1 : 0;
-        int ctxIdxInc = condTermFlagA + condTermFlagB;
-
+        int ctxIdxInc = mb_type_si_slice_ctxIdxInc(mb);
         mb_type = cabac.decode_decision(ctx + ctxIdxInc);
     }
 
     if (slice.slice_type == I_slice || mb_type == 1) {
         cabac_context_t* ctx = contexts.mb_type_contexts + 3; // ctxIdxOffset = 3
-
-        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
-        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
-
-        int condTermFlagA = mbA && mbA->mb_type != I4MB && mbA->mb_type != I8MB ? 1 : 0;
-        int condTermFlagB = mbB && mbB->mb_type != I4MB && mbB->mb_type != I8MB ? 1 : 0;
-        int ctxIdxInc = condTermFlagA + condTermFlagB;
-
+        int ctxIdxInc = mb_type_i_slice_ctxIdxInc(mb);
         if (cabac.decode_decision(ctx + ctxIdxInc)) {
             if (!cabac.decode_terminate()) {
                 mb_type += 1;
@@ -330,14 +173,7 @@ uint8_t Parser::SyntaxElement::mb_type_b_slice()
 {
     uint8_t mb_type = 0;
 
-    mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-    mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
-    mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-    mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
-
-    int condTermFlagA = mbA && mbA->mb_type != 0 ? 1 : 0;
-    int condTermFlagB = mbB && mbB->mb_type != 0 ? 1 : 0;
-    int ctxIdxInc = condTermFlagA + condTermFlagB;
+    int ctxIdxInc = mb_type_b_slice_ctxIdxInc(mb);
 
     cabac_context_t* ctx = contexts.mb_type_contexts; // ctxIdxOffset = 27
     if (cabac.decode_decision(ctx + ctxIdxInc)) {
@@ -450,16 +286,7 @@ bool Parser::SyntaxElement::transform_size_8x8_flag()
         transform_size_8x8_flag = cavlc.f(1);
     else {
         cabac_context_t* ctx = contexts.transform_size_contexts;
-
-        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
-        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
-
-        int condTermFlagA = mbA && mbA->transform_size_8x8_flag ? 1 : 0;
-        int condTermFlagB = mbB && mbB->transform_size_8x8_flag ? 1 : 0;
-        int ctxIdxInc = condTermFlagA + condTermFlagB;
-
+        int ctxIdxInc = transform_size_8x8_flag_ctxIdxInc(mb);
         transform_size_8x8_flag = cabac.decode_decision(ctx + ctxIdxInc);
     }
 
@@ -497,17 +324,8 @@ uint8_t Parser::SyntaxElement::intra_chroma_pred_mode()
         intra_chroma_pred_mode = cavlc.ue();
     else {
         cabac_context_t* ctx = contexts.cipr_contexts;
-
-        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
-        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
-
-        int condTermFlagA = mbA && mbA->intra_chroma_pred_mode != 0 && mbA->mb_type != IPCM ? 1 : 0;
-        int condTermFlagB = mbB && mbB->intra_chroma_pred_mode != 0 && mbB->mb_type != IPCM ? 1 : 0;
-        uint8_t ctxIdxInc = condTermFlagA + condTermFlagB;
+        uint8_t ctxIdxInc = intra_chroma_pred_mode_ctxIdxInc(mb);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 3, 3 };
-
         intra_chroma_pred_mode = cabac.tu(ctx, ctxIdxIncs, 1, 3);
     }
 
@@ -534,7 +352,7 @@ uint8_t Parser::SyntaxElement::ref_idx_l(uint8_t list, uint8_t x0, uint8_t y0)
             ref_idx = cavlc.ue();
     } else {
         cabac_context_t* ctx = contexts.ref_no_contexts;
-        uint8_t ctxIdxInc = ref_idx_ctxIdxInc(&mb, list, x0, y0);
+        uint8_t ctxIdxInc = ref_idx_ctxIdxInc(mb, list, x0, y0);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 4, 5 };
 
         ref_idx = cabac.u(ctx, ctxIdxIncs, 2);
@@ -551,7 +369,7 @@ int16_t Parser::SyntaxElement::mvd_l(uint8_t list, uint8_t x0, uint8_t y0, uint8
         mvd = cavlc.se();
     else {
         cabac_context_t* ctx = (comp == 0) ? contexts.mvd_x_contexts : contexts.mvd_y_contexts;
-        uint8_t ctxIdxInc = mvd_ctxIdxInc(&mb, list, x0, y0, comp);
+        uint8_t ctxIdxInc = mvd_ctxIdxInc(mb, list, x0, y0, comp);
         uint8_t ctxIdxIncs[] = { ctxIdxInc, 3, 4, 5, 6 };
 
         mvd = cabac.ueg(ctx, ctxIdxIncs, 4, 9, 3);
@@ -592,7 +410,7 @@ uint8_t Parser::SyntaxElement::coded_block_pattern()
     } else {
         for (int mb_y = 0; mb_y < 4; mb_y += 2) {
             for (int mb_x = 0; mb_x < 4; mb_x += 2) {
-                int ctxIdxInc = cbp_ctxIdxInc(&mb, mb_x, mb_y, coded_block_pattern);
+                int ctxIdxInc = cbp_luma_ctxIdxInc(mb, mb_x, mb_y, coded_block_pattern);
 
                 cabac_context_t* ctx = contexts.cbp_l_contexts;
                 if (cabac.decode_decision(ctx + ctxIdxInc))
@@ -602,23 +420,10 @@ uint8_t Parser::SyntaxElement::coded_block_pattern()
 
         if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
             cabac_context_t* ctx = contexts.cbp_c_contexts;
-
-            mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-            mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
-            mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-            mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
-
-            int condTermFlagA = mbA && (mbA->mb_type == IPCM || mbA->CodedBlockPatternChroma) ? 1 : 0;
-            int condTermFlagB = mbB && (mbB->mb_type == IPCM || mbB->CodedBlockPatternChroma) ? 1 : 0;
-            int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
-
-            if (cabac.decode_decision(ctx + ctxIdxInc)) {
-                condTermFlagA = mbA && (mbA->mb_type == IPCM || mbA->CodedBlockPatternChroma == 2) ? 1 : 0;
-                condTermFlagB = mbB && (mbB->mb_type == IPCM || mbB->CodedBlockPatternChroma == 2) ? 1 : 0;
-                ctxIdxInc = condTermFlagA + 2 * condTermFlagB + 4;
-
-                coded_block_pattern += cabac.decode_decision(ctx + ctxIdxInc) ? 32 : 16;
-            }
+            int inc = cbp_chroma_ctxIdxInc(mb);
+            int ctxIdxInc[2] = { inc & 3, (inc >> 2) & 7 };
+            if (cabac.decode_decision(ctx + ctxIdxInc[0]))
+                coded_block_pattern += cabac.decode_decision(ctx + ctxIdxInc[1]) ? 32 : 16;
         }
     }
 
@@ -644,6 +449,220 @@ int8_t Parser::SyntaxElement::mb_qp_delta()
     }
 
     return mb_qp_delta;
+}
+
+// Table 9-5 coeff_token mapping to TotalCoeff(coeff_token) and TrailingOnes(coeff_token)
+static const uint8_t coeff_token_length[5][4][17] = {
+    //  0 <= nC < 2
+    {{  1,  6,  8,  9, 10, 11, 13, 13, 13, 14, 14, 15, 15, 16, 16, 16, 16 },
+     {  0,  2,  6,  8,  9, 10, 11, 13, 13, 14, 14, 15, 15, 15, 16, 16, 16 },
+     {  0,  0,  3,  7,  8,  9, 10, 11, 13, 13, 14, 14, 15, 15, 16, 16, 16 },
+     {  0,  0,  0,  5,  6,  7,  8,  9, 10, 11, 13, 14, 14, 15, 15, 16, 16 }},
+    // 2 <= nC < 4
+    {{  2,  6,  6,  7,  8,  8,  9, 11, 11, 12, 12, 12, 13, 13, 13, 14, 14 },
+     {  0,  2,  5,  6,  6,  7,  8,  9, 11, 11, 12, 12, 13, 13, 14, 14, 14 },
+     {  0,  0,  3,  6,  6,  7,  8,  9, 11, 11, 12, 12, 13, 13, 13, 14, 14 },
+     {  0,  0,  0,  4,  4,  5,  6,  6,  7,  9, 11, 11, 12, 13, 13, 13, 14 }},
+    // 4 <= nC < 8
+    {{  4,  6,  6,  6,  7,  7,  7,  7,  8,  8,  9,  9,  9, 10, 10, 10, 10 },
+     {  0,  4,  5,  5,  5,  5,  6,  6,  7,  8,  8,  9,  9,  9, 10, 10, 10 },
+     {  0,  0,  4,  5,  5,  5,  6,  6,  7,  7,  8,  8,  9,  9, 10, 10, 10 },
+     {  0,  0,  0,  4,  4,  4,  4,  4,  5,  6,  7,  8,  8,  9, 10, 10, 10 }},
+    // nC == -1 
+    {{  2,  6,  6,  6,  6,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  1,  6,  7,  8,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  0,  3,  7,  8,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  0,  0,  6,  7,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 }},
+    // nC == -2 
+    {{  1,  7,  7,  9,  9, 10, 11, 12, 13,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  2,  7,  7,  9, 10, 11, 12, 12,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  0,  3,  7,  7,  9, 10, 11, 12,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  0,  0,  5,  6,  7,  7, 10, 11,  0,  0,  0,  0,  0,  0,  0,  0 }}
+};
+
+static const uint8_t coeff_token_code[5][4][17] = {
+    // 0 <= nC < 2
+    {{  1,  5,  7,  7,  7,  7, 15, 11,  8, 15, 11, 15, 11, 15, 11,  7,  4 },
+     {  0,  1,  4,  6,  6,  6,  6, 14, 10, 14, 10, 14, 10,  1, 14, 10,  6 },
+     {  0,  0,  1,  5,  5,  5,  5,  5, 13,  9, 13,  9, 13,  9, 13,  9,  5 },
+     {  0,  0,  0,  3,  3,  4,  4,  4,  4,  4, 12, 12,  8, 12,  8, 12,  8 }},
+    // 2 <= nC < 4
+    {{  3, 11,  7,  7,  7,  4,  7, 15, 11, 15, 11,  8, 15, 11,  7,  9,  7 },
+     {  0,  2,  7, 10,  6,  6,  6,  6, 14, 10, 14, 10, 14, 10, 11,  8,  6 },
+     {  0,  0,  3,  9,  5,  5,  5,  5, 13,  9, 13,  9, 13,  9,  6, 10,  5 },
+     {  0,  0,  0,  5,  4,  6,  8,  4,  4,  4, 12,  8, 12, 12,  8,  1,  4 }},
+    // 4 <= nC < 8
+    {{ 15, 15, 11,  8, 15, 11,  9,  8, 15, 11, 15, 11,  8, 13,  9,  5,  1 },
+     {  0, 14, 15, 12, 10,  8, 14, 10, 14, 14, 10, 14, 10,  7, 12,  8,  4 },
+     {  0,  0, 13, 14, 11,  9, 13,  9, 13, 10, 13,  9, 13,  9, 11,  7,  3 },
+     {  0,  0,  0, 12, 11, 10,  9,  8, 13, 12, 12, 12,  8, 12, 10,  6,  2 }},
+    // nC == -1
+    {{  1,  7,  4,  3,  2,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  1,  6,  3,  3,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  0,  1,  2,  2,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  0,  0,  5,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 }},
+    // nC == -2
+    {{  1, 15, 14,  7,  6,  7,  7,  7,  7,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  1, 13, 12,  5,  6,  6,  6,  5,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  0,  1, 11, 10,  4,  5,  5,  4,  0,  0,  0,  0,  0,  0,  0,  0 },
+     {  0,  0,  0,  1,  1,  9,  8,  4,  4,  0,  0,  0,  0,  0,  0,  0,  0 }}
+};
+
+// Table 9-7 total_zeros tables for 4x4 blocks with tzVlcIndex 1 to 7
+// Table 9-8 total_zeros tables for 4x4 blocks with tzVlcIndex 8 to 15
+// Table 9-9 total_zeros tables for chroma DC 2x2 and 2x4 blocks
+static const uint8_t total_zeros_length[3][15][16] = {
+    // YUV420
+    {{ 1, 2, 3, 3 },
+     { 1, 2, 2 },
+     { 1, 1 }},
+    // YUV422
+    {{ 1, 3, 3, 4, 4, 4, 5, 5 },
+     { 3, 2, 3, 3, 3, 3, 3 },
+     { 3, 3, 2, 2, 3, 3 },
+     { 3, 2, 2, 2, 3 },
+     { 2, 2, 2, 2 },
+     { 2, 2, 1 },
+     { 1, 1 }},
+    // YUV444
+    {{ 1, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 9 },
+     { 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 6, 6, 6, 6 },
+     { 4, 3, 3, 3, 4, 4, 3, 3, 4, 5, 5, 6, 5, 6 },
+     { 5, 3, 4, 4, 3, 3, 3, 4, 3, 4, 5, 5, 5 },
+     { 4, 4, 4, 3, 3, 3, 3, 3, 4, 5, 4, 5 },
+     { 6, 5, 3, 3, 3, 3, 3, 3, 4, 3, 6 },
+     { 6, 5, 3, 3, 3, 2, 3, 4, 3, 6 },
+     { 6, 4, 5, 3, 2, 2, 3, 3, 6 },
+     { 6, 6, 4, 2, 2, 3, 2, 5 },
+     { 5, 5, 3, 2, 2, 2, 4 },
+     { 4, 4, 3, 3, 1, 3 },
+     { 4, 4, 2, 1, 3 },
+     { 3, 3, 1, 2 },
+     { 2, 2, 1 },
+     { 1, 1 }}
+};
+
+static const uint8_t total_zeros_code[3][15][16] = {
+    // YUV420
+    {{ 1, 1 , 1 , 0 },
+     { 1, 1 , 0 },
+     { 1, 0 }},
+    // YUV422
+    {{ 1, 2, 3, 2, 3, 1, 1, 0 },
+     { 0, 1, 1, 4, 5, 6, 7 },
+     { 0, 1, 1, 2, 6, 7 },
+     { 6, 0, 1, 2, 7 },
+     { 0, 1, 2, 3 },
+     { 0, 1, 1 },
+     { 0, 1 }},
+    // YUV444
+    {{ 1, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 1 },
+     { 7, 6, 5, 4, 3, 5, 4, 3, 2, 3, 2, 3, 2, 1, 0 },
+     { 5, 7, 6, 5, 4, 3, 4, 3, 2, 3, 2, 1, 1, 0 },
+     { 3, 7, 5, 4, 6, 5, 4, 3, 3, 2, 2, 1, 0 },
+     { 5, 4, 3, 7, 6, 5, 4, 3, 2, 1, 1, 0 },
+     { 1, 1, 7, 6, 5, 4, 3, 2, 1, 1, 0 },
+     { 1, 1, 5, 4, 3, 3, 2, 1, 1, 0 },
+     { 1, 1, 1, 3, 3, 2, 2, 1, 0 },
+     { 1, 0, 1, 3, 2, 1, 1, 1 },
+     { 1, 0, 1, 3, 2, 1, 1 },
+     { 0, 1, 1, 2, 1, 3 },
+     { 0, 1, 1, 1, 1 },
+     { 0, 1, 1, 1 },
+     { 0, 1, 1 },
+     { 0, 1 }}
+};
+
+// Table 9-10 Tables for run_before
+static const uint8_t run_before_length[15][16] = {
+    { 1, 1 },
+    { 1, 2, 2 },
+    { 2, 2, 2, 2 },
+    { 2, 2, 2, 3, 3 },
+    { 2, 2, 3, 3, 3, 3 },
+    { 2, 3, 3, 3, 3, 3, 3 },
+    { 3, 3, 3, 3, 3, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11 }
+};
+
+static const uint8_t run_before_code[15][16] = {
+    { 1, 0 },
+    { 1, 1, 0 },
+    { 3, 2, 1, 0 },
+    { 3, 2, 1, 1, 0 },
+    { 3, 2, 3, 2, 1, 0 },
+    { 3, 0, 1, 3, 2, 5, 4 },
+    { 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1 }
+};
+
+
+uint8_t Parser::SyntaxElement::coeff_token(int nC)
+{
+    data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+
+    if (nC >= 8) {
+        int code = dp->read_bits(6);
+        int TotalCoeff   = (code >> 2);
+        int TrailingOnes = (code & 3);
+        if (TotalCoeff == 0 && TrailingOnes == 3)
+            TrailingOnes = 0;
+        else
+            TotalCoeff++;
+        return (TotalCoeff << 2) | (TrailingOnes);
+    }
+
+    int tab = (nC == -2) ? 4 : (nC == -1) ? 3 : (nC < 2) ? 0 : (nC < 4) ? 1 : (nC < 8) ? 2 : 5;
+
+    for (int TrailingOnes = 0; TrailingOnes < 4; TrailingOnes++) {
+        for (int TotalCoeff = 0; TotalCoeff < 17; TotalCoeff++) {
+            int length = coeff_token_length[tab][TrailingOnes][TotalCoeff];
+            int code   = coeff_token_code  [tab][TrailingOnes][TotalCoeff];
+            if (length > 0 && dp->next_bits(length) == code) {
+                dp->read_bits(length);
+                return (TotalCoeff << 2) | (TrailingOnes);
+            }
+        }
+    }
+
+    assert(false);
+    return -1;
+}
+
+uint8_t Parser::SyntaxElement::total_zeros(int yuv, int tzVlcIndex)
+{
+    data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+
+    int tab = tzVlcIndex - 1;
+
+    for (int total_zeros = 0; total_zeros < 16; total_zeros++) {
+        int length = total_zeros_length[yuv][tab][total_zeros];
+        int code   = total_zeros_code  [yuv][tab][total_zeros];
+        if (length > 0 && dp->next_bits(length) == code) {
+            dp->read_bits(length);
+            return total_zeros;
+        }
+    }
+
+    assert(false);
+    return -1;
+}
+
+uint8_t Parser::SyntaxElement::run_before(uint8_t zerosLeft)
+{
+    data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+
+    int tab = min<int>(zerosLeft, 7) - 1;
+
+    for (int run_before = 0; run_before < 16; run_before++) {
+        int length = run_before_length[tab][run_before];
+        int code   = run_before_code  [tab][run_before];
+        if (length > 0 && dp->next_bits(length) == code) {
+            dp->read_bits(length);
+            return run_before;
+        }
+    }
+
+    assert(false);
+    return -1;
 }
 
 
