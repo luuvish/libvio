@@ -323,11 +323,11 @@ void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startId
             context = LUMA_16DC;
         else {
             if (pl == PLANE_Y || sps.separate_colour_plane_flag)
-                context = mb.transform_size_8x8_flag ? LUMA_8x8 : mb.mb_type == I16MB ? LUMA_16AC : LUMA_4x4;
+                context = mb.transform_size_8x8_flag ? LUMA_8x8 : mb.mb_type == I_16x16 ? LUMA_16AC : LUMA_4x4;
             else if (pl == PLANE_U)
-                context = mb.transform_size_8x8_flag ? CB_8x8 : mb.mb_type == I16MB ? CB_16AC : CB_4x4;
+                context = mb.transform_size_8x8_flag ? CB_8x8 : mb.mb_type == I_16x16 ? CB_16AC : CB_4x4;
             else
-                context = mb.transform_size_8x8_flag ? CR_8x8 : mb.mb_type == I16MB ? CR_16AC : CR_4x4;
+                context = mb.transform_size_8x8_flag ? CR_8x8 : mb.mb_type == I_16x16 ? CR_16AC : CR_4x4;
         }
     } else {
         if (!ac)
@@ -422,7 +422,7 @@ void Parser::Residual::residual_luma(ColorPlane pl)
         std::mem_fn(&Parser::Residual::residual_block_cavlc) :
         std::mem_fn(&Parser::Residual::residual_block_cabac);
 
-    if (mb.mb_type == I16MB && !mb.dpl_flag) {
+    if (mb.mb_type == I_16x16 && !mb.dpl_flag) {
         residual_block(this, LUMA_16DC, 0, 15, 16, pl, false, false, 0);
 
         slice.decoder.transform_luma_dc(&mb, pl);
@@ -432,7 +432,7 @@ void Parser::Residual::residual_luma(ColorPlane pl)
         if (!mb.transform_size_8x8_flag || !pps.entropy_coding_mode_flag) {
             for (int i4x4 = 0; i4x4 < 4; i4x4++) {
                 if (mb.CodedBlockPatternLuma & (1 << i8x8)) {
-                    if (mb.mb_type == I16MB)
+                    if (mb.mb_type == I_16x16)
                         residual_block(this, LUMA_16AC, 1, 14, 15, pl, false, true, i8x8 * 4 + i4x4);
                     else
                         residual_block(this, LUMA_4x4, 0, 15, 16, pl, false, true, i8x8 * 4 + i4x4);

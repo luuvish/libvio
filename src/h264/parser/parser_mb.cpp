@@ -60,7 +60,7 @@ static const uint8_t mb_types_i_slice[26][5] = {
     { I_16x16, Intra_16x16,  1,  2, 15 },
     { I_16x16, Intra_16x16,  2,  2, 15 },
     { I_16x16, Intra_16x16,  3,  2, 15 },
-    { I_PCM  ,          NA, NA, NA, NA }
+    { I_PCM  , NA         , NA, NA, NA }
 };
 
 // Table 7-12 Macroblock type with value 0 for SI slices
@@ -71,22 +71,22 @@ static const uint8_t mb_types_si_slice[1][5] = {
 
 // Table 7-13 mb_t type value 0 to 4 for P and SP slices
 static const uint8_t mb_types_p_slice[5][6] = {
-//  { P_Skip   , 1, Pred_L0,      NA, 16, 16 },
-    { P_16x16  , 1, Pred_L0,      NA, 16, 16 },
+//  { P_Skip   , 1, Pred_L0, NA     , 16, 16 },
+    { P_16x16  , 1, Pred_L0, NA     , 16, 16 },
     { P_16x8   , 2, Pred_L0, Pred_L0, 16,  8 },
     { P_8x16   , 2, Pred_L0, Pred_L0,  8, 16 },
-    { P_8x8    , 4,      NA,      NA,  8,  8 },
-    { P_8x8ref0, 4,      NA,      NA,  8,  8 }
+    { P_8x8    , 4, NA     , NA     ,  8,  8 },
+    { P_8x8ref0, 4, NA     , NA     ,  8,  8 }
     // [5..30] are mb_types_i_slice[0..25]
 };
 
 // Table 7-14 mb_t type value 0 to 22 for B slices
 static const uint8_t mb_types_b_slice[23][6] = {
-//  { B_Skip        , NA, Direct ,      NA,  8,  8 },
-    { B_Direct_16x16, NA, Direct ,      NA,  8,  8 },
-    { B_16x16       ,  1, Pred_L0,      NA, 16, 16 },
-    { B_16x16       ,  1, Pred_L1,      NA, 16, 16 },
-    { B_16x16       ,  1, BiPred ,      NA, 16, 16 },
+//  { B_Skip        , NA, Direct , NA     ,  8,  8 },
+    { B_Direct_16x16, NA, Direct , NA     ,  8,  8 },
+    { B_16x16       ,  1, Pred_L0, NA     , 16, 16 },
+    { B_16x16       ,  1, Pred_L1, NA     , 16, 16 },
+    { B_16x16       ,  1, BiPred , NA     , 16, 16 },
     { B_16x8        ,  2, Pred_L0, Pred_L0, 16,  8 },
     { B_8x16        ,  2, Pred_L0, Pred_L0,  8, 16 },
     { B_16x8        ,  2, Pred_L1, Pred_L1, 16,  8 },
@@ -105,7 +105,7 @@ static const uint8_t mb_types_b_slice[23][6] = {
     { B_8x16        ,  2, BiPred , Pred_L1,  8, 16 },
     { B_16x8        ,  2, BiPred , BiPred , 16,  8 },
     { B_8x16        ,  2, BiPred , BiPred ,  8, 16 },
-    { B_8x8         ,  4,      NA,      NA,  8,  8 }
+    { B_8x8         ,  4, NA     , NA     ,  8,  8 }
     // [23..48] are mb_types_i_slice[0..25]
 };
 
@@ -135,187 +135,6 @@ static const uint8_t sub_mb_types_b_slice[14][5] = {
     { B_4x4       , 4, BiPred , 4, 4 }
 };
 
-static void interpret_mb_mode_P(mb_t* mb)
-{
-    static const short ICBPTAB[6] = {0,16,32,15,31,47};
-    short mbmode = mb->mb_type;
-
-    if (mbmode < 4) {
-        mb->mb_type = mbmode;
-        memset(mb->SubMbType, mbmode, 4 * sizeof(char));
-        memset(mb->SubMbPredMode,  0, 4 * sizeof(char));
-    } else if (mbmode == 4 || mbmode == 5) {
-        mb->mb_type = P8x8;
-        mb->allrefzero = mbmode == 5;
-    } else if (mbmode == 6) {
-        mb->is_intra_block = true;
-        mb->mb_type = I4MB;
-        memset(mb->SubMbType,   I4MB, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    } else if (mbmode == 31) {
-        mb->is_intra_block = true;
-        mb->mb_type = IPCM;
-        mb->CodedBlockPatternLuma   = 15;
-        mb->CodedBlockPatternChroma =  3;
-        mb->Intra16x16PredMode = 0;
-
-        memset(mb->SubMbType,      0, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    } else {
-        mb->is_intra_block = true;
-        mb->mb_type = I16MB;
-        uint8_t coded_block_pattern = ICBPTAB[((mbmode-7))>>2];
-        mb->CodedBlockPatternLuma   = coded_block_pattern % 16;
-        mb->CodedBlockPatternChroma = coded_block_pattern / 16;
-        mb->Intra16x16PredMode = ((mbmode-7)) & 0x03;
-        memset(mb->SubMbType,      0, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    }
-}
-
-static void interpret_mb_mode_I(mb_t* mb)
-{
-    static const short ICBPTAB[6] = {0,16,32,15,31,47};
-    short mbmode = mb->mb_type;
-
-    if (mbmode == 0) {
-        mb->is_intra_block = true;
-        mb->mb_type = I4MB;
-        memset(mb->SubMbType,   I4MB, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    } else if (mbmode == 25) {
-        mb->is_intra_block = true;
-        mb->mb_type = IPCM;
-        mb->CodedBlockPatternLuma   = 15;
-        mb->CodedBlockPatternChroma =  3;
-        mb->Intra16x16PredMode = 0;
-
-        memset(mb->SubMbType,      0, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    } else {
-        mb->is_intra_block = true;
-        mb->mb_type = I16MB;
-        uint8_t coded_block_pattern = ICBPTAB[(mbmode-1)>>2];
-        mb->CodedBlockPatternLuma   = coded_block_pattern % 16;
-        mb->CodedBlockPatternChroma = coded_block_pattern / 16;
-        mb->Intra16x16PredMode = (mbmode-1) & 0x03;
-        memset(mb->SubMbType,      0, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    }
-}
-
-static void interpret_mb_mode_B(mb_t* mb)
-{
-    static const char offset2pdir16x16[3] = { 0, 1, 2 };
-    static const char offset2pdir16x8[9][2] = {
-        { 0, 0 }, { 1, 1 }, { 0, 1 },
-        { 1, 0 }, { 0, 2 }, { 1, 2 },
-        { 2, 0 }, { 2, 1 }, { 2, 2 }
-    };
-    static const char ICBPTAB[6] = {0,16,32,15,31,47};
-    int mbtype = mb->mb_type;
-
-    //--- set mbtype, b8type, and SubMbPredMode ---
-    if (mbtype == 0) { // direct
-        mb->mb_type = BSKIP_DIRECT;
-        memset(mb->SubMbType,     0, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, 2, 4 * sizeof(char));
-    } else if (mbtype < 4) { // 16x16
-        mb->mb_type = P16x16;
-        memset(mb->SubMbType,                      mb->mb_type, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, offset2pdir16x16[mbtype - 1], 4 * sizeof(char));
-    } else if (mbtype < 22) {
-        mb->mb_type = (mbtype % 2 == 0 ? P16x8 : P8x16);
-        memset(mb->SubMbType, mb->mb_type, 4 * sizeof(char));
-        for (int i = 0; i < 4; i++)
-            mb->SubMbPredMode[i] = offset2pdir16x8[(mbtype - 4) / 2][mbtype % 2 == 0 ? i / 2 : i % 2];
-    } else if (mbtype == 22) { // 8x8(+split)
-        mb->mb_type = P8x8;       // SubMbType and pdir is transmitted in additional codewords
-    } else if (mbtype == 23) { // intra4x4
-        mb->is_intra_block = true;
-        mb->mb_type = I4MB;
-        memset(mb->SubMbType,   I4MB, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    } else if (mbtype > 23 && mbtype < 48) { // intra16x16
-        mb->is_intra_block = true;
-        mb->mb_type = I16MB;
-        memset(mb->SubMbType,      0, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-
-        uint8_t coded_block_pattern = ICBPTAB[(mbtype-24)>>2];
-        mb->CodedBlockPatternLuma   = coded_block_pattern % 16;
-        mb->CodedBlockPatternChroma = coded_block_pattern / 16;
-        mb->Intra16x16PredMode = (mbtype-24) & 0x03;
-    } else if (mbtype == 48) {
-        mb->is_intra_block = true;
-        mb->mb_type = IPCM;
-        memset(mb->SubMbType,      0, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-
-        mb->CodedBlockPatternLuma   = 15;
-        mb->CodedBlockPatternChroma =  3;
-        mb->Intra16x16PredMode = 0;
-    }
-}
-
-static void interpret_mb_mode_SI(mb_t* mb)
-{
-    const int ICBPTAB[6] = {0,16,32,15,31,47};
-    short mbmode = mb->mb_type;
-
-    if (mbmode == 0) {
-        mb->is_intra_block = true;
-        mb->mb_type = SI4MB;
-        memset(mb->SubMbType,   I4MB, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    } else if (mbmode == 1) {
-        mb->is_intra_block = true;
-        mb->mb_type = I4MB;
-        memset(mb->SubMbType,   I4MB, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    } else if (mbmode == 26) {
-        mb->is_intra_block = true;
-        mb->mb_type = IPCM;
-        mb->CodedBlockPatternLuma   = 15;
-        mb->CodedBlockPatternChroma =  3;
-        mb->Intra16x16PredMode = 0;
-        memset(mb->SubMbType,      0, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    } else {
-        mb->is_intra_block = true;
-        mb->mb_type = I16MB;
-        uint8_t coded_block_pattern = ICBPTAB[(mbmode - 2) >> 2];
-        mb->CodedBlockPatternLuma   = coded_block_pattern % 16;
-        mb->CodedBlockPatternChroma = coded_block_pattern / 16;
-        mb->Intra16x16PredMode = (mbmode - 2) & 0x03;
-        memset(mb->SubMbType,      0, 4 * sizeof(char));
-        memset(mb->SubMbPredMode, -1, 4 * sizeof(char));
-    }
-}
-
-void interpret_mb_mode(mb_t* mb)
-{
-    slice_t* slice = mb->p_Slice;
-    switch (slice->slice_type) {
-    case P_SLICE: 
-    case SP_SLICE:
-        interpret_mb_mode_P(mb);
-        break;
-    case B_SLICE:
-        interpret_mb_mode_B(mb);
-        break;
-    case I_SLICE: 
-        interpret_mb_mode_I(mb);
-        break;
-    case SI_SLICE: 
-        interpret_mb_mode_SI(mb);
-        break;
-    default:
-        printf("Unsupported slice type\n");
-        break;
-    }
-}
-
 
 void Parser::init(slice_t& slice)
 {
@@ -324,7 +143,7 @@ void Parser::init(slice_t& slice)
     this->prescan_skip_read = false;
     this->prescan_mb_field_decoding_read = false;
 
-    this->PrevQpY = slice.SliceQpY;
+    this->QpY = slice.SliceQpY;
 
     this->is_reset_coeff    = false;
     this->is_reset_coeff_cr = false;
@@ -361,8 +180,6 @@ void Parser::Macroblock::parse()
 {
     int CurrMbAddr = mb.mbAddrX;
     bool moreDataFlag = 1;
-
-    this->update_qp(slice.SliceQpY);
 
     if (slice.slice_type != I_slice && slice.slice_type != SI_slice) {
         if (pps.entropy_coding_mode_flag) {
@@ -444,6 +261,9 @@ void Parser::Macroblock::parse()
         mb.ei_flag = 0;
     }
 
+    this->mb_type(mb.mb_type);
+
+    slice.dec_picture->motion.mb_field_decoding_flag[mb.mbAddrX] = mb.mb_field_decoding_flag;
     if (slice.slice_type != I_slice && slice.slice_type != SI_slice) {
         if (slice.MbaffFrameFlag && mb.mb_field_decoding_flag) {
             slice.num_ref_idx_l0_active_minus1 = ((slice.num_ref_idx_l0_active_minus1 + 1) << 1) - 1;
@@ -451,26 +271,139 @@ void Parser::Macroblock::parse()
         }
     }
 
-    interpret_mb_mode(&mb);
+    if (mb.mb_type == I_PCM)
+        return this->parse_i_pcm();
 
-    if (slice.slice_type != B_slice)
-        mb.noSubMbPartSizeLessThan8x8Flag = 1;
-    slice.dec_picture->motion.mb_field_decoding_flag[mb.mbAddrX] = mb.mb_field_decoding_flag;
-
-    if (mb.mb_type == IPCM)
-        this->parse_i_pcm();
-    else if (mb.mb_type == PSKIP || mb.mb_type == BSKIP_DIRECT)
-        this->parse_skip();
-    else if (mb.is_intra_block)
+    if (mb.is_intra_block)
         this->parse_intra();
     else
-        this->parse_inter();
+        this->sub_mb_type();
+
+    if (mb.is_intra_block)
+        this->mb_pred_intra();
+    else
+        this->mb_pred_inter();
+
+    this->update_qp(slice.parser.QpY);
+
+    if (mb.mb_type == 0) {
+        mb.transform_size_8x8_flag = 0;
+
+        if (slice.slice_type == P_slice)
+            return;
+        if (slice.parser.mb_skip_run >= 0) {
+            if (pps.entropy_coding_mode_flag) {
+                slice.parser.is_reset_coeff = true;
+                slice.parser.mb_skip_run = -1;
+            } else
+                memset(mb.nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
+            return;
+        }
+    }
+
+    if (mb.mb_type != I_16x16)
+        this->coded_block_pattern();
+    if (mb.CodedBlockPatternLuma > 0 || mb.CodedBlockPatternChroma > 0 ||
+        mb.mb_type == I_16x16) {
+        this->mb_qp_delta();
+        this->erc_dpl();
+    }
+    this->update_qp(slice.parser.QpY);
+
+    //if (mb.CodedBlockPatternLuma > 0 || mb.CodedBlockPatternChroma > 0 ||
+    //    mb.mb_type == I_16x16)
+        re.residual();
 }
 
+void Parser::Macroblock::mb_type(uint8_t mb_type)
+{
+    switch (slice.slice_type) {
+    case I_slice:
+        break;
+    case SI_slice:
+        if (mb_type < 1)
+            return this->mb_type_si_slice(mb_type);
+        mb_type -= 1;
+        break;
+    case P_slice:
+        if (mb_type < 6)
+            return this->mb_type_p_slice(mb_type);
+        mb_type -= 6;
+        break;
+    case B_slice:
+        if (mb_type < 23)
+            return this->mb_type_b_slice(mb_type);
+        mb_type -= 23;
+        break;
+    default:
+        return;
+    }
+
+    return this->mb_type_i_slice(mb_type);
+}
+
+void Parser::Macroblock::mb_type_i_slice(uint8_t mb_type)
+{
+    assert(mb_type <= 25);
+
+    const uint8_t* mbtypes = mb_types_i_slice[mb_type];
+
+    mb.is_intra_block          = true;
+    mb.mb_type                 = mbtypes[0];
+    mb.Intra16x16PredMode      = mbtypes[2];
+    mb.CodedBlockPatternLuma   = mbtypes[4];
+    mb.CodedBlockPatternChroma = mbtypes[3];
+}
+
+void Parser::Macroblock::mb_type_si_slice(uint8_t mb_type)
+{
+    assert(mb_type == 0);
+
+    const uint8_t* mbtypes = mb_types_si_slice[mb_type];
+
+    mb.is_intra_block = true;
+    mb.mb_type        = mbtypes[0];
+}
+
+void Parser::Macroblock::mb_type_p_slice(uint8_t mb_type)
+{
+    assert(mb_type <= 6);
+
+    if (mb_type == 0) {
+        mb.is_intra_block = false;
+        mb.mb_type        = 0;
+        memset(mb.SubMbType,     0, 4 * sizeof(char));
+        memset(mb.SubMbPredMode, 0, 4 * sizeof(char));
+        return;
+    }
+
+    const uint8_t* mbtypes = mb_types_p_slice[mb_type - 1];
+
+    mb.is_intra_block = false;
+    mb.mb_type        = mbtypes[0] == P_8x8ref0 ? P_8x8 : mbtypes[0];
+    mb.allrefzero     = mbtypes[0] == P_8x8ref0;
+    memset(mb.SubMbType,     mbtypes[0], 4 * sizeof(char));
+    memset(mb.SubMbPredMode, mbtypes[2], 4 * sizeof(char));
+}
+
+void Parser::Macroblock::mb_type_b_slice(uint8_t mb_type)
+{
+    assert(mb_type <= 23);
+
+    const uint8_t* mbtypes = mb_types_b_slice[mb_type];
+
+    mb.is_intra_block = false;
+    mb.mb_type        = mbtypes[0];
+    memset(mb.SubMbType, mbtypes[0], 4 * sizeof(char));
+    for (int i = 0; i < 4; ++i) {
+        mb.SubMbPredMode[i] = mbtypes[0] == B_16x16 ? mbtypes[2] :
+                              mbtypes[0] == B_16x8  ? mbtypes[2 + (i / 2)] :
+                                                      mbtypes[2 + (i % 2)];
+    }
+}
 
 void Parser::Macroblock::parse_i_pcm()
 {
-    mb.noSubMbPartSizeLessThan8x8Flag = 1;
     mb.transform_size_8x8_flag = 0;
 
     // for deblocking filter
@@ -541,62 +474,12 @@ void Parser::Macroblock::parse_i_pcm()
     }
 }
 
-void Parser::Macroblock::parse_skip()
-{
-    mb.transform_size_8x8_flag = 0;
-    if (pps.constrained_intra_pred_flag)
-        mb.is_intra_block = 0;
-
-    auto mv_info = slice.dec_picture->mv_info;
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x) {
-            auto& mv = mv_info[mb.mb.y * 4 + y][mb.mb.x * 4 + x];
-            mv.slice_no = mb.slice_nr;
-            if (slice.slice_type != B_slice) {
-                mv.ref_pic[LIST_1] = NULL;
-                mv.ref_idx[LIST_1] = -1;
-                mv.mv     [LIST_1] = {0, 0};
-            }
-        }
-    }
-
-    if (slice.slice_type == B_slice) {
-        if (slice.direct_spatial_mv_pred_flag)
-            this->get_direct_spatial();
-        else
-            this->get_direct_temporal();
-
-        mb.noSubMbPartSizeLessThan8x8Flag = sps.direct_8x8_inference_flag;
-
-        if (slice.parser.mb_skip_run >= 0) {
-            if (pps.entropy_coding_mode_flag) {
-                slice.parser.is_reset_coeff = true;
-                slice.parser.mb_skip_run = -1;
-            } else
-                memset(mb.nz_coeff, 0, 3 * 16 * sizeof(uint8_t));
-        } else {
-            this->parse_cbp_qp();
-            re.residual();
-        }
-    } else
-        this->skip_macroblock();
-}
-
 void Parser::Macroblock::parse_intra()
 {
-    if (mb.mb_type != I4MB)
-        mb.noSubMbPartSizeLessThan8x8Flag = 1;
-
     mb.transform_size_8x8_flag = 0;
-    if (mb.mb_type == I4MB && pps.transform_8x8_mode_flag) {
+    if (pps.transform_8x8_mode_flag && mb.mb_type == I_NxN) {
         mb.transform_size_8x8_flag = se.transform_size_8x8_flag();
-        if (mb.transform_size_8x8_flag) {
-            mb.mb_type = I8MB;
-            for (int i = 0; i < 4; i++) {
-                mb.SubMbType    [i] = I8MB;
-                mb.SubMbPredMode[i] = -1;
-            }
-        }
+        mb.mb_type = mb.transform_size_8x8_flag ? I_8x8 : I_4x4;
     }
 
     auto mv_info = slice.dec_picture->mv_info; 
@@ -611,14 +494,9 @@ void Parser::Macroblock::parse_intra()
             }
         }
     }
-
-    this->parse_ipred_modes();
-    this->parse_cbp_qp();
-
-    re.residual();
 }
 
-void Parser::Macroblock::parse_inter()
+void Parser::Macroblock::sub_mb_type()
 {
     static const char p_v2b8 [ 4] = { 4, 5, 6, 7 };
     static const char p_v2pd [ 4] = { 0, 0, 0, 0 };
@@ -644,41 +522,19 @@ void Parser::Macroblock::parse_inter()
                 mb.SubMbPredMode[mbPartIdx] = b_v2pd[val];
             }
 
-            //set noSubMbPartSizeLessThan8x8Flag for P8x8 mode
             mb.noSubMbPartSizeLessThan8x8Flag &= 
                 (mb.SubMbType[mbPartIdx] == 0 && sps.direct_8x8_inference_flag) ||
                 (mb.SubMbType[mbPartIdx] == P8x8);
         }
     }
-
-    if (pps.constrained_intra_pred_flag)
-        mb.is_intra_block = 0;
-
-    auto mv_info = slice.dec_picture->mv_info; 
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x) {
-            auto& mv = mv_info[mb.mb.y * 4 + y][mb.mb.x * 4 + x];
-            mv.slice_no = mb.slice_nr;
-            for (int list = 0; list < 2; list++) {
-                mv.ref_pic[list] = NULL;
-                mv.ref_idx[list] = -1;
-                mv.mv     [list] = {0, 0};
-            }
-        }
-    }
-
-    this->parse_motion_info();
-    this->parse_cbp_qp();
-
-    re.residual();
 }
 
 
-void Parser::Macroblock::parse_ipred_modes()
+void Parser::Macroblock::mb_pred_intra()
 {
-    if (mb.mb_type == I8MB)
+    if (mb.mb_type == I_8x8)
         this->parse_ipred_8x8_modes();
-    else if (mb.mb_type == I4MB)
+    else if (mb.mb_type == I_4x4)
         this->parse_ipred_4x4_modes();
 
     if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
@@ -712,8 +568,8 @@ void Parser::Macroblock::parse_ipred_4x4_modes()
         }
         // !! KS: not sure if the following is still correct...
         if (slice.slice_type == SI_slice) { // need support for MBINTLC1
-            nbA.mb = nbA.mb && nbA.mb->mb_type == SI4MB ? nbA.mb : nullptr;
-            nbB.mb = nbB.mb && nbB.mb->mb_type == SI4MB ? nbB.mb : nullptr;
+            nbA.mb = nbA.mb && nbA.mb->mb_type == SI ? nbA.mb : nullptr;
+            nbB.mb = nbB.mb && nbB.mb->mb_type == SI ? nbB.mb : nullptr;
         }
 
         bool dcPredModePredictedFlag = !nbA.mb || !nbB.mb;
@@ -722,13 +578,13 @@ void Parser::Macroblock::parse_ipred_4x4_modes()
         uint8_t intraMxMPredModeA = IntraPrediction::Intra_4x4_DC;
         uint8_t intraMxMPredModeB = IntraPrediction::Intra_4x4_DC;
         if (!dcPredModePredictedFlag) {
-            if (nbA.mb->mb_type == I8MB)
+            if (nbA.mb->mb_type == I_8x8)
                 intraMxMPredModeA = nbA.mb->Intra8x8PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4] / 4];
-            else if (nbA.mb->mb_type == I4MB)
+            else if (nbA.mb->mb_type == I_4x4)
                 intraMxMPredModeA = nbA.mb->Intra4x4PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4]];
-            if (nbB.mb->mb_type == I8MB)
+            if (nbB.mb->mb_type == I_8x8)
                 intraMxMPredModeB = nbB.mb->Intra8x8PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4] / 4];
-            else if (nbB.mb->mb_type == I4MB)
+            else if (nbB.mb->mb_type == I_4x4)
                 intraMxMPredModeB = nbB.mb->Intra4x4PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4]];
         }
 
@@ -772,13 +628,13 @@ void Parser::Macroblock::parse_ipred_8x8_modes()
         uint8_t intraMxMPredModeA = IntraPrediction::Intra_8x8_DC;
         uint8_t intraMxMPredModeB = IntraPrediction::Intra_8x8_DC;
         if (!dcPredModePredictedFlag) {
-            if (nbA.mb->mb_type == I8MB)
+            if (nbA.mb->mb_type == I_8x8)
                 intraMxMPredModeA = nbA.mb->Intra8x8PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4] / 4];
-            else if (nbA.mb->mb_type == I4MB)
+            else if (nbA.mb->mb_type == I_4x4)
                 intraMxMPredModeA = nbA.mb->Intra4x4PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4]];
-            if (nbB.mb->mb_type == I8MB)
+            if (nbB.mb->mb_type == I_8x8)
                 intraMxMPredModeB = nbB.mb->Intra8x8PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4] / 4];
-            else if (nbB.mb->mb_type == I4MB)
+            else if (nbB.mb->mb_type == I_4x4)
                 intraMxMPredModeB = nbB.mb->Intra4x4PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4]];
         }
 
@@ -798,13 +654,40 @@ void Parser::Macroblock::parse_ipred_8x8_modes()
 }
 
 
-void Parser::Macroblock::parse_motion_info()
+void Parser::Macroblock::mb_pred_inter()
 {
-    if (slice.slice_type == B_slice && mb.mb_type == P8x8) {
-        if (slice.direct_spatial_mv_pred_flag)
-            this->get_direct_spatial(false);
-        else
-            this->get_direct_temporal(true);
+    if (mb.mb_type == PSKIP && slice.slice_type == P_slice)
+        return this->skip_macroblock();
+
+    if (mb.mb_type != 0) {
+        auto mv_info = slice.dec_picture->mv_info; 
+        for (int y = 0; y < 4; ++y) {
+            for (int x = 0; x < 4; ++x) {
+                auto& mv = mv_info[mb.mb.y * 4 + y][mb.mb.x * 4 + x];
+                mv.slice_no = mb.slice_nr;
+                for (int list = 0; list < 2; list++) {
+                    mv.ref_pic[list] = NULL;
+                    mv.ref_idx[list] = -1;
+                    mv.mv     [list] = {0, 0};
+                }
+            }
+        }
+    }
+
+    if (slice.slice_type == B_slice) {
+        if (mb.mb_type == P8x8) {
+            if (slice.direct_spatial_mv_pred_flag)
+                this->get_direct_spatial(false);
+            else
+                this->get_direct_temporal(true);
+        }
+        if (mb.mb_type == BSKIP_DIRECT) {
+            if (slice.direct_spatial_mv_pred_flag)
+                this->get_direct_spatial(true);
+            else
+                this->get_direct_temporal(true);
+            return;
+        }
     }
 
     this->parse_ref_pic_idx(LIST_0);
@@ -917,79 +800,70 @@ void Parser::Macroblock::parse_motion_vector(int list, int step_h4, int step_v4,
     }
 }
 
-void Parser::Macroblock::parse_cbp_qp()
+void Parser::Macroblock::coded_block_pattern()
 {
-#define IS_I16MB(MB)  ((MB)->mb_type == I16MB || (MB)->mb_type == IPCM)
+    uint8_t coded_block_pattern = se.coded_block_pattern();
+    mb.CodedBlockPatternLuma   = coded_block_pattern % 16;
+    mb.CodedBlockPatternChroma = coded_block_pattern / 16;
+    if (pps.entropy_coding_mode_flag) {
+        if (!mb.CodedBlockPatternLuma && !mb.CodedBlockPatternChroma)
+            slice.parser.last_dquant = 0;
+    }
+
 #define IS_DIRECT(MB) ((MB)->mb_type == 0 && slice.slice_type == B_SLICE)
-    // read CBP if not new intra mode
-    if (!IS_I16MB(&mb)) {
-        uint8_t coded_block_pattern = se.coded_block_pattern();
-        mb.CodedBlockPatternLuma   = coded_block_pattern % 16;
-        mb.CodedBlockPatternChroma = coded_block_pattern / 16;
-        if (pps.entropy_coding_mode_flag) {
-            if (!mb.CodedBlockPatternLuma && !mb.CodedBlockPatternChroma)
-                slice.parser.last_dquant = 0;
-        }
-
-        //============= Transform size flag for INTER MBs =============
-        //-------------------------------------------------------------
-        int need_transform_size_flag =
-            ((mb.mb_type >= 1 && mb.mb_type <= 3) ||
-             (IS_DIRECT(&mb) && sps.direct_8x8_inference_flag) ||
-             mb.noSubMbPartSizeLessThan8x8Flag) &&
-            (mb.mb_type != I8MB) && (mb.mb_type != I4MB) &&
-            (mb.CodedBlockPatternLuma) && pps.transform_8x8_mode_flag;
-
-        if (need_transform_size_flag)
-            mb.transform_size_8x8_flag = se.transform_size_8x8_flag();
-    }
-
-    //=====   DQUANT   =====
-    //----------------------
-    // Delta quant only if nonzero coeffs
-    if (IS_I16MB(&mb) || mb.CodedBlockPatternLuma != 0 || mb.CodedBlockPatternChroma != 0) {
-        mb.mb_qp_delta = se.mb_qp_delta();
-
-        if (pps.entropy_coding_mode_flag)        
-            slice.parser.last_dquant = mb.mb_qp_delta;
-
-        assert(mb.mb_qp_delta >= -(26 + sps.QpBdOffsetY / 2) &&
-               mb.mb_qp_delta <=  (25 + sps.QpBdOffsetY / 2));
-
-        slice.SliceQpY =
-            ((slice.SliceQpY + mb.mb_qp_delta + 52 + 2 * sps.QpBdOffsetY)
-                % (52 + sps.QpBdOffsetY)) - sps.QpBdOffsetY;
-
-        if (slice.parser.dp_mode) {
-            if (!mb.is_intra_block && slice.dpC_NotPresent)
-                mb.dpl_flag = 1;
-            if (mb.is_intra_block && slice.dpB_NotPresent) {
-                mb.ei_flag  = 1;
-                mb.dpl_flag = 1;
-            }
-
-            mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-            mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
-            mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
-            mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
-
-            if (!(pps.constrained_intra_pred_flag && mb.is_intra_block)) {
-                if (mbA)
-                    mb.dpl_flag |= mbA->dpl_flag;
-                if (mbB)
-                    mb.dpl_flag |= mbB->dpl_flag;
-            }
-
-            if (mb.dpl_flag) {
-                mb.CodedBlockPatternLuma   = 0;
-                mb.CodedBlockPatternChroma = 0;
-            }
-        }
-    }
+    int need_transform_size_flag =
+        mb.CodedBlockPatternLuma > 0 &&
+        pps.transform_8x8_mode_flag && !mb.is_intra_block &&
+        mb.noSubMbPartSizeLessThan8x8Flag &&
+        (!IS_DIRECT(&mb) || sps.direct_8x8_inference_flag);
 #undef IS_DIRECT
-#undef IS_I16MB
 
-    this->update_qp(slice.SliceQpY);
+    if (need_transform_size_flag)
+        mb.transform_size_8x8_flag = se.transform_size_8x8_flag();
+}
+
+void Parser::Macroblock::mb_qp_delta()
+{
+    mb.mb_qp_delta = se.mb_qp_delta();
+
+    if (pps.entropy_coding_mode_flag)        
+        slice.parser.last_dquant = mb.mb_qp_delta;
+
+    assert(mb.mb_qp_delta >= -(26 + sps.QpBdOffsetY / 2) &&
+           mb.mb_qp_delta <=  (25 + sps.QpBdOffsetY / 2));
+
+    slice.parser.QpY =
+        ((slice.parser.QpY + mb.mb_qp_delta + 52 + 2 * sps.QpBdOffsetY)
+            % (52 + sps.QpBdOffsetY)) - sps.QpBdOffsetY;
+}
+
+void Parser::Macroblock::erc_dpl()
+{
+    if (slice.parser.dp_mode) {
+        if (!mb.is_intra_block && slice.dpC_NotPresent)
+            mb.dpl_flag = 1;
+        if (mb.is_intra_block && slice.dpB_NotPresent) {
+            mb.ei_flag  = 1;
+            mb.dpl_flag = 1;
+        }
+
+        mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+        mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
+        mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
+        mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
+
+        if (!(pps.constrained_intra_pred_flag && mb.is_intra_block)) {
+            if (mbA)
+                mb.dpl_flag |= mbA->dpl_flag;
+            if (mbB)
+                mb.dpl_flag |= mbB->dpl_flag;
+        }
+
+        if (mb.dpl_flag) {
+            mb.CodedBlockPatternLuma   = 0;
+            mb.CodedBlockPatternChroma = 0;
+        }
+    }
 }
 
 // Table 8-15 Specification of QPc as a function of qPi
@@ -1003,10 +877,6 @@ static const uint8_t QP_SCALE_CR[52] = {
 
 void Parser::Macroblock::update_qp(int qp)
 {
-    slice_t& slice = *mb.p_Slice;
-    sps_t& sps = *slice.active_sps;
-    pps_t& pps = *slice.active_pps;
-
     int QpOffset[2] = { pps.chroma_qp_index_offset, pps.second_chroma_qp_index_offset };
 
     mb.QpY          = qp;

@@ -862,7 +862,7 @@ void Transform::transform_chroma_dc(mb_t* mb, ColorPlane pl)
         sps_t* sps = slice->active_sps;
 
         bool smb = (slice->slice_type == SP_slice && !mb->is_intra_block) ||
-                   (slice->slice_type == SI_slice && mb->mb_type == SI4MB);
+                   (slice->slice_type == SI_slice && mb->mb_type == SI);
         int (*cof)[16] = this->cof[pl];
         int (*dcC)[16] = this->cof[pl];
 
@@ -1133,7 +1133,7 @@ void Transform::itrans_sp(mb_t* mb, ColorPlane pl, int ioff, int joff)
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
 
-    int QpY = (slice->slice_type == SI_slice) ? slice->QsY : slice->SliceQpY;
+    int QpY = (slice->slice_type == SI_slice) ? slice->QsY : slice->parser.QpY;
     int QsY = slice->QsY;
 
     int    (*cof    )[16] = this->cof    [pl];

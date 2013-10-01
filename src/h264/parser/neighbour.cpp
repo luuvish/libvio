@@ -279,9 +279,9 @@ int Neighbour::predict_nnz(mb_t* mb, int pl, int i, int j)
     if (nbA.mb) {
         //if (nbA.mb->mb_type == PSKIP || nbA.mb->mb_type == BSKIP_DIRECT)
         //    nA = 0;
-        //else if (nbA.mb->mb_type != IPCM && (nbA.mb->cbp & 15) == 0)
+        //else if (nbA.mb->mb_type != I_PCM && (nbA.mb->cbp & 15) == 0)
         //    nA = 0;
-        //else if (nbA.mb->mb_type == IPCM)
+        //else if (nbA.mb->mb_type == I_PCM)
         //    nA = 16;
         //else
             nA = nbA.mb->nz_coeff[pl][(nbA.y % nH) / 4][(nbA.x % nW) / 4];
@@ -291,9 +291,9 @@ int Neighbour::predict_nnz(mb_t* mb, int pl, int i, int j)
     if (nbB.mb) {
         //if (nbB.mb->mb_type == PSKIP || nbB.mb->mb_type == BSKIP_DIRECT)
         //    nB = 0;
-        //else if (nbB.mb->mb_type != IPCM && (nbB.mb->cbp & 15) == 0)
+        //else if (nbB.mb->mb_type != I_PCM && (nbB.mb->cbp & 15) == 0)
         //    nB = 0;
-        //else if (nbB.mb->mb_type == IPCM)
+        //else if (nbB.mb->mb_type == I_PCM)
         //    nB = 16;
         //else
             nB = nbB.mb->nz_coeff[pl][(nbB.y % nH) / 4][(nbB.x % nW) / 4];
@@ -349,8 +349,8 @@ int mb_type_si_slice_ctxIdxInc(mb_t& mb)
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
-    int condTermFlagA = mbA && mbA->mb_type != SI4MB ? 1 : 0;
-    int condTermFlagB = mbB && mbB->mb_type != SI4MB ? 1 : 0;
+    int condTermFlagA = mbA && mbA->mb_type != SI ? 1 : 0;
+    int condTermFlagB = mbB && mbB->mb_type != SI ? 1 : 0;
     int ctxIdxInc = condTermFlagA + condTermFlagB;
 
     return ctxIdxInc;
@@ -365,8 +365,8 @@ int mb_type_i_slice_ctxIdxInc(mb_t& mb)
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
-    int condTermFlagA = mbA && mbA->mb_type != I4MB && mbA->mb_type != I8MB ? 1 : 0;
-    int condTermFlagB = mbB && mbB->mb_type != I4MB && mbB->mb_type != I8MB ? 1 : 0;
+    int condTermFlagA = mbA && mbA->mb_type != I_4x4 && mbA->mb_type != I_8x8 ? 1 : 0;
+    int condTermFlagB = mbB && mbB->mb_type != I_4x4 && mbB->mb_type != I_8x8 ? 1 : 0;
     int ctxIdxInc = condTermFlagA + condTermFlagB;
 
     return ctxIdxInc;
@@ -413,8 +413,8 @@ int intra_chroma_pred_mode_ctxIdxInc(mb_t& mb)
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
-    int condTermFlagA = mbA && mbA->intra_chroma_pred_mode != 0 && mbA->mb_type != IPCM ? 1 : 0;
-    int condTermFlagB = mbB && mbB->intra_chroma_pred_mode != 0 && mbB->mb_type != IPCM ? 1 : 0;
+    int condTermFlagA = mbA && mbA->intra_chroma_pred_mode != 0 && mbA->mb_type != I_PCM ? 1 : 0;
+    int condTermFlagB = mbB && mbB->intra_chroma_pred_mode != 0 && mbB->mb_type != I_PCM ? 1 : 0;
     int ctxIdxInc = condTermFlagA + condTermFlagB;
 
     return ctxIdxInc;
@@ -437,7 +437,7 @@ int ref_idx_ctxIdxInc(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0)
     if (nbA.mb) {
         int b8a = ((nbA.y / 4) & 2) + ((nbA.x / 8) & 1);
         auto mv_info = &slice.dec_picture->mv_info[nbA.y / 4][nbA.x / 4];
-        if (!(nbA.mb->mb_type == IPCM || IS_DIRECT(nbA.mb) ||
+        if (!(nbA.mb->mb_type == I_PCM || IS_DIRECT(nbA.mb) ||
              (nbA.mb->SubMbType[b8a] == 0 && nbA.mb->SubMbPredMode[b8a] == 2))) {
             if (slice.MbaffFrameFlag && !mb.mb_field_decoding_flag && nbA.mb->mb_field_decoding_flag)
                 condTermFlagA = (mv_info->ref_idx[list] > 1 ? 1 : 0);
@@ -448,7 +448,7 @@ int ref_idx_ctxIdxInc(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0)
     if (nbB.mb) {
         int b8b = ((nbB.y / 4) & 2) + ((nbB.x / 8) & 1);
         auto mv_info = &slice.dec_picture->mv_info[nbB.y / 4][nbB.x / 4];
-        if (!(nbB.mb->mb_type == IPCM || IS_DIRECT(nbB.mb) ||
+        if (!(nbB.mb->mb_type == I_PCM || IS_DIRECT(nbB.mb) ||
              (nbB.mb->SubMbType[b8b] == 0 && nbB.mb->SubMbPredMode[b8b] == 2))) {
             if (slice.MbaffFrameFlag && !mb.mb_field_decoding_flag && nbB.mb->mb_field_decoding_flag)
                 condTermFlagB = (mv_info->ref_idx[list] > 1 ? 1 : 0);
@@ -514,7 +514,7 @@ int cbp_luma_ctxIdxInc(mb_t& mb, uint8_t x0, uint8_t y0, uint8_t coded_block_pat
     int cbp_a = 0x3F, cbp_b = 0x3F;
     int cbp_a_idx = 0, cbp_b_idx = 0;
     if (x0 == 0) {
-        if (nbA.mb && nbA.mb->mb_type != IPCM) {
+        if (nbA.mb && nbA.mb->mb_type != I_PCM) {
             cbp_a = nbA.mb->CodedBlockPatternLuma;
             cbp_a_idx = (((nbA.y & 15) / 4) & ~1) + 1;
         }
@@ -523,7 +523,7 @@ int cbp_luma_ctxIdxInc(mb_t& mb, uint8_t x0, uint8_t y0, uint8_t coded_block_pat
         cbp_a_idx = y0;
     }
     if (y0 == 0) {
-        if (nbB.mb && nbB.mb->mb_type != IPCM) {
+        if (nbB.mb && nbB.mb->mb_type != I_PCM) {
             cbp_b = nbB.mb->CodedBlockPatternLuma;
             cbp_b_idx = (x0 / 2) + 2;
         }
@@ -548,12 +548,12 @@ int cbp_chroma_ctxIdxInc(mb_t& mb)
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
-    int condTermFlagA = mbA && (mbA->mb_type == IPCM || mbA->CodedBlockPatternChroma) ? 1 : 0;
-    int condTermFlagB = mbB && (mbB->mb_type == IPCM || mbB->CodedBlockPatternChroma) ? 1 : 0;
+    int condTermFlagA = mbA && (mbA->mb_type == I_PCM || mbA->CodedBlockPatternChroma) ? 1 : 0;
+    int condTermFlagB = mbB && (mbB->mb_type == I_PCM || mbB->CodedBlockPatternChroma) ? 1 : 0;
     int ctxIdxInc = condTermFlagA + 2 * condTermFlagB;
 
-    condTermFlagA = mbA && (mbA->mb_type == IPCM || mbA->CodedBlockPatternChroma == 2) ? 1 : 0;
-    condTermFlagB = mbB && (mbB->mb_type == IPCM || mbB->CodedBlockPatternChroma == 2) ? 1 : 0;
+    condTermFlagA = mbA && (mbA->mb_type == I_PCM || mbA->CodedBlockPatternChroma == 2) ? 1 : 0;
+    condTermFlagB = mbB && (mbB->mb_type == I_PCM || mbB->CodedBlockPatternChroma == 2) ? 1 : 0;
     ctxIdxInc |= (condTermFlagA + 2 * condTermFlagB + 4) << 2;
 
     return ctxIdxInc;
@@ -598,13 +598,13 @@ int coded_block_flag_ctxIdxInc(mb_t& mb, int pl, bool chroma, bool ac, int blkId
     int condTermFlagB = (mb.is_intra_block ? 1 : 0);
 
     if (nbA.mb) {
-        if (nbA.mb->mb_type == IPCM)
+        if (nbA.mb->mb_type == I_PCM)
             condTermFlagA = 1;
         else
             condTermFlagA = (nbA.mb->cbp_bits[temp_pl] >> (bit + bit_pos_a)) & 1;
     }
     if (nbB.mb) {
-        if (nbB.mb->mb_type == IPCM)
+        if (nbB.mb->mb_type == I_PCM)
             condTermFlagB = 1;
         else
             condTermFlagB = (nbB.mb->cbp_bits[temp_pl] >> (bit + bit_pos_b)) & 1;

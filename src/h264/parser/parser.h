@@ -66,7 +66,7 @@ public:
     bool        prescan_mb_field_decoding_flag;
 
     int         last_dquant;
-    int8_t      PrevQpY;
+    int8_t      QpY;
 
     bool        is_reset_coeff;
     bool        is_reset_coeff_cr;
@@ -143,20 +143,28 @@ protected:
         ~Macroblock();
 
         void        parse();
-        void        parse_i_pcm();
-        void        parse_skip();
-        void        parse_intra();
-        void        parse_inter();
 
-        void        parse_ipred_modes();
+        void        mb_type         (uint8_t mb_type);
+        void        mb_type_i_slice (uint8_t mb_type);
+        void        mb_type_si_slice(uint8_t mb_type);
+        void        mb_type_p_slice (uint8_t mb_type);
+        void        mb_type_b_slice (uint8_t mb_type);
+
+        void        parse_i_pcm();
+        void        parse_intra();
+        void        sub_mb_type();
+
+        void        mb_pred_intra();
         void        parse_ipred_4x4_modes();
         void        parse_ipred_8x8_modes();
 
-        void        parse_motion_info();
+        void        mb_pred_inter();
         void        parse_ref_pic_idx(int list);
         void        parse_motion_vectors(int list);
         void        parse_motion_vector(int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx);
 
+        void        coded_block_pattern();
+        void        mb_qp_delta();
         void        parse_cbp_qp();
 
         mv_t        GetMVPredictor(char ref_frame, int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
@@ -168,6 +176,8 @@ protected:
         void        get_direct_spatial (bool dir=true);
 
         void        update_qp(int qp);
+
+        void        erc_dpl();
 
     private:
         sps_t&      sps;

@@ -40,35 +40,29 @@ enum {
     P8x4         =  5,
     P4x8         =  6,
     P4x4         =  7,
-
-    I4MB         =  8,
-    I8MB         =  9,
-    I16MB        = 10,
-    SI4MB        = 11,
-    IPCM         = 12
 };
 
 enum {
-    Intra_4x4 = 0,
+    Intra_16x16 = 0,
     Intra_8x8,
-    Intra_16x16,
+    Intra_4x4,
     Intra_NxN,
 
+    Direct  = 2,
     Pred_L0 = 0,
     Pred_L1,
     BiPred,
-    Direct,
 
     NA = 0
 };
 
 enum {
-    I_NxN = 8,
-    I_4x4 = 8,
-    I_8x8,
-    I_16x16,
-    I_PCM,
-    SI,
+    I_NxN   =  8,
+    I_4x4   =  8,
+    I_8x8   =  9,
+    I_16x16 = 10,
+    I_PCM   = 12,
+    SI      = 11,
 
     P_Skip = 0,
     P_16x16,
@@ -80,13 +74,13 @@ enum {
     P_4x8,
     P_4x4,
 
-    B_Skip,
-    B_Direct_16x16,
-    B_16x16,
+    B_Skip         = 0,
+    B_Direct_16x16 = 0,
+    B_16x16        = 1,
     B_16x8,
     B_8x16,
-    B_Direct_8x8,
-    B_8x8,
+    B_Direct_8x8   = 4,
+    B_8x8          = 4,
     B_8x4,
     B_4x8,
     B_4x4

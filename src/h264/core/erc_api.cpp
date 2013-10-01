@@ -442,11 +442,11 @@ void ercWriteMBMODEandMV(mb_t *currMB)
     for (i=0; i<4; ++i)
     {
       pRegion             = currRegion + i;
-      pRegion->regionMode = (currMB->mb_type == I16MB ? REGMODE_INTRA :
-        currMB->SubMbType[i]==I4MB ? REGMODE_INTRA_8x8  :
+      pRegion->regionMode = (currMB->mb_type == I_16x16 ? REGMODE_INTRA :
+        currMB->SubMbType[i]==I_4x4 ? REGMODE_INTRA_8x8  :
         currMB->SubMbType[i]==0    ? REGMODE_INTER_COPY :
         currMB->SubMbType[i]==1    ? REGMODE_INTER_PRED : REGMODE_INTER_PRED_8x8);
-      if (currMB->SubMbType[i]==0 || currMB->SubMbType[i]==I4MB)  // INTRA OR COPY
+      if (currMB->SubMbType[i]==0 || currMB->SubMbType[i]==I_4x4)  // INTRA OR COPY
       {
         pRegion->mv[0]    = 0;
         pRegion->mv[1]    = 0;
@@ -478,9 +478,9 @@ void ercWriteMBMODEandMV(mb_t *currMB)
       ii                  = 4*mbx + (i%2)*2;// + BLOCK_SIZE;
       jj                  = 4*mby + (i/2)*2;
       pRegion             = currRegion + i;
-      pRegion->regionMode = (currMB->mb_type  ==I16MB  ? REGMODE_INTRA      :
-        currMB->SubMbType[i]==I4MB ? REGMODE_INTRA_8x8  : REGMODE_INTER_PRED_8x8);
-      if (currMB->mb_type==I16MB || currMB->SubMbType[i]==I4MB)  // INTRA
+      pRegion->regionMode = (currMB->mb_type  ==I_16x16  ? REGMODE_INTRA      :
+        currMB->SubMbType[i]==I_4x4 ? REGMODE_INTRA_8x8  : REGMODE_INTER_PRED_8x8);
+      if (currMB->mb_type==I_16x16 || currMB->SubMbType[i]==I_4x4)  // INTRA
       {
         pRegion->mv[0]    = 0;
         pRegion->mv[1]    = 0;

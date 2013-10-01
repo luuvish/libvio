@@ -145,9 +145,9 @@ void Decoder::decode_one_component(mb_t& mb, ColorPlane curr_plane)
         }
     }
 
-    if (mb.mb_type == IPCM)
+    if (mb.mb_type == I_PCM)
         this->mb_pred_ipcm(mb, curr_plane);
-    else if (mb.mb_type == I16MB || mb.mb_type == I4MB || mb.mb_type == I8MB)
+    else if (mb.mb_type == I_16x16 || mb.mb_type == I_4x4 || mb.mb_type == I_8x8)
         this->mb_pred_intra(mb, curr_plane);
     else
         this->mb_pred_inter(mb, curr_plane);
@@ -179,28 +179,28 @@ void Decoder::mb_pred_intra(mb_t& mb, ColorPlane curr_plane)
     slice_t& slice = *mb.p_Slice;
     const sps_t& sps = *slice.active_sps;
 
-    int blockoffset = mb.mb_type == I4MB ? 1 : mb.mb_type == I8MB ? 4 : 16;
+    int blockoffset = mb.mb_type == I_4x4 ? 1 : mb.mb_type == I_8x8 ? 4 : 16;
 
     for (int block4x4 = 0; block4x4 < 16; block4x4 += blockoffset) {
         int ioff = ((block4x4 / 4) % 2) * 8 + ((block4x4 % 4) % 2) * 4;
         int joff = ((block4x4 / 4) / 2) * 8 + ((block4x4 % 4) / 2) * 4;
 
-        if (mb.mb_type == I4MB)
+        if (mb.mb_type == I_4x4)
             this->intra_prediction->intra_pred_4x4(&mb, curr_plane, ioff, joff);
-        else if (mb.mb_type == I8MB)
+        else if (mb.mb_type == I_8x8)
             this->intra_prediction->intra_pred_8x8(&mb, curr_plane, ioff, joff);
-        else if (mb.mb_type == I16MB)
+        else if (mb.mb_type == I_16x16)
             this->intra_prediction->intra_pred_16x16(&mb, curr_plane, ioff, joff);
 
-        if (mb.mb_type == I4MB)
+        if (mb.mb_type == I_4x4)
             this->transform->inverse_transform_4x4(&mb, curr_plane, ioff, joff);
-        else if (mb.mb_type == I8MB)
+        else if (mb.mb_type == I_8x8)
             this->transform->inverse_transform_8x8(&mb, curr_plane, ioff, joff);
-        else if (mb.mb_type == I16MB)
+        else if (mb.mb_type == I_16x16)
             this->transform->inverse_transform_16x16(&mb, curr_plane, ioff, joff);
     }
 
-    if (mb.mb_type == I16MB || mb.CodedBlockPatternLuma != 0 || mb.CodedBlockPatternChroma != 0)
+    if (mb.mb_type == I_16x16 || mb.CodedBlockPatternLuma != 0 || mb.CodedBlockPatternChroma != 0)
         slice.parser.is_reset_coeff = false;
 
     if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
