@@ -71,17 +71,36 @@ public:
 };
 
 
-int mb_skip_flag_ctxIdxInc(mb_t& mb);
-int mb_field_decoding_flag_ctxIdxInc(mb_t& mb);
-int mb_type_si_slice_ctxIdxInc(mb_t& mb);
-int mb_type_i_slice_ctxIdxInc(mb_t& mb);
-int mb_type_b_slice_ctxIdxInc(mb_t& mb);
-int transform_size_8x8_flag_ctxIdxInc(mb_t& mb);
-int intra_chroma_pred_mode_ctxIdxInc(mb_t& mb);
-int ref_idx_ctxIdxInc(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0);
-int mvd_ctxIdxInc(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0, bool comp);
-int cbp_luma_ctxIdxInc(mb_t& mb, uint8_t x0, uint8_t y0, uint8_t coded_block_pattern);
-int cbp_chroma_ctxIdxInc(mb_t& mb);
+uint8_t intra_4x4_pred_mode(mb_t& mb, int bx, int by);
+uint8_t intra_8x8_pred_mode(mb_t& mb, int bx, int by);
+
+
+class CtxIdxInc : public Neighbour {
+public:
+    CtxIdxInc(mb_t& mb);
+    ~CtxIdxInc();
+
+    int mb_skip_flag();
+    int mb_field_decoding_flag();
+    int mb_type_si_slice();
+    int mb_type_i_slice();
+    int mb_type_b_slice();
+    int transform_size_8x8_flag();
+
+    int intra_chroma_pred_mode();
+    int ref_idx_l(uint8_t list, uint8_t x0, uint8_t y0);
+    int mvd_l    (uint8_t list, uint8_t x0, uint8_t y0, bool comp);
+    int coded_block_pattern_luma(uint8_t x0, uint8_t y0, uint8_t coded_block_pattern);
+    int coded_block_pattern_chroma();
+
+    int coded_block_flag(int pl, bool chroma, bool ac, int blkIdx);
+
+private:
+    const sps_t&   sps;
+    const pps_t&   pps;
+    slice_t& slice;
+    mb_t& mb;
+};
 
 int coded_block_flag_ctxIdxInc(mb_t& mb, int pl, bool chroma, bool ac, int blkIdx);
 void update_coded_block_flag(mb_t* mb, int pl, bool chroma, bool ac, int blkIdx);

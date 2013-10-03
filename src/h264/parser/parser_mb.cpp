@@ -71,12 +71,12 @@ static const uint8_t mb_types_si_slice[1][5] = {
 
 // Table 7-13 mb_t type value 0 to 4 for P and SP slices
 static const uint8_t mb_types_p_slice[5][6] = {
-//  { P_Skip   , 1, Pred_L0, NA     , 16, 16 },
-    { P_16x16  , 1, Pred_L0, NA     , 16, 16 },
-    { P_16x8   , 2, Pred_L0, Pred_L0, 16,  8 },
-    { P_8x16   , 2, Pred_L0, Pred_L0,  8, 16 },
-    { P_8x8    , 4, NA     , NA     ,  8,  8 },
-    { P_8x8ref0, 4, NA     , NA     ,  8,  8 }
+//  { P_Skip        ,  1, Pred_L0, NA     , 16, 16 },
+    { P_16x16       ,  1, Pred_L0, NA     , 16, 16 },
+    { P_16x8        ,  2, Pred_L0, Pred_L0, 16,  8 },
+    { P_8x16        ,  2, Pred_L0, Pred_L0,  8, 16 },
+    { P_8x8         ,  4, NA     , NA     ,  8,  8 },
+    { P_8x8ref0     ,  4, NA     , NA     ,  8,  8 }
     // [5..30] are mb_types_i_slice[0..25]
 };
 
@@ -111,28 +111,28 @@ static const uint8_t mb_types_b_slice[23][6] = {
 
 // Table 7-17 Sub-macroblock types in P macroblocks
 static const uint8_t sub_mb_types_p_slice[4][5] = {
-    { P_8x8, 1, Pred_L0, 8, 8 },
-    { P_8x4, 2, Pred_L0, 8, 4 },
-    { P_4x8, 2, Pred_L0, 4, 8 },
-    { P_4x4, 4, Pred_L0, 4, 4 }
+    { P_8x8         ,  1, Pred_L0, 8, 8 },
+    { P_8x4         ,  2, Pred_L0, 8, 4 },
+    { P_4x8         ,  2, Pred_L0, 4, 8 },
+    { P_4x4         ,  4, Pred_L0, 4, 4 }
 };
 
 // Table 7-18 Sub-macroblock types in B macroblocks
-static const uint8_t sub_mb_types_b_slice[14][5] = {
-//  {           NA, 4, Direct , 4, 4 },
-    { B_Direct_8x8, 4, Direct , 4, 4 },
-    { B_8x8       , 1, Pred_L0, 8, 8 },
-    { B_8x8       , 1, Pred_L1, 8, 8 },
-    { B_8x8       , 1, BiPred , 8, 8 },
-    { B_8x4       , 2, Pred_L0, 8, 4 },
-    { B_4x8       , 2, Pred_L0, 4, 8 },
-    { B_8x4       , 2, Pred_L1, 8, 4 },
-    { B_4x8       , 2, Pred_L1, 4, 8 },
-    { B_8x4       , 2, BiPred , 8, 4 },
-    { B_4x8       , 2, BiPred , 4, 8 },
-    { B_4x4       , 4, Pred_L0, 4, 4 },
-    { B_4x4       , 4, Pred_L1, 4, 4 },
-    { B_4x4       , 4, BiPred , 4, 4 }
+static const uint8_t sub_mb_types_b_slice[13][5] = {
+//  {           NA  ,  4, Direct , 4, 4 },
+    { B_Direct_8x8  ,  4, Direct , 4, 4 },
+    { B_8x8         ,  1, Pred_L0, 8, 8 },
+    { B_8x8         ,  1, Pred_L1, 8, 8 },
+    { B_8x8         ,  1, BiPred , 8, 8 },
+    { B_8x4         ,  2, Pred_L0, 8, 4 },
+    { B_4x8         ,  2, Pred_L0, 4, 8 },
+    { B_8x4         ,  2, Pred_L1, 8, 4 },
+    { B_4x8         ,  2, Pred_L1, 4, 8 },
+    { B_8x4         ,  2, BiPred , 8, 4 },
+    { B_4x8         ,  2, BiPred , 4, 8 },
+    { B_4x4         ,  4, Pred_L0, 4, 4 },
+    { B_4x4         ,  4, Pred_L1, 4, 4 },
+    { B_4x4         ,  4, BiPred , 4, 4 }
 };
 
 
@@ -258,6 +258,7 @@ void Parser::Macroblock::parse()
 
     if (moreDataFlag) {
         mb.mb_type = se.mb_type();
+        mb.mb_type += (slice.slice_type == P_slice || slice.slice_type == SP_slice) ? 1 : 0;
         mb.ei_flag = 0;
     }
 
@@ -274,9 +275,7 @@ void Parser::Macroblock::parse()
     if (mb.mb_type == I_PCM)
         return this->parse_i_pcm();
 
-    if (mb.is_intra_block)
-        this->parse_intra();
-    else
+    if (!mb.is_intra_block)
         this->sub_mb_type();
 
     if (mb.is_intra_block)
@@ -303,15 +302,13 @@ void Parser::Macroblock::parse()
 
     if (mb.mb_type != I_16x16)
         this->coded_block_pattern();
-    if (mb.CodedBlockPatternLuma > 0 || mb.CodedBlockPatternChroma > 0 ||
-        mb.mb_type == I_16x16) {
+    if (mb.CodedBlockPatternLuma > 0 || mb.CodedBlockPatternChroma > 0 || mb.mb_type == I_16x16) {
         this->mb_qp_delta();
         this->erc_dpl();
     }
     this->update_qp(slice.parser.QpY);
 
-    //if (mb.CodedBlockPatternLuma > 0 || mb.CodedBlockPatternChroma > 0 ||
-    //    mb.mb_type == I_16x16)
+    //if (mb.CodedBlockPatternLuma > 0 || mb.CodedBlockPatternChroma > 0 || mb.mb_type == I_16x16)
         re.residual();
 }
 
@@ -326,6 +323,7 @@ void Parser::Macroblock::mb_type(uint8_t mb_type)
         mb_type -= 1;
         break;
     case P_slice:
+    case SP_slice:
         if (mb_type < 6)
             return this->mb_type_p_slice(mb_type);
         mb_type -= 6;
@@ -346,23 +344,23 @@ void Parser::Macroblock::mb_type_i_slice(uint8_t mb_type)
 {
     assert(mb_type <= 25);
 
-    const uint8_t* mbtypes = mb_types_i_slice[mb_type];
+    const uint8_t* mb_types = mb_types_i_slice[mb_type];
 
     mb.is_intra_block          = true;
-    mb.mb_type                 = mbtypes[0];
-    mb.Intra16x16PredMode      = mbtypes[2];
-    mb.CodedBlockPatternLuma   = mbtypes[4];
-    mb.CodedBlockPatternChroma = mbtypes[3];
+    mb.mb_type                 = mb_types[0];
+    mb.Intra16x16PredMode      = mb_types[2];
+    mb.CodedBlockPatternLuma   = mb_types[4];
+    mb.CodedBlockPatternChroma = mb_types[3];
 }
 
 void Parser::Macroblock::mb_type_si_slice(uint8_t mb_type)
 {
     assert(mb_type == 0);
 
-    const uint8_t* mbtypes = mb_types_si_slice[mb_type];
+    const uint8_t* mb_types = mb_types_si_slice[mb_type];
 
     mb.is_intra_block = true;
-    mb.mb_type        = mbtypes[0];
+    mb.mb_type        = mb_types[0];
 }
 
 void Parser::Macroblock::mb_type_p_slice(uint8_t mb_type)
@@ -377,28 +375,28 @@ void Parser::Macroblock::mb_type_p_slice(uint8_t mb_type)
         return;
     }
 
-    const uint8_t* mbtypes = mb_types_p_slice[mb_type - 1];
+    const uint8_t* mb_types = mb_types_p_slice[mb_type - 1];
 
     mb.is_intra_block = false;
-    mb.mb_type        = mbtypes[0] == P_8x8ref0 ? P_8x8 : mbtypes[0];
-    mb.allrefzero     = mbtypes[0] == P_8x8ref0;
-    memset(mb.SubMbType,     mbtypes[0], 4 * sizeof(char));
-    memset(mb.SubMbPredMode, mbtypes[2], 4 * sizeof(char));
+    mb.mb_type        = mb_types[0] == P_8x8ref0 ? P_8x8 : mb_types[0];
+    mb.allrefzero     = mb_types[0] == P_8x8ref0;
+    memset(mb.SubMbType,     mb_types[0], 4 * sizeof(char));
+    memset(mb.SubMbPredMode, mb_types[2], 4 * sizeof(char));
 }
 
 void Parser::Macroblock::mb_type_b_slice(uint8_t mb_type)
 {
     assert(mb_type <= 23);
 
-    const uint8_t* mbtypes = mb_types_b_slice[mb_type];
+    const uint8_t* mb_types = mb_types_b_slice[mb_type];
 
     mb.is_intra_block = false;
-    mb.mb_type        = mbtypes[0];
-    memset(mb.SubMbType, mbtypes[0], 4 * sizeof(char));
+    mb.mb_type        = mb_types[0];
+    memset(mb.SubMbType, mb_types[0], 4 * sizeof(char));
     for (int i = 0; i < 4; ++i) {
-        mb.SubMbPredMode[i] = mbtypes[0] == B_16x16 ? mbtypes[2] :
-                              mbtypes[0] == B_16x8  ? mbtypes[2 + (i / 2)] :
-                                                      mbtypes[2 + (i % 2)];
+        mb.SubMbPredMode[i] = mb_types[0] == B_16x16 ? mb_types[2] :
+                              mb_types[0] == B_16x8  ? mb_types[2 + (i / 2)] :
+                                                       mb_types[2 + (i % 2)];
     }
 }
 
@@ -474,14 +472,32 @@ void Parser::Macroblock::parse_i_pcm()
     }
 }
 
-void Parser::Macroblock::parse_intra()
+void Parser::Macroblock::sub_mb_type()
 {
+    mb.noSubMbPartSizeLessThan8x8Flag = 1;
     mb.transform_size_8x8_flag = 0;
-    if (pps.transform_8x8_mode_flag && mb.mb_type == I_NxN) {
-        mb.transform_size_8x8_flag = se.transform_size_8x8_flag();
-        mb.mb_type = mb.transform_size_8x8_flag ? I_8x8 : I_4x4;
-    }
 
+    if (mb.mb_type == P_8x8 || mb.mb_type == B_8x8) {
+        for (int mbPartIdx = 0; mbPartIdx < 4; mbPartIdx++) {
+            uint8_t sub_mb_type = se.sub_mb_type();
+
+            assert(slice.slice_type != B_slice ? sub_mb_type < 4 : sub_mb_type < 13);
+
+            const uint8_t (*sub_mb_types)[5] = (slice.slice_type != B_slice) ?
+                sub_mb_types_p_slice : sub_mb_types_b_slice;
+            mb.SubMbType    [mbPartIdx] = sub_mb_types[sub_mb_type][0];
+            mb.SubMbPredMode[mbPartIdx] = sub_mb_types[sub_mb_type][2];
+
+            mb.noSubMbPartSizeLessThan8x8Flag &= 
+                (mb.SubMbType[mbPartIdx] == P_8x8 || mb.SubMbType[mbPartIdx] == B_8x8) ||
+                (mb.SubMbType[mbPartIdx] == B_Direct_8x8 && sps.direct_8x8_inference_flag);
+        }
+    }
+}
+
+
+void Parser::Macroblock::mb_pred_intra()
+{
     auto mv_info = slice.dec_picture->mv_info; 
     for (int y = 0; y < 4; ++y) {
         for (int x = 0; x < 4; ++x) {
@@ -494,165 +510,56 @@ void Parser::Macroblock::parse_intra()
             }
         }
     }
-}
 
-void Parser::Macroblock::sub_mb_type()
-{
-    static const char p_v2b8 [ 4] = { 4, 5, 6, 7 };
-    static const char p_v2pd [ 4] = { 0, 0, 0, 0 };
-    static const char b_v2b8 [13] = { 0, 4, 4, 4, 5, 6, 5, 6, 5, 6, 7, 7, 7 };
-    static const char b_v2pd [13] = { 2, 0, 1, 2, 0, 0, 1, 1, 2, 2, 0, 1, 2 };
-
-    mb.noSubMbPartSizeLessThan8x8Flag = 1;
     mb.transform_size_8x8_flag = 0;
-    if (mb.mb_type == P8x8) {
-        for (int mbPartIdx = 0; mbPartIdx < 4; mbPartIdx++) {
-            int val = se.sub_mb_type();
+    if (pps.transform_8x8_mode_flag && mb.mb_type == I_NxN) {
+        mb.transform_size_8x8_flag = se.transform_size_8x8_flag();
+        mb.mb_type = mb.transform_size_8x8_flag ? I_8x8 : I_4x4;
+    }
 
-            //const uint8_t (*sub_mb_types)[5] = slice->slice_type == B_slice ?
-            //    sub_mb_types_b_slice : sub_mb_types_p_slice;
+    if (mb.mb_type == I_4x4) {
+        for (int luma4x4BlkIdx = 0; luma4x4BlkIdx < 16; ++luma4x4BlkIdx) {
+            int bx = ((luma4x4BlkIdx / 4) % 2) * 8 + ((luma4x4BlkIdx % 4) % 2) * 4;
+            int by = ((luma4x4BlkIdx / 4) / 2) * 8 + ((luma4x4BlkIdx % 4) / 2) * 4;
+            int val = se.intra_pred_mode();
 
-            if (slice.slice_type != B_slice) {
-                assert(val < 4);
-                mb.SubMbType    [mbPartIdx] = p_v2b8[val];
-                mb.SubMbPredMode[mbPartIdx] = p_v2pd[val];
-            } else {
-                assert(val < 13);
-                mb.SubMbType    [mbPartIdx] = b_v2b8[val];
-                mb.SubMbPredMode[mbPartIdx] = b_v2pd[val];
-            }
+            bool    prev_intra4x4_pred_mode_flag = val == -1;
+            uint8_t rem_intra4x4_pred_mode       = val;
 
-            mb.noSubMbPartSizeLessThan8x8Flag &= 
-                (mb.SubMbType[mbPartIdx] == 0 && sps.direct_8x8_inference_flag) ||
-                (mb.SubMbType[mbPartIdx] == P8x8);
+            uint8_t predIntra4x4PredMode = intra_4x4_pred_mode(mb, bx, by);
+            if (prev_intra4x4_pred_mode_flag)
+                mb.Intra4x4PredMode[luma4x4BlkIdx] = predIntra4x4PredMode;
+            else if (rem_intra4x4_pred_mode < predIntra4x4PredMode)
+                mb.Intra4x4PredMode[luma4x4BlkIdx] = rem_intra4x4_pred_mode;
+            else
+                mb.Intra4x4PredMode[luma4x4BlkIdx] = rem_intra4x4_pred_mode + 1;
+        }
+    } else if (mb.mb_type == I_8x8) {
+        for (int luma8x8BlkIdx = 0; luma8x8BlkIdx < 4; ++luma8x8BlkIdx) {
+            int bx = (luma8x8BlkIdx % 2) * 8;
+            int by = (luma8x8BlkIdx / 2) * 8;
+            int val = se.intra_pred_mode();
+
+            bool    prev_intra8x8_pred_mode_flag = val == -1;
+            uint8_t rem_intra8x8_pred_mode       = val;
+
+            uint8_t predIntra8x8PredMode = intra_8x8_pred_mode(mb, bx, by);
+            if (prev_intra8x8_pred_mode_flag)
+                mb.Intra8x8PredMode[luma8x8BlkIdx] = predIntra8x8PredMode;
+            else if (rem_intra8x8_pred_mode < predIntra8x8PredMode)
+                mb.Intra8x8PredMode[luma8x8BlkIdx] = rem_intra8x8_pred_mode;
+            else
+                mb.Intra8x8PredMode[luma8x8BlkIdx] = rem_intra8x8_pred_mode + 1;
         }
     }
-}
 
-
-void Parser::Macroblock::mb_pred_intra()
-{
-    if (mb.mb_type == I_8x8)
-        this->parse_ipred_8x8_modes();
-    else if (mb.mb_type == I_4x4)
-        this->parse_ipred_4x4_modes();
-
-    if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
+    if (sps.ChromaArrayType == 1 || sps.ChromaArrayType == 2) {
         mb.intra_chroma_pred_mode = se.intra_chroma_pred_mode();
 
         assert(mb.intra_chroma_pred_mode >= IntraPrediction::Intra_Chroma_DC ||
                mb.intra_chroma_pred_mode <= IntraPrediction::Intra_Chroma_Plane);
     }
 }
-
-void Parser::Macroblock::parse_ipred_4x4_modes()
-{
-    for (int luma4x4BlkIdx = 0; luma4x4BlkIdx < 16; luma4x4BlkIdx++) {
-        int bx = ((luma4x4BlkIdx / 4) % 2) * 8 + ((luma4x4BlkIdx % 4) % 2) * 4;
-        int by = ((luma4x4BlkIdx / 4) / 2) * 8 + ((luma4x4BlkIdx % 4) / 2) * 4;
-        int val = se.intra_pred_mode();
-
-        bool    prev_intra4x4_pred_mode_flag = val == -1;
-        uint8_t rem_intra4x4_pred_mode       = val;
-
-        nb_t nbA = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx - 1, by});
-        nb_t nbB = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx, by - 1});
-
-        nbA.mb = nbA.mb && nbA.mb->slice_nr == mb.slice_nr ? nbA.mb : nullptr;
-        nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
-
-        //get from array and decode
-        if (pps.constrained_intra_pred_flag) {
-            nbA.mb = nbA.mb && nbA.mb->is_intra_block ? nbA.mb : nullptr;
-            nbB.mb = nbB.mb && nbB.mb->is_intra_block ? nbB.mb : nullptr;
-        }
-        // !! KS: not sure if the following is still correct...
-        if (slice.slice_type == SI_slice) { // need support for MBINTLC1
-            nbA.mb = nbA.mb && nbA.mb->mb_type == SI ? nbA.mb : nullptr;
-            nbB.mb = nbB.mb && nbB.mb->mb_type == SI ? nbB.mb : nullptr;
-        }
-
-        bool dcPredModePredictedFlag = !nbA.mb || !nbB.mb;
-
-        int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
-        uint8_t intraMxMPredModeA = IntraPrediction::Intra_4x4_DC;
-        uint8_t intraMxMPredModeB = IntraPrediction::Intra_4x4_DC;
-        if (!dcPredModePredictedFlag) {
-            if (nbA.mb->mb_type == I_8x8)
-                intraMxMPredModeA = nbA.mb->Intra8x8PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4] / 4];
-            else if (nbA.mb->mb_type == I_4x4)
-                intraMxMPredModeA = nbA.mb->Intra4x4PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4]];
-            if (nbB.mb->mb_type == I_8x8)
-                intraMxMPredModeB = nbB.mb->Intra8x8PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4] / 4];
-            else if (nbB.mb->mb_type == I_4x4)
-                intraMxMPredModeB = nbB.mb->Intra4x4PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4]];
-        }
-
-        uint8_t predIntra4x4PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
-        if (prev_intra4x4_pred_mode_flag)
-            mb.Intra4x4PredMode[luma4x4BlkIdx] = predIntra4x4PredMode;
-        else if (rem_intra4x4_pred_mode < predIntra4x4PredMode)
-            mb.Intra4x4PredMode[luma4x4BlkIdx] = rem_intra4x4_pred_mode;
-        else
-            mb.Intra4x4PredMode[luma4x4BlkIdx] = rem_intra4x4_pred_mode + 1;
-
-        //if ((luma4x4BlkIdx % 4) == 0)
-        //    mb.Intra8x8PredMode[luma4x4BlkIdx / 4] = mb.Intra4x4PredMode[luma4x4BlkIdx];
-    }
-}
-
-void Parser::Macroblock::parse_ipred_8x8_modes()
-{
-    for (int luma8x8BlkIdx = 0; luma8x8BlkIdx < 4; luma8x8BlkIdx++) {
-        int bx = (luma8x8BlkIdx % 2) * 8;
-        int by = (luma8x8BlkIdx / 2) * 8;
-        int val = se.intra_pred_mode();
-
-        bool    prev_intra8x8_pred_mode_flag = val == -1;
-        uint8_t rem_intra8x8_pred_mode       = val;
-
-        nb_t nbA = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx - 1, by});
-        nb_t nbB = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx, by - 1});
-        nbA.mb = nbA.mb && nbA.mb->slice_nr == mb.slice_nr ? nbA.mb : nullptr;
-        nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
-
-        //get from array and decode
-        if (pps.constrained_intra_pred_flag) {
-            nbA.mb = nbA.mb && nbA.mb->is_intra_block ? nbA.mb : nullptr;
-            nbB.mb = nbB.mb && nbB.mb->is_intra_block ? nbB.mb : nullptr;
-        }
-
-        bool dcPredModePredictedFlag = !nbA.mb || !nbB.mb;
-
-        int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
-        uint8_t intraMxMPredModeA = IntraPrediction::Intra_8x8_DC;
-        uint8_t intraMxMPredModeB = IntraPrediction::Intra_8x8_DC;
-        if (!dcPredModePredictedFlag) {
-            if (nbA.mb->mb_type == I_8x8)
-                intraMxMPredModeA = nbA.mb->Intra8x8PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4] / 4];
-            else if (nbA.mb->mb_type == I_4x4)
-                intraMxMPredModeA = nbA.mb->Intra4x4PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4]];
-            if (nbB.mb->mb_type == I_8x8)
-                intraMxMPredModeB = nbB.mb->Intra8x8PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4] / 4];
-            else if (nbB.mb->mb_type == I_4x4)
-                intraMxMPredModeB = nbB.mb->Intra4x4PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4]];
-        }
-
-        uint8_t predIntra8x8PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
-        if (prev_intra8x8_pred_mode_flag)
-            mb.Intra8x8PredMode[luma8x8BlkIdx] = predIntra8x8PredMode;
-        else if (rem_intra8x8_pred_mode < predIntra8x8PredMode)
-            mb.Intra8x8PredMode[luma8x8BlkIdx] = rem_intra8x8_pred_mode;
-        else
-            mb.Intra8x8PredMode[luma8x8BlkIdx] = rem_intra8x8_pred_mode + 1;
-
-        //mb.Intra4x4PredMode[luma8x8BlkIdx * 4    ] = mb.Intra8x8PredMode[luma8x8BlkIdx];
-        //mb.Intra4x4PredMode[luma8x8BlkIdx * 4 + 1] = mb.Intra8x8PredMode[luma8x8BlkIdx];
-        //mb.Intra4x4PredMode[luma8x8BlkIdx * 4 + 2] = mb.Intra8x8PredMode[luma8x8BlkIdx];
-        //mb.Intra4x4PredMode[luma8x8BlkIdx * 4 + 3] = mb.Intra8x8PredMode[luma8x8BlkIdx];
-    }
-}
-
 
 void Parser::Macroblock::mb_pred_inter()
 {
@@ -690,13 +597,13 @@ void Parser::Macroblock::mb_pred_inter()
         }
     }
 
-    this->parse_ref_pic_idx(LIST_0);
+    this->ref_idx_l(LIST_0);
     if (slice.slice_type == B_slice)
-        this->parse_ref_pic_idx(LIST_1);
+        this->ref_idx_l(LIST_1);
 
-    this->parse_motion_vectors(LIST_0);
+    this->mvd_l(LIST_0);
     if (slice.slice_type == B_slice)
-        this->parse_motion_vectors(LIST_1);
+        this->mvd_l(LIST_1);
 
     int list_offset = slice.MbaffFrameFlag && mb.mb_field_decoding_flag ?
                       mb.mbAddrX % 2 ? 4 : 2 : 0;
@@ -723,79 +630,77 @@ static const int BLOCK_STEP[8][2] = {
     {2, 2}, {2, 1}, {1, 2}, {1, 1}
 };
 
-void Parser::Macroblock::parse_ref_pic_idx(int list)
+void Parser::Macroblock::ref_idx_l(int list)
 {
-    pic_motion_params **mv_info = slice.dec_picture->mv_info;
-
-    int step_h0 = BLOCK_STEP[mb.mb_type][0];
-    int step_v0 = BLOCK_STEP[mb.mb_type][1];
-
-    for (int j0 = 0; j0 < 4; j0 += step_v0) {
-        for (int i0 = 0; i0 < 4; i0 += step_h0) {      
-            int k = 2 * (j0 >> 1) + (i0 >> 1);
-
-            if ((mb.SubMbPredMode[k] == list || mb.SubMbPredMode[k] == BI_PRED) &&
-                mb.SubMbType[k] != 0) {
-                uint8_t refframe = se.ref_idx_l(list, i0, j0);
-                for (int j = 0; j < step_v0; j++) {
-                    for (int i = 0; i < step_h0; i++)
-                        mv_info[mb.mb.y * 4 + j0 + j][mb.mb.x * 4 + i0 + i].ref_idx[list] = refframe;
-                }
-            }
-        }
-    }
-}
-
-void Parser::Macroblock::parse_motion_vectors(int list)
-{
-    pic_motion_params **mv_info = slice.dec_picture->mv_info;
-
-    int step_h0 = BLOCK_STEP[mb.mb_type][0];
-    int step_v0 = BLOCK_STEP[mb.mb_type][1];
-
-    for (int j0 = 0; j0 < 4; j0 += step_v0) {
-        for (int i0 = 0; i0 < 4; i0 += step_h0) {
-            int kk = 2 * (j0 >> 1) + (i0 >> 1);
-            int step_h4 = BLOCK_STEP[mb.SubMbType[kk]][0];
-            int step_v4 = BLOCK_STEP[mb.SubMbType[kk]][1];
-            char cur_ref_idx = mv_info[mb.mb.y * 4 + j0][mb.mb.x * 4 + i0].ref_idx[list];
-
-            if ((mb.SubMbPredMode[kk] == list || mb.SubMbPredMode[kk] == BI_PRED) &&
-                (mb.SubMbType[kk] != 0)) { //has forward vector
-                for (int j = j0; j < j0 + step_v0; j += step_v4) {
-                    for (int i = i0; i < i0 + step_h0; i += step_h4)
-                        this->parse_motion_vector(list, step_h4 * 4, step_v4 * 4, i, j, cur_ref_idx);
-                }
-            }
-        }
-    }
-}
-
-void Parser::Macroblock::parse_motion_vector(int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx)
-{
-    //const uint8_t (*sub_mb_types)[5] = mb.p_Slice->slice_type == B_slice ?
-    //                                   sub_mb_types_b_slice : sub_mb_types_p_slice;
-    //int step_h4 = sub_mb_types[mb.sub_mb_type[kk]][3];
-    //int step_v4 = sub_mb_types[mb.sub_mb_type[kk]][4];
-
-    int16_t curr_mvd[2];
-    for (int k = 0; k < 2; ++k)
-        curr_mvd[k] = se.mvd_l(list, i, j, k);
-
-    mv_t pred_mv = this->GetMVPredictor(cur_ref_idx, list, i, j, step_h4, step_v4);
-    mv_t curr_mv;
-    curr_mv.mv_x = curr_mvd[0] + pred_mv.mv_x;
-    curr_mv.mv_y = curr_mvd[1] + pred_mv.mv_y;
-
     auto mv_info = slice.dec_picture->mv_info;
-    int i4 = mb.mb.x * 4 + i;
-    int j4 = mb.mb.y * 4 + j;
-    for (int jj = 0; jj < step_v4 / 4; ++jj) {
-        for (int ii = 0; ii < step_h4 / 4; ++ii) {
-            mv_info[jj + j4][ii + i4].mv[list] = curr_mv;
-            auto mvd = list == 0 ? mb.mvd_l0 : mb.mvd_l1;
-            mvd[jj + j][ii + i][0] = curr_mvd[0];
-            mvd[jj + j][ii + i][1] = curr_mvd[1];
+
+    int step_h0 = BLOCK_STEP[mb.mb_type][0];
+    int step_v0 = BLOCK_STEP[mb.mb_type][1];
+
+    auto ref_idx_l = (list == 0) ? mb.ref_idx_l0 : mb.ref_idx_l1;
+
+    for (int y8 = 0; y8 < 4; y8 += step_v0) {
+        for (int x8 = 0; x8 < 4; x8 += step_h0) {      
+            int mbPartIdx = 2 * (y8 >> 1) + (x8 >> 1);
+
+            if ((mb.SubMbPredMode[mbPartIdx] == list || mb.SubMbPredMode[mbPartIdx] == BI_PRED) &&
+                (mb.SubMbType[mbPartIdx] != 0)) {
+                ref_idx_l[mbPartIdx] = se.ref_idx_l(list, x8, y8);
+
+                for (int y4 = 0; y4 < step_v0; ++y4) {
+                    for (int x4 = 0; x4 < step_h0; ++x4) {
+                        auto& mv = mv_info[mb.mb.y * 4 + y8 + y4][mb.mb.x * 4 + x8 + x4];
+                        mv.ref_idx[list] = ref_idx_l[mbPartIdx];
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Parser::Macroblock::mvd_l(int list)
+{
+    auto mv_info = slice.dec_picture->mv_info;
+
+    int step_h0 = BLOCK_STEP[mb.mb_type][0];
+    int step_v0 = BLOCK_STEP[mb.mb_type][1];
+
+    auto mvd_l = (list == 0) ? mb.mvd_l0 : mb.mvd_l1;
+
+    for (int y8 = 0; y8 < 4; y8 += step_v0) {
+        for (int x8 = 0; x8 < 4; x8 += step_h0) {
+            int mbPartIdx = 2 * (y8 >> 1) + (x8 >> 1);
+
+            if ((mb.SubMbPredMode[mbPartIdx] == list || mb.SubMbPredMode[mbPartIdx] == BI_PRED) &&
+                (mb.SubMbType[mbPartIdx] != 0)) {
+                int step_h4 = BLOCK_STEP[mb.SubMbType[mbPartIdx]][0];
+                int step_v4 = BLOCK_STEP[mb.SubMbType[mbPartIdx]][1];
+                char cur_ref_idx = mv_info[mb.mb.y * 4 + y8][mb.mb.x * 4 + x8].ref_idx[list];
+
+                for (int y4 = 0; y4 < step_v0; y4 += step_v4) {
+                    for (int x4 = 0; x4 < step_h0; x4 += step_h4) {
+                        //int subMbPartIdx = 2 * y4 + x4;
+
+                        int16_t curr_mvd[2];
+                        for (int compIdx = 0; compIdx < 2; ++compIdx)
+                            curr_mvd[compIdx] = se.mvd_l(list, x8 + x4, y8 + y4, compIdx);
+
+                        mv_t pred_mv = this->GetMVPredictor(cur_ref_idx, list, x8 + x4, y8 + y4, step_h4 * 4, step_v4 * 4);
+                        mv_t curr_mv;
+                        curr_mv.mv_x = curr_mvd[0] + pred_mv.mv_x;
+                        curr_mv.mv_y = curr_mvd[1] + pred_mv.mv_y;
+
+                        for (int y2 = 0; y2 < step_v4; ++y2) {
+                            for (int x2 = 0; x2 < step_h4; ++x2) {
+                                auto& mv = mv_info[mb.mb.y * 4 + y8 + y4 + y2][mb.mb.x * 4 + x8 + x4 + x2];
+                                mv.mv[list] = curr_mv;
+                                for (int compIdx = 0; compIdx < 2; ++compIdx)
+                                    mvd_l[y8 + y4 + y2][x8 + x4 + x2][compIdx] = curr_mvd[compIdx];
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

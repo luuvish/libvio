@@ -105,10 +105,12 @@ protected:
         uint16_t    coeff_abs_level_minus1();
 
     private:
-        sps_t&      sps;
-        pps_t&      pps;
+        const sps_t& sps;
+        const pps_t& pps;
         slice_t&    slice;
         mb_t&       mb;
+
+        CtxIdxInc ctxidx;
 
         data_partition_t& cavlc;
         cabac_engine_t&   cabac;
@@ -129,8 +131,8 @@ protected:
                                          ColorPlane pl, bool chroma, bool ac, int blkIdx);
 
     private:
-        sps_t&      sps;
-        pps_t&      pps;
+        const sps_t& sps;
+        const pps_t& pps;
         slice_t&    slice;
         mb_t&       mb;
 
@@ -149,29 +151,23 @@ protected:
         void        mb_type_si_slice(uint8_t mb_type);
         void        mb_type_p_slice (uint8_t mb_type);
         void        mb_type_b_slice (uint8_t mb_type);
-
-        void        parse_i_pcm();
-        void        parse_intra();
         void        sub_mb_type();
 
-        void        mb_pred_intra();
-        void        parse_ipred_4x4_modes();
-        void        parse_ipred_8x8_modes();
+        void        parse_i_pcm();
 
+        void        mb_pred_intra();
         void        mb_pred_inter();
-        void        parse_ref_pic_idx(int list);
-        void        parse_motion_vectors(int list);
-        void        parse_motion_vector(int list, int step_h4, int step_v4, int i, int j, char cur_ref_idx);
+        void        ref_idx_l(int list);
+        void        mvd_l    (int list);
 
         void        coded_block_pattern();
         void        mb_qp_delta();
         void        parse_cbp_qp();
 
         mv_t        GetMVPredictor(char ref_frame, int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
-        mv_t        GetMVPredictor2(char& ref_frame, int list, int mb_x, int mb_y, int blockshape_x, int blockshape_y);
         void        skip_macroblock();
 
-        int         get_colocated_info (storable_picture* list1, int i, int j);
+        int         get_colocated_info (int i, int j);
         void        get_direct_temporal(bool dir=true);
         void        get_direct_spatial (bool dir=true);
 
@@ -180,8 +176,8 @@ protected:
         void        erc_dpl();
 
     private:
-        sps_t&      sps;
-        pps_t&      pps;
+        const sps_t& sps;
+        const pps_t& pps;
         slice_t&    slice;
         mb_t&       mb;
 

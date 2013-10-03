@@ -8,6 +8,30 @@ using std::max;
 using std::min;
 
 template<typename T>
+inline T max(T x, T y, T z)
+{
+	return max(max(x, y), z);
+}
+
+template<typename T>
+inline T min(T x, T y, T z)
+{
+	return min(min(x, y), z);
+}
+
+template<typename T>
+inline T min_positive(T x, T y)
+{
+	return (x >=0 && y >= 0) ? min(x, y) : max(x, y);
+}
+
+template<typename T>
+inline T min_positive(T x, T y, T z)
+{
+	return min_positive(min_positive(x, y), z);
+}
+
+template<typename T>
 inline T clip3(T low, T high, T x)
 {
     return min(max(low, x), high);

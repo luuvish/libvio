@@ -155,6 +155,12 @@ struct motion_vector_t {
 
 using mv_t = motion_vector_t;
 
+inline bool operator == (const mv_t& l, const mv_t& r)
+{
+    return (l.mv_x == r.mv_x) && (l.mv_y == r.mv_y);
+}
+
+
 
 /***********************************************************************
  * N e w   D a t a    t y p e s   f o r    T M L

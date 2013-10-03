@@ -26,6 +26,8 @@
 #include "macroblock.h"
 #include "neighbour.h"
 
+#include "intra_prediction.h"
+
 
 namespace vio  {
 namespace h264 {
@@ -306,12 +308,107 @@ int Neighbour::predict_nnz(mb_t* mb, int pl, int i, int j)
 }
 
 
-int mb_skip_flag_ctxIdxInc(mb_t& mb)
+
+uint8_t intra_4x4_pred_mode(mb_t& mb, int bx, int by)
 {
     slice_t& slice = *mb.p_Slice;
+    pps_t& pps = *slice.active_pps;
 
-    mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-    mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
+    nb_t nbA = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx - 1, by});
+    nb_t nbB = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx, by - 1});
+
+    nbA.mb = nbA.mb && nbA.mb->slice_nr == mb.slice_nr ? nbA.mb : nullptr;
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
+
+    //get from array and decode
+    if (pps.constrained_intra_pred_flag) {
+        nbA.mb = nbA.mb && nbA.mb->is_intra_block ? nbA.mb : nullptr;
+        nbB.mb = nbB.mb && nbB.mb->is_intra_block ? nbB.mb : nullptr;
+    }
+    // !! KS: not sure if the following is still correct...
+    if (slice.slice_type == SI_slice) { // need support for MBINTLC1
+        nbA.mb = nbA.mb && nbA.mb->mb_type == SI ? nbA.mb : nullptr;
+        nbB.mb = nbB.mb && nbB.mb->mb_type == SI ? nbB.mb : nullptr;
+    }
+
+    bool dcPredModePredictedFlag = !nbA.mb || !nbB.mb;
+
+    int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
+    uint8_t intraMxMPredModeA = IntraPrediction::Intra_4x4_DC;
+    uint8_t intraMxMPredModeB = IntraPrediction::Intra_4x4_DC;
+    if (!dcPredModePredictedFlag) {
+        if (nbA.mb->mb_type == I_8x8)
+            intraMxMPredModeA = nbA.mb->Intra8x8PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4] / 4];
+        else if (nbA.mb->mb_type == I_4x4)
+            intraMxMPredModeA = nbA.mb->Intra4x4PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4]];
+        if (nbB.mb->mb_type == I_8x8)
+            intraMxMPredModeB = nbB.mb->Intra8x8PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4] / 4];
+        else if (nbB.mb->mb_type == I_4x4)
+            intraMxMPredModeB = nbB.mb->Intra4x4PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4]];
+    }
+
+    uint8_t predIntra4x4PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
+
+    return predIntra4x4PredMode;
+}
+
+uint8_t intra_8x8_pred_mode(mb_t& mb, int bx, int by)
+{
+    slice_t& slice = *mb.p_Slice;
+    pps_t& pps = *slice.active_pps;
+
+    nb_t nbA = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx - 1, by});
+    nb_t nbB = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {bx, by - 1});
+    nbA.mb = nbA.mb && nbA.mb->slice_nr == mb.slice_nr ? nbA.mb : nullptr;
+    nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
+
+    //get from array and decode
+    if (pps.constrained_intra_pred_flag) {
+        nbA.mb = nbA.mb && nbA.mb->is_intra_block ? nbA.mb : nullptr;
+        nbB.mb = nbB.mb && nbB.mb->is_intra_block ? nbB.mb : nullptr;
+    }
+
+    bool dcPredModePredictedFlag = !nbA.mb || !nbB.mb;
+
+    int scan[16] = { 0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15 };
+    uint8_t intraMxMPredModeA = IntraPrediction::Intra_8x8_DC;
+    uint8_t intraMxMPredModeB = IntraPrediction::Intra_8x8_DC;
+    if (!dcPredModePredictedFlag) {
+        if (nbA.mb->mb_type == I_8x8)
+            intraMxMPredModeA = nbA.mb->Intra8x8PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4] / 4];
+        else if (nbA.mb->mb_type == I_4x4)
+            intraMxMPredModeA = nbA.mb->Intra4x4PredMode[scan[(nbA.y & 12) + (nbA.x & 15) / 4]];
+        if (nbB.mb->mb_type == I_8x8)
+            intraMxMPredModeB = nbB.mb->Intra8x8PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4] / 4];
+        else if (nbB.mb->mb_type == I_4x4)
+            intraMxMPredModeB = nbB.mb->Intra4x4PredMode[scan[(nbB.y & 12) + (nbB.x & 15) / 4]];
+    }
+
+    uint8_t predIntra8x8PredMode = min(intraMxMPredModeA, intraMxMPredModeB);
+
+    return predIntra8x8PredMode;
+}
+
+
+
+CtxIdxInc::CtxIdxInc(mb_t& _mb) :
+    sps { *_mb.p_Slice->active_sps },
+    pps { *_mb.p_Slice->active_pps },
+    slice { *_mb.p_Slice },
+    mb { _mb }
+{
+    this->mb_data = _mb.p_Slice->neighbour.mb_data;
+}
+
+CtxIdxInc::~CtxIdxInc()
+{
+}
+
+
+int CtxIdxInc::mb_skip_flag()
+{
+    mb_t* mbA = this->get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+    mb_t* mbB = this->get_mb(&slice, false, mb.mbAddrX, {0, -1});
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -322,14 +419,12 @@ int mb_skip_flag_ctxIdxInc(mb_t& mb)
     return ctxIdxInc;
 }
 
-int mb_field_decoding_flag_ctxIdxInc(mb_t& mb)
+int CtxIdxInc::mb_field_decoding_flag()
 {
-    slice_t& slice = *mb.p_Slice;
-
     int topMbAddr = slice.MbaffFrameFlag ? mb.mbAddrX & ~1 : mb.mbAddrX;
 
-    mb_t* mbA = slice.neighbour.get_mb(&slice, false, topMbAddr, {-1, 0});
-    mb_t* mbB = slice.neighbour.get_mb(&slice, false, topMbAddr, {0, -1});
+    mb_t* mbA = this->get_mb(&slice, false, topMbAddr, {-1, 0});
+    mb_t* mbB = this->get_mb(&slice, false, topMbAddr, {0, -1});
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -340,12 +435,10 @@ int mb_field_decoding_flag_ctxIdxInc(mb_t& mb)
     return ctxIdxInc;
 }
 
-int mb_type_si_slice_ctxIdxInc(mb_t& mb)
+int CtxIdxInc::mb_type_si_slice()
 {
-    slice_t& slice = *mb.p_Slice;
-
-    mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-    mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
+    mb_t* mbA = this->get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+    mb_t* mbB = this->get_mb(&slice, false, mb.mbAddrX, {0, -1});
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -356,12 +449,10 @@ int mb_type_si_slice_ctxIdxInc(mb_t& mb)
     return ctxIdxInc;
 }
 
-int mb_type_i_slice_ctxIdxInc(mb_t& mb)
+int CtxIdxInc::mb_type_i_slice()
 {
-    slice_t& slice = *mb.p_Slice;
-
-    mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-    mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
+    mb_t* mbA = this->get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+    mb_t* mbB = this->get_mb(&slice, false, mb.mbAddrX, {0, -1});
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -372,12 +463,10 @@ int mb_type_i_slice_ctxIdxInc(mb_t& mb)
     return ctxIdxInc;
 }
 
-int mb_type_b_slice_ctxIdxInc(mb_t& mb)
+int CtxIdxInc::mb_type_b_slice()
 {
-    slice_t& slice = *mb.p_Slice;
-
-    mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-    mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
+    mb_t* mbA = this->get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+    mb_t* mbB = this->get_mb(&slice, false, mb.mbAddrX, {0, -1});
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -388,12 +477,10 @@ int mb_type_b_slice_ctxIdxInc(mb_t& mb)
     return ctxIdxInc;
 }
 
-int transform_size_8x8_flag_ctxIdxInc(mb_t& mb)
+int CtxIdxInc::transform_size_8x8_flag()
 {
-    slice_t& slice = *mb.p_Slice;
-
-    mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-    mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
+    mb_t* mbA = this->get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+    mb_t* mbB = this->get_mb(&slice, false, mb.mbAddrX, {0, -1});
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -404,12 +491,10 @@ int transform_size_8x8_flag_ctxIdxInc(mb_t& mb)
     return ctxIdxInc;
 }
 
-int intra_chroma_pred_mode_ctxIdxInc(mb_t& mb)
+int CtxIdxInc::intra_chroma_pred_mode()
 {
-    slice_t& slice = *mb.p_Slice;
-
-    mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-    mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
+    mb_t* mbA = this->get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+    mb_t* mbB = this->get_mb(&slice, false, mb.mbAddrX, {0, -1});
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -420,12 +505,10 @@ int intra_chroma_pred_mode_ctxIdxInc(mb_t& mb)
     return ctxIdxInc;
 }
 
-int ref_idx_ctxIdxInc(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0)
+int CtxIdxInc::ref_idx_l(uint8_t list, uint8_t x0, uint8_t y0)
 {
-    slice_t& slice = *mb.p_Slice;
-
-    nb_t nbA = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4 - 1, y0 * 4});
-    nb_t nbB = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4, y0 * 4 - 1});
+    nb_t nbA = this->get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4 - 1, y0 * 4});
+    nb_t nbB = this->get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4, y0 * 4 - 1});
     nbA.mb = nbA.mb && nbA.mb->slice_nr == mb.slice_nr ? nbA.mb : nullptr;
     nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
 
@@ -463,12 +546,10 @@ int ref_idx_ctxIdxInc(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0)
     return ctxIdxInc;
 }
 
-int mvd_ctxIdxInc(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0, bool comp)
+int CtxIdxInc::mvd_l(uint8_t list, uint8_t x0, uint8_t y0, bool comp)
 {
-    slice_t& slice = *mb.p_Slice;
-
-    nb_t nbA = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4 - 1, y0 * 4});
-    nb_t nbB = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4, y0 * 4 - 1});
+    nb_t nbA = this->get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4 - 1, y0 * 4});
+    nb_t nbB = this->get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4, y0 * 4 - 1});
     nbA.mb = nbA.mb && nbA.mb->slice_nr == mb.slice_nr ? nbA.mb : nullptr;
     nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
 
@@ -502,12 +583,10 @@ int mvd_ctxIdxInc(mb_t& mb, uint8_t list, uint8_t x0, uint8_t y0, bool comp)
     return ctxIdxInc;
 }
 
-int cbp_luma_ctxIdxInc(mb_t& mb, uint8_t x0, uint8_t y0, uint8_t coded_block_pattern)
+int CtxIdxInc::coded_block_pattern_luma(uint8_t x0, uint8_t y0, uint8_t coded_block_pattern)
 {
-    slice_t& slice = *mb.p_Slice;
-
-    nb_t nbA = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4 - 1, y0 * 4});
-    nb_t nbB = slice.neighbour.get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4, y0 * 4 - 1});
+    nb_t nbA = this->get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4 - 1, y0 * 4});
+    nb_t nbB = this->get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4, y0 * 4 - 1});
     nbA.mb = nbA.mb && nbA.mb->slice_nr == mb.slice_nr ? nbA.mb : nullptr;
     nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
 
@@ -539,12 +618,10 @@ int cbp_luma_ctxIdxInc(mb_t& mb, uint8_t x0, uint8_t y0, uint8_t coded_block_pat
     return ctxIdxInc;
 }
 
-int cbp_chroma_ctxIdxInc(mb_t& mb)
+int CtxIdxInc::coded_block_pattern_chroma()
 {
-    slice_t& slice = *mb.p_Slice;
-
-    mb_t* mbA = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {-1, 0});
-    mb_t* mbB = slice.neighbour.get_mb(&slice, false, mb.mbAddrX, {0, -1});
+    mb_t* mbA = this->get_mb(&slice, false, mb.mbAddrX, {-1, 0});
+    mb_t* mbB = this->get_mb(&slice, false, mb.mbAddrX, {0, -1});
     mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
     mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
 
@@ -560,10 +637,11 @@ int cbp_chroma_ctxIdxInc(mb_t& mb)
 }
 
 
+//int CtxIdxInc::coded_block_flag(int pl, bool chroma, bool ac, int blkIdx)
 int coded_block_flag_ctxIdxInc(mb_t& mb, int pl, bool chroma, bool ac, int blkIdx)
 {
     slice_t& slice = *mb.p_Slice;
-    sps_t* sps = slice.active_sps;
+    sps_t& sps = *slice.active_sps;
 
     int i = chroma ? blkIdx % 2 : ((blkIdx / 4) % 2) * 2 + (blkIdx % 4) % 2;
     int j = chroma ? blkIdx / 2 : ((blkIdx / 4) / 2) * 2 + (blkIdx % 4) / 2;
@@ -575,7 +653,7 @@ int coded_block_flag_ctxIdxInc(mb_t& mb, int pl, bool chroma, bool ac, int blkId
     int u_ac = (chroma && ac && pl == 1);
     //int v_ac = (chroma && ac && pl == 2);
 
-    int temp_pl = (sps->ChromaArrayType == 3 ? pl : 0);
+    int temp_pl = (sps.ChromaArrayType == 3 ? pl : 0);
     int bit = (y_dc ? 0 : y_ac ? 1 : u_dc ? 17 : v_dc ? 18 : u_ac ? 19 : 35);
     int bit_pos_a = 0;
     int bit_pos_b = 0;
@@ -585,8 +663,8 @@ int coded_block_flag_ctxIdxInc(mb_t& mb, int pl, bool chroma, bool ac, int blkId
     nbA.mb = nbA.mb && nbA.mb->slice_nr == mb.slice_nr ? nbA.mb : nullptr;
     nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
 
-    int nW = !chroma ? 16 : sps->MbWidthC;
-    int nH = !chroma ? 16 : sps->MbHeightC;
+    int nW = !chroma ? 16 : sps.MbWidthC;
+    int nH = !chroma ? 16 : sps.MbHeightC;
     if (ac) {
         if (nbA.mb)
             bit_pos_a = ((nbA.y % nH) & 12) + (nbA.x % nW) / 4;
