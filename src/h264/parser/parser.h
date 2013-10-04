@@ -168,7 +168,7 @@ protected:
         void        skip_macroblock();
 
         int         get_colocated_info (int i, int j);
-        void        get_direct_temporal(bool dir=true);
+        void        get_direct_temporal();
         void        get_direct_spatial (bool dir=true);
 
         void        update_qp(int qp);

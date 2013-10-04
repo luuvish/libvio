@@ -160,6 +160,41 @@ inline bool operator == (const mv_t& l, const mv_t& r)
     return (l.mv_x == r.mv_x) && (l.mv_y == r.mv_y);
 }
 
+inline mv_t operator + (const mv_t& l, const mv_t& r)
+{
+    return {(int16_t)(l.mv_x + r.mv_x), (int16_t)(l.mv_y + r.mv_y)};
+}
+
+inline mv_t operator + (const mv_t& l, int r)
+{
+    return {(int16_t)(l.mv_x + r), (int16_t)(l.mv_y + r)};
+}
+
+inline mv_t operator - (const mv_t& l, const mv_t& r)
+{
+    return {(int16_t)(l.mv_x - r.mv_x), (int16_t)(l.mv_y - r.mv_y)};
+}
+
+inline mv_t operator - (const mv_t& l, int r)
+{
+    return {(int16_t)(l.mv_x - r), (int16_t)(l.mv_y - r)};
+}
+
+inline mv_t operator * (const mv_t& l, int r)
+{
+    return {(int16_t)(l.mv_x * r), (int16_t)(l.mv_y * r)};
+}
+
+inline mv_t operator * (int l, const mv_t& r)
+{
+    return {(int16_t)(l * r.mv_x), (int16_t)(l * r.mv_y)};
+}
+
+inline mv_t operator >> (const mv_t& l, int r)
+{
+    return {(int16_t)(l.mv_x >> r), (int16_t)(l.mv_y >> r)};
+}
+
 
 
 /***********************************************************************

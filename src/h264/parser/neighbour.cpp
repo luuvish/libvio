@@ -518,26 +518,40 @@ int CtxIdxInc::ref_idx_l(uint8_t list, uint8_t x0, uint8_t y0)
 
 #define IS_DIRECT(MB) ((MB)->mb_type == 0 && (slice.slice_type == B_SLICE))
     if (nbA.mb) {
-        int b8a = ((nbA.y / 4) & 2) + ((nbA.x / 8) & 1);
-        auto mv_info = &slice.dec_picture->mv_info[nbA.y / 4][nbA.x / 4];
-        if (!(nbA.mb->mb_type == I_PCM || IS_DIRECT(nbA.mb) ||
-             (nbA.mb->SubMbType[b8a] == 0 && nbA.mb->SubMbPredMode[b8a] == 2))) {
-            if (slice.MbaffFrameFlag && !mb.mb_field_decoding_flag && nbA.mb->mb_field_decoding_flag)
-                condTermFlagA = (mv_info->ref_idx[list] > 1 ? 1 : 0);
-            else
-                condTermFlagA = (mv_info->ref_idx[list] > 0 ? 1 : 0);
-        }
+        int ref_idx_lX = slice.dec_picture->mv_info[nbA.y / 4][nbA.x / 4].ref_idx[list];
+        int refIdxZeroFlagA = 0;
+        if (slice.MbaffFrameFlag && !mb.mb_field_decoding_flag && nbA.mb->mb_field_decoding_flag)
+            refIdxZeroFlagA = (ref_idx_lX > 1 ? 0 : 1);
+        else
+            refIdxZeroFlagA = (ref_idx_lX > 0 ? 0 : 1);
+
+        int mbPartIdxA = ((nbA.y / 4) & 2) + ((nbA.x / 8) & 1);
+        int predModeEqualFlagA = 1;
+        if (IS_DIRECT(nbA.mb) || nbA.mb->SubMbType[mbPartIdxA] == 0)
+            predModeEqualFlagA = 0;
+        //else if (nbA.mb->SubMbPredMode[mbPartIdxA] != Pred_LX | BiPred)
+        //    predModeEqualFlagA = 0;
+        condTermFlagA = (nbA.mb->mb_type == P_Skip || nbA.mb->mb_type == B_Skip ||
+                         nbA.mb->is_intra_block ||
+                         predModeEqualFlagA == 0 || refIdxZeroFlagA == 1) ? 0 : 1;
     }
     if (nbB.mb) {
-        int b8b = ((nbB.y / 4) & 2) + ((nbB.x / 8) & 1);
-        auto mv_info = &slice.dec_picture->mv_info[nbB.y / 4][nbB.x / 4];
-        if (!(nbB.mb->mb_type == I_PCM || IS_DIRECT(nbB.mb) ||
-             (nbB.mb->SubMbType[b8b] == 0 && nbB.mb->SubMbPredMode[b8b] == 2))) {
-            if (slice.MbaffFrameFlag && !mb.mb_field_decoding_flag && nbB.mb->mb_field_decoding_flag)
-                condTermFlagB = (mv_info->ref_idx[list] > 1 ? 1 : 0);
-            else
-                condTermFlagB = (mv_info->ref_idx[list] > 0 ? 1 : 0);
-        }
+        int ref_idx_lX = slice.dec_picture->mv_info[nbB.y / 4][nbB.x / 4].ref_idx[list];
+        int refIdxZeroFlagB = 0;
+        if (slice.MbaffFrameFlag && !mb.mb_field_decoding_flag && nbB.mb->mb_field_decoding_flag)
+            refIdxZeroFlagB = (ref_idx_lX > 1 ? 0 : 1);
+        else
+            refIdxZeroFlagB = (ref_idx_lX > 0 ? 0 : 1);
+
+        int mbPartIdxB = ((nbB.y / 4) & 2) + ((nbB.x / 8) & 1);
+        int predModeEqualFlagB = 1;
+        if (IS_DIRECT(nbB.mb) || nbB.mb->SubMbType[mbPartIdxB] == 0)
+            predModeEqualFlagB = 0;
+        //else if (nbB.mb->SubMbPredMode[mbPartIdxB] != Pred_LX | BiPred)
+        //    predModeEqualFlagB = 0;
+        condTermFlagB = (nbB.mb->mb_type == P_Skip || nbB.mb->mb_type == B_Skip ||
+                         nbB.mb->is_intra_block ||
+                         predModeEqualFlagB == 0 || refIdxZeroFlagB == 1) ? 0 : 1;
     }
 #undef IS_DIRECT
 
@@ -546,7 +560,7 @@ int CtxIdxInc::ref_idx_l(uint8_t list, uint8_t x0, uint8_t y0)
     return ctxIdxInc;
 }
 
-int CtxIdxInc::mvd_l(uint8_t list, uint8_t x0, uint8_t y0, bool comp)
+int CtxIdxInc::mvd_l(uint8_t list, uint8_t x0, uint8_t y0, bool compIdx)
 {
     nb_t nbA = this->get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4 - 1, y0 * 4});
     nb_t nbB = this->get_neighbour(&slice, false, mb.mbAddrX, {x0 * 4, y0 * 4 - 1});
@@ -556,26 +570,48 @@ int CtxIdxInc::mvd_l(uint8_t list, uint8_t x0, uint8_t y0, bool comp)
     int absMvdCompA = 0;
     int absMvdCompB = 0;
 
+#define IS_DIRECT(MB) ((MB)->mb_type == 0 && (slice.slice_type == B_SLICE))
     if (nbA.mb) {
-        auto mvd = list == 0 ? nbA.mb->mvd_l0 : nbA.mb->mvd_l1;
-        absMvdCompA = abs(mvd[(nbA.y & 15) / 4][(nbA.x & 15) / 4][comp]);
-        if (slice.MbaffFrameFlag && comp) {
-            if (!mb.mb_field_decoding_flag && nbA.mb->mb_field_decoding_flag)
-                absMvdCompA *= 2;
-            else if (mb.mb_field_decoding_flag && !nbA.mb->mb_field_decoding_flag)
-                absMvdCompA /= 2;
+        int mbPartIdxA = ((nbA.y / 4) & 2) + ((nbA.x / 8) & 1);
+        int predModeEqualFlagA = 1;
+        if (IS_DIRECT(nbA.mb) || nbA.mb->SubMbType[mbPartIdxA] == 0)
+            predModeEqualFlagA = 0;
+        //else if (nbA.mb->SubMbPredMode[mbPartIdxA] != Pred_LX | BiPred)
+        //    predModeEqualFlagA = 0;
+
+        if (!(nbA.mb->mb_type == P_Skip || nbA.mb->mb_type == B_Skip ||
+              nbA.mb->is_intra_block || predModeEqualFlagA == 0)) {
+            auto mvd_lX = (list == 0) ? nbA.mb->mvd_l0 : nbA.mb->mvd_l1;
+            absMvdCompA = abs(mvd_lX[(nbA.y & 15) / 4][(nbA.x & 15) / 4][compIdx]);
+            if (slice.MbaffFrameFlag && compIdx) {
+                if (!mb.mb_field_decoding_flag && nbA.mb->mb_field_decoding_flag)
+                    absMvdCompA *= 2;
+                else if (mb.mb_field_decoding_flag && !nbA.mb->mb_field_decoding_flag)
+                    absMvdCompA /= 2;
+            }
         }
     }
     if (nbB.mb) {
-        auto mvd = list == 0 ? nbB.mb->mvd_l0 : nbB.mb->mvd_l1;
-        absMvdCompB = abs(mvd[(nbB.y & 15) / 4][(nbB.x & 15) / 4][comp]);
-        if (slice.MbaffFrameFlag && comp) {
-            if (!mb.mb_field_decoding_flag && nbB.mb->mb_field_decoding_flag)
-                absMvdCompB *= 2;
-            else if (mb.mb_field_decoding_flag && !nbB.mb->mb_field_decoding_flag)
-                absMvdCompB /= 2;
+        int mbPartIdxB = ((nbB.y / 4) & 2) + ((nbB.x / 8) & 1);
+        int predModeEqualFlagB = 1;
+        if (IS_DIRECT(nbB.mb) || nbB.mb->SubMbType[mbPartIdxB] == 0)
+            predModeEqualFlagB = 0;
+        //else if (nbB.mb->SubMbPredMode[mbPartIdxB] != Pred_LX | BiPred)
+        //    predModeEqualFlagB = 0;
+
+        if (!(nbB.mb->mb_type == P_Skip || nbB.mb->mb_type == B_Skip ||
+              nbB.mb->is_intra_block || predModeEqualFlagB == 0)) {
+            auto mvd_lX = (list == 0) ? nbB.mb->mvd_l0 : nbB.mb->mvd_l1;
+            absMvdCompB = abs(mvd_lX[(nbB.y & 15) / 4][(nbB.x & 15) / 4][compIdx]);
+            if (slice.MbaffFrameFlag && compIdx) {
+                if (!mb.mb_field_decoding_flag && nbB.mb->mb_field_decoding_flag)
+                    absMvdCompB *= 2;
+                else if (mb.mb_field_decoding_flag && !nbB.mb->mb_field_decoding_flag)
+                    absMvdCompB /= 2;
+            }
         }
     }
+#undef IS_DIRECT
 
     int absMvdSum = absMvdCompA + absMvdCompB;
     int ctxIdxInc = (absMvdSum < 3 ? 0 : absMvdSum <= 32 ? 1 : 2);

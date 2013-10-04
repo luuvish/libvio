@@ -225,31 +225,13 @@ void Decoder::mb_pred_inter(mb_t& mb, ColorPlane curr_plane)
     slice_t& slice = *mb.p_Slice;
     const sps_t& sps = *slice.active_sps;
 
-    bool p_inter = (slice.slice_type == B_slice && mb.mb_type == PSKIP) ||
-                   slice.slice_type == P_slice || slice.slice_type == SP_slice ||
-                   mb.mb_type == P16x16 || mb.mb_type == P16x8 || mb.mb_type == P8x16;
+    bool b_inter_8x8 = (slice.slice_type == B_slice && mb.mb_type == B_8x8);
 
     int step_h0 = BLOCK_STEP[mb.mb_type][0];
     int step_v0 = BLOCK_STEP[mb.mb_type][1];
-
-    int pred_dirs[4];
-
-    if (p_inter) {
-        if (slice.slice_type == B_slice && mb.mb_type == PSKIP) {
-            step_h0 = 2;
-            step_v0 = 2;
-        }
-        if (slice.slice_type != B_slice && mb.mb_type == PSKIP) {
-            step_h0 = 4;
-            step_v0 = 4;
-        }
-    } else {
-        for (int j0 = 0; j0 < 4; j0 += step_v0) {
-            for (int i0 = 0; i0 < 4; i0 += step_h0) {
-                int block8x8 = 2 * (j0 >> 1) + (i0 >> 1);
-                pred_dirs[block8x8] = slice.parser.get_inter8x8(mb, block8x8);
-            }
-        }
+    if (mb.mb_type == PSKIP) {
+        step_h0 = slice.slice_type == B_slice ? 2 : 4;
+        step_v0 = slice.slice_type == B_slice ? 2 : 4;
     }
 
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
@@ -264,11 +246,10 @@ void Decoder::mb_pred_inter(mb_t& mb, ColorPlane curr_plane)
                 step_v4 = sps.direct_8x8_inference_flag ? 2 : 1;
             }
 
-            if (p_inter) {
-                if (slice.slice_type != B_slice && mb.mb_type == PSKIP)
-                    pred_dir = 0;
-            } else
-                pred_dir = pred_dirs[block8x8];
+            if (b_inter_8x8 && slice.direct_spatial_mv_pred_flag) {
+                auto mv_info = &slice.dec_picture->mv_info[mb.mb.y * 4 + j0][mb.mb.x * 4 + i0];
+                pred_dir = (mv_info->ref_idx[LIST_1] < 0) ? 0 : (mv_info->ref_idx[LIST_0] < 0) ? 1 : 2;
+            }
 
             for (int j = j0; j < j0 + step_v0; j += step_v4) {
                 for (int i = i0; i < i0 + step_h0; i += step_h4)

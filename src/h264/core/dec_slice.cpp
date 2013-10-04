@@ -29,20 +29,18 @@ static void compute_colocated(slice_t *currSlice, storable_picture **listX[6])
     if (currSlice->direct_spatial_mv_pred_flag == 0) {
         for (j = 0; j < 2 + (currSlice->MbaffFrameFlag * 4); j += 2) {
             for (i = 0; i < currSlice->listXsize[j]; i++) {
-                int prescale, iTRb, iTRp;
+                int curPoc = (j == 0) ? p_Vid->dec_picture->poc :
+                             (j == 2) ? p_Vid->dec_picture->top_poc :
+                                        p_Vid->dec_picture->bottom_poc;
+                int pic0 = listX[LIST_0 + j][i]->poc;
+                int pic1 = listX[LIST_1 + j][0]->poc;
+                int tb = clip3(-128, 127, curPoc - pic0);
+                int td = clip3(-128, 127, pic1 - pic0);
 
-                if (j == 0)
-                    iTRb = clip3( -128, 127, p_Vid->dec_picture->poc - listX[LIST_0 + j][i]->poc );
-                else if (j == 2)
-                    iTRb = clip3( -128, 127, p_Vid->dec_picture->top_poc - listX[LIST_0 + j][i]->poc );
-                else
-                    iTRb = clip3( -128, 127, p_Vid->dec_picture->bottom_poc - listX[LIST_0 + j][i]->poc );
-
-                iTRp = clip3( -128, 127,  listX[LIST_1 + j][0]->poc - listX[LIST_0 + j][i]->poc);
-
-                if (iTRp != 0) {
-                    prescale = ( 16384 + abs( iTRp / 2 ) ) / iTRp;
-                    currSlice->mvscale[j][i] = clip3( -1024, 1023, ( iTRb * prescale + 32 ) >> 6 ) ;
+                if (td != 0) {
+                    int tx = (16384 + abs(td / 2)) / td;
+                    int DistScaleFactor = clip3(-1024, 1023, (tb * tx + 32) >> 6);
+                    currSlice->mvscale[j][i] = DistScaleFactor;
                 } else
                     currSlice->mvscale[j][i] = 9999;
             }

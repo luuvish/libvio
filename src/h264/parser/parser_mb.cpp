@@ -563,7 +563,7 @@ void Parser::Macroblock::mb_pred_intra()
 
 void Parser::Macroblock::mb_pred_inter()
 {
-    if (mb.mb_type == PSKIP && slice.slice_type == P_slice)
+    if (slice.slice_type != B_slice && mb.mb_type == PSKIP)
         return this->skip_macroblock();
 
     if (mb.mb_type != 0) {
@@ -581,21 +581,15 @@ void Parser::Macroblock::mb_pred_inter()
         }
     }
 
-    if (slice.slice_type == B_slice) {
-        if (mb.mb_type == P8x8) {
-            if (slice.direct_spatial_mv_pred_flag)
-                this->get_direct_spatial(false);
-            else
-                this->get_direct_temporal(true);
-        }
-        if (mb.mb_type == BSKIP_DIRECT) {
-            if (slice.direct_spatial_mv_pred_flag)
-                this->get_direct_spatial(true);
-            else
-                this->get_direct_temporal(true);
-            return;
-        }
+    if (slice.slice_type == B_slice && (mb.mb_type == BSKIP_DIRECT || mb.mb_type == B_8x8)) {
+        if (slice.direct_spatial_mv_pred_flag)
+            this->get_direct_spatial();
+        else
+            this->get_direct_temporal();
     }
+
+    if (slice.slice_type == B_slice && mb.mb_type == BSKIP_DIRECT)
+        return;
 
     this->ref_idx_l(LIST_0);
     if (slice.slice_type == B_slice)
@@ -605,8 +599,7 @@ void Parser::Macroblock::mb_pred_inter()
     if (slice.slice_type == B_slice)
         this->mvd_l(LIST_1);
 
-    int list_offset = slice.MbaffFrameFlag && mb.mb_field_decoding_flag ?
-                      mb.mbAddrX % 2 ? 4 : 2 : 0;
+    int list_offset = slice.MbaffFrameFlag && mb.mb_field_decoding_flag ? mb.mbAddrX % 2 ? 4 : 2 : 0;
     storable_picture **list0 = slice.listX[LIST_0 + list_offset];
     storable_picture **list1 = slice.listX[LIST_1 + list_offset];
     pic_motion_params **p_mv_info = slice.dec_picture->mv_info;
@@ -614,7 +607,7 @@ void Parser::Macroblock::mb_pred_inter()
     for (int j4 = 0; j4 < 4; j4++) {
         for (int i4 = 0; i4 < 4; ++i4) {
             auto mv_info = &p_mv_info[mb.mb.y * 4 + j4][mb.mb.x * 4 + i4];
-            short ref_idx = mv_info->ref_idx[LIST_0];
+            int  ref_idx = mv_info->ref_idx[LIST_0];
             mv_info->ref_pic[LIST_0] = (ref_idx >= 0) ? list0[ref_idx] : NULL;
             if (slice.slice_type == B_slice) {
                 ref_idx = mv_info->ref_idx[LIST_1];
