@@ -1,6 +1,8 @@
 #include <limits.h>
 
 #include "global.h"
+#include "input_parameters.h"
+
 #include "slice.h"
 #include "image.h"
 #include "dpb.h"
@@ -115,228 +117,173 @@ int remove_unused_frame_from_dpb(dpb_t *p_Dpb)
 }
 
 
-/*!
- ************************************************************************
- * \brief
- *    Returns the size of the dpb depending on level and picture size
- *
- *
- ************************************************************************
- */
-int getDpbSize(VideoParameters *p_Vid, sps_t *active_sps)
+int getDpbSize(VideoParameters* p_Vid, sps_t* active_sps)
 {
-  int pic_size = (active_sps->pic_width_in_mbs_minus1 + 1) * (active_sps->pic_height_in_map_units_minus1 + 1) * (active_sps->frame_mbs_only_flag?1:2) * 384;
+    int pic_size = (active_sps->pic_width_in_mbs_minus1 + 1) * (active_sps->pic_height_in_map_units_minus1 + 1) * (active_sps->frame_mbs_only_flag ? 1 : 2) * 384;
 
-  int size = 0;
+    int size = 0;
 
-  switch (active_sps->level_idc)
-  {
-  case 9:
-    size = 152064;
-    break;
-  case 10:
-    size = 152064;
-    break;
-  case 11:
-    if (!is_FREXT_profile(active_sps->profile_idc) && (active_sps->constraint_set3_flag == 1))
-      size = 152064;
-    else
-      size = 345600;
-    break;
-  case 12:
-    size = 912384;
-    break;
-  case 13:
-    size = 912384;
-    break;
-  case 20:
-    size = 912384;
-    break;
-  case 21:
-    size = 1824768;
-    break;
-  case 22:
-    size = 3110400;
-    break;
-  case 30:
-    size = 3110400;
-    break;
-  case 31:
-    size = 6912000;
-    break;
-  case 32:
-    size = 7864320;
-    break;
-  case 40:
-    size = 12582912;
-    break;
-  case 41:
-    size = 12582912;
-    break;
-  case 42:
-    size = 13369344;
-    break;
-  case 50:
-    size = 42393600;
-    break;
-  case 51:
-    size = 70778880;
-    break;
-  case 52:
-    size = 70778880;
-    break;
-  default:
-    error("undefined level", 500);
-    break;
-  }
+    switch (active_sps->level_idc) {
+    case 9:
+    case 10:
+        size = 152064;
+        break;
+    case 11:
+        if (!is_FREXT_profile(active_sps->profile_idc) && (active_sps->constraint_set3_flag == 1))
+            size = 152064;
+        else
+            size = 345600;
+        break;
+    case 12:
+    case 13:
+    case 20:
+        size = 912384;
+        break;
+    case 21:
+        size = 1824768;
+        break;
+    case 22:
+    case 30:
+        size = 3110400;
+        break;
+    case 31:
+        size = 6912000;
+        break;
+    case 32:
+        size = 7864320;
+        break;
+    case 40:
+    case 41:
+        size = 12582912;
+        break;
+    case 42:
+        size = 13369344;
+        break;
+    case 50:
+        size = 42393600;
+        break;
+    case 51:
+    case 52:
+        size = 70778880;
+        break;
+    default:
+        error("undefined level", 500);
+        break;
+    }
 
-  size /= pic_size;
+    size /= pic_size;
 #if MVC_EXTENSION_ENABLE
-  if(p_Vid->profile_idc == MVC_HIGH || p_Vid->profile_idc == STEREO_HIGH)
-  {
-    int num_views = p_Vid->active_subset_sps->num_views_minus1+1;
-    size = min(2 * size, max<int>(1, round(log2(num_views))) * 16) / num_views;
-  }
-  else
+    if (p_Vid->profile_idc == MVC_HIGH || p_Vid->profile_idc == STEREO_HIGH) {
+        int num_views = p_Vid->active_subset_sps->num_views_minus1+1;
+        size = min(2 * size, max<int>(1, round(log2(num_views))) * 16) / num_views;
+    } else
 #endif
-  {
-    size = min(size, 16);
-  }
+        size = min(size, 16);
 
-  if (active_sps->vui_parameters_present_flag && active_sps->vui_parameters.bitstream_restriction_flag)
-  {
-    int size_vui;
-    if ((int)active_sps->vui_parameters.max_dec_frame_buffering > size)
-    {
-      error("max_dec_frame_buffering larger than MaxDpbSize", 500);
-    }
-    size_vui = max<int>(1, active_sps->vui_parameters.max_dec_frame_buffering);
+    if (active_sps->vui_parameters_present_flag && active_sps->vui_parameters.bitstream_restriction_flag) {
+        int size_vui;
+        if ((int)active_sps->vui_parameters.max_dec_frame_buffering > size)
+            error("max_dec_frame_buffering larger than MaxDpbSize", 500);
+        size_vui = max<int>(1, active_sps->vui_parameters.max_dec_frame_buffering);
 #ifdef _DEBUG
-    if(size_vui < size)
-    {
-      printf("Warning: max_dec_frame_buffering(%d) is less than DPB size(%d) calculated from Profile/Level.\n", size_vui, size);
-    }
+        if (size_vui < size)
+            printf("Warning: max_dec_frame_buffering(%d) is less than DPB size(%d) calculated from Profile/Level.\n", size_vui, size);
 #endif
-    size = size_vui;    
-  }
+        size = size_vui;    
+    }
 
-  return size;
+    return size;
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Check then number of frames marked "used for reference" and break
- *    if maximum is exceeded
- *
- ************************************************************************
- */
 
-
-/*!
- ************************************************************************
- * \brief
- *    Allocate memory for decoded picture buffer and initialize with sane values.
- *
- ************************************************************************
- */
-void init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type)
+void init_dpb(VideoParameters* p_Vid, dpb_t* p_Dpb, int type)
 {
   unsigned i; 
-  sps_t *sps = p_Vid->active_sps;
+    sps_t* sps = p_Vid->active_sps;
 
-  p_Dpb->p_Vid = p_Vid;
-  if (p_Dpb->init_done)
-  {
-    free_dpb(p_Dpb);
-  }
+    p_Dpb->p_Vid = p_Vid;
+    if (p_Dpb->init_done)
+        free_dpb(p_Dpb);
 
-  p_Dpb->size = getDpbSize(p_Vid, sps) + p_Vid->p_Inp->dpb_plus[type==2? 1: 0];
-  p_Dpb->num_ref_frames = sps->max_num_ref_frames; 
+    p_Dpb->size = getDpbSize(p_Vid, sps) + p_Vid->p_Inp->dpb_plus[type == 2 ? 1 : 0];
+    p_Dpb->num_ref_frames = sps->max_num_ref_frames; 
 
 #if (MVC_EXTENSION_ENABLE)
-  if ((unsigned int)sps->max_dec_frame_buffering < sps->max_num_ref_frames)
+    if ((unsigned int)sps->max_dec_frame_buffering < sps->max_num_ref_frames)
 #else
-  if (p_Dpb->size < sps->max_num_ref_frames)
+    if (p_Dpb->size < sps->max_num_ref_frames)
 #endif
-  {
-    error ("DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n", 1000);
-  }
+        error ("DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n", 1000);
 
-  p_Dpb->used_size = 0;
-  p_Dpb->last_picture = NULL;
+    p_Dpb->used_size = 0;
+    p_Dpb->last_picture = NULL;
 
-  p_Dpb->ref_frames_in_buffer = 0;
-  p_Dpb->ltref_frames_in_buffer = 0;
+    p_Dpb->ref_frames_in_buffer = 0;
+    p_Dpb->ltref_frames_in_buffer = 0;
 
-  p_Dpb->fs = (frame_store **)calloc(p_Dpb->size, sizeof (frame_store*));
-  if (NULL==p_Dpb->fs)
-    no_mem_exit("init_dpb: p_Dpb->fs");
+    p_Dpb->fs = (frame_store**)calloc(p_Dpb->size, sizeof (frame_store*));
+    if (NULL == p_Dpb->fs)
+        no_mem_exit("init_dpb: p_Dpb->fs");
 
-  p_Dpb->fs_ref = (frame_store **)calloc(p_Dpb->size, sizeof (frame_store*));
-  if (NULL==p_Dpb->fs_ref)
-    no_mem_exit("init_dpb: p_Dpb->fs_ref");
+    p_Dpb->fs_ref = (frame_store**)calloc(p_Dpb->size, sizeof (frame_store*));
+    if (NULL == p_Dpb->fs_ref)
+        no_mem_exit("init_dpb: p_Dpb->fs_ref");
 
-  p_Dpb->fs_ltref = (frame_store **)calloc(p_Dpb->size, sizeof (frame_store*));
-  if (NULL==p_Dpb->fs_ltref)
-    no_mem_exit("init_dpb: p_Dpb->fs_ltref");
+    p_Dpb->fs_ltref = (frame_store**)calloc(p_Dpb->size, sizeof (frame_store*));
+    if (NULL == p_Dpb->fs_ltref)
+        no_mem_exit("init_dpb: p_Dpb->fs_ltref");
 
 #if (MVC_EXTENSION_ENABLE)
-  p_Dpb->fs_ilref = (frame_store **)calloc(1, sizeof (frame_store*));
-  if (NULL==p_Dpb->fs_ilref)
-    no_mem_exit("init_dpb: p_Dpb->fs_ilref");
+    p_Dpb->fs_ilref = (frame_store**)calloc(1, sizeof (frame_store*));
+    if (NULL == p_Dpb->fs_ilref)
+        no_mem_exit("init_dpb: p_Dpb->fs_ilref");
 #endif
 
-  for (i = 0; i < p_Dpb->size; i++)
-  {
-    p_Dpb->fs[i]       = alloc_frame_store();
-    p_Dpb->fs_ref[i]   = NULL;
-    p_Dpb->fs_ltref[i] = NULL;
-    p_Dpb->fs[i]->layer_id = MVC_INIT_VIEW_ID;
+    for (i = 0; i < p_Dpb->size; i++) {
+        p_Dpb->fs[i]       = alloc_frame_store();
+        p_Dpb->fs_ref[i]   = NULL;
+        p_Dpb->fs_ltref[i] = NULL;
+        p_Dpb->fs[i]->layer_id = MVC_INIT_VIEW_ID;
 #if (MVC_EXTENSION_ENABLE)
-    p_Dpb->fs[i]->view_id = MVC_INIT_VIEW_ID;
-    p_Dpb->fs[i]->inter_view_flag[0] = p_Dpb->fs[i]->inter_view_flag[1] = 0;
-    p_Dpb->fs[i]->anchor_pic_flag[0] = p_Dpb->fs[i]->anchor_pic_flag[1] = 0;
+        p_Dpb->fs[i]->view_id = MVC_INIT_VIEW_ID;
+        p_Dpb->fs[i]->inter_view_flag[0] = p_Dpb->fs[i]->inter_view_flag[1] = 0;
+        p_Dpb->fs[i]->anchor_pic_flag[0] = p_Dpb->fs[i]->anchor_pic_flag[1] = 0;
 #endif
-  }
+    }
 #if (MVC_EXTENSION_ENABLE)
-  if (type == 2)
-  {
-    p_Dpb->fs_ilref[0] = alloc_frame_store();
-    // These may need some cleanups
-    p_Dpb->fs_ilref[0]->view_id = MVC_INIT_VIEW_ID;
-    p_Dpb->fs_ilref[0]->inter_view_flag[0] = p_Dpb->fs_ilref[0]->inter_view_flag[1] = 0;
-    p_Dpb->fs_ilref[0]->anchor_pic_flag[0] = p_Dpb->fs_ilref[0]->anchor_pic_flag[1] = 0;
-    // given that this is in a different buffer, do we even need proc_flag anymore?    
-  }
-  else
-    p_Dpb->fs_ilref[0] = NULL;
+    if (type == 2) {
+        p_Dpb->fs_ilref[0] = alloc_frame_store();
+        // These may need some cleanups
+        p_Dpb->fs_ilref[0]->view_id = MVC_INIT_VIEW_ID;
+        p_Dpb->fs_ilref[0]->inter_view_flag[0] = p_Dpb->fs_ilref[0]->inter_view_flag[1] = 0;
+        p_Dpb->fs_ilref[0]->anchor_pic_flag[0] = p_Dpb->fs_ilref[0]->anchor_pic_flag[1] = 0;
+        // given that this is in a different buffer, do we even need proc_flag anymore?    
+    } else
+        p_Dpb->fs_ilref[0] = NULL;
 #endif
 
-  /* allocate a dummy storable picture */
-  if(!p_Vid->no_reference_picture)
-  {
-    p_Vid->no_reference_picture = alloc_storable_picture (p_Vid, FRAME,
-        sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
-        sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
-    p_Vid->no_reference_picture->top_field    = p_Vid->no_reference_picture;
-    p_Vid->no_reference_picture->bottom_field = p_Vid->no_reference_picture;
-    p_Vid->no_reference_picture->frame        = p_Vid->no_reference_picture;
-  }
-  p_Dpb->last_output_poc = INT_MIN;
+    /* allocate a dummy storable picture */
+    if (!p_Vid->no_reference_picture) {
+        p_Vid->no_reference_picture = alloc_storable_picture (p_Vid, FRAME,
+            sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+            sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
+        p_Vid->no_reference_picture->top_field    = p_Vid->no_reference_picture;
+        p_Vid->no_reference_picture->bottom_field = p_Vid->no_reference_picture;
+        p_Vid->no_reference_picture->frame        = p_Vid->no_reference_picture;
+    }
+    p_Dpb->last_output_poc = INT_MIN;
 
 #if (MVC_EXTENSION_ENABLE)
-  p_Dpb->last_output_view_id = -1;
+    p_Dpb->last_output_view_id = -1;
 #endif
 
-  p_Vid->last_has_mmco_5 = 0;
+    p_Vid->last_has_mmco_5 = 0;
 
-  p_Dpb->init_done = 1;
+    p_Dpb->init_done = 1;
 
-  // picture error concealment
-  if(p_Vid->conceal_mode !=0 && !p_Vid->last_out_fs)
-    p_Vid->last_out_fs = alloc_frame_store();
-
+    // picture error concealment
+    if (p_Vid->conceal_mode != 0 && !p_Vid->last_out_fs)
+        p_Vid->last_out_fs = alloc_frame_store();
 }
 
 void re_init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type)
@@ -536,7 +483,7 @@ void alloc_pic_motion(pic_motion_params_old* motion, int size_y, int size_x)
  */
 storable_picture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure structure, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output)
 {
-  sps_t *sps = p_Vid->active_sps;  
+    sps_t *sps = p_Vid->active_sps;  
 
     int iChromaPadX = MCBUF_CHROMA_PAD_X;
     int iChromaPadY = MCBUF_CHROMA_PAD_Y;
@@ -547,101 +494,92 @@ storable_picture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructur
         iChromaPadY = MCBUF_LUMA_PAD_Y;
     }
 
-  storable_picture *s;
-  int   nplane;
+    storable_picture* s;
+    int nplane;
 
-  s = (storable_picture *)calloc (1, sizeof(storable_picture));
-  if (NULL==s)
-    no_mem_exit("alloc_storable_picture: s");
+    s = (storable_picture *)calloc (1, sizeof(storable_picture));
+    if (NULL == s)
+        no_mem_exit("alloc_storable_picture: s");
 
-  if (structure!=FRAME)
-  {
-    size_y    /= 2;
-    size_y_cr /= 2;
-  }
-
-  s->PicSizeInMbs = (size_x*size_y)/256;
-  s->imgUV = NULL;
-
-  get_mem2Dpel_pad (&(s->imgY), size_y, size_x, MCBUF_LUMA_PAD_Y, MCBUF_LUMA_PAD_X);
-  s->iLumaStride = size_x+2*MCBUF_LUMA_PAD_X;
-  s->iLumaExpandedHeight = size_y+2*MCBUF_LUMA_PAD_Y;
-
-  if (sps->chroma_format_idc != YUV400)
-  {
-    get_mem3Dpel_pad(&(s->imgUV), 2, size_y_cr, size_x_cr, iChromaPadY, iChromaPadX);
-  }
-
-  s->chroma_format_idc = sps->chroma_format_idc;
-  s->iChromaStride =size_x_cr + 2*iChromaPadX;
-  s->iChromaExpandedHeight = size_y_cr + 2*iChromaPadY;
-  s->iChromaPadY = iChromaPadY;
-  s->iChromaPadX = iChromaPadX;
-
-  s->separate_colour_plane_flag = sps->separate_colour_plane_flag;
-
-  get_mem2Dmp     ( &s->mv_info, (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
-  alloc_pic_motion( &s->motion , (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
-
-  if( (sps->separate_colour_plane_flag != 0) )
-  {
-    for( nplane=0; nplane<MAX_PLANE; nplane++ )
-    {
-      get_mem2Dmp      (&s->JVmv_info[nplane], (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
-      alloc_pic_motion(&s->JVmotion[nplane] , (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
+    if (structure != FRAME) {
+        size_y    /= 2;
+        size_y_cr /= 2;
     }
-  }
 
-  s->PicNum   = 0;
-  s->frame_num = 0;
-  s->LongTermFrameIdx = 0;
-  s->LongTermPicNum   = 0;
-  s->used_for_reference  = 0;
-  s->is_long_term        = 0;
-  s->non_existing        = 0;
-  s->is_output           = 0;
+    s->PicSizeInMbs = (size_x * size_y) / 256;
+    s->imgUV = NULL;
+
+    get_mem2Dpel_pad(&s->imgY, size_y, size_x, MCBUF_LUMA_PAD_Y, MCBUF_LUMA_PAD_X);
+    s->iLumaStride = size_x + 2 * MCBUF_LUMA_PAD_X;
+    s->iLumaExpandedHeight = size_y + 2 * MCBUF_LUMA_PAD_Y;
+
+    if (sps->chroma_format_idc != YUV400)
+        get_mem3Dpel_pad(&s->imgUV, 2, size_y_cr, size_x_cr, iChromaPadY, iChromaPadX);
+
+    s->chroma_format_idc     = sps->chroma_format_idc;
+    s->iChromaStride         = size_x_cr + 2 * iChromaPadX;
+    s->iChromaExpandedHeight = size_y_cr + 2 * iChromaPadY;
+    s->iChromaPadY           = iChromaPadY;
+    s->iChromaPadX           = iChromaPadX;
+
+    s->separate_colour_plane_flag = sps->separate_colour_plane_flag;
+
+    get_mem2Dmp     (&s->mv_info, (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
+    alloc_pic_motion(&s->motion , (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
+
+    if (sps->separate_colour_plane_flag != 0) {
+        for (nplane = 0; nplane < MAX_PLANE; ++nplane) {
+            get_mem2Dmp     (&s->JVmv_info[nplane], (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
+            alloc_pic_motion(&s->JVmotion[nplane] , (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
+        }
+    }
+
+    s->PicNum             = 0;
+    s->frame_num          = 0;
+    s->LongTermFrameIdx   = 0;
+    s->LongTermPicNum     = 0;
+    s->used_for_reference = 0;
+    s->is_long_term       = 0;
+    s->non_existing       = 0;
+    s->is_output          = 0;
 #if (MVC_EXTENSION_ENABLE)
-  s->view_id = -1;
+    s->view_id            = -1;
 #endif
 
-  s->structure=structure;
+    s->structure    = structure;
 
-  s->size_x = size_x;
-  s->size_y = size_y;
-  s->size_x_cr = size_x_cr;
-  s->size_y_cr = size_y_cr;
-  s->size_x_m1 = size_x - 1;
-  s->size_y_m1 = size_y - 1;
-  s->size_x_cr_m1 = size_x_cr - 1;
-  s->size_y_cr_m1 = size_y_cr - 1;
+    s->size_x       = size_x;
+    s->size_y       = size_y;
+    s->size_x_cr    = size_x_cr;
+    s->size_y_cr    = size_y_cr;
+    s->size_x_m1    = size_x - 1;
+    s->size_y_m1    = size_y - 1;
+    s->size_x_cr_m1 = size_x_cr - 1;
+    s->size_y_cr_m1 = size_y_cr - 1;
 
-  s->top_field    = p_Vid->no_reference_picture;
-  s->bottom_field = p_Vid->no_reference_picture;
-  s->frame        = p_Vid->no_reference_picture;
+    s->top_field    = p_Vid->no_reference_picture;
+    s->bottom_field = p_Vid->no_reference_picture;
+    s->frame        = p_Vid->no_reference_picture;
 
-  s->dec_ref_pic_marking_buffer = NULL;
+    s->dec_ref_pic_marking_buffer = NULL;
 
-  s->coded_frame  = 0;
-  s->mb_aff_frame_flag  = 0;
+    s->coded_frame  = 0;
+    s->mb_aff_frame_flag  = 0;
 
-  s->top_poc = s->bottom_poc = s->poc = 0;
-  s->seiHasTone_mapping = 0;
+    s->top_poc = s->bottom_poc = s->poc = 0;
+    s->seiHasTone_mapping = 0;
 
-  if(!sps->frame_mbs_only_flag && structure != FRAME)
-  {
-    int i, j;
-    for(j = 0; j < MAX_NUM_SLICES; j++)
-    {
-      for (i = 0; i < 2; i++)
-      {
-        s->listX[j][i] = (storable_picture **)calloc(MAX_LIST_SIZE, sizeof (storable_picture*)); // +1 for reordering
-        if (NULL==s->listX[j][i])
-        no_mem_exit("alloc_storable_picture: s->listX[i]");
-      }
+    if (!sps->frame_mbs_only_flag && structure != FRAME) {
+        for (int j = 0; j < MAX_NUM_SLICES; ++j) {
+            for (int i = 0; i < 2; ++i) {
+                s->listX[j][i] = (storable_picture **)calloc(MAX_LIST_SIZE, sizeof (storable_picture*)); // +1 for reordering
+                if (NULL == s->listX[j][i])
+                    no_mem_exit("alloc_storable_picture: s->listX[i]");
+            }
+        }
     }
-  }
 
-  return s;
+    return s;
 }
 
 /*!

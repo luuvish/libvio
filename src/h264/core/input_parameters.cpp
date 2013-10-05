@@ -28,7 +28,7 @@
  * Whitespace is space and \\t
  * \par
  * \<ParameterName\> are the predefined names for Parameters and are case sensitive.
- *   See configfile.h for the definition of those names and their mapping to
+ *   See input_parameters.h for the definition of those names and their mapping to
  *   cfgparams->values.
  * \par
  * \<ParameterValue\> are either integers [0..9]* or strings.
@@ -46,7 +46,7 @@
  *
  * \par Rules for using command files
  *                                                                                      \n
- * All Parameters are initially taken from DEFAULTCONFIGFILENAME, defined in configfile.h.
+ * All Parameters are initially taken from DEFAULTCONFIGFILENAME, defined in input_parameters.h.
  * If an -f \<config\> parameter is present in the command line then this file is used to
  * update the defaults of DEFAULTCONFIGFILENAME.  There can be more than one -f parameters
  * present.  If -p <ParameterName = ParameterValue> parameters are present then these
@@ -58,10 +58,8 @@
 
 #define INCLUDED_BY_CONFIGFILE_C
 
-#include "global.h"
 #include "memalloc.h"
-#include "bitstream_cabac.h"
-#include "configfile.h"
+#include "input_parameters.h"
 
 
 #define MAX_ITEMS_TO_PARSE  10000
@@ -195,7 +193,7 @@ static int ParameterNameToMapIndex (Mapping *Map, char *s)
  ***********************************************************************
  * \brief
  *    Parses the character array buf and writes global variable input, which is defined in
- *    configfile.h.  This hack will continue to be necessary to facilitate the addition of
+ *    input_parameters.h.  This hack will continue to be necessary to facilitate the addition of
  *    new parameters through the Map[] mechanism (Need compiler-generated addresses in map[]).
  * \param p_Inp
  *    InputParameters of configuration
@@ -322,7 +320,7 @@ static void ParseContent (InputParameters *p_Inp, Mapping *Map, char *buf, int b
       printf (".");
       break;
     default:
-      error ((char *)"Unknown value type in the map definition of configfile.h",-1);
+      error ((char *)"Unknown value type in the map definition of input_parameters.h",-1);
     }
   }
   *p_Inp = cfgparams;
@@ -515,7 +513,7 @@ static void PatchInp (InputParameters *p_Inp)
  *    command line parameters
  ***********************************************************************
  */
-void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
+void InputParameters::ParseCommand(int ac, char *av[])
 {
   char *content = NULL;
   int CLcount;
@@ -535,12 +533,12 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
     }
   }
 
-  memcpy (&cfgparams, p_Inp, sizeof (InputParameters));
+  memcpy (&cfgparams, this, sizeof (InputParameters));
   //Set default parameters.
   printf ("Setting Default Parameters...\n");
   InitParams(Map);
 
-  *p_Inp = cfgparams;
+  *this = cfgparams;
   // Process default config file
   CLcount = 1;
 
@@ -557,7 +555,7 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
     content = GetConfigFileContent (filename);
     if (NULL != content)
     {
-      ParseContent (p_Inp, Map, content, (int) strlen(content));
+      ParseContent (this, Map, content, (int) strlen(content));
       printf ("\n");
       free (content);
     }
@@ -573,12 +571,12 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
 
     if (0 == strncmp (av[CLcount], "-i", 2) || 0 == strncmp (av[CLcount], "-I", 2))  // A file parameter?
     {
-      strncpy(p_Inp->infile, av[CLcount+1], FILE_NAME_SIZE);
+      strncpy(this->infile, av[CLcount+1], FILE_NAME_SIZE);
       CLcount += 2;
     } 
     else if (0 == strncmp (av[CLcount], "-o", 2) || 0 == strncmp (av[CLcount], "-O", 2))  // A file parameter?
     {
-      strncpy(p_Inp->outfile, av[CLcount+1], FILE_NAME_SIZE);
+      strncpy(this->outfile, av[CLcount+1], FILE_NAME_SIZE);
       CLcount += 2;
     } 
     else
@@ -589,8 +587,8 @@ void ParseCommand(InputParameters *p_Inp, int ac, char *av[])
   }
   printf ("\n");
 
-  PatchInp(p_Inp);
-  cfgparams = *p_Inp;
-  if (p_Inp->bDisplayDecParams)
+  PatchInp(this);
+  cfgparams = *this;
+  if (this->bDisplayDecParams)
     DisplayParams(Map, (char *)"Decoder Parameters");
 }

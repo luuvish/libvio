@@ -6,7 +6,7 @@ namespace vio { namespace h264 {
 struct nalu_t;
 struct data_partition_t;
 }}
-struct video_par;
+struct VideoParameters;
 struct slice_t;
 
 
@@ -318,7 +318,7 @@ void seq_parameter_set_rbsp(data_partition_t *p, sps_t *sps);
 // 7.3.2.1.1.1 Scaling list syntax
 void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScalingMatrixFlag, data_partition_t *s);
 // 7.3.2.2 Picture parameter set RBSP syntax
-void pic_parameter_set_rbsp(struct video_par *p_Vid, data_partition_t *p, pps_t *pps);
+void pic_parameter_set_rbsp(VideoParameters* p_Vid, data_partition_t *p, pps_t *pps);
 
 // 7.3.2.5 End of sequence RBSP syntax
 void end_of_seq_rbsp();
@@ -348,23 +348,23 @@ void prefix_nal_unit_svc();
 #endif
 
 
-void MakePPSavailable (struct video_par *p_Vid, int id, pps_t *pps);
+void MakePPSavailable (VideoParameters* p_Vid, int id, pps_t *pps);
 
-void ProcessSPS (struct video_par *p_Vid, nalu_t *nalu);
-void ProcessPPS (struct video_par *p_Vid, nalu_t *nalu);
+void ProcessSPS (VideoParameters* p_Vid, nalu_t *nalu);
+void ProcessPPS (VideoParameters* p_Vid, nalu_t *nalu);
 
-void CleanUpPPS(struct video_par *p_Vid);
+void CleanUpPPS(VideoParameters* p_Vid);
 
-void activate_sps (struct video_par *p_Vid, sps_t *sps);
-void activate_pps (struct video_par *p_Vid, pps_t *pps);
+void activate_sps (VideoParameters* p_Vid, sps_t *sps);
+void activate_pps (VideoParameters* p_Vid, pps_t *pps);
 
 void UseParameterSet (struct slice_t *currSlice);
 
 #if (MVC_EXTENSION_ENABLE)
-void ProcessSubsetSPS (struct video_par *p_Vid, nalu_t *nalu);
+void ProcessSubsetSPS (VideoParameters* p_Vid, nalu_t *nalu);
 void init_subset_sps_list(sub_sps_t *subset_sps_list, int iSize);
 void reset_subset_sps(sub_sps_t *subset_sps);
-int  GetBaseViewId(struct video_par *p_Vid, sub_sps_t **subset_sps);
+int  GetBaseViewId(VideoParameters* p_Vid, sub_sps_t **subset_sps);
 #endif
 
 #endif /* _PARSET_H_ */

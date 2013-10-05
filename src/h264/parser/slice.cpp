@@ -6,6 +6,57 @@
 #include "memalloc.h"
 
 
+slice_t::slice_t(InputParameters* p_Inp, VideoParameters* p_Vid)
+{
+    int i, j, memory_size = 0;
+
+    memory_size += get_mem3Dint(&this->wp_weight, 2, MAX_REFERENCE_PICTURES, 3);
+    memory_size += get_mem3Dint(&this->wp_offset, 6, MAX_REFERENCE_PICTURES, 3);
+    memory_size += get_mem4Dint(&this->wbp_weight, 6, MAX_REFERENCE_PICTURES, MAX_REFERENCE_PICTURES, 3);
+
+    memory_size += get_mem3Dpel(&this->mb_pred, MAX_PLANE, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+
+#if (MVC_EXTENSION_ENABLE)
+    this->view_id = MVC_INIT_VIEW_ID;
+    this->inter_view_flag = 0;
+    this->anchor_pic_flag = 0;
+#endif
+    // reference flag initialization
+    for (i = 0; i < 17; i++)
+        this->ref_flag[i] = 1;
+    for (i = 0; i < 6; i++) {
+        this->listX[i] = (storable_picture **)calloc(MAX_LIST_SIZE, sizeof (storable_picture*)); // +1 for reordering
+        if (!this->listX[i])
+            no_mem_exit("malloc_slice: slice->listX[i]");
+    }
+    for (j = 0; j < 6; j++) {
+        for (i = 0; i < MAX_LIST_SIZE; i++)
+            this->listX[j][i] = NULL;
+        this->listXsize[j] = 0;
+    }
+}
+
+slice_t::~slice_t()
+{
+    free_mem3Dpel(this->mb_pred);
+
+    free_mem3Dint(this->wp_weight);
+    free_mem3Dint(this->wp_offset);
+    free_mem4Dint(this->wbp_weight);
+
+    for (int i = 0; i < 6; i++) {
+        if (this->listX[i]) {
+            free(this->listX[i]);
+            this->listX[i] = NULL;
+        }
+    }
+    while (this->dec_ref_pic_marking_buffer) {
+        DecRefPicMarking_t* tmp_drpm = this->dec_ref_pic_marking_buffer;
+        this->dec_ref_pic_marking_buffer=tmp_drpm->Next;
+        free(tmp_drpm);
+    }
+}
+
 void slice_header(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
@@ -356,7 +407,7 @@ void pred_weight_table(slice_t *currSlice)
         }
     }
 
-    if (currSlice->slice_type != B_SLICE)
+    if (currSlice->slice_type != B_slice)
         return;
 
     for (i = 0; i <= currSlice->num_ref_idx_l1_active_minus1; i++) {

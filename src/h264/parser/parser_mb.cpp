@@ -563,7 +563,7 @@ void Parser::Macroblock::mb_pred_intra()
 
 void Parser::Macroblock::mb_pred_inter()
 {
-    if (slice.slice_type != B_slice && mb.mb_type == PSKIP)
+    if (slice.slice_type != B_slice && mb.mb_type == P_Skip)
         return this->skip_macroblock();
 
     if (mb.mb_type != 0) {
@@ -581,14 +581,14 @@ void Parser::Macroblock::mb_pred_inter()
         }
     }
 
-    if (slice.slice_type == B_slice && (mb.mb_type == BSKIP_DIRECT || mb.mb_type == B_8x8)) {
+    if (slice.slice_type == B_slice && (mb.mb_type == B_Skip || mb.mb_type == B_8x8)) {
         if (slice.direct_spatial_mv_pred_flag)
             this->get_direct_spatial();
         else
             this->get_direct_temporal();
     }
 
-    if (slice.slice_type == B_slice && mb.mb_type == BSKIP_DIRECT)
+    if (slice.slice_type == B_slice && mb.mb_type == B_Skip)
         return;
 
     this->ref_idx_l(LIST_0);
@@ -636,7 +636,7 @@ void Parser::Macroblock::ref_idx_l(int list)
         for (int x8 = 0; x8 < 4; x8 += step_h0) {      
             int mbPartIdx = 2 * (y8 >> 1) + (x8 >> 1);
 
-            if ((mb.SubMbPredMode[mbPartIdx] == list || mb.SubMbPredMode[mbPartIdx] == BI_PRED) &&
+            if ((mb.SubMbPredMode[mbPartIdx] == list || mb.SubMbPredMode[mbPartIdx] == BiPred) &&
                 (mb.SubMbType[mbPartIdx] != 0)) {
                 ref_idx_l[mbPartIdx] = se.ref_idx_l(list, x8, y8);
 
@@ -664,7 +664,7 @@ void Parser::Macroblock::mvd_l(int list)
         for (int x8 = 0; x8 < 4; x8 += step_h0) {
             int mbPartIdx = 2 * (y8 >> 1) + (x8 >> 1);
 
-            if ((mb.SubMbPredMode[mbPartIdx] == list || mb.SubMbPredMode[mbPartIdx] == BI_PRED) &&
+            if ((mb.SubMbPredMode[mbPartIdx] == list || mb.SubMbPredMode[mbPartIdx] == BiPred) &&
                 (mb.SubMbType[mbPartIdx] != 0)) {
                 int step_h4 = BLOCK_STEP[mb.SubMbType[mbPartIdx]][0];
                 int step_v4 = BLOCK_STEP[mb.SubMbType[mbPartIdx]][1];
@@ -708,7 +708,7 @@ void Parser::Macroblock::coded_block_pattern()
             slice.parser.last_dquant = 0;
     }
 
-#define IS_DIRECT(MB) ((MB)->mb_type == 0 && slice.slice_type == B_SLICE)
+#define IS_DIRECT(MB) ((MB)->mb_type == 0 && slice.slice_type == B_slice)
     int need_transform_size_flag =
         mb.CodedBlockPatternLuma > 0 &&
         pps.transform_8x8_mode_flag && !mb.is_intra_block &&

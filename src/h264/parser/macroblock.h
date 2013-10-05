@@ -30,60 +30,47 @@ namespace h264 {
 
 
 enum {
-    PSKIP        =  0,
-    BSKIP_DIRECT =  0,
+    Intra_16x16    =  0,
+    Intra_8x8      =  1,
+    Intra_4x4      =  2,
+    Intra_NxN      =  3,
 
-    P16x16       =  1,
-    P16x8        =  2,
-    P8x16        =  3,
-    P8x8         =  4,
-    P8x4         =  5,
-    P4x8         =  6,
-    P4x4         =  7,
-};
-
-enum {
-    Intra_16x16 = 0,
-    Intra_8x8,
-    Intra_4x4,
-    Intra_NxN,
-
-    Direct  = 2,
-    Pred_L0 = 0,
-    Pred_L1,
-    BiPred,
+    Direct         =  2,
+    Pred_L0        =  0,
+    Pred_L1        =  1,
+    BiPred         =  2,
 
     NA = 0
 };
 
 enum {
-    I_NxN   =  8,
-    I_4x4   =  8,
-    I_8x8   =  9,
-    I_16x16 = 10,
-    I_PCM   = 12,
-    SI      = 11,
+    I_NxN          =  8,
+    I_4x4          =  8,
+    I_8x8          =  9,
+    I_16x16        = 10,
+    I_PCM          = 12,
+    SI             = 11,
 
-    P_Skip = 0,
-    P_16x16,
-    P_16x8,
-    P_8x16,
-    P_8x8     = 4,
-    P_8x8ref0 = 12,
-    P_8x4     = 5,
-    P_4x8,
-    P_4x4,
+    P_Skip         =  0,
+    P_16x16        =  1,
+    P_16x8         =  2,
+    P_8x16         =  3,
+    P_8x8          =  4,
+    P_8x8ref0      = 12,
+    P_8x4          =  5,
+    P_4x8          =  6,
+    P_4x4          =  7,
 
-    B_Skip         = 0,
-    B_Direct_16x16 = 0,
-    B_16x16        = 1,
-    B_16x8,
-    B_8x16,
-    B_Direct_8x8   = 0,
-    B_8x8          = 4,
-    B_8x4,
-    B_4x8,
-    B_4x4
+    B_Skip         =  0,
+    B_Direct_16x16 =  0,
+    B_16x16        =  1,
+    B_16x8         =  2,
+    B_8x16         =  3,
+    B_Direct_8x8   =  0,
+    B_8x8          =  4,
+    B_8x4          =  5,
+    B_4x8          =  6,
+    B_4x4          =  7
 };
 
 

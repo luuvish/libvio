@@ -7,14 +7,14 @@
 #define MAX_LIST_SIZE 33
 
 struct pic_motion_params_old {
-    byte*       mb_field_decoding_flag;      //!< field macroblock indicator
+    uint8_t*    mb_field_decoding_flag;
 };
 
 struct pic_motion_params {
-    storable_picture* ref_pic[2];  //!< referrence picture pointer
-    mv_t      mv[2];       //!< motion vector  
-    char              ref_idx[2];  //!< reference picture   [list][subblock_y][subblock_x]
-    byte              slice_no;
+    storable_picture* ref_pic[2];
+    mv_t        mv[2];
+    char        ref_idx[2];
+    uint8_t     slice_no;
 };
 
 struct DecRefPicMarking_t;
@@ -191,12 +191,8 @@ extern void update_ltref_list(dpb_t *p_Dpb);
 extern void update_pic_num   (slice_t *currSlice);
 
 extern void gen_pic_list_from_frame_list(bool bottom_field_flag, frame_store **fs_list, int list_idx, storable_picture **list, char *list_size, int long_term);
-extern void init_lists_i_slice (slice_t *currSlice);
-extern void init_lists_p_slice (slice_t *currSlice);
-extern void init_lists_b_slice (slice_t *currSlice);
 extern void init_lists         (slice_t *currSlice);
 
-extern void reorder_ref_pic_list(struct slice_t *currSlice, int cur_list);
 extern void reorder_lists   (slice_t *currSlice);
 extern void init_mbaff_lists(VideoParameters *p_Vid, slice_t *currSlice);
 

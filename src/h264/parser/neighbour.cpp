@@ -279,7 +279,7 @@ int Neighbour::predict_nnz(mb_t* mb, int pl, int i, int j)
 
     uint8_t nA = 0;
     if (nbA.mb) {
-        //if (nbA.mb->mb_type == PSKIP || nbA.mb->mb_type == BSKIP_DIRECT)
+        //if (nbA.mb->mb_type == P_Skip || nbA.mb->mb_type == B_Skip)
         //    nA = 0;
         //else if (nbA.mb->mb_type != I_PCM && (nbA.mb->cbp & 15) == 0)
         //    nA = 0;
@@ -291,7 +291,7 @@ int Neighbour::predict_nnz(mb_t* mb, int pl, int i, int j)
 
     uint8_t nB = 0;
     if (nbB.mb) {
-        //if (nbB.mb->mb_type == PSKIP || nbB.mb->mb_type == BSKIP_DIRECT)
+        //if (nbB.mb->mb_type == P_Skip || nbB.mb->mb_type == B_Skip)
         //    nB = 0;
         //else if (nbB.mb->mb_type != I_PCM && (nbB.mb->cbp & 15) == 0)
         //    nB = 0;
@@ -516,7 +516,7 @@ int CtxIdxInc::ref_idx_l(uint8_t list, uint8_t x0, uint8_t y0)
     int condTermFlagB = 0;
     int ctxIdxInc;
 
-#define IS_DIRECT(MB) ((MB)->mb_type == 0 && (slice.slice_type == B_SLICE))
+#define IS_DIRECT(MB) ((MB)->mb_type == 0 && (slice.slice_type == B_slice))
     if (nbA.mb) {
         int ref_idx_lX = slice.dec_picture->mv_info[nbA.y / 4][nbA.x / 4].ref_idx[list];
         int refIdxZeroFlagA = 0;
@@ -570,7 +570,7 @@ int CtxIdxInc::mvd_l(uint8_t list, uint8_t x0, uint8_t y0, bool compIdx)
     int absMvdCompA = 0;
     int absMvdCompB = 0;
 
-#define IS_DIRECT(MB) ((MB)->mb_type == 0 && (slice.slice_type == B_SLICE))
+#define IS_DIRECT(MB) ((MB)->mb_type == 0 && (slice.slice_type == B_slice))
     if (nbA.mb) {
         int mbPartIdxA = ((nbA.y / 4) & 2) + ((nbA.x / 8) & 1);
         int predModeEqualFlagA = 1;

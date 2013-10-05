@@ -583,7 +583,7 @@ void InterPrediction::motion_compensation(mb_t *mb)
 
 void InterPrediction::init_weight_prediction(slice_t& slice)
 {
-    if (slice.slice_type == B_SLICE) {
+    if (slice.slice_type == B_slice) {
         int i, j, k;
         int comp;
         int log_weight_denom;

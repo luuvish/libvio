@@ -25,18 +25,16 @@ static inline int is_long_ref(storable_picture *s)
 
 void idr_memory_management(dpb_t *p_Dpb, storable_picture* p)
 {
-  	uint32_t i;
-
   	if (p->no_output_of_prior_pics_flag) {
     	// free all stored pictures
-    	for (i = 0; i < p_Dpb->used_size; i++) {
+    	for (int i = 0; i < p_Dpb->used_size; i++) {
       		// reset all reference settings
       		free_frame_store(p_Dpb->fs[i]);
       		p_Dpb->fs[i] = alloc_frame_store();
     	}
-    	for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++)
+    	for (int i = 0; i < p_Dpb->ref_frames_in_buffer; i++)
       		p_Dpb->fs_ref[i] = NULL;
-    	for (i = 0; i < p_Dpb->ltref_frames_in_buffer; i++)
+    	for (int i = 0; i < p_Dpb->ltref_frames_in_buffer; i++)
       		p_Dpb->fs_ltref[i] = NULL;
     	p_Dpb->used_size = 0;
   	} else
@@ -252,7 +250,7 @@ void gen_pic_list_from_frame_list(bool bottom_field_flag, frame_store **fs_list,
   	}
 }
 
-void init_lists_i_slice(slice_t *currSlice)
+static void init_lists_i_slice(slice_t *currSlice)
 {
 #if (MVC_EXTENSION_ENABLE)
     currSlice->listinterviewidx0 = 0;
@@ -262,7 +260,7 @@ void init_lists_i_slice(slice_t *currSlice)
     currSlice->listXsize[1] = 0;
 }
 
-void init_lists_p_slice(slice_t *currSlice)
+static void init_lists_p_slice(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     dpb_t *p_Dpb = currSlice->p_Dpb;
@@ -342,7 +340,7 @@ void init_lists_p_slice(slice_t *currSlice)
         currSlice->listX[1][i] = p_Vid->no_reference_picture;
 }
 
-void init_lists_b_slice(slice_t *currSlice)
+static void init_lists_b_slice(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     dpb_t *p_Dpb = currSlice->p_Dpb;
@@ -490,15 +488,15 @@ void init_lists(slice_t *currSlice)
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->view_id) {
         switch (currSlice->slice_type) {
-        case P_SLICE: 
-        case SP_SLICE:
+        case P_slice: 
+        case SP_slice:
             init_lists_p_slice_mvc(currSlice);
             return;
-        case B_SLICE:
+        case B_slice:
             init_lists_b_slice_mvc(currSlice);
             return;
-        case I_SLICE: 
-        case SI_SLICE: 
+        case I_slice: 
+        case SI_slice: 
             init_lists_i_slice_mvc(currSlice);
             return;
         default:
@@ -509,15 +507,15 @@ void init_lists(slice_t *currSlice)
 #endif
     {
         switch (currSlice->slice_type) {
-        case P_SLICE:
-        case SP_SLICE:
+        case P_slice:
+        case SP_slice:
             init_lists_p_slice(currSlice);
             return;
-        case B_SLICE:
+        case B_slice:
             init_lists_b_slice(currSlice);
             return;
-        case I_SLICE:
-        case SI_SLICE:
+        case I_slice:
+        case SI_slice:
             init_lists_i_slice(currSlice);
             return;
         default:
@@ -611,7 +609,7 @@ void reorder_long_term(slice_t *currSlice, storable_picture **RefPicListX, int n
 }
 #endif
 
-void reorder_ref_pic_list(slice_t *currSlice, int cur_list)
+static void reorder_ref_pic_list(slice_t *currSlice, int cur_list)
 {
     uint8_t  *modification_of_pic_nums_idc = currSlice->modification_of_pic_nums_idc[cur_list];
     uint32_t *abs_diff_pic_num_minus1      = currSlice->abs_diff_pic_num_minus1     [cur_list];
@@ -667,7 +665,7 @@ void reorder_lists(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
 
-    if (currSlice->slice_type != I_SLICE && currSlice->slice_type != SI_SLICE) {
+    if (currSlice->slice_type != I_slice && currSlice->slice_type != SI_slice) {
         if (currSlice->ref_pic_list_modification_flag_l0)
             reorder_ref_pic_list(currSlice, LIST_0);
         if (p_Vid->no_reference_picture == currSlice->listX[0][currSlice->num_ref_idx_l0_active_minus1]) {
@@ -680,7 +678,7 @@ void reorder_lists(slice_t *currSlice)
         currSlice->listXsize[0] = (char) currSlice->num_ref_idx_l0_active_minus1 + 1;
     }
 
-    if (currSlice->slice_type == B_SLICE) {
+    if (currSlice->slice_type == B_slice) {
         if (currSlice->ref_pic_list_modification_flag_l1)
             reorder_ref_pic_list(currSlice, LIST_1);
         if (p_Vid->no_reference_picture == currSlice->listX[1][currSlice->num_ref_idx_l1_active_minus1]) {

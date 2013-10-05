@@ -2,10 +2,6 @@
 #define _DEFINES_H_
 
 
-#define JM                  "18 (FRExt)"
-#define VERSION             "18.5"
-#define EXT_VERSION         "(FRExt)"
-
 #define ENABLE_OUTPUT_TONEMAPPING 1    //!< enable tone map the output if tone mapping SEI present
 #define DISABLE_ERC               0    //!< Disable any error concealment processes
 
@@ -40,8 +36,6 @@ typedef enum {
   MVC_HIGH       = 118,      //!< YUV 4:2:0/8  "Multiview High"
   STEREO_HIGH    = 128       //!< YUV 4:2:0/8  "Stereo High"
 } ProfileIDC;
-
-#define FILE_NAME_SIZE  255
 
 #define BLOCK_SHIFT            2
 #define BLOCK_SIZE             4

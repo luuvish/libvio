@@ -398,7 +398,7 @@ void Parser::Macroblock::get_direct_temporal()
     }
 }
 
-void Parser::Macroblock::get_direct_spatial(bool dir)
+void Parser::Macroblock::get_direct_spatial()
 {
     bool has_direct = (mb.SubMbType[0] == 0) | (mb.SubMbType[1] == 0) |
                       (mb.SubMbType[2] == 0) | (mb.SubMbType[3] == 0);

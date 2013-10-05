@@ -1,7 +1,5 @@
-#include <math.h>
-#include <limits.h>
-
 #include "global.h"
+#include "input_parameters.h"
 #include "slice.h"
 #include "image.h"
 #include "fmo.h"
@@ -58,12 +56,12 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
     // allocate memory in structure p_Vid
     if (sps->separate_colour_plane_flag) {
         for (i = 0; i < MAX_PLANE; i++) {
-            if (((cps->mb_data_JV[i]) = (mb_t *) calloc(FrameSizeInMbs, sizeof(mb_t))) == NULL)
+            if (((cps->mb_data_JV[i]) = (mb_t *)calloc(FrameSizeInMbs, sizeof(mb_t))) == NULL)
                 no_mem_exit("init_global_buffers: cps->mb_data_JV");
         }
         cps->mb_data = NULL;
     } else {
-        if (((cps->mb_data) = (mb_t *) calloc(FrameSizeInMbs, sizeof(mb_t))) == NULL)
+        if (((cps->mb_data) = (mb_t *)calloc(FrameSizeInMbs, sizeof(mb_t))) == NULL)
             no_mem_exit("init_global_buffers: cps->mb_data");
     }
 
@@ -341,15 +339,15 @@ static void status_picture(VideoParameters *p_Vid, storable_picture **dec_pictur
 
     if (!p_Inp->silent) {
         if (structure == TOP_FIELD || structure == FRAME) {
-            if (slice_type == I_SLICE && is_idr) // IDR picture
+            if (slice_type == I_slice && is_idr) // IDR picture
                 strcpy(cslice_type,"IDR");
-            else if (slice_type == I_SLICE) // I picture
+            else if (slice_type == I_slice) // I picture
                 strcpy(cslice_type," I ");
-            else if (slice_type == P_SLICE) // P pictures
+            else if (slice_type == P_slice) // P pictures
                 strcpy(cslice_type," P ");
-            else if (slice_type == SP_SLICE) // SP pictures
+            else if (slice_type == SP_slice) // SP pictures
                 strcpy(cslice_type,"SP ");
-            else if (slice_type == SI_SLICE)
+            else if (slice_type == SI_slice)
                 strcpy(cslice_type,"SI ");
             else if (refpic) // stored B pictures
                 strcpy(cslice_type," B ");
@@ -359,15 +357,15 @@ static void status_picture(VideoParameters *p_Vid, storable_picture **dec_pictur
             if (structure == FRAME)
                 strncat(cslice_type,")       ",8-strlen(cslice_type));
         } else if (structure == BOTTOM_FIELD) {
-            if (slice_type == I_SLICE && is_idr) // IDR picture
+            if (slice_type == I_slice && is_idr) // IDR picture
                 strncat(cslice_type,"|IDR)",8-strlen(cslice_type));
-            else if (slice_type == I_SLICE) // I picture
+            else if (slice_type == I_slice) // I picture
                 strncat(cslice_type,"| I )",8-strlen(cslice_type));
-            else if (slice_type == P_SLICE) // P pictures
+            else if (slice_type == P_slice) // P pictures
                 strncat(cslice_type,"| P )",8-strlen(cslice_type));
-            else if (slice_type == SP_SLICE) // SP pictures
+            else if (slice_type == SP_slice) // SP pictures
                 strncat(cslice_type,"|SP )",8-strlen(cslice_type));
-            else if (slice_type == SI_SLICE)
+            else if (slice_type == SI_slice)
                 strncat(cslice_type,"|SI )",8-strlen(cslice_type));
             else if (refpic) // stored B pictures
                 strncat(cslice_type,"| B )",8-strlen(cslice_type));
@@ -396,7 +394,7 @@ static void status_picture(VideoParameters *p_Vid, storable_picture **dec_pictur
 
         fflush(stdout);
 
-        if (slice_type == I_SLICE || slice_type == SI_SLICE || slice_type == P_SLICE || refpic) { // I or P pictures
+        if (slice_type == I_slice || slice_type == SI_slice || slice_type == P_slice || refpic) { // I or P pictures
 #if (MVC_EXTENSION_ENABLE)
             if((p_Vid->ppSliceList[0])->view_id!=0)
 #endif

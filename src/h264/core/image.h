@@ -4,6 +4,7 @@
 
 #include "dpb.h"
 
+struct DecoderParams;
 struct slice_t;
 
 void init_picture(VideoParameters *p_Vid, struct slice_t *currSlice, InputParameters *p_Inp);

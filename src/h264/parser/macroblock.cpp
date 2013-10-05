@@ -24,6 +24,8 @@ void macroblock_t::init(slice_t& slice)
     // Save the slice number of this macroblock. When the macroblock below
     // is coded it will use this to decide if prediction for above is possible
     mb.slice_nr = (short) slice.current_slice_nr;
+    mb.ei_flag  = 1;
+    mb.dpl_flag = 0;
 
     /* Update coordinates of the current macroblock */
     if (slice.MbaffFrameFlag) {
@@ -84,7 +86,6 @@ void macroblock_t::init(slice_t& slice)
 
 bool macroblock_t::close(slice_t& slice)
 {
-    sps_t& sps = *slice.active_sps;
     pps_t& pps = *slice.active_pps;
 
     bool eos_bit = (!slice.MbaffFrameFlag || this->mbAddrX % 2);
@@ -95,8 +96,7 @@ bool macroblock_t::close(slice_t& slice)
     //! In an error prone environment, one can only be sure to have a new
     //! picture by checking the tr of the next slice header!
 
-    int PicSizeInMbs = sps.PicWidthInMbs * (sps.FrameHeightInMbs / (1 + slice.field_pic_flag));
-    if (this->mbAddrX == PicSizeInMbs - 1)
+    if (this->mbAddrX == slice.PicSizeInMbs - 1)
         return true;
 
     slice.parser.current_mb_nr = FmoGetNextMBNr(slice.p_Vid, slice.parser.current_mb_nr);

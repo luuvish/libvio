@@ -71,7 +71,7 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
         storable_picture *vidref = p_Vid->no_reference_picture;
         int noref = (currSlice->framepoc < p_Vid->recovery_poc);
         int total_lists = currSlice->MbaffFrameFlag ? 6 :
-                          currSlice->slice_type == B_SLICE ? 2 : 1;
+                          currSlice->slice_type == B_slice ? 2 : 1;
         for (j = 0; j < total_lists; j++) {
             // note that if we always set this to MAX_LIST_SIZE, we avoid crashes with invalid ref_idx being set
             // since currently this is done at the slice level, it seems safe to do so.
@@ -140,10 +140,10 @@ bool slice_t::init()
     this->neighbour.mb_data = p_Vid->mb_data;
     this->dec_picture = p_Vid->dec_picture;
 
-    if (this->slice_type == B_SLICE)
+    if (this->slice_type == B_slice)
         compute_colocated(this, this->listX);
 
-    if (this->slice_type != I_SLICE && this->slice_type != SI_SLICE)
+    if (this->slice_type != I_slice && this->slice_type != SI_slice)
         init_cur_imgy(this, p_Vid);
 
     return true;

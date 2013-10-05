@@ -48,8 +48,6 @@ public:
     void        parse(slice_t& slice);
     void        parse(mb_t& mb);
 
-    int         get_inter8x8(mb_t& mb, int block8x8);
-
 public:
     uint32_t    current_mb_nr;
 
@@ -169,7 +167,7 @@ protected:
 
         int         get_colocated_info (int i, int j);
         void        get_direct_temporal();
-        void        get_direct_spatial (bool dir=true);
+        void        get_direct_spatial ();
 
         void        update_qp(int qp);
 

@@ -229,7 +229,7 @@ void Decoder::mb_pred_inter(mb_t& mb, ColorPlane curr_plane)
 
     int step_h0 = BLOCK_STEP[mb.mb_type][0];
     int step_v0 = BLOCK_STEP[mb.mb_type][1];
-    if (mb.mb_type == PSKIP) {
+    if (mb.mb_type == P_Skip) {
         step_h0 = slice.slice_type == B_slice ? 2 : 4;
         step_v0 = slice.slice_type == B_slice ? 2 : 4;
     }

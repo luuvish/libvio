@@ -45,10 +45,11 @@ struct DecRefPicMarking_t {
     DecRefPicMarking_t* Next;
 };
 
+struct VideoParameters;
 
 //! slice_t
 struct slice_t {
-    video_par*  p_Vid;
+    VideoParameters* p_Vid;
     pps_t*      active_pps;
     sps_t*      active_sps;
     int         svc_extension_flag;
@@ -195,6 +196,9 @@ struct slice_t {
 
     int           erc_mvperMB;
     storable_picture* dec_picture;
+
+    slice_t(InputParameters* p_Inp, VideoParameters* p_Vid);
+    ~slice_t();
 
     bool        init();
     void        decode();

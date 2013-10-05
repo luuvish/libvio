@@ -1,4 +1,6 @@
 #include "global.h"
+#include "input_parameters.h"
+#include "h264decoder.h"
 #include "dpb.h"
 #include "image.h"
 #include "memalloc.h"
@@ -11,25 +13,15 @@ static void img2buf_normal (imgpel** imgX, unsigned char* buf, int size_x, int s
 static void img2buf_endian (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
 
-/*!
- ************************************************************************
- * \brief
- *      checks if the System is big- or little-endian
- * \return
- *      0, little-endian (e.g. Intel architectures)
- *      1, big-endian (e.g. SPARC, MIPS, PowerPC)
- ************************************************************************
- */
 int testEndian(void)
 {
-  short s;
-  byte *p;
+    short s;
+    byte *p;
 
-  p=(byte*)&s;
+    p = (byte *)&s;
+    s = 1;
 
-  s=1;
-
-  return (*p==0);
+    return (*p == 0);
 }
 
 /*!
@@ -42,46 +34,19 @@ int testEndian(void)
  */
 void init_output(CodingParameters *p_cps, int symbol_size_in_bytes)
 {
-  if (( sizeof(char) == sizeof (imgpel)))
-  {
-    if ( sizeof(char) == symbol_size_in_bytes)
-      p_cps->img2buf = img2buf_byte;
-    else
-      p_cps->img2buf = img2buf_normal;
-  }
-  else
-  {
-    if (testEndian())
-      p_cps->img2buf = img2buf_endian;
-    else
-      p_cps->img2buf = img2buf_normal;
-  }    
+    if (( sizeof(char) == sizeof (imgpel))) {
+        if ( sizeof(char) == symbol_size_in_bytes)
+            p_cps->img2buf = img2buf_byte;
+        else
+            p_cps->img2buf = img2buf_normal;
+    } else {
+        if (testEndian())
+            p_cps->img2buf = img2buf_endian;
+        else
+            p_cps->img2buf = img2buf_normal;
+    }
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Convert image plane to temporary buffer for file writing
- * \param imgX
- *    Pointer to image plane
- * \param buf
- *    Buffer for file output
- * \param size_x
- *    horizontal size
- * \param size_y
- *    vertical size
- * \param symbol_size_in_bytes
- *    number of bytes used per pel
- * \param crop_left
- *    pixels to crop from left
- * \param crop_right
- *    pixels to crop from right
- * \param crop_top
- *    pixels to crop from top
- * \param crop_bottom
- *    pixels to crop from bottom
- ************************************************************************
- */
 static void img2buf_normal (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride)
 {
   int i,j;
@@ -131,30 +96,6 @@ static void img2buf_normal (imgpel** imgX, unsigned char* buf, int size_x, int s
   }
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Convert image plane to temporary buffer for file writing
- * \param imgX
- *    Pointer to image plane
- * \param buf
- *    Buffer for file output
- * \param size_x
- *    horizontal size
- * \param size_y
- *    vertical size
- * \param symbol_size_in_bytes
- *    number of bytes used per pel
- * \param crop_left
- *    pixels to crop from left
- * \param crop_right
- *    pixels to crop from right
- * \param crop_top
- *    pixels to crop from top
- * \param crop_bottom
- *    pixels to crop from bottom
- ************************************************************************
- */
 static void img2buf_byte (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride)
 {
   int twidth  = size_x - crop_left - crop_right;
@@ -168,30 +109,6 @@ static void img2buf_byte (imgpel** imgX, unsigned char* buf, int size_x, int siz
   }
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Convert image plane to temporary buffer for file writing
- * \param imgX
- *    Pointer to image plane
- * \param buf
- *    Buffer for file output
- * \param size_x
- *    horizontal size
- * \param size_y
- *    vertical size
- * \param symbol_size_in_bytes
- *    number of bytes used per pel
- * \param crop_left
- *    pixels to crop from left
- * \param crop_right
- *    pixels to crop from right
- * \param crop_top
- *    pixels to crop from top
- * \param crop_bottom
- *    pixels to crop from bottom
- ************************************************************************
- */
 static void img2buf_endian (imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride)
 {
   int i,j;
@@ -267,28 +184,31 @@ void write_picture(VideoParameters *p_Vid, storable_picture *p, int p_out, int r
 
 static void allocate_p_dec_pic(VideoParameters *p_Vid, DecodedPicList *pDecPic, storable_picture *p, int iLumaSize, int iFrameSize, int iLumaSizeX, int iLumaSizeY, int iChromaSizeX, int iChromaSizeY)
 {
-  sps_t *sps = p_Vid->active_sps;
-  int pic_unit_bitsize_on_disk;
-  if (sps->BitDepthY > sps->BitDepthC || sps->chroma_format_idc == YUV400)
-    pic_unit_bitsize_on_disk = (sps->BitDepthY > 8) ? 16 : 8;
-  else
-    pic_unit_bitsize_on_disk = (sps->BitDepthC > 8) ? 16 : 8;
-  int symbol_size_in_bytes = ((pic_unit_bitsize_on_disk + 7) >> 3);
+    sps_t *sps = p_Vid->active_sps;
+    int pic_unit_bitsize_on_disk;
+    if (sps->BitDepthY > sps->BitDepthC || sps->chroma_format_idc == YUV400)
+        pic_unit_bitsize_on_disk = (sps->BitDepthY > 8) ? 16 : 8;
+    else
+        pic_unit_bitsize_on_disk = (sps->BitDepthC > 8) ? 16 : 8;
+    int symbol_size_in_bytes = ((pic_unit_bitsize_on_disk + 7) >> 3);
   
-  if(pDecPic->pY)
-    mem_free(pDecPic->pY);
-  pDecPic->iBufSize = iFrameSize;
-  pDecPic->pY = (byte *)mem_malloc(pDecPic->iBufSize);
-  pDecPic->pU = pDecPic->pY+iLumaSize;
-  pDecPic->pV = pDecPic->pU + ((iFrameSize-iLumaSize)>>1);
-  //init;
-  pDecPic->iYUVFormat = p->chroma_format_idc;
-  pDecPic->iYUVStorageFormat = 0;
-  pDecPic->iBitDepth = pic_unit_bitsize_on_disk;
-  pDecPic->iWidth = iLumaSizeX;
-  pDecPic->iHeight = iLumaSizeY;
-  pDecPic->iYBufStride = iLumaSizeX*symbol_size_in_bytes;
-  pDecPic->iUVBufStride = iChromaSizeX*symbol_size_in_bytes;
+    if (pDecPic->pY)
+        delete []pDecPic->pY;
+    pDecPic->iBufSize = iFrameSize;
+    pDecPic->pY = new uint8_t[pDecPic->iBufSize];
+    if (!pDecPic->pY)
+        no_mem_exit("malloc failed.\n");
+
+    pDecPic->pU = pDecPic->pY+iLumaSize;
+    pDecPic->pV = pDecPic->pU + ((iFrameSize-iLumaSize)>>1);
+    //init;
+    pDecPic->iYUVFormat        = p->chroma_format_idc;
+    pDecPic->iYUVStorageFormat = 0;
+    pDecPic->iBitDepth         = pic_unit_bitsize_on_disk;
+    pDecPic->iWidth            = iLumaSizeX;
+    pDecPic->iHeight           = iLumaSizeY;
+    pDecPic->iYBufStride       = iLumaSizeX*symbol_size_in_bytes;
+    pDecPic->iUVBufStride      = iChromaSizeX*symbol_size_in_bytes;
 }
 
 

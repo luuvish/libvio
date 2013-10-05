@@ -413,7 +413,7 @@ void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
 
         p_Vid->erc_img = p_Vid;
 
-        if ((*dec_picture)->slice_type == I_SLICE || (*dec_picture)->slice_type == SI_SLICE) // I-frame
+        if ((*dec_picture)->slice_type == I_slice || (*dec_picture)->slice_type == SI_slice) // I-frame
             ercConcealIntraFrame(p_Vid, &recfr, (*dec_picture)->size_x, (*dec_picture)->size_y, p_Vid->erc_errorVar);
         else
             ercConcealInterFrame(&recfr, p_Vid->erc_object_list, (*dec_picture)->size_x, (*dec_picture)->size_y, p_Vid->erc_errorVar, (*dec_picture)->chroma_format_idc);
@@ -437,7 +437,7 @@ void ercWriteMBMODEandMV(mb_t *currMB)
 
   currRegion = p_Vid->erc_object_list + (currMBNum<<2);
 
-  if(p_Vid->type != B_SLICE) //non-B frame
+  if(p_Vid->type != B_slice) //non-B frame
   {
     for (i=0; i<4; ++i)
     {

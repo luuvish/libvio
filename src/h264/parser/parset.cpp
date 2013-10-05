@@ -1,4 +1,6 @@
+
 #include "global.h"
+#include "input_parameters.h"
 #include "slice.h"
 #include "data_partition.h"
 #include "bitstream_cabac.h"

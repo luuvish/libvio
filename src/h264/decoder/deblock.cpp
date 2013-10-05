@@ -117,7 +117,7 @@ void Deblock::strength_vertical(mb_t* MbQ, int edge)
         return;
     }
 
-    if (edge > 0 && slice->slice_type == P_slice && MbQ->mb_type == PSKIP) {
+    if (edge > 0 && slice->slice_type == P_slice && MbQ->mb_type == P_Skip) {
         memset(Strength, 0, MB_BLOCK_SIZE * sizeof(uint8_t));
         return;
     }
@@ -136,7 +136,7 @@ void Deblock::strength_vertical(mb_t* MbQ, int edge)
             StrValue = 2;
         else if (mixedModeEdgeFlag)
             StrValue = 1;
-        else if (edge > 0 && (MbQ->mb_type == P16x16 || MbQ->mb_type == P16x8))
+        else if (edge > 0 && (MbQ->mb_type == P_16x16 || MbQ->mb_type == P_16x8))
             StrValue = 0;
         else {
             auto mv_info_p = &mv_info[nbQ.y / 4 + y / 4][nbQ.x / 4];
@@ -198,7 +198,7 @@ void Deblock::strength_horizontal(mb_t* MbQ, int edge)
         return;
     }
 
-    if (edge > 0 && edge < BLOCK_SIZE && slice->slice_type == P_slice && MbQ->mb_type == PSKIP) {
+    if (edge > 0 && edge < BLOCK_SIZE && slice->slice_type == P_slice && MbQ->mb_type == P_Skip) {
         memset(Strength, 0, MB_BLOCK_SIZE * sizeof(uint8_t));
         return;
     }
@@ -212,7 +212,7 @@ void Deblock::strength_horizontal(mb_t* MbQ, int edge)
             StrValue = 2;
         else if (mixedModeEdgeFlag)
             StrValue = 1;
-        else if (edge > 0 && edge < BLOCK_SIZE && (MbQ->mb_type == P16x16 || MbQ->mb_type == P8x16))
+        else if (edge > 0 && edge < BLOCK_SIZE && (MbQ->mb_type == P_16x16 || MbQ->mb_type == P_8x16))
             StrValue = 0;
         else {
             auto mv_info_p = &mv_info[nbQ.y / 4][nbQ.x / 4 + x / 4];

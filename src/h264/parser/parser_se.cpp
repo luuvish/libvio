@@ -335,7 +335,7 @@ uint8_t Parser::SyntaxElement::intra_chroma_pred_mode()
 uint8_t Parser::SyntaxElement::ref_idx_l(uint8_t list, uint8_t x0, uint8_t y0)
 {
     bool refidx_present =
-        slice.slice_type == B_slice || !mb.allrefzero || mb.mb_type != P8x8;
+        slice.slice_type == B_slice || !mb.allrefzero || mb.mb_type != P_8x8;
     int num_ref_idx_active = list == LIST_0 ?
         slice.num_ref_idx_l0_active_minus1 + 1 :
         slice.num_ref_idx_l1_active_minus1 + 1;

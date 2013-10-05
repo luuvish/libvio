@@ -661,7 +661,7 @@ void reorder_lists_mvc(slice_t * currSlice, int currPOC)
 {
   VideoParameters *p_Vid = currSlice->p_Vid;
 
-  if ((currSlice->slice_type != I_SLICE)&&(currSlice->slice_type != SI_SLICE))
+  if ((currSlice->slice_type != I_slice)&&(currSlice->slice_type != SI_slice))
   {
     if (currSlice->ref_pic_list_modification_flag_l0)
     {
@@ -680,7 +680,7 @@ void reorder_lists_mvc(slice_t * currSlice, int currPOC)
     // that's a definition
     currSlice->listXsize[0] = (char)currSlice->num_ref_idx_l0_active_minus1 + 1;
   }
-  if (currSlice->slice_type == B_SLICE)
+  if (currSlice->slice_type == B_slice)
   {
     if (currSlice->ref_pic_list_modification_flag_l1)
     {

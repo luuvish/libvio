@@ -650,7 +650,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
 
       for(ii=0;ii<BLOCK_SIZE;ii++)
         for(jj=0;jj<MB_BLOCK_SIZE/BLOCK_SIZE;jj++)
-          currSlice->mb_pred[LumaComp][jj+joff][ii+ioff]=tmp_block[jj][ii];
+          currSlice->mb_pred[PLANE_Y][jj+joff][ii+ioff]=tmp_block[jj][ii];
     }
   }
 
@@ -659,7 +659,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   {
     for (i = 0; i < 16; i++)
     {
-      pMB[j*16+i] = currSlice->mb_pred[LumaComp][j][i];
+      pMB[j*16+i] = currSlice->mb_pred[PLANE_Y][j][i];
     }
   }
   pMB += 256;
@@ -948,14 +948,14 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
 
   for(jj=0;jj<MB_BLOCK_SIZE/BLOCK_SIZE;jj++)
     for(ii=0;ii<BLOCK_SIZE;ii++)
-      currSlice->mb_pred[LumaComp][jj][ii]=tmp_block[jj][ii];
+      currSlice->mb_pred[PLANE_Y][jj][ii]=tmp_block[jj][ii];
 
 
   for (j = 0; j < 4; j++)
   {
     for (i = 0; i < 4; i++)
     {
-      pMB[j*4+i] = currSlice->mb_pred[LumaComp][j][i];
+      pMB[j*4+i] = currSlice->mb_pred[PLANE_Y][j][i];
     }
   }
   pMB += 16;
@@ -1058,7 +1058,7 @@ static storable_picture* get_last_ref_pic_from_dpb(dpb_t *p_Dpb)
     {
       if (((p_Dpb->fs[i]->frame->used_for_reference) &&
         (!p_Dpb->fs[i]->frame->is_long_term)) /*||  ((p_Dpb->fs[i]->frame->used_for_reference==0)
-                                           && (p_Dpb->fs[i]->frame->slice_type == P_SLICE))*/ )
+                                           && (p_Dpb->fs[i]->frame->slice_type == P_slice))*/ )
       {
         return p_Dpb->fs[i]->frame;
       }
@@ -1148,9 +1148,9 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
     dst->PicSizeInMbs = src->PicSizeInMbs;
     mb_width = dst->PicWidthInMbs;
     mb_height = (dst->PicSizeInMbs)/(dst->PicWidthInMbs);
-    scale = (p_Vid->conceal_slice_type == B_SLICE) ? 2 : 1;
+    scale = (p_Vid->conceal_slice_type == B_slice) ? 2 : 1;
 
-    if(p_Vid->conceal_slice_type == B_SLICE)
+    if(p_Vid->conceal_slice_type == B_slice)
     {
       init_lists_for_non_reference_loss(
         p_Vid->p_Dpb_layer[0],
@@ -1238,7 +1238,7 @@ copy_prev_pic_to_concealed_pic(storable_picture *picture, dpb_t *p_Dpb)
   assert(ref_pic != NULL);
 
   /* copy all the struc from this to current concealment pic */
-  p_Vid->conceal_slice_type = P_SLICE;
+  p_Vid->conceal_slice_type = P_slice;
   copy_to_conceal(ref_pic, picture, p_Vid);
 }
 
@@ -1310,7 +1310,7 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
     //if (UnusedShortTermFrameNum == 0)
     if(p_Vid->IDR_concealment_flag == 1)
     {
-      picture->slice_type = I_SLICE;
+      picture->slice_type = I_slice;
       picture->idr_flag = 1;
       flush_dpb(p_Dpb);
       picture->top_poc= 0;
@@ -1402,7 +1402,7 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
     }
   }
 
-  if (currSliceType == P_SLICE)
+  if (currSliceType == P_slice)
   {
     // Calculate FrameNumWrap and PicNum
     if (!field_pic_flag)
@@ -1420,7 +1420,7 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
     }
   }
 
-  if (currSliceType == B_SLICE)
+  if (currSliceType == B_slice)
   {
     if (!field_pic_flag)
     {
@@ -1706,7 +1706,7 @@ void conceal_non_ref_pics(dpb_t *p_Dpb, int diff)
         p_Vid->frame_to_conceal = conceal_from_picture->frame_num + 1;
 
         update_ref_list_for_concealment(p_Dpb);
-        p_Vid->conceal_slice_type = B_SLICE;
+        p_Vid->conceal_slice_type = B_slice;
         copy_to_conceal(conceal_from_picture, conceal_to_picture, p_Vid);
         concealment_ptr = init_node( conceal_to_picture, missingpoc );
         add_node(p_Vid, concealment_ptr);
