@@ -7,7 +7,6 @@
 #define MAX_SEI_BIT_DEPTH    12
 #define MAX_NUM_PIVOTS       (1<<MAX_CODED_BIT_DEPTH)
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
 typedef struct tone_mapping_struct_s {
     bool          seiHasTone_mapping;
     unsigned int  tone_map_repetition_period;
@@ -21,16 +20,13 @@ typedef struct tone_mapping_struct_s {
     data_partition_t *data;
     int        payloadSize;
 } ToneMappingSEI;
-#endif
 
 struct slice_t;
 
 void parse_sei(byte *payload, int size, VideoParameters *p_Vid, struct slice_t *pSlice);
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
 void tone_map               (imgpel **imgX, imgpel *lut, int size_x, int size_y);
 void init_tone_mapping_sei  (ToneMappingSEI *seiToneMapping);
 void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping);
-#endif
 
 #endif /* _SEI_H_ */

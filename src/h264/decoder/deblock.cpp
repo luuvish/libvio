@@ -108,21 +108,21 @@ void Deblock::strength_vertical(mb_t* MbQ, int edge)
 
     if (edge == 0 && cond_bS4 && special) {
         StrValue = 4;
-        memset(Strength, StrValue, MB_BLOCK_SIZE * sizeof(uint8_t));
+        memset(Strength, StrValue, 16 * sizeof(uint8_t));
         return;
     }
     if (cond_bS3 && special) {
         StrValue = 3;
-        memset(Strength, StrValue, MB_BLOCK_SIZE * sizeof(uint8_t));
+        memset(Strength, StrValue, 16 * sizeof(uint8_t));
         return;
     }
 
     if (edge > 0 && slice->slice_type == P_slice && MbQ->mb_type == P_Skip) {
-        memset(Strength, 0, MB_BLOCK_SIZE * sizeof(uint8_t));
+        memset(Strength, 0, 16 * sizeof(uint8_t));
         return;
     }
 
-    for (int y = 0; y < MB_BLOCK_SIZE; ++y) {
+    for (int y = 0; y < 16; ++y) {
         bool intra = MbP->is_intra_block || MbQ->is_intra_block;
         int  blkP  = (nbP.y & 12) + (nbP.x & 15) / 4;
         int  blkQ  = (y & 12) + edge;
@@ -189,30 +189,30 @@ void Deblock::strength_horizontal(mb_t* MbQ, int edge)
 
     if (edge == 0 && cond_bS4 && (special || intra)) {
         StrValue = 4;
-        memset(Strength, StrValue, MB_BLOCK_SIZE * sizeof(uint8_t));
+        memset(Strength, StrValue, 16 * sizeof(uint8_t));
         return;
     }
     if (cond_bS3 && (special || intra)) {
         StrValue = 3;
-        memset(Strength, StrValue, MB_BLOCK_SIZE * sizeof(uint8_t));
+        memset(Strength, StrValue, 16 * sizeof(uint8_t));
         return;
     }
 
-    if (edge > 0 && edge < BLOCK_SIZE && slice->slice_type == P_slice && MbQ->mb_type == P_Skip) {
-        memset(Strength, 0, MB_BLOCK_SIZE * sizeof(uint8_t));
+    if (edge > 0 && edge < 4 && slice->slice_type == P_slice && MbQ->mb_type == P_Skip) {
+        memset(Strength, 0, 16 * sizeof(uint8_t));
         return;
     }
 
     int blkP = (nbP.y & 12);
     int blkQ = (nbQ.y & 12);
 
-    for (int x = 0; x < MB_BLOCK_SIZE; x += BLOCK_SIZE) {
+    for (int x = 0; x < 16; x += 4) {
         if ((MbQ->cbp_blks[0] & ((uint64_t)1 << (blkQ + x / 4))) != 0 ||
             (MbP->cbp_blks[0] & ((uint64_t)1 << (blkP + x / 4))) != 0)
             StrValue = 2;
         else if (mixedModeEdgeFlag)
             StrValue = 1;
-        else if (edge > 0 && edge < BLOCK_SIZE && (MbQ->mb_type == P_16x16 || MbQ->mb_type == P_8x16))
+        else if (edge > 0 && edge < 4 && (MbQ->mb_type == P_16x16 || MbQ->mb_type == P_8x16))
             StrValue = 0;
         else {
             auto mv_info_p = &mv_info[nbQ.y / 4][nbQ.x / 4 + x / 4];
@@ -221,7 +221,7 @@ void Deblock::strength_horizontal(mb_t* MbQ, int edge)
             StrValue = this->bs_compare_mvs(mv_info_p, mv_info_q, mvlimit);
         }
 
-        memset(Strength + x, StrValue, BLOCK_SIZE * sizeof(uint8_t));
+        memset(Strength + x, StrValue, 4 * sizeof(uint8_t));
     }
 }
 
@@ -552,8 +552,8 @@ void Deblock::make_frame_picture_JV(VideoParameters *p_Vid)
     p_Vid->dec_picture = p_Vid->dec_picture_JV[0];
 
     if (p_Vid->dec_picture->used_for_reference) {
-        int nsize = (p_Vid->dec_picture->size_y / BLOCK_SIZE) *
-                    (p_Vid->dec_picture->size_x / BLOCK_SIZE) * sizeof(pic_motion_params);
+        int nsize = (p_Vid->dec_picture->size_y / 4) *
+                    (p_Vid->dec_picture->size_x / 4) * sizeof(pic_motion_params);
         memcpy(&p_Vid->dec_picture->JVmv_info[PLANE_Y][0][0], &p_Vid->dec_picture_JV[PLANE_Y]->mv_info[0][0], nsize);
         memcpy(&p_Vid->dec_picture->JVmv_info[PLANE_U][0][0], &p_Vid->dec_picture_JV[PLANE_U]->mv_info[0][0], nsize);
         memcpy(&p_Vid->dec_picture->JVmv_info[PLANE_V][0][0], &p_Vid->dec_picture_JV[PLANE_V]->mv_info[0][0], nsize);
@@ -599,7 +599,7 @@ static void MbAffPostProc(VideoParameters *p_Vid)
     for (int mbAddr = 0; mbAddr < dec_picture->PicSizeInMbs; mbAddr += 2) {
         if (dec_picture->motion.mb_field_decoding_flag[mbAddr]) {
             loc_t loc = slice->neighbour.get_location(slice, false, mbAddr);
-            update_mbaff_macroblock_data(imgY + loc.y, temp_buffer, loc.x, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+            update_mbaff_macroblock_data(imgY + loc.y, temp_buffer, loc.x, 16, 16);
 
             if (dec_picture->chroma_format_idc != YUV400) {
                 loc.x = (short) ((loc.x * sps->MbWidthC ) >> 4);
@@ -632,7 +632,7 @@ void Deblock::deblock(VideoParameters *p_Vid)
         //deblocking for frame or field
         if (p_Vid->active_sps->separate_colour_plane_flag) {
             int colour_plane_id = p_Vid->ppSliceList[0]->colour_plane_id;
-            for (int nplane = 0; nplane < MAX_PLANE; ++nplane) {
+            for (int nplane = 0; nplane < 3; ++nplane) {
                 p_Vid->ppSliceList[0]->colour_plane_id = nplane;
                 p_Vid->mb_data     = p_Vid->mb_data_JV    [nplane];
                 p_Vid->dec_picture = p_Vid->dec_picture_JV[nplane];

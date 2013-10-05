@@ -1419,7 +1419,6 @@ void interpret_tone_mapping( byte* payload, int size, VideoParameters *p_Vid )
       }
     }
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
     // Currently, only when the map_id == 0, the tone-mapping is actually applied.
     if (seiToneMappingTmp.tone_map_id== 0) 
     {
@@ -1480,12 +1479,10 @@ void interpret_tone_mapping( byte* payload, int size, VideoParameters *p_Vid )
         break;
       } // end switch
     }
-#endif
   } // end !tone_map_cancel_flag
   free (buf);
 }
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
 // tone map using the look-up-table generated according to SEI tone mapping message
 void tone_map (imgpel** imgX, imgpel* lut, int size_x, int size_y)
 {
@@ -1524,7 +1521,6 @@ void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping)
     }
   }
 }
-#endif
 
 /*!
  ************************************************************************

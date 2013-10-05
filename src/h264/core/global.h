@@ -25,69 +25,55 @@ using vio::h264::bitstream_t;
 using vio::h264::mb_t;
 
 
-typedef enum {
-    CF_UNKNOWN = -1,     //!< Unknown color format
-    YUV400     =  0,     //!< Monochrome
-    YUV420     =  1,     //!< 4:2:0
-    YUV422     =  2,     //!< 4:2:2
-    YUV444     =  3      //!< 4:4:4
-} ColorFormat;
-
-
-typedef struct image_data
-{
-  ColorFormat yuv_format;                    //!< YUV format (0=4:0:0, 1=4:2:0, 2=4:2:2, 3=4:4:4)
-  // Standard data
-  imgpel **frm_data[MAX_PLANE];     //!< Frame Data
-  imgpel **top_data[MAX_PLANE];     //!< pointers to top field data
-  imgpel **bot_data[MAX_PLANE];     //!< pointers to bottom field data
-
-  imgpel **frm_data_buf[2][MAX_PLANE];     //!< Frame Data
-  imgpel **top_data_buf[2][MAX_PLANE];     //!< pointers to top field data
-  imgpel **bot_data_buf[2][MAX_PLANE];     //!< pointers to bottom field data
-  
-  //! Optional data (could also add uint8 data in case imgpel is of type uint16_t)
-  //! These can be useful for enabling input/conversion of content of different types
-  //! while keeping optimal processing size.
-  uint16_t **frm_uint16[MAX_PLANE];   //!< optional frame Data for uint16_t
-  uint16_t **top_uint16[MAX_PLANE];   //!< optional pointers to top field data
-  uint16_t **bot_uint16[MAX_PLANE];   //!< optional pointers to bottom field data
-
-  int frm_stride[MAX_PLANE];
-  int top_stride[MAX_PLANE];
-  int bot_stride[MAX_PLANE];
-} ImageData;
-
-/***********************************************************************
- * T y p e    d e f i n i t i o n s    f o r    T M L
- ***********************************************************************
- */
-
-typedef enum {
-    PLANE_Y = 0,  // PLANE_Y
-    PLANE_U = 1,  // PLANE_Cb
-    PLANE_V = 2,  // PLANE_Cr
-} ColorPlane;
-
 enum {
-    LIST_0 = 0,
-    LIST_1 = 1
+    EOS = 1,    //!< End Of Sequence
+    SOP = 2,    //!< Start Of Picture
+    SOS = 3,     //!< Start Of slice_t
+    SOS_CONT = 4
 };
 
-//! Field Coding Types
-typedef enum {
-    FRAME_CODING         = 0,
-    FIELD_CODING         = 1,
-    ADAPTIVE_CODING      = 2,
-    FRAME_MB_PAIR_CODING = 3
-} CodingType;
+enum ColorFormat {
+    YUV400 = 0,
+    YUV420 = 1,
+    YUV422 = 2,
+    YUV444 = 3
+};
 
+enum ColorPlane {
+    PLANE_Y = 0,
+    PLANE_U = 1,
+    PLANE_V = 2
+};
 
-typedef enum {
+enum PictureStructure {
     FRAME,
     TOP_FIELD,
     BOTTOM_FIELD
-} PictureStructure;           //!< New enum for field processing
+};
+
+
+struct ImageData {
+    ColorFormat yuv_format;                    //!< YUV format (0=4:0:0, 1=4:2:0, 2=4:2:2, 3=4:4:4)
+    // Standard data
+    imgpel** frm_data[3];     //!< Frame Data
+    imgpel** top_data[3];     //!< pointers to top field data
+    imgpel** bot_data[3];     //!< pointers to bottom field data
+
+    imgpel** frm_data_buf[2][3];     //!< Frame Data
+    imgpel** top_data_buf[2][3];     //!< pointers to top field data
+    imgpel** bot_data_buf[2][3];     //!< pointers to bottom field data
+  
+    //! Optional data (could also add uint8 data in case imgpel is of type uint16_t)
+    //! These can be useful for enabling input/conversion of content of different types
+    //! while keeping optimal processing size.
+    uint16_t** frm_uint16[3];   //!< optional frame Data for uint16_t
+    uint16_t** top_uint16[3];   //!< optional pointers to top field data
+    uint16_t** bot_uint16[3];   //!< optional pointers to bottom field data
+
+    int frm_stride[3];
+    int top_stride[3];
+    int bot_stride[3];
+};
 
 
 #define ET_SIZE 300      //!< size of error text buffer
@@ -96,100 +82,15 @@ extern char errortext[ET_SIZE]; //!< buffer for error message for exit with erro
 struct pic_motion_params_old;
 struct pic_motion_params;
 
+struct slice_backup_t;
 struct slice_t;
 struct macroblock_t;
-
-struct motion_vector_t {
-    int16_t mv_x;
-    int16_t mv_y;
-};
-
-using mv_t = motion_vector_t;
-
-inline bool operator == (const mv_t& l, const mv_t& r)
-{
-    return (l.mv_x == r.mv_x) && (l.mv_y == r.mv_y);
-}
-
-inline mv_t operator + (const mv_t& l, const mv_t& r)
-{
-    return {(int16_t)(l.mv_x + r.mv_x), (int16_t)(l.mv_y + r.mv_y)};
-}
-
-inline mv_t operator + (const mv_t& l, int r)
-{
-    return {(int16_t)(l.mv_x + r), (int16_t)(l.mv_y + r)};
-}
-
-inline mv_t operator - (const mv_t& l, const mv_t& r)
-{
-    return {(int16_t)(l.mv_x - r.mv_x), (int16_t)(l.mv_y - r.mv_y)};
-}
-
-inline mv_t operator - (const mv_t& l, int r)
-{
-    return {(int16_t)(l.mv_x - r), (int16_t)(l.mv_y - r)};
-}
-
-inline mv_t operator * (const mv_t& l, int r)
-{
-    return {(int16_t)(l.mv_x * r), (int16_t)(l.mv_y * r)};
-}
-
-inline mv_t operator * (int l, const mv_t& r)
-{
-    return {(int16_t)(l * r.mv_x), (int16_t)(l * r.mv_y)};
-}
-
-inline mv_t operator >> (const mv_t& l, int r)
-{
-    return {(int16_t)(l.mv_x >> r), (int16_t)(l.mv_y >> r)};
-}
-
-
-
-struct CodingParameters {
-    int layer_id;
-
-    //padding info;
-    void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
-
-    mb_t* mb_data;
-    mb_t* mb_data_JV[MAX_PLANE];
-};
 
 struct decoded_picture_buffer_t;
 
 struct InputParameters;
 struct VideoParameters;
 struct DecodedPicList;
-
-struct LayerParameters {
-    int               layer_id;
-    VideoParameters*  p_Vid;
-    CodingParameters* p_Cps;
-    sps_t*            p_SPS;
-    decoded_picture_buffer_t* p_Dpb;
-};
-
-struct OldSliceParams {
-    unsigned    field_pic_flag;   
-    unsigned    frame_num;
-    int         nal_ref_idc;
-    unsigned    pic_oder_cnt_lsb;
-    int         delta_pic_oder_cnt_bottom;
-    int         delta_pic_order_cnt[2];
-    bool        bottom_field_flag;
-    bool        idr_flag;
-    int         idr_pic_id;
-    int         pps_id;
-#if (MVC_EXTENSION_ENABLE)
-    int         view_id;
-    int         inter_view_flag;
-    int         anchor_pic_flag;
-#endif
-    int         layer_id;
-};
 
 struct SNRParameters;
 
@@ -200,6 +101,26 @@ struct concealment_node;
 struct object_buffer;
 struct ercVariables_s;
 struct storable_picture;
+
+struct CodingParameters {
+    int layer_id;
+
+    //padding info;
+    void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
+
+    mb_t* mb_data;
+    mb_t* mb_data_JV[3];
+};
+
+struct LayerParameters {
+    int               layer_id;
+    VideoParameters*  p_Vid;
+    CodingParameters* p_Cps;
+    sps_t*            p_SPS;
+    decoded_picture_buffer_t* p_Dpb;
+};
+
+#define MAX_NUM_DPB_LAYERS 2
 
 // video parameters
 struct VideoParameters {
@@ -215,7 +136,7 @@ struct VideoParameters {
 
 
 
-    OldSliceParams* old_slice;
+    slice_backup_t* old_slice;
     SNRParameters*  snr;
 
     decoded_picture_buffer_t* p_Dpb_layer[MAX_NUM_DPB_LAYERS];
@@ -224,9 +145,7 @@ struct VideoParameters {
 
     bool        global_init_done[2];
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
     tone_mapping_struct_s *seiToneMapping;
-#endif
 
     int         iNumOfSlicesAllocated;
     int         iSliceNumOfCurrPic;
@@ -272,12 +191,13 @@ struct VideoParameters {
     //current picture property;
     unsigned    num_dec_mb;
 
+    int         profile_idc;
     int         type;                                   //!< image type INTER/INTRA
     int         structure;                     //!< Identify picture structure type
 
     // global picture format dependent buffers, memory allocation in decod.c
     mb_t*       mb_data;               //!< array containing all MBs of a whole frame
-    mb_t*       mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
+    mb_t*       mb_data_JV[3]; //!< mb_data to be used for 4:4:4 independent mode
 
 
     // picture error concealment
@@ -319,7 +239,7 @@ struct VideoParameters {
     int         pocs_in_dpb[100];
 
     storable_picture* dec_picture;
-    storable_picture* dec_picture_JV[MAX_PLANE];  //!< dec_picture to be used during 4:4:4 independent mode decoding
+    storable_picture* dec_picture_JV[3];  //!< dec_picture to be used during 4:4:4 independent mode decoding
     storable_picture* no_reference_picture; //!< dummy storable picture for recovery point
 
     // Error parameters
@@ -338,28 +258,20 @@ struct VideoParameters {
     int         last_dec_layer_id;
     int         dpb_layer_id;
 
-    int         profile_idc;
-
     VideoParameters();
     ~VideoParameters();
+
+    void OpenOutputFiles(int view0_id, int view1_id);
 
     void calculate_frame_no(storable_picture *p);
     void status(storable_picture** dec_picture);
     void report();
 };
 
-
-// prototypes
 extern void error(const char *text, int code);
 
 // dynamic mem allocation
 extern void free_layer_buffers( VideoParameters *p_Vid, int layer_id );
-extern void OpenOutputFiles(VideoParameters *p_Vid, int view0_id, int view1_id);
-
-static inline int is_FREXT_profile(unsigned int profile_idc) 
-{
-    return ( profile_idc >= FREXT_HP || profile_idc == FREXT_CAVLC444 );
-}
 
 
 #endif

@@ -11,6 +11,9 @@
 #include "parser.h"
 #include "decoder.h"
 
+#define MAX_NUM_DECSLICES      16
+
+#define MAX_REFERENCE_PICTURES 32               //!< H.264 allows 32 fields
 
 #define MAX_NUM_REF_IDX 32
 
@@ -47,7 +50,30 @@ struct DecRefPicMarking_t {
 
 struct VideoParameters;
 
-//! slice_t
+struct slice_backup_t {
+    bool        idr_flag;
+    int         nal_ref_idc;
+
+    uint8_t     pic_parameter_set_id;
+    uint32_t    frame_num;
+    bool        field_pic_flag;
+    bool        bottom_field_flag;
+    uint16_t    idr_pic_id;
+    uint32_t    pic_order_cnt_lsb;
+    int32_t     delta_pic_order_cnt_bottom;
+    int32_t     delta_pic_order_cnt[2];
+
+#if (MVC_EXTENSION_ENABLE)
+    int         view_id;
+    int         inter_view_flag;
+    int         anchor_pic_flag;
+#endif
+    int         layer_id;
+
+    slice_backup_t& operator =  (const slice_t& slice);
+    bool            operator != (const slice_t& slice);
+};
+
 struct slice_t {
     VideoParameters* p_Vid;
     pps_t*      active_pps;
@@ -59,7 +85,7 @@ struct slice_t {
 
 
     //slice property;
-    int         idr_flag;
+    bool        idr_flag;
     int         nal_ref_idc;
     uint8_t     nal_unit_type;
 

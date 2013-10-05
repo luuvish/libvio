@@ -67,8 +67,6 @@ struct annex_b_t {
 annex_b_t::annex_b_t(uint32_t max_size)
 {
     this->Buf = new uint8_t[max_size];
-    if (!this->Buf)
-        error("malloc_annex_b: Buf", 101);
 }
 
 annex_b_t::~annex_b_t()
@@ -88,8 +86,6 @@ void annex_b_t::open(const char* fn)
 
     this->iIOBufferSize = annex_b_t::IOBUFFERSIZE * sizeof(uint8_t);
     this->iobuffer = new uint8_t[this->iIOBufferSize];
-    if (!this->iobuffer)
-        error("open_annex_b: cannot allocate IO buffer", 500);
     this->is_eof = false;
     this->getChunk();
 }
@@ -277,10 +273,6 @@ void bitstream_t::open(const char* name, type format, uint32_t max_size)
     case type::ANNEX_B:
     default:
         this->annex_b = new annex_b_t(max_size);
-        if (!this->annex_b) {
-            snprintf(errortext, ET_SIZE, "Memory allocation for Annex_B file failed");
-            error(errortext,100);
-        }
         this->annex_b->open(name);
         break;
     }

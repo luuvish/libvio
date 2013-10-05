@@ -4,10 +4,74 @@
 #include "global.h"
 #include "bitstream_cabac.h"
 
+#define MAX_NUM_SLICES 50
+
 #define MAX_LIST_SIZE 33
 
+//! Field Coding Types
+enum {
+    FRAME_CODING         = 0,
+    FIELD_CODING         = 1,
+    ADAPTIVE_CODING      = 2,
+    FRAME_MB_PAIR_CODING = 3
+};
+
+enum {
+    LIST_0 = 0,
+    LIST_1 = 1
+};
+
+
+struct motion_vector_t {
+    int16_t mv_x;
+    int16_t mv_y;
+};
+
+using mv_t = motion_vector_t;
+
+inline bool operator == (const mv_t& l, const mv_t& r)
+{
+    return (l.mv_x == r.mv_x) && (l.mv_y == r.mv_y);
+}
+
+inline mv_t operator + (const mv_t& l, const mv_t& r)
+{
+    return {(int16_t)(l.mv_x + r.mv_x), (int16_t)(l.mv_y + r.mv_y)};
+}
+
+inline mv_t operator + (const mv_t& l, int r)
+{
+    return {(int16_t)(l.mv_x + r), (int16_t)(l.mv_y + r)};
+}
+
+inline mv_t operator - (const mv_t& l, const mv_t& r)
+{
+    return {(int16_t)(l.mv_x - r.mv_x), (int16_t)(l.mv_y - r.mv_y)};
+}
+
+inline mv_t operator - (const mv_t& l, int r)
+{
+    return {(int16_t)(l.mv_x - r), (int16_t)(l.mv_y - r)};
+}
+
+inline mv_t operator * (const mv_t& l, int r)
+{
+    return {(int16_t)(l.mv_x * r), (int16_t)(l.mv_y * r)};
+}
+
+inline mv_t operator * (int l, const mv_t& r)
+{
+    return {(int16_t)(l * r.mv_x), (int16_t)(l * r.mv_y)};
+}
+
+inline mv_t operator >> (const mv_t& l, int r)
+{
+    return {(int16_t)(l.mv_x >> r), (int16_t)(l.mv_y >> r)};
+}
+
+
 struct pic_motion_params_old {
-    uint8_t*    mb_field_decoding_flag;
+    bool*       mb_field_decoding_flag;
 };
 
 struct pic_motion_params {
@@ -54,10 +118,10 @@ struct storable_picture {
     imgpel***   imgUV;        //!< U and V picture components
 
     pic_motion_params** mv_info;          //!< Motion info
-    pic_motion_params** JVmv_info[MAX_PLANE];          //!< Motion info
+    pic_motion_params** JVmv_info[3];          //!< Motion info
 
     pic_motion_params_old motion;              //!< Motion info  
-    pic_motion_params_old JVmotion[MAX_PLANE]; //!< Motion info for 4:4:4 independent mode decoding
+    pic_motion_params_old JVmotion[3]; //!< Motion info for 4:4:4 independent mode decoding
 
     storable_picture* top_field;     // for mb aff, if frame for referencing the top field
     storable_picture* bottom_field;  // for mb aff, if frame for referencing the bottom field
@@ -135,6 +199,9 @@ struct frame_store {
     int         anchor_pic_flag[2];
 #endif
     int         layer_id;
+
+    frame_store() =default;
+    ~frame_store();
 };
 
 struct decoded_picture_buffer_t {
@@ -168,8 +235,6 @@ using dpb_t = decoded_picture_buffer_t;
 extern void              init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type);
 extern void              re_init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type);
 extern void              free_dpb(dpb_t *p_Dpb);
-extern frame_store*       alloc_frame_store(void);
-extern void              free_frame_store (frame_store* f);
 extern storable_picture*  alloc_storable_picture(VideoParameters *p_Vid, PictureStructure type, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output);
 extern void              free_storable_picture (storable_picture* p);
 

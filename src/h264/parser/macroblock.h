@@ -115,7 +115,7 @@ struct macroblock_t {
     int8_t      QpY;
     int8_t      QpC[2];
     int8_t      QsC[2];
-    uint8_t     qp_scaled[MAX_PLANE];
+    uint8_t     qp_scaled[3];
     bool        TransformBypassModeFlag;
 
     uint8_t     nz_coeff[3][4][4]; // cavlc

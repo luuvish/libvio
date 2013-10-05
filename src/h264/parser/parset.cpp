@@ -17,6 +17,11 @@
 #define BASE_VIEW_IDX             0
 
 
+static inline int is_FREXT_profile(unsigned int profile_idc) 
+{
+    return ( profile_idc >= FREXT_HP || profile_idc == FREXT_CAVLC444 );
+}
+
 
 // E.1.1 VUI parameter syntax
 void vui_parameters(data_partition_t *s, vui_t *vui)
@@ -1081,13 +1086,7 @@ void MakeSPSavailable (VideoParameters *p_Vid, int id, sps_t *sps)
 void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
 {  
     data_partition_t *dp = new data_partition_t[1];
-    if (!dp) {
-        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
-        error(errortext, 100);
-    }
     sps_t *sps = new sps_t;
-    if (!sps)
-        no_mem_exit ("AllocSPS: SPS");
 
     dp->init(nalu);
     seq_parameter_set_rbsp(dp, sps);
@@ -1123,10 +1122,6 @@ void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
 void ProcessSubsetSPS(VideoParameters *p_Vid, nalu_t *nalu)
 {
     data_partition_t *dp = new data_partition_t[1];
-    if (!dp) {
-        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
-        error(errortext, 100);
-    }
     sub_sps_t *subset_sps;
     int curr_seq_set_id;
 
@@ -1142,7 +1137,7 @@ void ProcessSubsetSPS(VideoParameters *p_Vid, nalu_t *nalu)
         subset_sps->sps.Valid = 0;
         p_Vid->p_Inp->DecodeAllLayers = 0;
     } else if (subset_sps->num_views_minus1==1 && (subset_sps->view_id[0]!=0 || subset_sps->view_id[1]!=1))
-        OpenOutputFiles(p_Vid, subset_sps->view_id[0], subset_sps->view_id[1]);
+        p_Vid->OpenOutputFiles(subset_sps->view_id[0], subset_sps->view_id[1]);
 
     if (subset_sps->Valid) {
         // SubsetSPSConsistencyCheck (subset_sps);
@@ -1156,10 +1151,6 @@ void ProcessSubsetSPS(VideoParameters *p_Vid, nalu_t *nalu)
 void ProcessPPS(VideoParameters *p_Vid, nalu_t *nalu)
 {
     data_partition_t *dp = new data_partition_t[1];
-    if (!dp) {
-        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for Data Partition failed");
-        error(errortext, 100);
-    }
     pps_t *pps = new pps_t;
 
     dp->init(nalu);

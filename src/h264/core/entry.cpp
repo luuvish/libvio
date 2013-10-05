@@ -23,56 +23,6 @@ using vio::h264::mb_t;
 using namespace vio::h264;
 
 
-/*!
- ************************************************************************
- * \brief
- *    detect if current slice is "first VCL NAL unit of a picture"
- ************************************************************************
- */
-static int is_new_picture(storable_picture *dec_picture, slice_t *currSlice, OldSliceParams *p_old_slice)
-{
-    VideoParameters *p_Vid = currSlice->p_Vid;
-
-    int result = 0;
-
-    result |= (NULL==dec_picture);
-    result |= (p_old_slice->pps_id != currSlice->pic_parameter_set_id);
-    result |= (p_old_slice->frame_num != currSlice->frame_num);
-    result |= (p_old_slice->field_pic_flag != currSlice->field_pic_flag);
-
-    if (currSlice->field_pic_flag && p_old_slice->field_pic_flag)
-        result |= (p_old_slice->bottom_field_flag != currSlice->bottom_field_flag);
-
-    result |= (p_old_slice->nal_ref_idc != currSlice->nal_ref_idc) && ((p_old_slice->nal_ref_idc == 0) || (currSlice->nal_ref_idc == 0));
-    result |= (p_old_slice->idr_flag    != currSlice->idr_flag);
-
-    if (currSlice->idr_flag && p_old_slice->idr_flag)
-        result |= (p_old_slice->idr_pic_id != currSlice->idr_pic_id);
-
-    if (p_Vid->active_sps->pic_order_cnt_type == 0) {
-        result |= (p_old_slice->pic_oder_cnt_lsb          != currSlice->pic_order_cnt_lsb);
-        if (p_Vid->active_pps->bottom_field_pic_order_in_frame_present_flag  ==  1 &&  !currSlice->field_pic_flag )
-            result |= (p_old_slice->delta_pic_oder_cnt_bottom != currSlice->delta_pic_order_cnt_bottom);
-    }
-
-    if (p_Vid->active_sps->pic_order_cnt_type == 1) {
-        if (!p_Vid->active_sps->delta_pic_order_always_zero_flag) {
-            result |= (p_old_slice->delta_pic_order_cnt[0] != currSlice->delta_pic_order_cnt[0]);
-            if (p_Vid->active_pps->bottom_field_pic_order_in_frame_present_flag  ==  1 &&  !currSlice->field_pic_flag )
-                result |= (p_old_slice->delta_pic_order_cnt[1] != currSlice->delta_pic_order_cnt[1]);
-        }
-    }
-
-#if (MVC_EXTENSION_ENABLE)
-    result |= (currSlice->view_id != p_old_slice->view_id);
-    result |= (currSlice->inter_view_flag != p_old_slice->inter_view_flag);
-    result |= (currSlice->anchor_pic_flag != p_old_slice->anchor_pic_flag);
-#endif
-    result |= (currSlice->layer_id != p_old_slice->layer_id);
-    return result;
-}
-
-
 static int parse_idr(slice_t *currSlice)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
@@ -151,7 +101,7 @@ static int parse_idr(slice_t *currSlice)
     if (currSlice->redundant_pic_cnt && p_Vid->Is_primary_correct == 0 && p_Vid->Is_redundant_correct)
         p_Vid->dec_picture->slice_type = p_Vid->type;
 
-    if (is_new_picture(p_Vid->dec_picture, currSlice, p_Vid->old_slice)) {
+    if (!p_Vid->dec_picture || *(p_Vid->old_slice) != *currSlice) {
         if (p_Vid->iSliceNumOfCurrPic==0)
             init_picture(p_Vid, currSlice, p_Inp);
 
@@ -212,7 +162,7 @@ static int parse_dpa(slice_t *currSlice)
 
     currSlice->decoder.assign_quant_params(*currSlice);
 
-    if (is_new_picture(p_Vid->dec_picture, currSlice, p_Vid->old_slice)) {
+    if (!p_Vid->dec_picture || *(p_Vid->old_slice) != *currSlice) {
         if (p_Vid->iSliceNumOfCurrPic==0)
             init_picture(p_Vid, currSlice, p_Inp);
 

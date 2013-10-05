@@ -619,8 +619,8 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
     imgpel tmp_block[16][16];
 
   /* Update coordinates of the current concealed macroblock */
-  currMB->mb.x = (short) (x/MB_BLOCK_SIZE);
-  currMB->mb.y = (short) (y/MB_BLOCK_SIZE);
+  currMB->mb.x = (short) (x/16);
+  currMB->mb.y = (short) (y/16);
 
   mv_mul=4;
 
@@ -632,11 +632,11 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
 
   // luma *******************************************************
 
-  for(j=0;j<MB_BLOCK_SIZE/BLOCK_SIZE;j++)
+  for(j=0;j<16/4;j++)
   {
     joff=j*4;
     j4=currMB->mb.y*4+j;
-    for(i=0;i<MB_BLOCK_SIZE/BLOCK_SIZE;i++)
+    for(i=0;i<16/4;i++)
     {
       ioff=i*4;
       i4=currMB->mb.x*4+i;
@@ -644,13 +644,13 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
       vec1_x = i4*4*mv_mul + mv[0];
       vec1_y = j4*4*mv_mul + mv[1];
 
-      currSlice->decoder.get_block_luma(currSlice->listX[0][ref_frame], vec1_x, vec1_y, BLOCK_SIZE, BLOCK_SIZE,
+      currSlice->decoder.get_block_luma(currSlice->listX[0][ref_frame], vec1_x, vec1_y, 4, 4,
         tmp_block,
         dec_picture->iLumaStride,dec_picture->size_x_m1,
         (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1, PLANE_Y, currMB);
 
-      for(ii=0;ii<BLOCK_SIZE;ii++)
-        for(jj=0;jj<MB_BLOCK_SIZE/BLOCK_SIZE;jj++)
+      for(ii=0;ii<4;ii++)
+        for(jj=0;jj<16/4;jj++)
           currSlice->mb_pred[PLANE_Y][jj+joff][ii+ioff]=tmp_block[jj][ii];
     }
   }
@@ -935,8 +935,8 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
 
   /* Update coordinates of the current concealed macroblock */
 
-  currMB->mb.x = (short) (x/BLOCK_SIZE);
-  currMB->mb.y = (short) (y/BLOCK_SIZE);
+  currMB->mb.x = (short) (x/4);
+  currMB->mb.y = (short) (y/4);
 
   mv_mul=4;
 
@@ -944,11 +944,11 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
 
   vec1_x = x*mv_mul + mv[0];
   vec1_y = y*mv_mul + mv[1];
-  currSlice->decoder.get_block_luma(currSlice->listX[list][ref_frame],  vec1_x, vec1_y, BLOCK_SIZE, BLOCK_SIZE, tmp_block,
+  currSlice->decoder.get_block_luma(currSlice->listX[list][ref_frame],  vec1_x, vec1_y, 4, 4, tmp_block,
     dec_picture->iLumaStride,dec_picture->size_x_m1, (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1, PLANE_Y, currMB);
 
-  for(jj=0;jj<MB_BLOCK_SIZE/BLOCK_SIZE;jj++)
-    for(ii=0;ii<BLOCK_SIZE;ii++)
+  for(jj=0;jj<16/4;jj++)
+    for(ii=0;ii<4;ii++)
       currSlice->mb_pred[PLANE_Y][jj][ii]=tmp_block[jj][ii];
 
 
@@ -1160,14 +1160,14 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
     else
       init_lists(p_Vid->ppSliceList[0]);
 
-    multiplier = BLOCK_SIZE;
+    multiplier = 4;
 
     for(i=0;i<mb_height*4;i++)
     {
-      mm = i * BLOCK_SIZE;
+      mm = i * 4;
       for(j=0;j<mb_width*4;j++)
       {
-        nn = j * BLOCK_SIZE;
+        nn = j * 4;
 
         mv[0] = src->mv_info[i][j].mv[LIST_0].mv_x / scale;
         mv[1] = src->mv_info[i][j].mv[LIST_0].mv_y / scale;

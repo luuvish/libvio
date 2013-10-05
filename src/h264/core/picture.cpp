@@ -57,7 +57,7 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
 
     // allocate memory in structure p_Vid
     if (sps->separate_colour_plane_flag) {
-        for (i = 0; i < MAX_PLANE; i++) {
+        for (i = 0; i < 3; i++) {
             if (((cps->mb_data_JV[i]) = (mb_t *)calloc(FrameSizeInMbs, sizeof(mb_t))) == NULL)
                 no_mem_exit("init_global_buffers: cps->mb_data_JV");
         }

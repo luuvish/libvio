@@ -6,6 +6,86 @@
 #include "memalloc.h"
 
 
+slice_backup_t& slice_backup_t::operator = (const slice_t& slice)
+{
+    sps_t& sps = *slice.active_sps;
+
+    this->pic_parameter_set_id = slice.pic_parameter_set_id;
+    this->frame_num            = slice.frame_num;
+    this->field_pic_flag       = slice.field_pic_flag;
+
+    if (slice.field_pic_flag)
+        this->bottom_field_flag = slice.bottom_field_flag;
+
+    this->nal_ref_idc = slice.nal_ref_idc;
+    this->idr_flag    = slice.idr_flag;
+
+    if (slice.idr_flag)
+        this->idr_pic_id = slice.idr_pic_id;
+
+    if (sps.pic_order_cnt_type == 0) {
+        this->pic_order_cnt_lsb          = slice.pic_order_cnt_lsb;
+        this->delta_pic_order_cnt_bottom = slice.delta_pic_order_cnt_bottom;
+    }
+    if (sps.pic_order_cnt_type == 1) {
+        this->delta_pic_order_cnt[0] = slice.delta_pic_order_cnt[0];
+        this->delta_pic_order_cnt[1] = slice.delta_pic_order_cnt[1];
+    }
+
+#if (MVC_EXTENSION_ENABLE)
+    this->view_id         = slice.view_id;
+    this->inter_view_flag = slice.inter_view_flag; 
+    this->anchor_pic_flag = slice.anchor_pic_flag;
+#endif
+    this->layer_id        = slice.layer_id;
+
+    return *this;
+}
+
+bool slice_backup_t::operator != (const slice_t& slice)
+{
+    sps_t& sps = *slice.active_sps;
+    pps_t& pps = *slice.active_pps;
+
+    bool result = false;
+
+    result |= this->pic_parameter_set_id != slice.pic_parameter_set_id;
+    result |= this->frame_num            != slice.frame_num;
+    result |= this->field_pic_flag       != slice.field_pic_flag;
+
+    if (slice.field_pic_flag && this->field_pic_flag)
+        result |= this->bottom_field_flag != slice.bottom_field_flag;
+
+    result |= this->nal_ref_idc != slice.nal_ref_idc && (this->nal_ref_idc == 0 || slice.nal_ref_idc == 0);
+    result |= this->idr_flag    != slice.idr_flag;
+
+    if (slice.idr_flag && this->idr_flag)
+        result |= this->idr_pic_id != slice.idr_pic_id;
+
+    if (sps.pic_order_cnt_type == 0) {
+        result |= this->pic_order_cnt_lsb != slice.pic_order_cnt_lsb;
+        if (pps.bottom_field_pic_order_in_frame_present_flag && !slice.field_pic_flag)
+            result |= this->delta_pic_order_cnt_bottom != slice.delta_pic_order_cnt_bottom;
+    }
+    if (sps.pic_order_cnt_type == 1) {
+        if (!sps.delta_pic_order_always_zero_flag) {
+            result |= this->delta_pic_order_cnt[0] != slice.delta_pic_order_cnt[0];
+            if (pps.bottom_field_pic_order_in_frame_present_flag && !slice.field_pic_flag)
+                result |= this->delta_pic_order_cnt[1] != slice.delta_pic_order_cnt[1];
+        }
+    }
+
+#if (MVC_EXTENSION_ENABLE)
+    result |= this->view_id         != slice.view_id;
+    result |= this->inter_view_flag != slice.inter_view_flag;
+    result |= this->anchor_pic_flag != slice.anchor_pic_flag;
+#endif
+    result |= this->layer_id        != slice.layer_id;
+
+    return result;
+}
+
+
 slice_t::slice_t(InputParameters* p_Inp, VideoParameters* p_Vid)
 {
     int i, j, memory_size = 0;
@@ -14,7 +94,7 @@ slice_t::slice_t(InputParameters* p_Inp, VideoParameters* p_Vid)
     memory_size += get_mem3Dint(&this->wp_offset, 6, MAX_REFERENCE_PICTURES, 3);
     memory_size += get_mem4Dint(&this->wbp_weight, 6, MAX_REFERENCE_PICTURES, MAX_REFERENCE_PICTURES, 3);
 
-    memory_size += get_mem3Dpel(&this->mb_pred, MAX_PLANE, MB_BLOCK_SIZE, MB_BLOCK_SIZE);
+    memory_size += get_mem3Dpel(&this->mb_pred, 3, 16, 16);
 
 #if (MVC_EXTENSION_ENABLE)
     this->view_id = MVC_INIT_VIEW_ID;

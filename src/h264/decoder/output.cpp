@@ -283,7 +283,6 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
   if (p->non_existing)
     return;
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
   // note: this tone-mapping is working for RGB format only. Sharp
   if (p->seiHasTone_mapping && rgb_output)
   {
@@ -292,7 +291,6 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
     tone_map(p->imgUV[0], p->tone_mapping_lut, p->size_x_cr, p->size_y_cr);
     tone_map(p->imgUV[1], p->tone_mapping_lut, p->size_x_cr, p->size_y_cr);
   }
-#endif
 
   // should this be done only once?
   if (p->frame_cropping_flag)
@@ -465,28 +463,6 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
   //  fsync(p_out);
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Initialize output buffer for direct output
- ************************************************************************
- */
-void init_out_buffer(VideoParameters *p_Vid)
-{
-  p_Vid->out_buffer = alloc_frame_store();  
-}
-
-/*!
- ************************************************************************
- * \brief
- *    Uninitialize output buffer for direct output
- ************************************************************************
- */
-void uninit_out_buffer(VideoParameters *p_Vid)
-{
-  free_frame_store(p_Vid->out_buffer);
-  p_Vid->out_buffer=NULL;
-}
 
 /*!
  ************************************************************************

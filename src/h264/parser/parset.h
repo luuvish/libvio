@@ -26,6 +26,21 @@ using vio::h264::data_partition_t;
 #define Extended_SAR 255
 
 
+//AVC Profile IDC definitions
+enum {
+    FREXT_CAVLC444 = 44,       //!< YUV 4:4:4/14 "CAVLC 4:4:4"
+    BASELINE       = 66,       //!< YUV 4:2:0/8  "Baseline"
+    MAIN           = 77,       //!< YUV 4:2:0/8  "Main"
+    EXTENDED       = 88,       //!< YUV 4:2:0/8  "Extended"
+    FREXT_HP       = 100,      //!< YUV 4:2:0/8  "High"
+    FREXT_Hi10P    = 110,      //!< YUV 4:2:0/10 "High 10"
+    FREXT_Hi422    = 122,      //!< YUV 4:2:2/10 "High 4:2:2"
+    FREXT_Hi444    = 244,      //!< YUV 4:4:4/14 "High 4:4:4"
+    MVC_HIGH       = 118,      //!< YUV 4:2:0/8  "Multiview High"
+    STEREO_HIGH    = 128       //!< YUV 4:2:0/8  "Stereo High"
+};
+
+
 typedef struct hrd_parameters_t {
     uint8_t     cpb_cnt_minus1;                                       // ue(v)
     uint8_t     bit_rate_scale;                                       // u(4)
@@ -243,66 +258,66 @@ typedef struct seq_parameter_set_mvc_extension_t {
 } sps_mvc_t;
 
 typedef struct mvc_vui_parameters_t {
-    int   num_ops_minus1;
-    char *temporal_id;
-    int  *num_target_output_views_minus1;
-    int **view_id;
-    char *timing_info_present_flag;
-    int  *num_units_in_tick;
-    int  *time_scale;
-    char *fixed_frame_rate_flag;
-    char *nal_hrd_parameters_present_flag;
-    char *vcl_hrd_parameters_present_flag;
-    char *low_delay_hrd_flag;
-    char *pic_struct_present_flag;
+    int         num_ops_minus1;
+    char *      temporal_id;
+    int  *      num_target_output_views_minus1;
+    int **      view_id;
+    char *      timing_info_present_flag;
+    int  *      num_units_in_tick;
+    int  *      time_scale;
+    char *      fixed_frame_rate_flag;
+    char *      nal_hrd_parameters_present_flag;
+    char *      vcl_hrd_parameters_present_flag;
+    char *      low_delay_hrd_flag;
+    char *      pic_struct_present_flag;
 
     //hrd parameters;
-    char cpb_cnt_minus1;
-    char bit_rate_scale;
-    char cpb_size_scale;
-    int  bit_rate_value_minus1[32];
-    int  cpb_size_value_minus1[32];
-    char cbr_flag[32];
-    char initial_cpb_removal_delay_length_minus1;
-    char cpb_removal_delay_length_minus1;
-    char dpb_output_delay_length_minus1;
-    char time_offset_length;
+    char        cpb_cnt_minus1;
+    char        bit_rate_scale;
+    char        cpb_size_scale;
+    int         bit_rate_value_minus1[32];
+    int         cpb_size_value_minus1[32];
+    char        cbr_flag[32];
+    char        initial_cpb_removal_delay_length_minus1;
+    char        cpb_removal_delay_length_minus1;
+    char        dpb_output_delay_length_minus1;
+    char        time_offset_length;
 } mvc_vui_t;
 
 typedef struct subset_seq_parameter_set_t {
-    bool            Valid;                  // indicates the parameter set is valid
+    bool        Valid;
 
-    sps_t           sps;
+    sps_t       sps;
 
-    bool            svc_vui_parameters_present_flag;
+    bool        svc_vui_parameters_present_flag;
 
-    bool            bit_equal_to_one;
-    sps_mvc_t       seq_parameter_set_mvc;
-    bool            mvc_vui_parameters_present_flag;
+    bool        bit_equal_to_one;
+    sps_mvc_t   seq_parameter_set_mvc;
+    bool        mvc_vui_parameters_present_flag;
 
 
 // seq_parameter_set_mvc_extension_t
-    int          num_views_minus1;
-    int         *view_id;
-    int         *num_anchor_refs_l0;
-    int        **anchor_ref_l0;
-    int         *num_anchor_refs_l1;
-    int        **anchor_ref_l1;
+    int         num_views_minus1;
+    int *       view_id;
+    int *       num_anchor_refs_l0;
+    int**       anchor_ref_l0;
+    int *       num_anchor_refs_l1;
+    int**       anchor_ref_l1;
 
-    int         *num_non_anchor_refs_l0;
-    int        **non_anchor_ref_l0;
-    int         *num_non_anchor_refs_l1;
-    int        **non_anchor_ref_l1;
+    int *       num_non_anchor_refs_l0;
+    int**       non_anchor_ref_l0;
+    int *       num_non_anchor_refs_l1;
+    int**       non_anchor_ref_l1;
    
-    int          num_level_values_signalled_minus1;
-    int         *level_idc;
-    int         *num_applicable_ops_minus1;
-    int        **applicable_op_temporal_id;
-    int        **applicable_op_num_target_views_minus1;
-    int       ***applicable_op_target_view_id;
-    int        **applicable_op_num_views_minus1;
+    int         num_level_values_signalled_minus1;
+    int  *      level_idc;
+    int  *      num_applicable_ops_minus1;
+    int **      applicable_op_temporal_id;
+    int **      applicable_op_num_target_views_minus1;
+    int***      applicable_op_target_view_id;
+    int **      applicable_op_num_views_minus1;
 
-    mvc_vui_t     MVCVUIParams;
+    mvc_vui_t   MVCVUIParams;
 } sub_sps_t;
 #endif
 

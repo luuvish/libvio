@@ -41,48 +41,11 @@ void error(const char *text, int code)
 
 
 
-void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
-{
-    CodingParameters *cps = p_Vid->p_EncodePar[layer_id];
-  
-    if (!p_Vid->global_init_done[layer_id])
-        return;
-
-    // free mem, allocated for structure p_Vid
-    if (p_Vid->active_sps->separate_colour_plane_flag != 0) {
-        for (int i = 0; i < MAX_PLANE; i++) {
-            free(cps->mb_data_JV[i]);
-            cps->mb_data_JV[i] = NULL;
-        }
-    } else {
-        if (cps->mb_data != NULL) {
-            free(cps->mb_data);
-            cps->mb_data = NULL;
-        }
-    }
-
-    p_Vid->global_init_done[layer_id] = 0;
-}
-
-
-
 VideoParameters::VideoParameters()
 {
-    this->old_slice = new OldSliceParams;
-
-    this->old_slice->field_pic_flag            = 0;
-    this->old_slice->pps_id                    = INT_MAX;
-    this->old_slice->frame_num                 = INT_MAX;
-    this->old_slice->nal_ref_idc               = INT_MAX;
-    this->old_slice->idr_flag                  = 0;
-
-    this->old_slice->pic_oder_cnt_lsb          = UINT_MAX;
-    this->old_slice->delta_pic_oder_cnt_bottom = INT_MAX;
-
-    this->old_slice->delta_pic_order_cnt[0]    = INT_MAX;
-    this->old_slice->delta_pic_order_cnt[1]    = INT_MAX;
-
-    this->snr = new SNRParameters;
+    this->out_buffer = new frame_store {};
+    this->old_slice  = new slice_backup_t {};
+    this->snr        = new SNRParameters;
 
     // Allocate new dpb buffer
     for (int i = 0; i < MAX_NUM_DPB_LAYERS; i++) {
@@ -100,9 +63,7 @@ VideoParameters::VideoParameters()
     this->global_init_done[0] = 0;
     this->global_init_done[1] = 0;
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
     this->seiToneMapping = new ToneMappingSEI;
-#endif
 
     this->ppSliceList = (slice_t **)calloc(MAX_NUM_DECSLICES, sizeof(slice_t *));
 
@@ -132,12 +93,9 @@ VideoParameters::VideoParameters()
     this->MbToSliceGroupMap      = nullptr;
     this->MapUnitToSliceGroupMap = nullptr;
 
-    this->out_buffer             = nullptr;
     this->recovery_flag          = 0;
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
     init_tone_mapping_sei(this->seiToneMapping);
-#endif
 
     this->newframe               = 0;
     this->previous_frame_num     = 0;
@@ -147,6 +105,7 @@ VideoParameters::VideoParameters()
 
 VideoParameters::~VideoParameters()
 {
+    delete this->out_buffer;
     delete this->old_slice;
     delete this->snr;
 
@@ -157,9 +116,7 @@ VideoParameters::~VideoParameters()
         delete this->p_LayerPar [i];
     }
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
     delete this->seiToneMapping;
-#endif
 
     if (this->ppSliceList) {
         for (int i = 0; i < this->iNumOfSlicesAllocated; i++) {
@@ -182,6 +139,43 @@ VideoParameters::~VideoParameters()
     delete this->pNextPPS;
 }
 
+#if (MVC_EXTENSION_ENABLE)
+void VideoParameters::OpenOutputFiles(int view0_id, int view1_id)
+{
+    InputParameters *p_Inp = this->p_Inp;
+    char out_ViewFileName[2][FILE_NAME_SIZE], chBuf[FILE_NAME_SIZE], *pch;  
+    if (strcasecmp(p_Inp->outfile, "\"\"") != 0 && strlen(p_Inp->outfile) > 0) {
+        strcpy(chBuf, p_Inp->outfile);
+        pch = strrchr(chBuf, '.');
+        if (pch)
+            *pch = '\0';
+        if (strcmp("nul", chBuf)) {
+            sprintf(out_ViewFileName[0], "%s_ViewId%04d.yuv", chBuf, view0_id);
+            sprintf(out_ViewFileName[1], "%s_ViewId%04d.yuv", chBuf, view1_id);
+            if (this->p_out_mvc[0] >= 0) {
+                close(this->p_out_mvc[0]);
+                this->p_out_mvc[0] = -1;
+            }
+            if ((this->p_out_mvc[0] = open(out_ViewFileName[0], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
+                snprintf(errortext, ET_SIZE, "Error open file %s ", out_ViewFileName[0]);
+                fprintf(stderr, "%s\n", errortext);
+                exit(500);
+            }
+      
+            if (this->p_out_mvc[1] >= 0) {
+                close(this->p_out_mvc[1]);
+                this->p_out_mvc[1] = -1;
+            }
+            if ((this->p_out_mvc[1] = open(out_ViewFileName[1], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
+                snprintf(errortext, ET_SIZE, "Error open file %s ", out_ViewFileName[1]);
+                fprintf(stderr, "%s\n", errortext);
+                exit(500);
+            }
+        }
+    }
+}
+#endif
+
 
 void DecoderParams::OpenDecoder(InputParameters *p_Inp)
 {
@@ -199,7 +193,7 @@ void DecoderParams::OpenDecoder(InputParameters *p_Inp)
         this->p_Vid->p_out_mvc[i] = -1;
 
     if (p_Inp->DecodeAllLayers == 1)
-        OpenOutputFiles(this->p_Vid, 0, 1);
+        this->p_Vid->OpenOutputFiles(0, 1);
     else { //Normal AVC      
         if (strcasecmp(p_Inp->outfile, "\"\"") != 0 && strlen(p_Inp->outfile) > 0) {
             if ((this->p_Vid->p_out_mvc[0] = open(p_Inp->outfile, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
@@ -222,8 +216,6 @@ void DecoderParams::OpenDecoder(InputParameters *p_Inp)
         this->p_Inp->infile,
         this->p_Inp->FileFormat ? bitstream_t::type::RTP : bitstream_t::type::ANNEX_B,
         this->p_Vid->nalu->max_size);
- 
-    init_out_buffer(this->p_Vid);
 
     this->p_Vid->active_sps = NULL;
     this->p_Vid->active_subset_sps = NULL;
@@ -285,6 +277,29 @@ void DecoderParams::FinitDecoder(DecodedPicList **ppDecPicList)
 }
 
 
+void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
+{
+    CodingParameters *cps = p_Vid->p_EncodePar[layer_id];
+  
+    if (!p_Vid->global_init_done[layer_id])
+        return;
+
+    // free mem, allocated for structure p_Vid
+    if (p_Vid->active_sps->separate_colour_plane_flag) {
+        for (int i = 0; i < 3; i++) {
+            free(cps->mb_data_JV[i]);
+            cps->mb_data_JV[i] = NULL;
+        }
+    } else {
+        if (cps->mb_data != NULL) {
+            free(cps->mb_data);
+            cps->mb_data = NULL;
+        }
+    }
+
+    p_Vid->global_init_done[layer_id] = 0;
+}
+
 static void free_global_buffers(VideoParameters *p_Vid)
 {
     if (p_Vid->dec_picture) {
@@ -332,45 +347,6 @@ void DecoderParams::CloseDecoder()
     for (int i = 0; i < MAX_NUM_DPB_LAYERS; i++)
         free_dpb(this->p_Vid->p_Dpb_layer[i]);
 
-    uninit_out_buffer(this->p_Vid);
-
     delete this->p_Inp;
     delete this->p_Vid;
 }
-
-#if (MVC_EXTENSION_ENABLE)
-void OpenOutputFiles(VideoParameters *p_Vid, int view0_id, int view1_id)
-{
-    InputParameters *p_Inp = p_Vid->p_Inp;
-    char out_ViewFileName[2][FILE_NAME_SIZE], chBuf[FILE_NAME_SIZE], *pch;  
-    if (strcasecmp(p_Inp->outfile, "\"\"") != 0 && strlen(p_Inp->outfile) > 0) {
-        strcpy(chBuf, p_Inp->outfile);
-        pch = strrchr(chBuf, '.');
-        if (pch)
-            *pch = '\0';
-        if (strcmp("nul", chBuf)) {
-            sprintf(out_ViewFileName[0], "%s_ViewId%04d.yuv", chBuf, view0_id);
-            sprintf(out_ViewFileName[1], "%s_ViewId%04d.yuv", chBuf, view1_id);
-            if (p_Vid->p_out_mvc[0] >= 0) {
-                close(p_Vid->p_out_mvc[0]);
-                p_Vid->p_out_mvc[0] = -1;
-            }
-            if ((p_Vid->p_out_mvc[0] = open(out_ViewFileName[0], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
-                snprintf(errortext, ET_SIZE, "Error open file %s ", out_ViewFileName[0]);
-                fprintf(stderr, "%s\n", errortext);
-                exit(500);
-            }
-      
-            if (p_Vid->p_out_mvc[1] >= 0) {
-                close(p_Vid->p_out_mvc[1]);
-                p_Vid->p_out_mvc[1] = -1;
-            }
-            if ((p_Vid->p_out_mvc[1] = open(out_ViewFileName[1], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
-                snprintf(errortext, ET_SIZE, "Error open file %s ", out_ViewFileName[1]);
-                fprintf(stderr, "%s\n", errortext);
-                exit(500);
-            }
-        }
-    }
-}
-#endif

@@ -41,7 +41,7 @@ static void setup_buffers(VideoParameters* p_Vid, int layer_id)
 
     if (p_Vid->last_dec_layer_id != layer_id) {
         if (p_Vid->active_sps->separate_colour_plane_flag) {
-            for (int i = 0; i < MAX_PLANE; ++i)
+            for (int i = 0; i < 3; ++i)
                 p_Vid->mb_data_JV[i] = cps->mb_data_JV[i];
             p_Vid->mb_data = NULL;
         } else
@@ -128,7 +128,6 @@ static void copy_dec_picture_JV(VideoParameters *p_Vid, storable_picture *dst, s
     dst->frame_crop_top_offset           = src->frame_crop_top_offset;
     dst->frame_crop_bottom_offset        = src->frame_crop_bottom_offset;
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
     // store the necessary tone mapping sei into storable_picture structure
     dst->seiHasTone_mapping    = src->seiHasTone_mapping;
     dst->tone_mapping_model_id = src->tone_mapping_model_id;
@@ -140,7 +139,6 @@ static void copy_dec_picture_JV(VideoParameters *p_Vid, storable_picture *dst, s
             no_mem_exit("copy_dec_picture_JV: tone_mapping_lut");
         memcpy(dst->tone_mapping_lut, src->tone_mapping_lut, sizeof(imgpel) * coded_data_bit_max);
     }
-#endif
 }
 
 
@@ -261,7 +259,7 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
 
     // TO set mb_t Map (mark all MBs as 'have to be concealed')
     if (sps->separate_colour_plane_flag) {
-        for (nplane = 0; nplane < MAX_PLANE; ++nplane) {
+        for (nplane = 0; nplane < 3; ++nplane) {
             mb_t* currMB = p_Vid->mb_data_JV[nplane];
             for (i = 0; i < currSlice->PicSizeInMbs; ++i)
                 reset_mbs(currMB++);
@@ -304,7 +302,6 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
         dec_picture->frame_crop_bottom_offset    = sps->frame_crop_bottom_offset;
     }
 
-#if (ENABLE_OUTPUT_TONEMAPPING)
     // store the necessary tone mapping sei into storable_picture structure
     if (p_Vid->seiToneMapping->seiHasTone_mapping) {
         int coded_data_bit_max = (1 << p_Vid->seiToneMapping->coded_data_bit_depth);
@@ -318,7 +315,6 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
         update_tone_mapping_sei(p_Vid->seiToneMapping);
     } else
         dec_picture->seiHasTone_mapping = 0;
-#endif
 
     if (sps->separate_colour_plane_flag) {
         p_Vid->dec_picture_JV[0] = p_Vid->dec_picture;
@@ -351,40 +347,6 @@ static void Error_tracking(VideoParameters *p_Vid, slice_t *currSlice)
         if (currSlice->ref_flag[redundant_slice_ref_idx] == 0)  // reference of redundant slice is incorrect
             p_Vid->Is_redundant_correct = 0;  // redundant slice is incorrect
     }
-}
-
-static void copy_slice_info(slice_t *currSlice, OldSliceParams *p_old_slice)
-{
-    VideoParameters *p_Vid = currSlice->p_Vid;
-
-    p_old_slice->pps_id         = currSlice->pic_parameter_set_id;
-    p_old_slice->frame_num      = currSlice->frame_num;
-    p_old_slice->field_pic_flag = currSlice->field_pic_flag;
-
-    if (currSlice->field_pic_flag)
-        p_old_slice->bottom_field_flag = currSlice->bottom_field_flag;
-
-    p_old_slice->nal_ref_idc = currSlice->nal_ref_idc;
-    p_old_slice->idr_flag    = (byte) currSlice->idr_flag;
-
-    if (currSlice->idr_flag)
-        p_old_slice->idr_pic_id = currSlice->idr_pic_id;
-
-    if (p_Vid->active_sps->pic_order_cnt_type == 0) {
-        p_old_slice->pic_oder_cnt_lsb          = currSlice->pic_order_cnt_lsb;
-        p_old_slice->delta_pic_oder_cnt_bottom = currSlice->delta_pic_order_cnt_bottom;
-    }
-
-    if (p_Vid->active_sps->pic_order_cnt_type == 1) {
-        p_old_slice->delta_pic_order_cnt[0] = currSlice->delta_pic_order_cnt[0];
-        p_old_slice->delta_pic_order_cnt[1] = currSlice->delta_pic_order_cnt[1];
-    }
-#if (MVC_EXTENSION_ENABLE)
-    p_old_slice->view_id = currSlice->view_id;
-    p_old_slice->inter_view_flag = currSlice->inter_view_flag; 
-    p_old_slice->anchor_pic_flag = currSlice->anchor_pic_flag;
-#endif
-    p_old_slice->layer_id = currSlice->layer_id;
 }
 
 /*!
@@ -487,7 +449,7 @@ int decode_one_frame(DecoderParams *pDecoder)
             p_Vid->pNextSlice = currSlice; 
         }
 
-        copy_slice_info(currSlice, p_Vid->old_slice);
+        *(p_Vid->old_slice) = *currSlice;
     }
     iRet = current_header;
 

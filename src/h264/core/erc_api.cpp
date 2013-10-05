@@ -454,7 +454,7 @@ void ercWriteMBMODEandMV(mb_t *currMB)
       }
       else
       {
-        ii              = 4*mbx + (i & 0x01)*2;// + BLOCK_SIZE;
+        ii              = 4*mbx + (i & 0x01)*2;
         jj              = 4*mby + (i >> 1  )*2;
         if (currMB->SubMbType[i]>=5 && currMB->SubMbType[i]<=7)  // SMALL BLOCKS
         {
@@ -475,7 +475,7 @@ void ercWriteMBMODEandMV(mb_t *currMB)
   {
     for (i=0; i<4; ++i)
     {
-      ii                  = 4*mbx + (i%2)*2;// + BLOCK_SIZE;
+      ii                  = 4*mbx + (i%2)*2;
       jj                  = 4*mby + (i/2)*2;
       pRegion             = currRegion + i;
       pRegion->regionMode = (currMB->mb_type  ==I_16x16  ? REGMODE_INTRA      :

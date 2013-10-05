@@ -86,7 +86,7 @@ void InterPrediction::mc_prediction(
             } else
                 mb_pred[i] = block[j][i];
         }
-        mb_pred += MB_BLOCK_SIZE;
+        mb_pred += 16;
     }
 }
 
@@ -124,7 +124,7 @@ void InterPrediction::bi_prediction(
             } else
                 mb_pred[i] = (imgpel) (((block_l0[j][i] + block_l1[j][i]) + 1) >> 1);
         }
-        mb_pred += MB_BLOCK_SIZE;
+        mb_pred += 16;
     }
 }
 
@@ -154,7 +154,7 @@ void InterPrediction::get_block_luma(
 
     if (dx == 0 && dy == 0) {
         for (int j = 0; j < block_size_y; ++j)
-            memcpy(&block[j][0], &cur_imgY[y_pos + j][x_pos], MB_BLOCK_SIZE * sizeof(imgpel));
+            memcpy(&block[j][0], &cur_imgY[y_pos + j][x_pos], 16 * sizeof(imgpel));
     } else if (dx == 0 || dy == 0) {
         if (dy == 0)
             shift_x = 1;
@@ -305,8 +305,8 @@ void InterPrediction::get_block_chroma(
 
     if (dx == 0 && dy == 0) {
         for (int j = 0; j < block_size_y; ++j) {
-            memcpy(&block1[j][0], &curr_ref->imgUV[0][y_pos + j][x_pos], MB_BLOCK_SIZE * sizeof(imgpel));
-            memcpy(&block2[j][0], &curr_ref->imgUV[1][y_pos + j][x_pos], MB_BLOCK_SIZE * sizeof(imgpel));
+            memcpy(&block1[j][0], &curr_ref->imgUV[0][y_pos + j][x_pos], 16 * sizeof(imgpel));
+            memcpy(&block2[j][0], &curr_ref->imgUV[1][y_pos + j][x_pos], 16 * sizeof(imgpel));
         }
     } else {
         short dxcur = (short) (subpel_x + 1 - dx);

@@ -29,8 +29,8 @@ void idr_memory_management(dpb_t *p_Dpb, storable_picture* p)
     	// free all stored pictures
     	for (int i = 0; i < p_Dpb->used_size; i++) {
       		// reset all reference settings
-      		free_frame_store(p_Dpb->fs[i]);
-      		p_Dpb->fs[i] = alloc_frame_store();
+      		delete p_Dpb->fs[i];
+      		p_Dpb->fs[i] = new frame_store {};
     	}
     	for (int i = 0; i < p_Dpb->ref_frames_in_buffer; i++)
       		p_Dpb->fs_ref[i] = NULL;

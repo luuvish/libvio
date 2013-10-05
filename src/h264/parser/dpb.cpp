@@ -22,6 +22,11 @@ static inline int RSD(int x)
 #define MAX_LIST_SIZE 33
 
 
+static inline int is_FREXT_profile(unsigned int profile_idc) 
+{
+    return ( profile_idc >= FREXT_HP || profile_idc == FREXT_CAVLC444 );
+}
+
 /*!
  ************************************************************************
  * \brief
@@ -240,7 +245,7 @@ void init_dpb(VideoParameters* p_Vid, dpb_t* p_Dpb, int type)
 #endif
 
     for (i = 0; i < p_Dpb->size; i++) {
-        p_Dpb->fs[i]       = alloc_frame_store();
+        p_Dpb->fs[i]       = new frame_store {};
         p_Dpb->fs_ref[i]   = NULL;
         p_Dpb->fs_ltref[i] = NULL;
         p_Dpb->fs[i]->layer_id = MVC_INIT_VIEW_ID;
@@ -252,7 +257,7 @@ void init_dpb(VideoParameters* p_Vid, dpb_t* p_Dpb, int type)
     }
 #if (MVC_EXTENSION_ENABLE)
     if (type == 2) {
-        p_Dpb->fs_ilref[0] = alloc_frame_store();
+        p_Dpb->fs_ilref[0] = new frame_store {};
         // These may need some cleanups
         p_Dpb->fs_ilref[0]->view_id = MVC_INIT_VIEW_ID;
         p_Dpb->fs_ilref[0]->inter_view_flag[0] = p_Dpb->fs_ilref[0]->inter_view_flag[1] = 0;
@@ -283,7 +288,7 @@ void init_dpb(VideoParameters* p_Vid, dpb_t* p_Dpb, int type)
 
     // picture error concealment
     if (p_Vid->conceal_mode != 0 && !p_Vid->last_out_fs)
-        p_Vid->last_out_fs = alloc_frame_store();
+        p_Vid->last_out_fs = new frame_store {};
 }
 
 void re_init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type)
@@ -328,7 +333,7 @@ void re_init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type)
 
     for (i = p_Dpb->size; i < iDpbSize; i++)
     {
-      p_Dpb->fs[i]       = alloc_frame_store();
+      p_Dpb->fs[i]       = new frame_store {};
       p_Dpb->fs_ref[i]   = NULL;
       p_Dpb->fs_ltref[i] = NULL;
 #if (MVC_EXTENSION_ENABLE)
@@ -341,7 +346,7 @@ void re_init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type)
 #if (MVC_EXTENSION_ENABLE)
   if (type == 2 && !p_Dpb->fs_ilref[0])
   {
-    p_Dpb->fs_ilref[0] = alloc_frame_store();
+    p_Dpb->fs_ilref[0] = new frame_store {};
     // These may need some cleanups
     p_Dpb->fs_ilref[0]->view_id = MVC_INIT_VIEW_ID;
     p_Dpb->fs_ilref[0]->inter_view_flag[0] = p_Dpb->fs_ilref[0]->inter_view_flag[1] = 0;
@@ -370,93 +375,43 @@ void re_init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type)
  */
 void free_dpb(dpb_t *p_Dpb)
 {
-  VideoParameters *p_Vid = p_Dpb->p_Vid;
-  unsigned i;
-  if (p_Dpb->fs)
-  {
-    for (i=0; i<p_Dpb->size; i++)
-    {
-      free_frame_store(p_Dpb->fs[i]);
-    }
-    free (p_Dpb->fs);
-    p_Dpb->fs=NULL;
-  }
+    VideoParameters *p_Vid = p_Dpb->p_Vid;
 
-  if (p_Dpb->fs_ref)
-  {
-    free (p_Dpb->fs_ref);
-  }
-  if (p_Dpb->fs_ltref)
-  {
-    free (p_Dpb->fs_ltref);
-  }
+    if (p_Dpb->fs) {
+        for (int i = 0; i < p_Dpb->size; i++)
+            delete p_Dpb->fs[i];
+        free (p_Dpb->fs);
+        p_Dpb->fs=NULL;
+    }
+
+    if (p_Dpb->fs_ref)
+        free (p_Dpb->fs_ref);
+    if (p_Dpb->fs_ltref)
+        free (p_Dpb->fs_ltref);
 
 #if (MVC_EXTENSION_ENABLE)
-  if (p_Dpb->fs_ilref)
-  {
-    for (i=0; i<1; i++)
-    {
-      free_frame_store(p_Dpb->fs_ilref[i]);
+    if (p_Dpb->fs_ilref) {
+        for (int i = 0; i < 1; i++)
+            delete p_Dpb->fs_ilref[i];
+        free (p_Dpb->fs_ilref);
+        p_Dpb->fs_ilref=NULL;
     }
-    free (p_Dpb->fs_ilref);
-    p_Dpb->fs_ilref=NULL;
-  }
 
-  p_Dpb->last_output_view_id = -1;
+    p_Dpb->last_output_view_id = -1;
 #endif
 
-  p_Dpb->last_output_poc = INT_MIN;
+    p_Dpb->last_output_poc = INT_MIN;
 
-  p_Dpb->init_done = 0;
+    p_Dpb->init_done = 0;
 
-  // picture error concealment
-  if(p_Vid->conceal_mode != 0 || p_Vid->last_out_fs)
-      free_frame_store(p_Vid->last_out_fs);
+    // picture error concealment
+    if (p_Vid->conceal_mode != 0 || p_Vid->last_out_fs)
+        delete p_Vid->last_out_fs;
 
-  if(p_Vid->no_reference_picture)
-  {
-    free_storable_picture(p_Vid->no_reference_picture);
-    p_Vid->no_reference_picture = NULL;
-  }
-}
-
-
-/*!
- ************************************************************************
- * \brief
- *    Allocate memory for decoded picture buffer frame stores and initialize with sane values.
- *
- * \return
- *    the allocated frame_store structure
- ************************************************************************
- */
-frame_store* alloc_frame_store(void)
-{
-  frame_store *f;
-
-  f = (frame_store *)calloc (1, sizeof(frame_store));
-  if (NULL==f)
-    no_mem_exit("alloc_frame_store: f");
-
-  f->is_used      = 0;
-  f->is_reference = 0;
-  f->is_long_term = 0;
-  f->is_orig_reference = 0;
-
-  f->is_output = 0;
-
-  f->frame        = NULL;;
-  f->top_field    = NULL;
-  f->bottom_field = NULL;
-
-  return f;
-}
-
-void alloc_pic_motion(pic_motion_params_old* motion, int size_y, int size_x)
-{
-  motion->mb_field_decoding_flag = (byte *)calloc (size_y * size_x, sizeof(byte));
-  if (motion->mb_field_decoding_flag == NULL)
-    no_mem_exit("alloc_storable_picture: motion->mb_field_decoding_flag");
+    if (p_Vid->no_reference_picture) {
+        free_storable_picture(p_Vid->no_reference_picture);
+        p_Vid->no_reference_picture = NULL;
+    }
 }
 
 /*!
@@ -524,13 +479,13 @@ storable_picture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructur
 
     s->separate_colour_plane_flag = sps->separate_colour_plane_flag;
 
-    get_mem2Dmp     (&s->mv_info, (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
-    alloc_pic_motion(&s->motion , (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
+    get_mem2Dmp(&s->mv_info, (size_y / 4), (size_x / 4));
+    s->motion.mb_field_decoding_flag = new bool[(size_x / 4) * (size_y / 4)];
 
-    if (sps->separate_colour_plane_flag != 0) {
-        for (nplane = 0; nplane < MAX_PLANE; ++nplane) {
-            get_mem2Dmp     (&s->JVmv_info[nplane], (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
-            alloc_pic_motion(&s->JVmotion[nplane] , (size_y >> BLOCK_SHIFT), (size_x >> BLOCK_SHIFT));
+    if (sps->separate_colour_plane_flag) {
+        for (nplane = 0; nplane < 3; ++nplane) {
+            get_mem2Dmp(&s->JVmv_info[nplane], (size_y / 4), (size_x / 4));
+            s->JVmotion[nplane].mb_field_decoding_flag = new bool[(size_x / 4) * (size_y / 4)];
         }
     }
 
@@ -582,48 +537,15 @@ storable_picture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructur
     return s;
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Free frame store memory.
- *
- * \param p_Vid
- *    VideoParameters
- * \param f
- *    frame_store to be freed
- *
- ************************************************************************
- */
-void free_frame_store(frame_store* f)
-{
-  if (f)
-  {
-    if (f->frame)
-    {
-      free_storable_picture(f->frame);
-      f->frame=NULL;
-    }
-    if (f->top_field)
-    {
-      free_storable_picture(f->top_field);
-      f->top_field=NULL;
-    }
-    if (f->bottom_field)
-    {
-      free_storable_picture(f->bottom_field);
-      f->bottom_field=NULL;
-    }
-    free(f);
-  }
-}
 
-void free_pic_motion(pic_motion_params_old* motion)
+frame_store::~frame_store()
 {
-  if (motion->mb_field_decoding_flag)
-  {
-    free(motion->mb_field_decoding_flag);
-    motion->mb_field_decoding_flag = NULL;
-  }
+    if (this->frame)
+        free_storable_picture(this->frame);
+    if (this->top_field)
+        free_storable_picture(this->top_field);
+    if (this->bottom_field)
+        free_storable_picture(this->bottom_field);
 }
 
 
@@ -656,18 +578,18 @@ void free_storable_picture(storable_picture* p)
       free_mem2Dmp(p->mv_info);
       p->mv_info = NULL;
     }
-    free_pic_motion(&p->motion);
+    delete []p->motion.mb_field_decoding_flag;
 
     if( (p->separate_colour_plane_flag != 0) )
     {
-      for( nplane=0; nplane<MAX_PLANE; nplane++ )
+      for( nplane=0; nplane<3; nplane++ )
       {
         if (p->JVmv_info[nplane])
         {
           free_mem2Dmp(p->JVmv_info[nplane]);
           p->JVmv_info[nplane] = NULL;
         }
-        free_pic_motion(&p->JVmotion[nplane]);
+        delete []p->JVmotion[nplane].mb_field_decoding_flag;
       }
     }
 
@@ -715,46 +637,35 @@ void free_storable_picture(storable_picture* p)
  */
 void unmark_for_reference(frame_store* fs)
 {
-  if (fs->is_used & 1)
-  {
-    if (fs->top_field)
-    {
-      fs->top_field->used_for_reference = 0;
+    if ((fs->is_used & 1) && fs->top_field) {
+        fs->top_field->used_for_reference = 0;
     }
-  }
-  if (fs->is_used & 2)
-  {
-    if (fs->bottom_field)
-    {
-      fs->bottom_field->used_for_reference = 0;
+    if ((fs->is_used & 2) && fs->bottom_field) {
+        fs->bottom_field->used_for_reference = 0;
     }
-  }
-  if (fs->is_used == 3)
-  {
-    if (fs->top_field && fs->bottom_field)
-    {
-      fs->top_field->used_for_reference = 0;
-      fs->bottom_field->used_for_reference = 0;
+    if (fs->is_used == 3) {
+        if (fs->top_field && fs->bottom_field) {
+            fs->top_field->used_for_reference = 0;
+            fs->bottom_field->used_for_reference = 0;
+        }
+        fs->frame->used_for_reference = 0;
     }
-    fs->frame->used_for_reference = 0;
-  }
+    fs->is_reference = 0;
 
-  fs->is_reference = 0;
+    if (fs->frame) {
+        delete []fs->frame->motion.mb_field_decoding_flag;
+        fs->frame->motion.mb_field_decoding_flag = nullptr;
+    }
 
-  if(fs->frame)
-  {
-    free_pic_motion(&fs->frame->motion);
-  }
+    if (fs->top_field) {
+        delete []fs->top_field->motion.mb_field_decoding_flag;
+        fs->top_field->motion.mb_field_decoding_flag = nullptr;
+    }
 
-  if (fs->top_field)
-  {
-    free_pic_motion(&fs->top_field->motion);
-  }
-
-  if (fs->bottom_field)
-  {
-    free_pic_motion(&fs->bottom_field->motion);
-  }
+    if (fs->bottom_field) {
+        delete []fs->bottom_field->motion.mb_field_decoding_flag;
+        fs->bottom_field->motion.mb_field_decoding_flag = nullptr;
+    }
 }
 
 
@@ -1729,7 +1640,7 @@ int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
 
   if( sps->separate_colour_plane_flag )
   {
-    for( nplane=0; nplane < MAX_PLANE; nplane++ )
+    for( nplane=0; nplane < 3; nplane++ )
     {
       memory_size += get_mem2Dpel(&(p_ImgData->frm_data[nplane]), sps->FrameHeightInMbs * 16, sps->PicWidthInMbs * 16);
     }
@@ -1790,7 +1701,7 @@ void free_img_data(VideoParameters *p_Vid, ImageData *p_ImgData)
   {
     int nplane;
 
-    for( nplane=0; nplane<MAX_PLANE; nplane++ )
+    for( nplane=0; nplane<3; nplane++ )
     {
       if (p_ImgData->frm_data[nplane])
       {
@@ -2034,10 +1945,10 @@ storable_picture * clone_storable_picture( VideoParameters *p_Vid, storable_pict
     pad_buf(*p_stored_pic->imgUV[1], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, iChromaPadX, iChromaPadY);
   }
 
-  for (j = 0; j < (p_pic->size_y >> BLOCK_SHIFT); j++)
+  for (j = 0; j < (p_pic->size_y / 4); j++)
   {
     char *ref_idx = p_stored_pic->mv_info[j][0].ref_idx;
-    for (i = 0; i < (p_pic->size_x >> BLOCK_SHIFT); i++)
+    for (i = 0; i < (p_pic->size_x / 4); i++)
     {          
       *((short *) ref_idx) = -1;
       ref_idx += sizeof(pic_motion_params);
@@ -2046,11 +1957,11 @@ storable_picture * clone_storable_picture( VideoParameters *p_Vid, storable_pict
 
   if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
   {
-    for( nplane=0; nplane<MAX_PLANE; nplane++ )
+    for( nplane=0; nplane<3; nplane++ )
     {
-      for (j = 0; j < (p_pic->size_y >> BLOCK_SHIFT); j++)
+      for (j = 0; j < (p_pic->size_y / 4); j++)
       {
-        for (i = 0; i < (p_pic->size_x >> BLOCK_SHIFT); i++)
+        for (i = 0; i < (p_pic->size_x / 4); i++)
         {
           p_stored_pic->JVmv_info[nplane][j][i].ref_idx[LIST_0] = -1;
           p_stored_pic->JVmv_info[nplane][j][i].ref_idx[LIST_1] = -1;
