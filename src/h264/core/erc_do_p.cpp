@@ -1,4 +1,5 @@
 #include "global.h"
+#include "input_parameters.h"
 #include "slice.h"
 #include "dpb.h"
 #include "memalloc.h"
@@ -1273,7 +1274,7 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
     // Conceals an IDR frame loss. Uses the reference frame in the previous
     // GOP for concealment.
     UnusedShortTermFrameNum = 0;
-    p_Vid->last_ref_pic_poc = -p_Vid->poc_gap;
+    p_Vid->last_ref_pic_poc = -p_Vid->p_Inp->poc_gap;
     p_Vid->earlier_missing_poc = 0;
   }
   else
@@ -1299,7 +1300,7 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
 
     pSlice->frame_num = UnusedShortTermFrameNum;
 
-    picture->top_poc=p_Vid->last_ref_pic_poc + p_Vid->ref_poc_gap;
+    picture->top_poc=p_Vid->last_ref_pic_poc + p_Vid->p_Inp->ref_poc_gap;
     picture->bottom_poc=picture->top_poc;
     picture->frame_poc=picture->top_poc;
     picture->poc=picture->top_poc;
@@ -1517,9 +1518,9 @@ storable_picture *get_pic_from_dpb(dpb_t *p_Dpb, int missingpoc, unsigned int *p
   int i, concealfrom = 0;
 
   if(p_Vid->conceal_mode == 1)
-    concealfrom = missingpoc - p_Vid->poc_gap;
+    concealfrom = missingpoc - p_Vid->p_Inp->poc_gap;
   else if (p_Vid->conceal_mode == 2)
-    concealfrom = missingpoc + p_Vid->poc_gap;
+    concealfrom = missingpoc + p_Vid->p_Inp->poc_gap;
 
   for(i = used_size; i >= 0; i--)
   {
@@ -1680,13 +1681,13 @@ void conceal_non_ref_pics(dpb_t *p_Dpb, int diff)
   for(i=0;i<p_Dpb->size-diff;i++)
   {
     p_Dpb->used_size = p_Dpb->size;
-    if((p_Vid->pocs_in_dpb[i+1] - p_Vid->pocs_in_dpb[i]) > p_Vid->poc_gap)
+    if((p_Vid->pocs_in_dpb[i+1] - p_Vid->pocs_in_dpb[i]) > p_Vid->p_Inp->poc_gap)
     {
       conceal_to_picture = alloc_storable_picture (p_Vid, FRAME,
         sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
         sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
 
-      missingpoc = p_Vid->pocs_in_dpb[i] + p_Vid->poc_gap;
+      missingpoc = p_Vid->pocs_in_dpb[i] + p_Vid->p_Inp->poc_gap;
       // Diagnostics
       // printf("\n missingpoc = %d\n",missingpoc);
 
@@ -1760,7 +1761,7 @@ void write_lost_non_ref_pic(dpb_t *p_Dpb, int poc, int p_out)
   frame_store concealment_fs;
   if(poc > 0)
   {
-    if((poc - p_Dpb->last_output_poc) > p_Vid->poc_gap)
+    if((poc - p_Dpb->last_output_poc) > p_Vid->p_Inp->poc_gap)
     {
 
       concealment_fs.frame = p_Vid->concealment_head->picture;

@@ -920,7 +920,7 @@ void insert_picture_in_dpb(VideoParameters *p_Vid, frame_store* fs, storable_pic
 
   if (fs->is_used==3)
   {
-    calculate_frame_no(p_Vid, p);
+    p_Vid->calculate_frame_no(p);
   }
 }
 

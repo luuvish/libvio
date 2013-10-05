@@ -2,7 +2,7 @@
 #define _GLOBAL_H_
 
 
-#include <chrono>
+#include <cstdint>
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -148,21 +148,15 @@ inline mv_t operator >> (const mv_t& l, int r)
 
 
 
-/***********************************************************************
- * N e w   D a t a    t y p e s   f o r    T M L
- ***********************************************************************
- */
-
-//****************************** ~DM ***********************************
-typedef struct coding_par {
+struct CodingParameters {
     int layer_id;
 
     //padding info;
     void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
-    mb_t *mb_data;               //!< array containing all MBs of a whole frame
-    mb_t *mb_data_JV[MAX_PLANE]; //!< mb_data to be used for 4:4:4 independent mode
-} CodingParameters;
+    mb_t* mb_data;
+    mb_t* mb_data_JV[MAX_PLANE];
+};
 
 struct decoded_picture_buffer_t;
 
@@ -170,44 +164,34 @@ struct InputParameters;
 struct VideoParameters;
 struct DecodedPicList;
 
-typedef struct layer_par {
+struct LayerParameters {
     int               layer_id;
     VideoParameters*  p_Vid;
     CodingParameters* p_Cps;
     sps_t*            p_SPS;
     decoded_picture_buffer_t* p_Dpb;
-} LayerParameters;
+};
 
-
-
-typedef struct old_slice_par {
-    unsigned field_pic_flag;   
-    unsigned frame_num;
-    int      nal_ref_idc;
-    unsigned pic_oder_cnt_lsb;
-    int      delta_pic_oder_cnt_bottom;
-    int      delta_pic_order_cnt[2];
-    byte     bottom_field_flag;
-    byte     idr_flag;
-    int      idr_pic_id;
-    int      pps_id;
+struct OldSliceParams {
+    unsigned    field_pic_flag;   
+    unsigned    frame_num;
+    int         nal_ref_idc;
+    unsigned    pic_oder_cnt_lsb;
+    int         delta_pic_oder_cnt_bottom;
+    int         delta_pic_order_cnt[2];
+    bool        bottom_field_flag;
+    bool        idr_flag;
+    int         idr_pic_id;
+    int         pps_id;
 #if (MVC_EXTENSION_ENABLE)
-    int      view_id;
-    int      inter_view_flag;
-    int      anchor_pic_flag;
+    int         view_id;
+    int         inter_view_flag;
+    int         anchor_pic_flag;
 #endif
-    int      layer_id;
-} OldSliceParams;
+    int         layer_id;
+};
 
-// signal to noise ratio parameters
-typedef struct snr_par {
-    int   frame_ctr;
-    float snr[3];                                //!< current SNR (component)
-    float snr1[3];                               //!< SNR (dB) first frame (component)
-    float snra[3];                               //!< Average component SNR (dB) remaining frames
-    float sse[3];                                //!< component SSE 
-    float msse[3];                                //!< Average component SSE 
-} SNRParameters;
+struct SNRParameters;
 
 struct tone_mapping_struct_s;
 struct frame_store;
@@ -258,16 +242,6 @@ struct VideoParameters {
 
 
     frame_store* out_buffer;
-
-    // Timing related variables
-    std::chrono::system_clock::time_point start_time;
-    std::chrono::system_clock::time_point end_time;
-    int64_t                               tot_time;
-
-    // B pictures
-    int         Bframe_ctr;
-    int         frame_no;
-    int         g_nFrame;
 
 
     int32_t     prevPicOrderCntMsb;
@@ -320,13 +294,8 @@ struct VideoParameters {
 
     int         no_output_of_prior_pics_flag;
 
-    int         idr_psnr_number;
-    int         psnr_number;
-
     // picture error concealment
     int         last_ref_pic_poc;
-    int         ref_poc_gap;
-    int         poc_gap;
     int         conceal_mode;
     int         earlier_missing_poc;
     unsigned    frame_to_conceal;
@@ -369,10 +338,14 @@ struct VideoParameters {
     int         last_dec_layer_id;
     int         dpb_layer_id;
 
-/******************* deprecative variables; ***************************************/
-  // Fidelity Range Extensions Stuff
-
     int         profile_idc;
+
+    VideoParameters();
+    ~VideoParameters();
+
+    void calculate_frame_no(storable_picture *p);
+    void status(storable_picture** dec_picture);
+    void report();
 };
 
 

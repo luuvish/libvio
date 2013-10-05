@@ -1,5 +1,7 @@
 #include "global.h"
 #include "input_parameters.h"
+#include "report.h"
+
 #include "slice.h"
 #include "image.h"
 #include "fmo.h"
@@ -317,99 +319,6 @@ void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture)
     }
 }
 
-static void status_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
-{
-    InputParameters *p_Inp = p_Vid->p_Inp;
-    SNRParameters   *snr   = p_Vid->snr;
-
-    char yuv_types[4][6]= {"4:0:0","4:2:0","4:2:2","4:4:4"};
-    char yuvFormat[10];
-
-    int structure         = (*dec_picture)->structure;
-    int slice_type        = (*dec_picture)->slice_type;
-    int frame_poc         = (*dec_picture)->frame_poc;  
-    int refpic            = (*dec_picture)->used_for_reference;
-    int qp                = 0;
-    int pic_num           = (*dec_picture)->PicNum;
-    int is_idr            = (*dec_picture)->idr_flag;
-    int chroma_format_idc = (*dec_picture)->chroma_format_idc;
-
-    // report
-    static char cslice_type[9] = { 0 };  
-
-    if (!p_Inp->silent) {
-        if (structure == TOP_FIELD || structure == FRAME) {
-            if (slice_type == I_slice && is_idr) // IDR picture
-                strcpy(cslice_type,"IDR");
-            else if (slice_type == I_slice) // I picture
-                strcpy(cslice_type," I ");
-            else if (slice_type == P_slice) // P pictures
-                strcpy(cslice_type," P ");
-            else if (slice_type == SP_slice) // SP pictures
-                strcpy(cslice_type,"SP ");
-            else if (slice_type == SI_slice)
-                strcpy(cslice_type,"SI ");
-            else if (refpic) // stored B pictures
-                strcpy(cslice_type," B ");
-            else // B pictures
-                strcpy(cslice_type," b ");
-
-            if (structure == FRAME)
-                strncat(cslice_type,")       ",8-strlen(cslice_type));
-        } else if (structure == BOTTOM_FIELD) {
-            if (slice_type == I_slice && is_idr) // IDR picture
-                strncat(cslice_type,"|IDR)",8-strlen(cslice_type));
-            else if (slice_type == I_slice) // I picture
-                strncat(cslice_type,"| I )",8-strlen(cslice_type));
-            else if (slice_type == P_slice) // P pictures
-                strncat(cslice_type,"| P )",8-strlen(cslice_type));
-            else if (slice_type == SP_slice) // SP pictures
-                strncat(cslice_type,"|SP )",8-strlen(cslice_type));
-            else if (slice_type == SI_slice)
-                strncat(cslice_type,"|SI )",8-strlen(cslice_type));
-            else if (refpic) // stored B pictures
-                strncat(cslice_type,"| B )",8-strlen(cslice_type));
-            else // B pictures
-                strncat(cslice_type,"| b )",8-strlen(cslice_type));   
-        }
-    }
-
-    if (structure == FRAME || structure == BOTTOM_FIELD) {
-        p_Vid->end_time = std::chrono::system_clock::now();
-        int64_t tmp_time = std::chrono::duration_cast<std::chrono::microseconds>(p_Vid->end_time - p_Vid->start_time).count();
-        p_Vid->tot_time += tmp_time;
-
-        sprintf(yuvFormat,"%s", yuv_types[chroma_format_idc]);
-
-        if (!p_Inp->silent) {
-            SNRParameters   *snr = p_Vid->snr;
-            if (p_Vid->p_ref != -1)
-                fprintf(stdout,"%05d(%s%5d %5d %5d %8.4f %8.4f %8.4f  %s %7d\n",
-                        p_Vid->frame_no, cslice_type, frame_poc, pic_num, qp, snr->snr[0], snr->snr[1], snr->snr[2], yuvFormat, (int) tmp_time);
-            else
-                fprintf(stdout,"%05d(%s%5d %5d %5d                             %s %7d\n",
-                        p_Vid->frame_no, cslice_type, frame_poc, pic_num, qp, yuvFormat, (int)(tmp_time/1000));
-        } else
-            fprintf(stdout,"Completed Decoding frame %05d.\r",snr->frame_ctr);
-
-        fflush(stdout);
-
-        if (slice_type == I_slice || slice_type == SI_slice || slice_type == P_slice || refpic) { // I or P pictures
-#if (MVC_EXTENSION_ENABLE)
-            if((p_Vid->ppSliceList[0])->view_id!=0)
-#endif
-                ++(p_Vid->number);
-        } else
-            ++(p_Vid->Bframe_ctr);    // B pictures
-        ++(snr->frame_ctr);
-
-#if (MVC_EXTENSION_ENABLE)
-        if ((p_Vid->ppSliceList[0])->view_id != 0)
-#endif
-            ++(p_Vid->g_nFrame);   
-    }
-}
-
 void exit_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
 {
     sps_t *sps = p_Vid->active_sps;
@@ -441,7 +350,7 @@ void exit_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
     if (p_Vid->last_has_mmco_5)
         p_Vid->pre_frame_num = 0;
 
-    status_picture(p_Vid, dec_picture);
+    p_Vid->status(dec_picture);
 
     *dec_picture = NULL;
 }

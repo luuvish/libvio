@@ -31,19 +31,19 @@
 static void Configure(InputParameters *p_Inp, int ac, char *av[])
 {
     memset(p_Inp, 0, sizeof(InputParameters));
-    strcpy(p_Inp->infile, "test.264"); //! set default bitstream name
-    strcpy(p_Inp->outfile, "test_dec.yuv"); //! set default output file name
-    strcpy(p_Inp->reffile, "test_rec.yuv"); //! set default reference file name
+    strcpy(p_Inp->infile, "test.264");
+    strcpy(p_Inp->outfile, "test_dec.yuv");
+    strcpy(p_Inp->reffile, "test_rec.yuv");
 
     p_Inp->ParseCommand(ac, av);
 
-    fprintf(stdout,"----------------------------- JM %s %s -----------------------------\n", VERSION, EXT_VERSION);
+    fprintf(stdout, "----------------------------- JM %s %s -----------------------------\n", VERSION, EXT_VERSION);
     if (!p_Inp->bDisplayDecParams) {
-        fprintf(stdout,"--------------------------------------------------------------------------\n");
-        fprintf(stdout," Input H.264 bitstream                  : %s \n",p_Inp->infile);
-        fprintf(stdout," Output decoded YUV                     : %s \n",p_Inp->outfile);
-        fprintf(stdout," Input reference file                   : %s \n",p_Inp->reffile);
-        fprintf(stdout,"--------------------------------------------------------------------------\n");
+        fprintf(stdout, "--------------------------------------------------------------------------\n");
+        fprintf(stdout, " Input H.264 bitstream                  : %s \n", p_Inp->infile);
+        fprintf(stdout, " Output decoded YUV                     : %s \n", p_Inp->outfile);
+        fprintf(stdout, " Input reference file                   : %s \n", p_Inp->reffile);
+        fprintf(stdout, "--------------------------------------------------------------------------\n");
     }
 }
 
@@ -67,13 +67,8 @@ static int WriteOneFrame(DecodedPicList *pDecPic, int bOutputAllFrames)
     return 0;
 }
 
-/*!
- ***********************************************************************
- * \brief
- *    main function for JM decoder
- ***********************************************************************
- */
-int main(int argc, char **argv)
+
+int main(int argc, char** argv)
 {
     int iRet;
     DecodedPicList *pDecPicList;
@@ -84,11 +79,7 @@ int main(int argc, char **argv)
     //get input parameters;
     Configure(&InputParams, argc, argv);
     //open decoder;
-    iRet = Decoder.OpenDecoder(&InputParams);
-    if (iRet != DEC_OPEN_NOERR) {
-        fprintf(stderr, "Open encoder failed: 0x%x!\n", iRet);
-        return -1; //failed;
-    }
+    Decoder.OpenDecoder(&InputParams);
 
     //decoding;
     do {
@@ -104,9 +95,9 @@ int main(int argc, char **argv)
     } while ((iRet == DEC_SUCCEED) &&
              (Decoder.p_Inp->iDecFrmNum == 0 || iFramesDecoded < Decoder.p_Inp->iDecFrmNum));
 
-    iRet = Decoder.FinitDecoder(&pDecPicList);
+    Decoder.FinitDecoder(&pDecPicList);
     WriteOneFrame(pDecPicList, 1);
-    iRet = Decoder.CloseDecoder();
+    Decoder.CloseDecoder();
 
     printf("%d frames are decoded.\n", iFramesDecoded);
     return 0;

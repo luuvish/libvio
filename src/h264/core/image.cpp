@@ -1,6 +1,8 @@
 #include "global.h"
 #include "input_parameters.h"
 #include "h264decoder.h"
+#include "report.h"
+
 #include "slice.h"
 #include "image.h"
 #include "fmo.h"
@@ -214,7 +216,7 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
         p_Vid->last_ref_pic_poc = currSlice->framepoc;
 
     if (!currSlice->field_pic_flag || !currSlice->bottom_field_flag)
-        p_Vid->start_time = std::chrono::system_clock::now();
+        p_Vid->snr->start_time = std::chrono::system_clock::now();
 
     dec_picture = p_Vid->dec_picture = alloc_storable_picture(
         p_Vid, currSlice->structure,
@@ -492,35 +494,6 @@ int decode_one_frame(DecoderParams *pDecoder)
     decode_picture(p_Vid);
     return (iRet);
 }
-
-
-/*!
- ************************************************************************
- * \brief
- *    Calculate the value of frame_no
- ************************************************************************
-*/
-void calculate_frame_no(VideoParameters *p_Vid, storable_picture *p)
-{
-  InputParameters *p_Inp = p_Vid->p_Inp;
-  // calculate frame number
-  int  psnrPOC = p_Vid->active_sps->mb_adaptive_frame_field_flag ? p->poc /(p_Inp->poc_scale) : p->poc/(p_Inp->poc_scale);
-  
-  if (psnrPOC==0)// && p_Vid->psnr_number)
-  {
-    p_Vid->idr_psnr_number = p_Vid->g_nFrame * p_Vid->ref_poc_gap/(p_Inp->poc_scale);
-  }
-  p_Vid->psnr_number = max(p_Vid->psnr_number, p_Vid->idr_psnr_number+psnrPOC);
-
-  p_Vid->frame_no = p_Vid->idr_psnr_number + psnrPOC;
-}
-
-
-
-
-
-
-
 
 
 #if (MVC_EXTENSION_ENABLE)

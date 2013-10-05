@@ -656,7 +656,7 @@ void direct_output(VideoParameters *p_Vid, storable_picture *p, int p_out)
     // so output it directly
     flush_direct_output(p_Vid, p_out);
     write_picture (p_Vid, p, p_out, FRAME);
-    calculate_frame_no(p_Vid, p);
+    p_Vid->calculate_frame_no(p);
     free_storable_picture(p);
     return;
   }
@@ -686,7 +686,7 @@ void direct_output(VideoParameters *p_Vid, storable_picture *p, int p_out)
 #endif
     write_picture (p_Vid, p_Vid->out_buffer->frame, p_out, FRAME);
 
-    calculate_frame_no(p_Vid, p);
+    p_Vid->calculate_frame_no(p);
     free_storable_picture(p_Vid->out_buffer->frame);
     p_Vid->out_buffer->frame = NULL;
     free_storable_picture(p_Vid->out_buffer->top_field);
