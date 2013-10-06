@@ -524,16 +524,6 @@ storable_picture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructur
     s->top_poc = s->bottom_poc = s->poc = 0;
     s->seiHasTone_mapping = 0;
 
-    if (!sps->frame_mbs_only_flag && structure != FRAME) {
-        for (int j = 0; j < MAX_NUM_SLICES; ++j) {
-            for (int i = 0; i < 2; ++i) {
-                s->listX[j][i] = (storable_picture **)calloc(MAX_LIST_SIZE, sizeof (storable_picture*)); // +1 for reordering
-                if (NULL == s->listX[j][i])
-                    no_mem_exit("alloc_storable_picture: s->listX[i]");
-            }
-        }
-    }
-
     return s;
 }
 
@@ -609,20 +599,6 @@ void free_storable_picture(storable_picture* p)
     if (p->seiHasTone_mapping)
       free(p->tone_mapping_lut);
 
-    {
-      int i, j;
-      for(j = 0; j < MAX_NUM_SLICES; j++)
-      {
-        for(i=0; i<2; i++)
-        {
-          if(p->listX[j][i])
-          {
-            free(p->listX[j][i]);
-            p->listX[j][i] = NULL;
-          }
-        }
-      }
-    }
     free(p);
     p = NULL;
   }
@@ -1697,52 +1673,39 @@ int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
 
 void free_img_data(VideoParameters *p_Vid, ImageData *p_ImgData)
 {
-  if ( p_Vid->active_sps->separate_colour_plane_flag )
-  {
-    int nplane;
-
-    for( nplane=0; nplane<3; nplane++ )
-    {
-      if (p_ImgData->frm_data[nplane])
-      {
-        free_mem2Dpel(p_ImgData->frm_data[nplane]);      // free ref frame buffers
-        p_ImgData->frm_data[nplane] = NULL;
-      }
-    }
-  }
-  else
-  {
-    if (p_ImgData->frm_data[0])
-    {
-      free_mem2Dpel(p_ImgData->frm_data[0]);      // free ref frame buffers
-      p_ImgData->frm_data[0] = NULL;
-    }
+    if (p_Vid->active_sps->separate_colour_plane_flag) {
+        for (int nplane = 0; nplane < 3; nplane++) {
+            if (p_ImgData->frm_data[nplane]) {
+                free_mem2Dpel(p_ImgData->frm_data[nplane]);      // free ref frame buffers
+                p_ImgData->frm_data[nplane] = NULL;
+            }
+        }
+    } else {
+        if (p_ImgData->frm_data[0]) {
+            free_mem2Dpel(p_ImgData->frm_data[0]);      // free ref frame buffers
+            p_ImgData->frm_data[0] = NULL;
+        }
     
-    if (p_ImgData->yuv_format != YUV400)
-    {
-      if (p_ImgData->frm_data[1])
-      {
-        free_mem2Dpel(p_ImgData->frm_data[1]);
-        p_ImgData->frm_data[1] = NULL;
-      }
-      if (p_ImgData->frm_data[2])
-      {
-        free_mem2Dpel(p_ImgData->frm_data[2]);
-        p_ImgData->frm_data[2] = NULL;
-      }
+        if (p_ImgData->yuv_format != YUV400) {
+            if (p_ImgData->frm_data[1]) {
+                free_mem2Dpel(p_ImgData->frm_data[1]);
+                p_ImgData->frm_data[1] = NULL;
+            }
+            if (p_ImgData->frm_data[2]) {
+                free_mem2Dpel(p_ImgData->frm_data[2]);
+                p_ImgData->frm_data[2] = NULL;
+            }
+        }
     }
-  }
   
-  if (!p_Vid->active_sps->frame_mbs_only_flag)
-  {
-    free_top_bot_planes(p_ImgData->top_data[0], p_ImgData->bot_data[0]);
+    if (!p_Vid->active_sps->frame_mbs_only_flag) {
+        free_top_bot_planes(p_ImgData->top_data[0], p_ImgData->bot_data[0]);
 
-    if (p_ImgData->yuv_format != YUV400)
-    {
-      free_top_bot_planes(p_ImgData->top_data[1], p_ImgData->bot_data[1]);
-      free_top_bot_planes(p_ImgData->top_data[2], p_ImgData->bot_data[2]);
+        if (p_ImgData->yuv_format != YUV400) {
+            free_top_bot_planes(p_ImgData->top_data[1], p_ImgData->bot_data[1]);
+            free_top_bot_planes(p_ImgData->top_data[2], p_ImgData->bot_data[2]);
+        }
     }
-  }
 }
 
 static inline void copy_img_data(imgpel *out_img, imgpel *in_img, int ostride, int istride, unsigned int size_y, unsigned int size_x)

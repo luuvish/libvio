@@ -4,14 +4,12 @@
 
 #include "dpb.h"
 
-struct DecoderParams;
 struct slice_t;
 
-void init_picture(VideoParameters *p_Vid, struct slice_t *currSlice, InputParameters *p_Inp);
+void init_picture  (VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p_Inp);
 
-int  read_new_slice    (struct slice_t *currSlice);
-void exit_picture      (VideoParameters *p_Vid, storable_picture **dec_picture);
-int  decode_one_frame  (DecoderParams *pDecoder);
+int  read_new_slice(slice_t *currSlice);
+void exit_picture  (VideoParameters *p_Vid, storable_picture **dec_picture);
 
 void decode_picture(VideoParameters *p_Vid);
 

@@ -349,16 +349,10 @@ static void Error_tracking(VideoParameters *p_Vid, slice_t *currSlice)
     }
 }
 
-/*!
- ***********************************************************************
- * \brief
- *    decodes one I- or P-frame
- *
- ***********************************************************************
- */
-int decode_one_frame(DecoderParams *pDecoder)
+
+int DecoderParams::decode_one_frame()
 {
-    VideoParameters *p_Vid = pDecoder->p_Vid;
+    VideoParameters *p_Vid = this->p_Vid;
     InputParameters *p_Inp = p_Vid->p_Inp;
     int current_header, iRet;
     slice_t *currSlice;
@@ -392,13 +386,8 @@ int decode_one_frame(DecoderParams *pDecoder)
     while (current_header != SOP && current_header != EOS) {
         //no pending slices;
         assert(p_Vid->iSliceNumOfCurrPic < p_Vid->iNumOfSlicesAllocated);
-        if (!ppSliceList[p_Vid->iSliceNumOfCurrPic]) {
-            ppSliceList[p_Vid->iSliceNumOfCurrPic] = new slice_t {p_Inp, p_Vid};
-            if (!ppSliceList[p_Vid->iSliceNumOfCurrPic]) {
-                snprintf(errortext, ET_SIZE, "Memory allocation for slice_t datastruct in NAL-mode %d failed", p_Inp->FileFormat);
-                error(errortext,100);
-            }
-        }
+        if (!ppSliceList[p_Vid->iSliceNumOfCurrPic])
+            ppSliceList[p_Vid->iSliceNumOfCurrPic] = new slice_t;
         currSlice = ppSliceList[p_Vid->iSliceNumOfCurrPic];
         currSlice->p_Vid = p_Vid;
         currSlice->p_Dpb = p_Vid->p_Dpb_layer[0]; //set default value;

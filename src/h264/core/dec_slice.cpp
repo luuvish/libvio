@@ -20,7 +20,7 @@ using vio::h264::mb_t;
 
 
 
-static void compute_colocated(slice_t *currSlice, storable_picture **listX[6])
+static void compute_colocated(slice_t* currSlice, storable_picture* listX[6][33])
 {
     int i, j;
 
@@ -106,12 +106,12 @@ bool slice_t::init()
         reorder_lists(this);
 
     if (this->fs_listinterview0) {
-        free(this->fs_listinterview0);
-        this->fs_listinterview0 = NULL;
+        delete []this->fs_listinterview0;
+        this->fs_listinterview0 = nullptr;
     }
     if (this->fs_listinterview1) {
-        free(this->fs_listinterview1);
-        this->fs_listinterview1 = NULL;
+        delete []this->fs_listinterview1;
+        this->fs_listinterview1 = nullptr;
     }
 #endif
 

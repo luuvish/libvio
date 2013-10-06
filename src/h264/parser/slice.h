@@ -192,9 +192,16 @@ struct slice_t {
 #endif
 
     //slice header information;
-    int                ref_flag[17]; //!< 0: i-th previous frame is incorrect
-    char               listXsize[6];
-    storable_picture** listX[6];
+    int               ref_flag[17]; //!< 0: i-th previous frame is incorrect
+    char              listXsize[6];
+    storable_picture* listX[6][33];
+
+#if (MVC_EXTENSION_ENABLE)
+    int           listinterviewidx0;
+    int           listinterviewidx1;
+    frame_store** fs_listinterview0;
+    frame_store** fs_listinterview1;
+#endif
 
     int         mvscale[6][MAX_REFERENCE_PICTURES];
 
@@ -210,20 +217,12 @@ struct slice_t {
     Parser      parser;
     Decoder     decoder;
 
-
-#if (MVC_EXTENSION_ENABLE)
-    int           listinterviewidx0;
-    int           listinterviewidx1;
-    frame_store** fs_listinterview0;
-    frame_store** fs_listinterview1;
-#endif
-
     // for signalling to the neighbour logic that this is a deblocker call
 
     int           erc_mvperMB;
     storable_picture* dec_picture;
 
-    slice_t(InputParameters* p_Inp, VideoParameters* p_Vid);
+    slice_t();
     ~slice_t();
 
     bool        init();

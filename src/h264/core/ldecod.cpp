@@ -248,7 +248,7 @@ int DecoderParams::DecodeOneFrame(DecodedPicList **ppDecPicList)
 {
     ClearDecPicList(this->p_Vid);
 
-    int iRet = decode_one_frame(this);
+    int iRet = this->decode_one_frame();
     if (iRet == SOP)
         iRet = DEC_SUCCEED;
     else if (iRet == EOS)
@@ -280,20 +280,20 @@ void DecoderParams::FinitDecoder(DecodedPicList **ppDecPicList)
 void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
 {
     CodingParameters *cps = p_Vid->p_EncodePar[layer_id];
-  
+
     if (!p_Vid->global_init_done[layer_id])
         return;
 
     // free mem, allocated for structure p_Vid
     if (p_Vid->active_sps->separate_colour_plane_flag) {
         for (int i = 0; i < 3; i++) {
-            free(cps->mb_data_JV[i]);
-            cps->mb_data_JV[i] = NULL;
+            delete []cps->mb_data_JV[i];
+            cps->mb_data_JV[i] = nullptr;
         }
     } else {
-        if (cps->mb_data != NULL) {
-            free(cps->mb_data);
-            cps->mb_data = NULL;
+        if (cps->mb_data) {
+            delete []cps->mb_data;
+            cps->mb_data = nullptr;
         }
     }
 
@@ -309,7 +309,7 @@ static void free_global_buffers(VideoParameters *p_Vid)
 #if MVC_EXTENSION_ENABLE
     if (p_Vid->active_subset_sps && p_Vid->active_subset_sps->sps.Valid &&
         (p_Vid->active_subset_sps->sps.profile_idc == MVC_HIGH || p_Vid->active_subset_sps->sps.profile_idc == STEREO_HIGH))
-        free_img_data( p_Vid, &(p_Vid->tempData3) );
+        free_img_data(p_Vid, &p_Vid->tempData3);
 #endif
 }
 

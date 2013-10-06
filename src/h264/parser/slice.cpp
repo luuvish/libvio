@@ -86,15 +86,13 @@ bool slice_backup_t::operator != (const slice_t& slice)
 }
 
 
-slice_t::slice_t(InputParameters* p_Inp, VideoParameters* p_Vid)
+slice_t::slice_t()
 {
-    int i, j, memory_size = 0;
+    get_mem3Dint(&this->wp_weight, 2, MAX_REFERENCE_PICTURES, 3);
+    get_mem3Dint(&this->wp_offset, 6, MAX_REFERENCE_PICTURES, 3);
+    get_mem4Dint(&this->wbp_weight, 6, MAX_REFERENCE_PICTURES, MAX_REFERENCE_PICTURES, 3);
 
-    memory_size += get_mem3Dint(&this->wp_weight, 2, MAX_REFERENCE_PICTURES, 3);
-    memory_size += get_mem3Dint(&this->wp_offset, 6, MAX_REFERENCE_PICTURES, 3);
-    memory_size += get_mem4Dint(&this->wbp_weight, 6, MAX_REFERENCE_PICTURES, MAX_REFERENCE_PICTURES, 3);
-
-    memory_size += get_mem3Dpel(&this->mb_pred, 3, 16, 16);
+    get_mem3Dpel(&this->mb_pred, 3, 16, 16);
 
 #if (MVC_EXTENSION_ENABLE)
     this->view_id = MVC_INIT_VIEW_ID;
@@ -102,15 +100,10 @@ slice_t::slice_t(InputParameters* p_Inp, VideoParameters* p_Vid)
     this->anchor_pic_flag = 0;
 #endif
     // reference flag initialization
-    for (i = 0; i < 17; i++)
+    for (int i = 0; i < 17; i++)
         this->ref_flag[i] = 1;
-    for (i = 0; i < 6; i++) {
-        this->listX[i] = (storable_picture **)calloc(MAX_LIST_SIZE, sizeof (storable_picture*)); // +1 for reordering
-        if (!this->listX[i])
-            no_mem_exit("malloc_slice: slice->listX[i]");
-    }
-    for (j = 0; j < 6; j++) {
-        for (i = 0; i < MAX_LIST_SIZE; i++)
+    for (int j = 0; j < 6; j++) {
+        for (int i = 0; i < MAX_LIST_SIZE; i++)
             this->listX[j][i] = NULL;
         this->listXsize[j] = 0;
     }
@@ -124,12 +117,6 @@ slice_t::~slice_t()
     free_mem3Dint(this->wp_offset);
     free_mem4Dint(this->wbp_weight);
 
-    for (int i = 0; i < 6; i++) {
-        if (this->listX[i]) {
-            free(this->listX[i]);
-            this->listX[i] = NULL;
-        }
-    }
     while (this->dec_ref_pic_marking_buffer) {
         DecRefPicMarking_t* tmp_drpm = this->dec_ref_pic_marking_buffer;
         this->dec_ref_pic_marking_buffer=tmp_drpm->Next;

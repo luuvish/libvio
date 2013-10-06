@@ -41,6 +41,8 @@ struct DecoderParams {
     int  DecodeOneFrame(DecodedPicList** ppDecPic);
     void FinitDecoder(DecodedPicList** ppDecPicList);
     void CloseDecoder();
+
+    int  decode_one_frame();
 };
 
 

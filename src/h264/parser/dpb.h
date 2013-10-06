@@ -165,8 +165,8 @@ struct storable_picture {
     int         no_ref;
     int         iCodingType;
     //
-    char        listXsize[MAX_NUM_SLICES][2];
-    storable_picture** listX[MAX_NUM_SLICES][2];
+    char              listXsize[MAX_NUM_SLICES][2];
+    storable_picture* listX[MAX_NUM_SLICES][2][33];
     int         layer_id;
 };
 
@@ -302,111 +302,6 @@ extern void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, int **anc
 extern void reorder_short_term(slice_t *currSlice, int cur_list, int num_ref_idx_lX_active_minus1, int picNumLX, int *refIdxLX, int currViewID);
 extern void reorder_long_term(slice_t *currSlice, storable_picture **RefPicListX, int num_ref_idx_lX_active_minus1, int LongTermPicNum, int *refIdxLX, int currViewID);
 #endif
-
-
-
-static inline int compare_pic_by_pic_num_desc( const void *arg1, const void *arg2 )
-{
-  int pic_num1 = (*(storable_picture**)arg1)->PicNum;
-  int pic_num2 = (*(storable_picture**)arg2)->PicNum;
-
-  if (pic_num1 < pic_num2)
-    return 1;
-  if (pic_num1 > pic_num2)
-    return -1;
-  else
-    return 0;
-}
-
-static inline int compare_pic_by_lt_pic_num_asc( const void *arg1, const void *arg2 )
-{
-  int long_term_pic_num1 = (*(storable_picture**)arg1)->LongTermPicNum;
-  int long_term_pic_num2 = (*(storable_picture**)arg2)->LongTermPicNum;
-
-  if ( long_term_pic_num1 < long_term_pic_num2)
-    return -1;
-  if ( long_term_pic_num1 > long_term_pic_num2)
-    return 1;
-  else
-    return 0;
-}
-
-static inline int compare_fs_by_frame_num_desc( const void *arg1, const void *arg2 )
-{
-  int frame_num_wrap1 = (*(frame_store**)arg1)->FrameNumWrap;
-  int frame_num_wrap2 = (*(frame_store**)arg2)->FrameNumWrap;
-  if ( frame_num_wrap1 < frame_num_wrap2)
-    return 1;
-  if ( frame_num_wrap1 > frame_num_wrap2)
-    return -1;
-  else
-    return 0;
-}
-
-static inline int compare_fs_by_lt_pic_idx_asc( const void *arg1, const void *arg2 )
-{
-  int long_term_frame_idx1 = (*(frame_store**)arg1)->LongTermFrameIdx;
-  int long_term_frame_idx2 = (*(frame_store**)arg2)->LongTermFrameIdx;
-
-  if ( long_term_frame_idx1 < long_term_frame_idx2)
-    return -1;
-  else if ( long_term_frame_idx1 > long_term_frame_idx2)
-    return 1;
-  else
-    return 0;
-}
-
-static inline int compare_pic_by_poc_asc( const void *arg1, const void *arg2 )
-{
-  int poc1 = (*(storable_picture**)arg1)->poc;
-  int poc2 = (*(storable_picture**)arg2)->poc;
-
-  if ( poc1 < poc2)
-    return -1;  
-  else if ( poc1 > poc2)
-    return 1;
-  else
-    return 0;
-}
-
-static inline int compare_pic_by_poc_desc( const void *arg1, const void *arg2 )
-{
-  int poc1 = (*(storable_picture**)arg1)->poc;
-  int poc2 = (*(storable_picture**)arg2)->poc;
-
-  if (poc1 < poc2)
-    return 1;
-  else if (poc1 > poc2)
-    return -1;
-  else
-    return 0;
-}
-
-static inline int compare_fs_by_poc_asc( const void *arg1, const void *arg2 )
-{
-  int poc1 = (*(frame_store**)arg1)->poc;
-  int poc2 = (*(frame_store**)arg2)->poc;
-
-  if (poc1 < poc2)
-    return -1;
-  else if (poc1 > poc2)
-    return 1;
-  else
-    return 0;
-}
-
-static inline int compare_fs_by_poc_desc( const void *arg1, const void *arg2 )
-{
-  int poc1 = (*(frame_store**)arg1)->poc;
-  int poc2 = (*(frame_store**)arg2)->poc;
-
-  if (poc1 < poc2)
-    return 1;
-  else if (poc1 > poc2)
-    return -1;
-  else
-    return 0;
-}
 
 
 extern void get_smallest_poc(dpb_t *p_Dpb, int *poc,int * pos);
