@@ -7,7 +7,87 @@
 #include "memalloc.h"
 #include "output.h"
 
+
 #if (MVC_EXTENSION_ENABLE)
+
+static int is_view_id_in_ref_view_list(int view_id, int *ref_view_id, int num_ref_views)
+{
+   int i;
+   for(i=0; i<num_ref_views; i++)
+   {
+     if(view_id == ref_view_id[i])
+       break;
+   }
+
+   return (num_ref_views && (i<num_ref_views));
+}
+
+static void append_interview_list(
+    dpb_t *p_Dpb, bool field_pic_flag, bool bottom_field_flag,
+    int list_idx, frame_store **list,
+    int *listXsize, int currPOC, int curr_view_id, int anchor_pic_flag)
+{
+  VideoParameters *p_Vid = p_Dpb->p_Vid;
+  int iVOIdx = curr_view_id;
+  int pic_avail;
+  int poc = 0;
+  int fld_idx;
+  int num_ref_views, *ref_view_id;
+  frame_store *fs = p_Dpb->fs_ilref[0];
+
+
+  if(iVOIdx <0)
+    printf("Error: iVOIdx: %d is not less than 0\n", iVOIdx);
+
+  if(anchor_pic_flag)
+  {
+    num_ref_views = list_idx? p_Vid->active_subset_sps->num_anchor_refs_l1[iVOIdx] : p_Vid->active_subset_sps->num_anchor_refs_l0[iVOIdx];
+    ref_view_id   = list_idx? p_Vid->active_subset_sps->anchor_ref_l1[iVOIdx]:p_Vid->active_subset_sps->anchor_ref_l0[iVOIdx];
+  }
+  else
+  {
+    num_ref_views = list_idx? p_Vid->active_subset_sps->num_non_anchor_refs_l1[iVOIdx] : p_Vid->active_subset_sps->num_non_anchor_refs_l0[iVOIdx];
+    ref_view_id = list_idx? p_Vid->active_subset_sps->non_anchor_ref_l1[iVOIdx]:p_Vid->active_subset_sps->non_anchor_ref_l0[iVOIdx];
+  }
+
+  if(bottom_field_flag)
+    fld_idx = 1;
+  else
+    fld_idx = 0;
+
+    if(!field_pic_flag)
+    {
+      pic_avail = (fs->is_used == 3);
+      if (pic_avail)
+        poc = fs->frame->poc;
+    }
+    else if(!bottom_field_flag)
+    {
+      pic_avail = fs->is_used & 1;
+      if (pic_avail)
+        poc = fs->top_field->poc;
+    }
+    else
+    {
+      pic_avail = fs->is_used & 2;
+      if (pic_avail)
+        poc = fs->bottom_field->poc;
+    }
+
+    if(pic_avail && fs->inter_view_flag[fld_idx])
+    {
+      if(poc == currPOC)
+      {
+        if(is_view_id_in_ref_view_list(fs->view_id, ref_view_id, num_ref_views))
+        {
+          //add one inter-view reference;
+          list[*listXsize] = fs; 
+          //next;
+          (*listXsize)++;
+        }
+      }
+    }
+}
 
 static int GetViewIdx(VideoParameters *p_Vid, int iVOIdx)
 {

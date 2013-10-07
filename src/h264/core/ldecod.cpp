@@ -65,7 +65,7 @@ VideoParameters::VideoParameters()
 
     this->seiToneMapping = new ToneMappingSEI;
 
-    this->ppSliceList = (slice_t **)calloc(MAX_NUM_DECSLICES, sizeof(slice_t *));
+    this->ppSliceList = new slice_t*[MAX_NUM_DECSLICES];
 
     this->iNumOfSlicesAllocated = MAX_NUM_DECSLICES;
     this->pNextSlice            = nullptr;
@@ -85,7 +85,6 @@ VideoParameters::VideoParameters()
     this->snr->Bframe_ctr       = 0;
     this->snr->g_nFrame         = 0;
     this->snr->frame_ctr        = 0;
-    // time for total decoding session
     this->snr->tot_time         = 0;
 
     this->dec_picture            = nullptr;
@@ -123,7 +122,7 @@ VideoParameters::~VideoParameters()
             if (this->ppSliceList[i])
                 delete this->ppSliceList[i];
         }
-        free(this->ppSliceList);
+        delete []this->ppSliceList;
     }
 
     if (this->pNextSlice)

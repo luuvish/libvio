@@ -37,9 +37,6 @@ extern void free_mem2Dpel_pad(imgpel **array2D, int iPadY, int iPadX);
 extern void free_mem3Dpel    (imgpel   ***array3D);
 extern void free_mem3Dpel_pad(imgpel ***array3D, int iDim12, int iPadY, int iPadX);
 
-extern int  init_top_bot_planes(imgpel **imgFrame, int height, imgpel ***imgTopField, imgpel ***imgBotField);
-extern void free_top_bot_planes(imgpel **imgTopField, imgpel **imgBotField);
-
 extern void no_mem_exit(const char *where);
 
 

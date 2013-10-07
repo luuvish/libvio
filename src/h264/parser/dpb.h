@@ -236,17 +236,12 @@ using dpb_t = decoded_picture_buffer_t;
 extern void              init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type);
 extern void              re_init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type);
 extern void              free_dpb(dpb_t *p_Dpb);
-extern storable_picture*  alloc_storable_picture(VideoParameters *p_Vid, PictureStructure type, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output);
+extern storable_picture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure type, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output);
 extern void              free_storable_picture (storable_picture* p);
 
 #if (MVC_EXTENSION_ENABLE)
 extern void             idr_memory_management(dpb_t *p_Dpb, storable_picture* p);
 extern void             flush_dpbs(dpb_t **p_Dpb, int nLayers);
-extern int              GetMaxDecFrameBuffering(VideoParameters *p_Vid);
-extern void             append_interview_list(dpb_t *p_Dpb, 
-                                              bool field_pic_flag, bool bottom_field_flag,
-                                              int list_idx, frame_store **list, int *listXsize, int currPOC, 
-                                              int curr_view_id, int anchor_pic_flag);
 #endif
 
 struct slice_t;
@@ -265,8 +260,6 @@ extern void init_mbaff_lists(VideoParameters *p_Vid, slice_t *currSlice);
 extern void store_picture_in_dpb(dpb_t *p_Dpb, storable_picture* p);
 
 
-
-
 extern void unmark_for_reference(frame_store* fs);
 extern void unmark_for_long_term_reference(frame_store* fs);
 extern void insert_picture_in_dpb(VideoParameters *p_Vid, frame_store* fs, storable_picture* p);
@@ -276,19 +269,12 @@ extern int  output_one_frame_from_dpb(dpb_t *p_Dpb);
 extern void flush_dpb(dpb_t *p_Dpb);
 
 extern void dpb_split_field      (VideoParameters *p_Vid, frame_store *fs);
-extern void dpb_combine_field    (VideoParameters *p_Vid, frame_store *fs);
 extern void dpb_combine_field_yuv(VideoParameters *p_Vid, frame_store *fs);
 
 extern void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *pSlice);
 
-
-extern int  init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps);
-extern void free_img_data(VideoParameters *p_Vid, ImageData *p_ImgData);
 extern void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture);
 extern void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, int iPadY);
-extern void process_picture_in_dpb_s(VideoParameters *p_Vid, storable_picture *p_pic);
-extern storable_picture * clone_storable_picture( VideoParameters *p_Vid, storable_picture *p_pic );
-extern void store_proc_picture_in_dpb(dpb_t *p_Dpb, storable_picture* p);
 
 
 #if (MVC_EXTENSION_ENABLE)

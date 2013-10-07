@@ -711,6 +711,61 @@ static void gen_field_ref_ids(VideoParameters *p_Vid, storable_picture *p)
   }
 }
 
+/*!
+ ************************************************************************
+ * \brief
+ *    Generate a frame from top and bottom fields
+ ************************************************************************
+ */
+static void dpb_combine_field(VideoParameters *p_Vid, frame_store *fs)
+{
+  int i,j, jj, jj4, k, l;
+
+  dpb_combine_field_yuv(p_Vid, fs);
+
+#if (MVC_EXTENSION_ENABLE)
+  fs->frame->view_id = fs->view_id;
+#endif
+  fs->frame->iCodingType = fs->top_field->iCodingType; //FIELD_CODING;
+   //! Use inference flag to remap mvs/references
+
+  //! Generate Frame parameters from field information.
+
+  for (j=0 ; j < (fs->top_field->size_y >> 2) ; j++)
+  {
+    jj = (j<<1);
+    jj4 = jj + 1;
+    for (i=0 ; i< (fs->top_field->size_x >> 2) ; i++)
+    {
+      fs->frame->mv_info[jj][i].mv[LIST_0] = fs->top_field->mv_info[j][i].mv[LIST_0];
+      fs->frame->mv_info[jj][i].mv[LIST_1] = fs->top_field->mv_info[j][i].mv[LIST_1];
+
+      fs->frame->mv_info[jj][i].ref_idx[LIST_0] = fs->top_field->mv_info[j][i].ref_idx[LIST_0];
+      fs->frame->mv_info[jj][i].ref_idx[LIST_1] = fs->top_field->mv_info[j][i].ref_idx[LIST_1];
+
+      /* bug: top field list doesnot exist.*/
+      l = fs->top_field->mv_info[j][i].slice_no;
+      k = fs->top_field->mv_info[j][i].ref_idx[LIST_0];
+      fs->frame->mv_info[jj][i].ref_pic[LIST_0] = k>=0? fs->top_field->listX[l][LIST_0][k]: NULL;  
+      k = fs->top_field->mv_info[j][i].ref_idx[LIST_1];
+      fs->frame->mv_info[jj][i].ref_pic[LIST_1] = k>=0? fs->top_field->listX[l][LIST_1][k]: NULL;
+
+      //! association with id already known for fields.
+      fs->frame->mv_info[jj4][i].mv[LIST_0] = fs->bottom_field->mv_info[j][i].mv[LIST_0];
+      fs->frame->mv_info[jj4][i].mv[LIST_1] = fs->bottom_field->mv_info[j][i].mv[LIST_1];
+
+      fs->frame->mv_info[jj4][i].ref_idx[LIST_0]  = fs->bottom_field->mv_info[j][i].ref_idx[LIST_0];
+      fs->frame->mv_info[jj4][i].ref_idx[LIST_1]  = fs->bottom_field->mv_info[j][i].ref_idx[LIST_1];
+      l = fs->bottom_field->mv_info[j][i].slice_no;
+
+      k = fs->bottom_field->mv_info[j][i].ref_idx[LIST_0];
+      fs->frame->mv_info[jj4][i].ref_pic[LIST_0] = k>=0? fs->bottom_field->listX[l][LIST_0][k]: NULL;
+      k = fs->bottom_field->mv_info[j][i].ref_idx[LIST_1];
+      fs->frame->mv_info[jj4][i].ref_pic[LIST_1] = k>=0? fs->bottom_field->listX[l][LIST_1][k]: NULL;
+    }
+  }
+}
+
 void insert_picture_in_dpb(VideoParameters *p_Vid, frame_store* fs, storable_picture* p)
 {
   assert (p!=NULL);
@@ -875,161 +930,123 @@ void remove_frame_from_dpb(dpb_t *p_Dpb, int pos)
  */
 int output_one_frame_from_dpb(dpb_t *p_Dpb)
 {
-  VideoParameters *p_Vid = p_Dpb->p_Vid;
-  int poc, pos;
-  //diagnostics
-  if (p_Dpb->used_size < 1)
-  {
-    error("Cannot output frame, DPB empty.",150);
-  }
+    VideoParameters *p_Vid = p_Dpb->p_Vid;
+    int poc, pos;
+    //diagnostics
+    if (p_Dpb->used_size < 1)
+        error("Cannot output frame, DPB empty.",150);
 
-  // find smallest POC
-  get_smallest_poc(p_Dpb, &poc, &pos);
+    // find smallest POC
+    get_smallest_poc(p_Dpb, &poc, &pos);
 
-  if(pos==-1)
-  {
-    return 0;
-  }
+    if (pos == -1)
+        return 0;
 
   // call the output function
-//  printf ("output frame with frame_num #%d, poc %d (dpb. p_Dpb->size=%d, p_Dpb->used_size=%d)\n", p_Dpb->fs[pos]->frame_num, p_Dpb->fs[pos]->frame->poc, p_Dpb->size, p_Dpb->used_size);
 
 #if (DISABLE_ERC == 0)
-  // picture error concealment
-  if(p_Vid->conceal_mode != 0)
-  {
-    if(p_Dpb->last_output_poc == 0)
-    {
-      write_lost_ref_after_idr(p_Dpb, pos);
-    }
+    // picture error concealment
+    if (p_Vid->conceal_mode != 0) {
+        if (p_Dpb->last_output_poc == 0)
+            write_lost_ref_after_idr(p_Dpb, pos);
 #if (MVC_EXTENSION_ENABLE)
-    write_lost_non_ref_pic(p_Dpb, poc, p_Vid->p_out_mvc[p_Dpb->layer_id]);
+        write_lost_non_ref_pic(p_Dpb, poc, p_Vid->p_out_mvc[p_Dpb->layer_id]);
 #else
-    write_lost_non_ref_pic(p_Dpb, poc, p_Vid->p_out);
+        write_lost_non_ref_pic(p_Dpb, poc, p_Vid->p_out);
 #endif
-  }
+    }
 #endif
 // JVT-P072 ends
 
 #if (MVC_EXTENSION_ENABLE)
-  write_stored_frame(p_Vid, p_Dpb->fs[pos], p_Vid->p_out_mvc[p_Dpb->layer_id]);
+    write_stored_frame(p_Vid, p_Dpb->fs[pos], p_Vid->p_out_mvc[p_Dpb->layer_id]);
 #else
-  write_stored_frame(p_Vid, p_Dpb->fs[pos], p_Vid->p_out);
+    write_stored_frame(p_Vid, p_Dpb->fs[pos], p_Vid->p_out);
 #endif
 
-  // picture error concealment
-  if(p_Vid->conceal_mode == 0)
-  {
-    if (p_Dpb->last_output_poc >= poc)
-    {
-      error ("output POC must be in ascending order", 150);
+    // picture error concealment
+    if (p_Vid->conceal_mode == 0) {
+        if (p_Dpb->last_output_poc >= poc)
+            error ("output POC must be in ascending order", 150);
     }
-  }
 
-  p_Dpb->last_output_poc = poc;
+    p_Dpb->last_output_poc = poc;
 
-  // free frame store and move empty store to end of buffer
-  if (!is_used_for_reference(p_Dpb->fs[pos]))
-  {
-    remove_frame_from_dpb(p_Dpb, pos);
-  }
-  return 1;
+    // free frame store and move empty store to end of buffer
+    if (!is_used_for_reference(p_Dpb->fs[pos]))
+        remove_frame_from_dpb(p_Dpb, pos);
+    return 1;
 }
 
 
-
-/*!
- ************************************************************************
- * \brief
- *    All stored picture are output. Should be called to empty the buffer
- ************************************************************************
- */
 void flush_dpb(dpb_t *p_Dpb)
 {
-  VideoParameters *p_Vid = p_Dpb->p_Vid;
-  uint32_t i;
+    VideoParameters *p_Vid = p_Dpb->p_Vid;
 
-  if(!p_Dpb->init_done)
-    return;
+    if (!p_Dpb->init_done)
+        return;
 #if (DISABLE_ERC == 0)
-  if (p_Vid->conceal_mode != 0)
-    conceal_non_ref_pics(p_Dpb, 0);
+    if (p_Vid->conceal_mode != 0)
+        conceal_non_ref_pics(p_Dpb, 0);
 #endif
-  // mark all frames unused
-  for (i=0; i<p_Dpb->used_size; i++)
-  {
+    // mark all frames unused
+    for (int i = 0; i < p_Dpb->used_size; i++) {
 #if MVC_EXTENSION_ENABLE
-    assert( p_Dpb->fs[i]->view_id == p_Dpb->layer_id);
+        assert(p_Dpb->fs[i]->view_id == p_Dpb->layer_id);
 #endif
-    unmark_for_reference (p_Dpb->fs[i]);
-  }
+        unmark_for_reference(p_Dpb->fs[i]);
+    }
 
-  while (remove_unused_frame_from_dpb(p_Dpb)) ;
+    while (remove_unused_frame_from_dpb(p_Dpb));
 
-  // output frames in POC order
-  while (p_Dpb->used_size && output_one_frame_from_dpb(p_Dpb)) ;
+    // output frames in POC order
+    while (p_Dpb->used_size && output_one_frame_from_dpb(p_Dpb));
 
-  p_Dpb->last_output_poc = INT_MIN;
+    p_Dpb->last_output_poc = INT_MIN;
 }
 
 #if (MVC_EXTENSION_ENABLE)
 void flush_dpbs(dpb_t **p_Dpb_layers, int nLayers)
 {
-  VideoParameters *p_Vid = p_Dpb_layers[0]->p_Vid;
-  dpb_t *p_Dpb;
-  int i, j, used_size;
+    VideoParameters *p_Vid = p_Dpb_layers[0]->p_Vid;
+    dpb_t *p_Dpb;
 
 #if (DISABLE_ERC == 0)
-  if (p_Vid->conceal_mode != 0)
-  {
-    conceal_non_ref_pics(p_Dpb_layers[0], 0);
-  }
+    if (p_Vid->conceal_mode != 0)
+        conceal_non_ref_pics(p_Dpb_layers[0], 0);
 #endif
-  // mark all frames unused
-  for(j=0; j<nLayers; j++)
-  {
-    p_Dpb = p_Dpb_layers[j];
-    if(p_Dpb->init_done)
-    {
-      for (i=0; i<(int)p_Dpb->used_size; i++)
-      {
-        unmark_for_reference (p_Dpb->fs[i]);
-      }
-      while (remove_unused_frame_from_dpb(p_Dpb)) ;
+    // mark all frames unused
+    for (int j = 0; j < nLayers; j++) {
+        p_Dpb = p_Dpb_layers[j];
+        if (p_Dpb->init_done) {
+            for (int i = 0; i < (int)p_Dpb->used_size; i++)
+                unmark_for_reference (p_Dpb->fs[i]);
+            while (remove_unused_frame_from_dpb(p_Dpb));
+        }
     }
-  }
-  // output frames in POC order
-  used_size = p_Dpb_layers[0]->used_size;
-  for(j=1; j<nLayers; j++)
-  {
-    p_Dpb = p_Dpb_layers[j];
-    if(p_Dpb->init_done)
-    {
-      if(p_Dpb->used_size &&  (p_Dpb->used_size != used_size))
-      {
-        assert(!"DPB used_size is not equal!");
-      }
-      if((int)p_Dpb->used_size > used_size)
-      {
-        used_size = (int)p_Dpb->used_size;
-      }
+    // output frames in POC order
+    int used_size = p_Dpb_layers[0]->used_size;
+    for (int j = 1; j < nLayers; j++) {
+        p_Dpb = p_Dpb_layers[j];
+        if (p_Dpb->init_done) {
+            if (p_Dpb->used_size && p_Dpb->used_size != used_size)
+                assert(!"DPB used_size is not equal!");
+            if ((int)p_Dpb->used_size > used_size)
+                used_size = (int)p_Dpb->used_size;
+        }
     }
-  }  
-  while (used_size)
-  {
-    for(j=0; j<nLayers; j++)
-    {
-      p_Dpb = p_Dpb_layers[j];
-      if(p_Dpb->used_size)
-        output_one_frame_from_dpb(p_Dpb);
+    while (used_size) {
+        for (int j = 0; j < nLayers; j++) {
+            p_Dpb = p_Dpb_layers[j];
+            if (p_Dpb->used_size)
+                output_one_frame_from_dpb(p_Dpb);
+        }
+        used_size--;
     }
-    used_size--;
-  }
-  for(j=0; j<nLayers; j++)
-  {
-    p_Dpb = p_Dpb_layers[j];
-    p_Dpb->last_output_poc = INT_MIN;
-  }  
+    for (int j = 0; j < nLayers; j++) {
+        p_Dpb = p_Dpb_layers[j];
+        p_Dpb->last_output_poc = INT_MIN;
+    }
 }
 #endif
 
@@ -1306,61 +1323,6 @@ void dpb_combine_field_yuv(VideoParameters *p_Vid, frame_store *fs)
 /*!
  ************************************************************************
  * \brief
- *    Generate a frame from top and bottom fields
- ************************************************************************
- */
-void dpb_combine_field(VideoParameters *p_Vid, frame_store *fs)
-{
-  int i,j, jj, jj4, k, l;
-
-  dpb_combine_field_yuv(p_Vid, fs);
-
-#if (MVC_EXTENSION_ENABLE)
-  fs->frame->view_id = fs->view_id;
-#endif
-  fs->frame->iCodingType = fs->top_field->iCodingType; //FIELD_CODING;
-   //! Use inference flag to remap mvs/references
-
-  //! Generate Frame parameters from field information.
-
-  for (j=0 ; j < (fs->top_field->size_y >> 2) ; j++)
-  {
-    jj = (j<<1);
-    jj4 = jj + 1;
-    for (i=0 ; i< (fs->top_field->size_x >> 2) ; i++)
-    {
-      fs->frame->mv_info[jj][i].mv[LIST_0] = fs->top_field->mv_info[j][i].mv[LIST_0];
-      fs->frame->mv_info[jj][i].mv[LIST_1] = fs->top_field->mv_info[j][i].mv[LIST_1];
-
-      fs->frame->mv_info[jj][i].ref_idx[LIST_0] = fs->top_field->mv_info[j][i].ref_idx[LIST_0];
-      fs->frame->mv_info[jj][i].ref_idx[LIST_1] = fs->top_field->mv_info[j][i].ref_idx[LIST_1];
-
-      /* bug: top field list doesnot exist.*/
-      l = fs->top_field->mv_info[j][i].slice_no;
-      k = fs->top_field->mv_info[j][i].ref_idx[LIST_0];
-      fs->frame->mv_info[jj][i].ref_pic[LIST_0] = k>=0? fs->top_field->listX[l][LIST_0][k]: NULL;  
-      k = fs->top_field->mv_info[j][i].ref_idx[LIST_1];
-      fs->frame->mv_info[jj][i].ref_pic[LIST_1] = k>=0? fs->top_field->listX[l][LIST_1][k]: NULL;
-
-      //! association with id already known for fields.
-      fs->frame->mv_info[jj4][i].mv[LIST_0] = fs->bottom_field->mv_info[j][i].mv[LIST_0];
-      fs->frame->mv_info[jj4][i].mv[LIST_1] = fs->bottom_field->mv_info[j][i].mv[LIST_1];
-
-      fs->frame->mv_info[jj4][i].ref_idx[LIST_0]  = fs->bottom_field->mv_info[j][i].ref_idx[LIST_0];
-      fs->frame->mv_info[jj4][i].ref_idx[LIST_1]  = fs->bottom_field->mv_info[j][i].ref_idx[LIST_1];
-      l = fs->bottom_field->mv_info[j][i].slice_no;
-
-      k = fs->bottom_field->mv_info[j][i].ref_idx[LIST_0];
-      fs->frame->mv_info[jj4][i].ref_pic[LIST_0] = k>=0? fs->bottom_field->listX[l][LIST_0][k]: NULL;
-      k = fs->bottom_field->mv_info[j][i].ref_idx[LIST_1];
-      fs->frame->mv_info[jj4][i].ref_pic[LIST_1] = k>=0? fs->bottom_field->listX[l][LIST_1][k]: NULL;
-    }
-  }
-}
-
-/*!
- ************************************************************************
- * \brief
  *      Tian Dong
  *          June 13, 2002, Modified on July 30, 2003
  *
@@ -1425,300 +1387,6 @@ void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
 
 
 
-#if (MVC_EXTENSION_ENABLE)
-int GetMaxDecFrameBuffering(VideoParameters *p_Vid)
-{
-  int i, j, iMax, iMax_1 = 0, iMax_2 = 0;
-  sub_sps_t *curr_subset_sps;
-  sps_t *curr_sps;
-
-  curr_subset_sps = p_Vid->SubsetSeqParSet;
-  curr_sps = p_Vid->SeqParSet;
-  for(i=0; i<MAXSPS; i++)
-  {
-    if(curr_subset_sps->Valid && curr_subset_sps->sps.seq_parameter_set_id < MAXSPS)
-    {
-      j = curr_subset_sps->sps.max_dec_frame_buffering;
-
-      if (curr_subset_sps->sps.vui_parameters_present_flag && curr_subset_sps->sps.vui_parameters.bitstream_restriction_flag)
-      {
-        if ((int)curr_subset_sps->sps.vui_parameters.max_dec_frame_buffering > j)
-        {
-          error ("max_dec_frame_buffering larger than MaxDpbSize", 500);
-        }
-        j = max<int>(1, curr_subset_sps->sps.vui_parameters.max_dec_frame_buffering);
-      }
-
-      if(j > iMax_2)
-        iMax_2 = j;
-    }
-    
-    if(curr_sps->Valid)
-    {
-      j = curr_sps->max_dec_frame_buffering;
-
-      if (curr_sps->vui_parameters_present_flag && curr_sps->vui_parameters.bitstream_restriction_flag)
-      {
-        if ((int)curr_sps->vui_parameters.max_dec_frame_buffering > j)
-        {
-          error ("max_dec_frame_buffering larger than MaxDpbSize", 500);
-        }
-        j = max<int>(1, curr_sps->vui_parameters.max_dec_frame_buffering);
-      }
-
-      if(j > iMax_1)
-        iMax_1 = j;
-    }
-    curr_subset_sps++;
-    curr_sps++;
-  }  
-      
-  if (iMax_1 > 0 && iMax_2 > 0)
-    iMax = iMax_1 + iMax_2;
-  else
-    iMax = (iMax_1 >0? iMax_1*2 : iMax_2*2);
-  return iMax;
-}
-
-static int is_view_id_in_ref_view_list(int view_id, int *ref_view_id, int num_ref_views)
-{
-   int i;
-   for(i=0; i<num_ref_views; i++)
-   {
-     if(view_id == ref_view_id[i])
-       break;
-   }
-
-   return (num_ref_views && (i<num_ref_views));
-}
-
-void append_interview_list(dpb_t *p_Dpb, 
-                           bool field_pic_flag,
-                           bool bottom_field_flag,
-                           int list_idx, 
-                           frame_store **list,
-                           int *listXsize, 
-                           int currPOC, 
-                           int curr_view_id, 
-                           int anchor_pic_flag)
-{
-  VideoParameters *p_Vid = p_Dpb->p_Vid;
-  int iVOIdx = curr_view_id;
-  int pic_avail;
-  int poc = 0;
-  int fld_idx;
-  int num_ref_views, *ref_view_id;
-  frame_store *fs = p_Dpb->fs_ilref[0];
-
-
-  if(iVOIdx <0)
-    printf("Error: iVOIdx: %d is not less than 0\n", iVOIdx);
-
-  if(anchor_pic_flag)
-  {
-    num_ref_views = list_idx? p_Vid->active_subset_sps->num_anchor_refs_l1[iVOIdx] : p_Vid->active_subset_sps->num_anchor_refs_l0[iVOIdx];
-    ref_view_id   = list_idx? p_Vid->active_subset_sps->anchor_ref_l1[iVOIdx]:p_Vid->active_subset_sps->anchor_ref_l0[iVOIdx];
-  }
-  else
-  {
-    num_ref_views = list_idx? p_Vid->active_subset_sps->num_non_anchor_refs_l1[iVOIdx] : p_Vid->active_subset_sps->num_non_anchor_refs_l0[iVOIdx];
-    ref_view_id = list_idx? p_Vid->active_subset_sps->non_anchor_ref_l1[iVOIdx]:p_Vid->active_subset_sps->non_anchor_ref_l0[iVOIdx];
-  }
-
-  if(bottom_field_flag)
-    fld_idx = 1;
-  else
-    fld_idx = 0;
-
-    if(!field_pic_flag)
-    {
-      pic_avail = (fs->is_used == 3);
-      if (pic_avail)
-        poc = fs->frame->poc;
-    }
-    else if(!bottom_field_flag)
-    {
-      pic_avail = fs->is_used & 1;
-      if (pic_avail)
-        poc = fs->top_field->poc;
-    }
-    else
-    {
-      pic_avail = fs->is_used & 2;
-      if (pic_avail)
-        poc = fs->bottom_field->poc;
-    }
-
-    if(pic_avail && fs->inter_view_flag[fld_idx])
-    {
-      if(poc == currPOC)
-      {
-        if(is_view_id_in_ref_view_list(fs->view_id, ref_view_id, num_ref_views))
-        {
-          //add one inter-view reference;
-          list[*listXsize] = fs; 
-          //next;
-          (*listXsize)++;
-        }
-      }
-    }
-}
-
-#endif
-
-void process_picture_in_dpb_s(VideoParameters *p_Vid, storable_picture *p_pic)
-{
-  ImageData *p_img_out = &p_Vid->tempData3;
-  imgpel***  d_img;
-  int i;
-
-  if(p_Vid->tempData3.frm_data[0] == NULL)
-    init_img_data( p_Vid, &(p_Vid->tempData3), p_Vid->active_sps);
-
-  if (p_pic->structure == FRAME)
-  {
-    d_img = p_img_out->frm_data;
-  }
-  else //If reference picture is a field, then frm_data will actually contain field data and therefore top/bottom stride is set accordingly.
-  {
-    if (p_pic->structure == TOP_FIELD)
-    {
-      d_img = p_img_out->top_data;
-    }
-    else
-    {
-      d_img = p_img_out->bot_data;
-    }
-  }
-
-  for(i=0; i<p_pic->size_y; i++)
-    memcpy(d_img[0][i], p_pic->imgY[i], p_pic->size_x*sizeof(imgpel));
-  if (p_Vid->active_sps->chroma_format_idc != YUV400)
-  {
-    for(i=0; i<p_pic->size_y_cr; i++)
-      memcpy(d_img[1][i], p_pic->imgUV[0][i], p_pic->size_x_cr * sizeof(imgpel));
-    for(i=0; i<p_pic->size_y_cr; i++)
-      memcpy(d_img[2][i], p_pic->imgUV[1][i], p_pic->size_x_cr * sizeof(imgpel));
-  }
-}
-
-int init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *sps)
-{
-  int memory_size = 0;
-  int nplane;
-  
-  // allocate memory for reference frame buffers: p_ImgData->frm_data
-  p_ImgData->yuv_format    = (ColorFormat) sps->chroma_format_idc;
-  p_ImgData->frm_stride[0] = sps->PicWidthInMbs * 16;
-  p_ImgData->frm_stride[1] = p_ImgData->frm_stride[2] = sps->PicWidthInMbs * sps->MbWidthC;
-  p_ImgData->top_stride[0] = p_ImgData->bot_stride[0] = p_ImgData->frm_stride[0] << 1;
-  p_ImgData->top_stride[1] = p_ImgData->top_stride[2] = p_ImgData->bot_stride[1] = p_ImgData->bot_stride[2] = p_ImgData->frm_stride[1] << 1;
-
-  if( sps->separate_colour_plane_flag )
-  {
-    for( nplane=0; nplane < 3; nplane++ )
-    {
-      memory_size += get_mem2Dpel(&(p_ImgData->frm_data[nplane]), sps->FrameHeightInMbs * 16, sps->PicWidthInMbs * 16);
-    }
-  }
-  else
-  {
-    memory_size += get_mem2Dpel(&(p_ImgData->frm_data[0]), sps->FrameHeightInMbs * 16, sps->PicWidthInMbs * 16);
-
-    if (sps->chroma_format_idc != YUV400)
-    {
-      int i, j, k;
-      memory_size += get_mem2Dpel(&(p_ImgData->frm_data[1]), sps->FrameHeightInMbs * sps->MbHeightC, sps->PicWidthInMbs * sps->MbWidthC);
-      memory_size += get_mem2Dpel(&(p_ImgData->frm_data[2]), sps->FrameHeightInMbs * sps->MbHeightC, sps->PicWidthInMbs * sps->MbWidthC);
-
-      if (sizeof(imgpel) == sizeof(unsigned char))
-      {
-        for (k = 1; k < 3; k++)
-          memset(p_ImgData->frm_data[k][0], 128, sps->FrameHeightInMbs * sps->MbHeightC * sps->PicWidthInMbs * sps->MbWidthC * sizeof(imgpel));
-      }
-      else
-      {
-        imgpel mean_val;
-
-        for (k = 1; k < 3; k++)
-        {
-          mean_val = (imgpel) (sps->BitDepthC);
-
-          for (j = 0; j < sps->FrameHeightInMbs * sps->MbHeightC; j++)
-          {
-            for (i = 0; i < sps->PicWidthInMbs * sps->MbWidthC; i++)
-              p_ImgData->frm_data[k][j][i] = mean_val;
-          }
-        }
-      }
-    }
-  }
-
-  if (!sps->frame_mbs_only_flag)
-  {
-    // allocate memory for field reference frame buffers
-    memory_size += init_top_bot_planes(p_ImgData->frm_data[0], sps->FrameHeightInMbs * 16, &(p_ImgData->top_data[0]), &(p_ImgData->bot_data[0]));
-
-    if (sps->chroma_format_idc != YUV400)
-    {
-      memory_size += 4*(sizeof(imgpel**));
-
-      memory_size += init_top_bot_planes(p_ImgData->frm_data[1], sps->FrameHeightInMbs * sps->MbHeightC, &(p_ImgData->top_data[1]), &(p_ImgData->bot_data[1]));
-      memory_size += init_top_bot_planes(p_ImgData->frm_data[2], sps->FrameHeightInMbs * sps->MbHeightC, &(p_ImgData->top_data[2]), &(p_ImgData->bot_data[2]));
-    }
-  }
-
-  return memory_size;
-}
-
-void free_img_data(VideoParameters *p_Vid, ImageData *p_ImgData)
-{
-    if (p_Vid->active_sps->separate_colour_plane_flag) {
-        for (int nplane = 0; nplane < 3; nplane++) {
-            if (p_ImgData->frm_data[nplane]) {
-                free_mem2Dpel(p_ImgData->frm_data[nplane]);      // free ref frame buffers
-                p_ImgData->frm_data[nplane] = NULL;
-            }
-        }
-    } else {
-        if (p_ImgData->frm_data[0]) {
-            free_mem2Dpel(p_ImgData->frm_data[0]);      // free ref frame buffers
-            p_ImgData->frm_data[0] = NULL;
-        }
-    
-        if (p_ImgData->yuv_format != YUV400) {
-            if (p_ImgData->frm_data[1]) {
-                free_mem2Dpel(p_ImgData->frm_data[1]);
-                p_ImgData->frm_data[1] = NULL;
-            }
-            if (p_ImgData->frm_data[2]) {
-                free_mem2Dpel(p_ImgData->frm_data[2]);
-                p_ImgData->frm_data[2] = NULL;
-            }
-        }
-    }
-  
-    if (!p_Vid->active_sps->frame_mbs_only_flag) {
-        free_top_bot_planes(p_ImgData->top_data[0], p_ImgData->bot_data[0]);
-
-        if (p_ImgData->yuv_format != YUV400) {
-            free_top_bot_planes(p_ImgData->top_data[1], p_ImgData->bot_data[1]);
-            free_top_bot_planes(p_ImgData->top_data[2], p_ImgData->bot_data[2]);
-        }
-    }
-}
-
-static inline void copy_img_data(imgpel *out_img, imgpel *in_img, int ostride, int istride, unsigned int size_y, unsigned int size_x)
-{
-  unsigned int i;
-  for(i = 0; i < size_y; i++)
-  {
-    memcpy(out_img, in_img, size_x);
-    out_img += ostride;
-    in_img += istride;
-  }
-}
-
 /*!
  ************************************************************************
  * \brief
@@ -1732,218 +1400,4 @@ int remove_unused_proc_pic_from_dpb(dpb_t *p_Dpb)
   return 0;
 }
 #endif
-
-/*!
- ************************************************************************
- * \brief
- *    Store a processed picture in DPB. This includes cheking for space in DPB and
- *    flushing frames.
- *    If we received a frame, we need to check for a new store, if we
- *    got a field, check if it's the second field of an already allocated
- *    store.
- *
- * \param p_Vid
- *    VideoParameters
- * \param p
- *    Picture to be stored
- *
- ************************************************************************
- */
-#if (MVC_EXTENSION_ENABLE)
-void store_proc_picture_in_dpb(dpb_t *p_Dpb, storable_picture* p)
-{
-  VideoParameters *p_Vid = p_Dpb->p_Vid;
-  frame_store *fs = p_Dpb->fs_ilref[0];
-  if(p_Dpb->used_size_il>0 && fs->is_used==3)
-  {
-    //checking;
-#ifdef _DEBUG
-    if(p->structure==FRAME)
-      assert(fs->frame->frame_poc != p->poc);
-    else if(p->structure==TOP_FIELD)
-      assert(fs->top_field->top_poc != p->poc);
-    else if(p->structure==BOTTOM_FIELD)
-      assert(fs->bottom_field->bottom_poc != p->poc);
-#endif
-    if(fs->frame)
-    {
-      free_storable_picture(fs->frame);
-      fs->frame = NULL;
-    }
-    if(fs->top_field)
-    {
-      free_storable_picture(fs->top_field);
-      fs->top_field = NULL;
-    }
-    if(fs->bottom_field)
-    {
-      free_storable_picture(fs->bottom_field);
-      fs->bottom_field = NULL;
-    }
-    fs->is_used = 0;
-    fs->is_reference = 0;
-    p_Dpb->used_size_il--;   
-  }
-#ifdef _DEBUG  
-  if(fs->is_used>0)
-  {
-    //checking;
-    if(p->structure==FRAME)
-      assert(fs->frame == NULL);
-    else if(p->structure==TOP_FIELD)
-      assert(fs->top_field == NULL);
-    else if(p->structure==BOTTOM_FIELD)
-      assert(fs->bottom_field == NULL);
-  }
-#endif
-
-  insert_picture_in_dpb(p_Vid, fs, p);
-  if((p->structure==FRAME && fs->is_used == 3) || (p->structure!=FRAME && fs->is_used && fs->is_used <3))
-   p_Dpb->used_size_il++;  
-}
-
-/*!
- ************************************************************************
- * \brief
- *    Clone an encoded frame picture structure
- ************************************************************************
- */
-storable_picture * clone_storable_picture( VideoParameters *p_Vid, storable_picture *p_pic )
-{
-  int i, j;
-  int nplane;
-  int *istride = NULL;
-  int ostride[2];
-  imgpel ***img_in = NULL;
-
-  sps_t *sps = p_Vid->active_sps;
-  storable_picture *p_stored_pic = alloc_storable_picture (p_Vid, (PictureStructure) p_Vid->structure,
-      sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
-      sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 0);
-
-    int iChromaPadX = MCBUF_CHROMA_PAD_X;
-    int iChromaPadY = MCBUF_CHROMA_PAD_Y;
-    if (sps->chroma_format_idc == YUV422)
-        iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
-    else if (sps->chroma_format_idc == YUV444) {
-        iChromaPadX = MCBUF_LUMA_PAD_X;
-        iChromaPadY = MCBUF_LUMA_PAD_Y;
-    }
-
-  p_stored_pic->PicNum = p_pic->PicNum;
-  p_stored_pic->frame_num = p_pic->frame_num;
-  p_stored_pic->LongTermFrameIdx = p_pic->LongTermFrameIdx;
-  p_stored_pic->LongTermPicNum = p_pic->LongTermPicNum;
-  p_stored_pic->is_long_term = 0;
-  p_stored_pic->non_existing = p_pic->non_existing;
-  p_stored_pic->structure = p_pic->structure;
-  p_stored_pic->size_x = p_pic->size_x;
-  p_stored_pic->size_y = p_pic->size_y;
-  p_stored_pic->size_x_cr = p_pic->size_x_cr;
-  p_stored_pic->size_y_cr = p_pic->size_y_cr;
-  p_stored_pic->size_x_m1 = p_pic->size_x - 1;
-  p_stored_pic->size_y_m1 = p_pic->size_y - 1;
-  p_stored_pic->size_x_cr_m1 = p_pic->size_x_cr - 1;
-  p_stored_pic->size_y_cr_m1 = p_pic->size_y_cr - 1;
-  
-  p_stored_pic->mb_aff_frame_flag = p_pic->mb_aff_frame_flag;
-  p_stored_pic->seiHasTone_mapping = p_pic->seiHasTone_mapping;
-  p_stored_pic->poc         = p_pic->poc;
-  p_stored_pic->top_poc     = p_pic->top_poc;
-  p_stored_pic->bottom_poc  = p_pic->bottom_poc;
-  p_stored_pic->frame_poc   = p_pic->frame_poc;
-  p_stored_pic->PicNum     = p_pic->PicNum;
-  p_stored_pic->frame_num   = p_pic->frame_num;
-  p_stored_pic->coded_frame = 1;
-
-  p_stored_pic->slice_type = p_pic->slice_type;
-  p_stored_pic->idr_flag = p_pic->idr_flag;
-  p_stored_pic->no_output_of_prior_pics_flag = p_pic->no_output_of_prior_pics_flag;
-  p_stored_pic->long_term_reference_flag = 0;
-  p_stored_pic->adaptive_ref_pic_buffering_flag = 0;
-  p_stored_pic->dec_ref_pic_marking_buffer = NULL;
-  p_stored_pic->PicWidthInMbs = p_pic->PicWidthInMbs;
-  p_stored_pic->recovery_frame = p_pic->recovery_frame;
-  p_stored_pic->chroma_format_idc = p_pic->chroma_format_idc;
-  p_stored_pic->frame_mbs_only_flag = p_pic->frame_mbs_only_flag;
-  p_stored_pic->frame_cropping_flag = p_pic->frame_cropping_flag;
-
-  if (p_stored_pic->frame_cropping_flag)
-  {
-    p_stored_pic->frame_crop_left_offset   = p_pic->frame_crop_left_offset;
-    p_stored_pic->frame_crop_right_offset  = p_pic->frame_crop_right_offset;
-    p_stored_pic->frame_crop_top_offset    = p_pic->frame_crop_top_offset;
-    p_stored_pic->frame_crop_bottom_offset = p_pic->frame_crop_bottom_offset;
-  }
-  
-  // store BL reconstruction
-
-  ostride[0] = p_stored_pic->iLumaStride;
-  ostride[1] = p_stored_pic->iChromaStride;
-  if (p_stored_pic->structure == FRAME)
-  {
-    istride = p_Vid->tempData3.frm_stride;
-    img_in  = p_Vid->tempData3.frm_data;
-  }
-  else if (p_stored_pic->structure == TOP_FIELD)
-  {
-    istride = p_Vid->tempData3.top_stride;
-    img_in  = p_Vid->tempData3.top_data;
-  }
-  else
-  {
-    istride = p_Vid->tempData3.bot_stride;
-    img_in  = p_Vid->tempData3.bot_data;
-  }
-
-  copy_img_data(&p_stored_pic->imgY[0][0], &img_in[0][0][0], ostride[0], istride[0], p_pic->size_y, p_pic->size_x * sizeof(imgpel)); 
-
-  pad_buf(*p_stored_pic->imgY, p_stored_pic->size_x, p_stored_pic->size_y, p_stored_pic->iLumaStride, MCBUF_LUMA_PAD_X, MCBUF_LUMA_PAD_Y);
-
-  if (p_Vid->active_sps->chroma_format_idc != YUV400)
-  {    
-    copy_img_data(&p_stored_pic->imgUV[0][0][0], &img_in[1][0][0], ostride[1], istride[1], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(imgpel));
-    pad_buf(*p_stored_pic->imgUV[0], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, iChromaPadX, iChromaPadY);
-    copy_img_data(&p_stored_pic->imgUV[1][0][0], &img_in[2][0][0], ostride[1], istride[2], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(imgpel));
-    pad_buf(*p_stored_pic->imgUV[1], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, iChromaPadX, iChromaPadY);
-  }
-
-  for (j = 0; j < (p_pic->size_y / 4); j++)
-  {
-    char *ref_idx = p_stored_pic->mv_info[j][0].ref_idx;
-    for (i = 0; i < (p_pic->size_x / 4); i++)
-    {          
-      *((short *) ref_idx) = -1;
-      ref_idx += sizeof(pic_motion_params);
-    }
-  }
-
-  if( (p_Vid->active_sps->separate_colour_plane_flag != 0) )
-  {
-    for( nplane=0; nplane<3; nplane++ )
-    {
-      for (j = 0; j < (p_pic->size_y / 4); j++)
-      {
-        for (i = 0; i < (p_pic->size_x / 4); i++)
-        {
-          p_stored_pic->JVmv_info[nplane][j][i].ref_idx[LIST_0] = -1;
-          p_stored_pic->JVmv_info[nplane][j][i].ref_idx[LIST_1] = -1;
-        }
-      }
-    }
-  }
-
-  // MVC-related parameters
-  p_stored_pic->inter_view_flag = p_pic->inter_view_flag;
-  p_stored_pic->anchor_pic_flag = 0;
-  p_stored_pic->view_id = 0;
-  p_stored_pic->proc_flag = 1;
-  p_stored_pic->is_output = 1;
-  p_stored_pic->used_for_reference = 1;
-
-  return p_stored_pic;
-}
-#endif
-
-
 

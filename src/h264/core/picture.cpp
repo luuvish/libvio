@@ -64,11 +64,6 @@ static int init_global_buffers(VideoParameters *p_Vid, int layer_id)
         cps->mb_data = new mb_t[FrameSizeInMbs];
     }
 
-    int pic_unit_bitsize_on_disk = max(sps->BitDepthY, sps->BitDepthC) > 8 ? 16 : 8;
-    if (layer_id == 0)
-        init_output(cps, (pic_unit_bitsize_on_disk + 7) >> 3);
-    else
-        cps->img2buf = p_Vid->p_EncodePar[0]->img2buf;
     p_Vid->global_init_done[layer_id] = 1;
 
     return memory_size;

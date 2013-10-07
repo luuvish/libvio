@@ -46,7 +46,6 @@ static void setup_buffers(VideoParameters* p_Vid, int layer_id)
             p_Vid->mb_data = NULL;
         } else
             p_Vid->mb_data = cps->mb_data;
-        p_Vid->img2buf = cps->img2buf;
         p_Vid->last_dec_layer_id = layer_id;
     }
 }
@@ -86,10 +85,8 @@ static void init_mvc_picture(slice_t* currSlice)
         }
     }
 
-    if (p_pic) {
-        process_picture_in_dpb_s(p_Vid, p_pic);
-        store_proc_picture_in_dpb(currSlice->p_Dpb, clone_storable_picture(p_Vid, p_pic));
-    }
+    if (p_pic)
+        picture_in_dpb(currSlice, p_Vid, p_pic);
 }
 #endif
 

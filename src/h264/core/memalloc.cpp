@@ -30,47 +30,6 @@ static inline void* mem_calloc(size_t nitems, size_t size)
   return d;
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Initialize 2-dimensional top and bottom field to point to the proper
- *    lines in frame
- *
- * \par Output:
- *    memory size in bytes
- ************************************************************************/
-int init_top_bot_planes(imgpel **imgFrame, int dim0, imgpel ***imgTopField, imgpel ***imgBotField)
-{
-  int i;
-
-  if((*imgTopField   = (imgpel**)mem_malloc((dim0>>1) * sizeof(imgpel*))) == NULL)
-    no_mem_exit("init_top_bot_planes: imgTopField");
-
-  if((*imgBotField   = (imgpel**)mem_malloc((dim0>>1) * sizeof(imgpel*))) == NULL)
-    no_mem_exit("init_top_bot_planes: imgBotField");
-
-  for(i = 0; i < (dim0>>1); i++)
-  {
-    (*imgTopField)[i] =  imgFrame[2 * i    ];
-    (*imgBotField)[i] =  imgFrame[2 * i + 1];
-  }
-
-  return dim0 * sizeof(imgpel*);
-}
-
- /*!
- ************************************************************************
- * \brief
- *    free 2-dimensional top and bottom fields without freeing target memory
- *
- * \par Output:
- *    memory size in bytes
- ************************************************************************/
-void free_top_bot_planes(imgpel **imgTopField, imgpel **imgBotField)
-{
-  mem_free (imgTopField);
-  mem_free (imgBotField);
-}
 
 /*!
  ************************************************************************

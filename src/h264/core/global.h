@@ -21,6 +21,9 @@
 #include "bitstream.h"
 #include "macroblock.h"
 
+#include "image_data.h"
+
+
 using vio::h264::bitstream_t;
 using vio::h264::mb_t;
 
@@ -32,17 +35,17 @@ enum {
     SOS_CONT = 4
 };
 
+enum ColorPlane {
+    PLANE_Y = 0,
+    PLANE_U = 1,
+    PLANE_V = 2
+};
+
 enum ColorFormat {
     YUV400 = 0,
     YUV420 = 1,
     YUV422 = 2,
     YUV444 = 3
-};
-
-enum ColorPlane {
-    PLANE_Y = 0,
-    PLANE_U = 1,
-    PLANE_V = 2
 };
 
 enum PictureStructure {
@@ -52,32 +55,10 @@ enum PictureStructure {
 };
 
 
-struct ImageData {
-    ColorFormat yuv_format;                    //!< YUV format (0=4:0:0, 1=4:2:0, 2=4:2:2, 3=4:4:4)
-    // Standard data
-    imgpel** frm_data[3];     //!< Frame Data
-    imgpel** top_data[3];     //!< pointers to top field data
-    imgpel** bot_data[3];     //!< pointers to bottom field data
-
-    imgpel** frm_data_buf[2][3];     //!< Frame Data
-    imgpel** top_data_buf[2][3];     //!< pointers to top field data
-    imgpel** bot_data_buf[2][3];     //!< pointers to bottom field data
-  
-    //! Optional data (could also add uint8 data in case imgpel is of type uint16_t)
-    //! These can be useful for enabling input/conversion of content of different types
-    //! while keeping optimal processing size.
-    uint16_t** frm_uint16[3];   //!< optional frame Data for uint16_t
-    uint16_t** top_uint16[3];   //!< optional pointers to top field data
-    uint16_t** bot_uint16[3];   //!< optional pointers to bottom field data
-
-    int frm_stride[3];
-    int top_stride[3];
-    int bot_stride[3];
-};
-
 
 #define ET_SIZE 300      //!< size of error text buffer
 extern char errortext[ET_SIZE]; //!< buffer for error message for exit with error()
+
 
 struct pic_motion_params_old;
 struct pic_motion_params;
@@ -104,9 +85,6 @@ struct storable_picture;
 
 struct CodingParameters {
     int layer_id;
-
-    //padding info;
-    void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
     mb_t* mb_data;
     mb_t* mb_data_JV[3];
@@ -250,8 +228,6 @@ struct VideoParameters {
     VideoParameters* erc_img;
 
     int         recovery_flag;
-
-    void (*img2buf)(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride);
 
     ImageData   tempData3;
     //control;
