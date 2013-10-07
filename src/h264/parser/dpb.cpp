@@ -1409,8 +1409,8 @@ void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
     }
     picture->top_poc    = currSlice->TopFieldOrderCnt;
     picture->bottom_poc = currSlice->BottomFieldOrderCnt;
-    picture->frame_poc  = currSlice->framepoc;
-    picture->poc        = currSlice->framepoc;
+    picture->frame_poc  = currSlice->PicOrderCnt;
+    picture->poc        = currSlice->PicOrderCnt;
 
     store_picture_in_dpb(currSlice->p_Dpb, picture);
 

@@ -81,7 +81,8 @@ struct pic_motion_params {
     uint8_t     slice_no;
 };
 
-struct DecRefPicMarking_t;
+struct decoded_reference_picture_marking_t;
+using drpm_t = decoded_reference_picture_marking_t;
 
 //! definition a picture (field or frame)
 struct storable_picture {
@@ -140,7 +141,7 @@ struct storable_picture {
     int         frame_crop_right_offset;
     int         frame_crop_top_offset;
     int         frame_crop_bottom_offset;
-    DecRefPicMarking_t* dec_ref_pic_marking_buffer;
+    drpm_t*     dec_ref_pic_marking_buffer;
 
     // picture error concealment
     int         concealed_pic; //indicates if this is a concealed picture

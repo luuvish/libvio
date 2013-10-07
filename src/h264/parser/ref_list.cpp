@@ -367,7 +367,7 @@ static void init_lists_b_slice(slice_t *currSlice)
         for (int i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
             if (p_Dpb->fs_ref[i]->is_used == 3) {
                 if (p_Dpb->fs_ref[i]->frame->used_for_reference && !p_Dpb->fs_ref[i]->frame->is_long_term) {
-                    if (currSlice->framepoc >= p_Dpb->fs_ref[i]->frame->poc) //!KS use >= for error concealment
+                    if (currSlice->PicOrderCnt >= p_Dpb->fs_ref[i]->frame->poc) //!KS use >= for error concealment
                         currSlice->listX[0][list0idx++] = p_Dpb->fs_ref[i]->frame;
                 }
             }
@@ -383,7 +383,7 @@ static void init_lists_b_slice(slice_t *currSlice)
         for (int i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
             if (p_Dpb->fs_ref[i]->is_used == 3) {
                 if (p_Dpb->fs_ref[i]->frame->used_for_reference && !p_Dpb->fs_ref[i]->frame->is_long_term) {
-                    if (currSlice->framepoc < p_Dpb->fs_ref[i]->frame->poc)
+                    if (currSlice->PicOrderCnt < p_Dpb->fs_ref[i]->frame->poc)
                         currSlice->listX[0][list0idx++] = p_Dpb->fs_ref[i]->frame;
                 }
             }
@@ -434,7 +434,7 @@ static void init_lists_b_slice(slice_t *currSlice)
         int list0idx = 0;
         for (int i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
             if (p_Dpb->fs_ref[i]->is_used) {
-                if (currSlice->ThisPOC >= p_Dpb->fs_ref[i]->poc)
+                if (currSlice->PicOrderCnt >= p_Dpb->fs_ref[i]->poc)
                     fs_list0[list0idx++] = p_Dpb->fs_ref[i];
             }
         }
@@ -447,7 +447,7 @@ static void init_lists_b_slice(slice_t *currSlice)
         int list0idx_1 = list0idx;
         for (int i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
             if (p_Dpb->fs_ref[i]->is_used) {
-                if (currSlice->ThisPOC < p_Dpb->fs_ref[i]->poc)
+                if (currSlice->PicOrderCnt < p_Dpb->fs_ref[i]->poc)
                     fs_list0[list0idx++] = p_Dpb->fs_ref[i];
             }
         }
@@ -1069,7 +1069,7 @@ static void mm_mark_current_picture_long_term(dpb_t *p_Dpb, storable_picture *p,
 
 static void adaptive_memory_management(dpb_t *p_Dpb, storable_picture* p)
 {
-  	DecRefPicMarking_t *tmp_drpm;
+  	drpm_t* tmp_drpm;
   	VideoParameters *p_Vid = p_Dpb->p_Vid;
 
   	p_Vid->last_has_mmco_5 = 0;

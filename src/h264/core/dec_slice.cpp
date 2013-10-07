@@ -55,7 +55,7 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
     int i, j;
     if (currSlice->active_sps->separate_colour_plane_flag != 0) {
         storable_picture *vidref = p_Vid->no_reference_picture;
-        int noref = (currSlice->framepoc < p_Vid->recovery_poc);
+        int noref = (currSlice->PicOrderCnt < p_Vid->recovery_poc);
         if (currSlice->colour_plane_id == 0) {
             for (j = 0; j < 6; j++) {
                 for (i = 0; i < MAX_LIST_SIZE; i++) {
@@ -69,7 +69,7 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
         }
     } else {
         storable_picture *vidref = p_Vid->no_reference_picture;
-        int noref = (currSlice->framepoc < p_Vid->recovery_poc);
+        int noref = (currSlice->PicOrderCnt < p_Vid->recovery_poc);
         int total_lists = currSlice->MbaffFrameFlag ? 6 :
                           currSlice->slice_type == B_slice ? 2 : 1;
         for (j = 0; j < total_lists; j++) {
@@ -101,7 +101,7 @@ bool slice_t::init()
 
 #if (MVC_EXTENSION_ENABLE)
     if (this->svc_extension_flag == 0 || this->svc_extension_flag == 1)
-        reorder_lists_mvc(this, this->ThisPOC);
+        reorder_lists_mvc(this, this->PicOrderCnt);
     else
         reorder_lists(this);
 

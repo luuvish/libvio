@@ -132,7 +132,7 @@ void Decoder::decode_one_component(mb_t& mb, ColorPlane curr_plane)
     if (sps.ChromaArrayType == 3) {
         if (!mb.is_intra_block) {
             storable_picture *vidref = p_Vid->no_reference_picture;
-            int noref = slice.framepoc < p_Vid->recovery_poc;
+            int noref = slice.PicOrderCnt < p_Vid->recovery_poc;
             for (int j = 0; j < 6; j++) {
                 for (int i = 0; i < slice.listXsize[j] ; i++) {
                     storable_picture *curr_ref = slice.listX[j][i];

@@ -63,7 +63,7 @@ static void init_mvc_picture(slice_t* currSlice)
     if (!currSlice->field_pic_flag) {
         for (int i = 0; i < (int)p_Dpb->used_size/*size*/; ++i) {
             frame_store* fs = p_Dpb->fs[i];
-            if (fs->frame->view_id == 0 && fs->frame->frame_poc == currSlice->framepoc) {
+            if (fs->frame->view_id == 0 && fs->frame->frame_poc == currSlice->PicOrderCnt) {
                 p_pic = fs->frame;
                 break;
             }
@@ -208,10 +208,10 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
     decode_poc(p_Vid, currSlice);
 
     if (p_Vid->recovery_frame_num == (int) currSlice->frame_num && p_Vid->recovery_poc == 0x7fffffff)
-        p_Vid->recovery_poc = currSlice->framepoc;
+        p_Vid->recovery_poc = currSlice->PicOrderCnt;
 
     if (currSlice->nal_ref_idc)
-        p_Vid->last_ref_pic_poc = currSlice->framepoc;
+        p_Vid->last_ref_pic_poc = currSlice->PicOrderCnt;
 
     if (!currSlice->field_pic_flag || !currSlice->bottom_field_flag)
         p_Vid->snr->start_time = std::chrono::system_clock::now();
@@ -222,7 +222,7 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
         sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
     dec_picture->top_poc     = currSlice->TopFieldOrderCnt;
     dec_picture->bottom_poc  = currSlice->BottomFieldOrderCnt;
-    dec_picture->frame_poc   = currSlice->framepoc;
+    dec_picture->frame_poc   = currSlice->PicOrderCnt;
     dec_picture->iCodingType = !currSlice->field_pic_flag ?
                                (currSlice->MbaffFrameFlag ? FRAME_MB_PAIR_CODING : FRAME_CODING) : FIELD_CODING;
     dec_picture->layer_id    = currSlice->layer_id;
@@ -245,7 +245,7 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
     p_Vid->erc_mvperMB = 0;
 
     if (!currSlice->field_pic_flag)
-        dec_picture->poc = currSlice->framepoc;
+        dec_picture->poc = currSlice->PicOrderCnt;
     else if (!currSlice->bottom_field_flag) {
         dec_picture->poc = currSlice->TopFieldOrderCnt;
         p_Vid->number *= 2;
@@ -409,10 +409,10 @@ int DecoderParams::decode_one_frame()
             (p_Vid->iSliceNumOfCurrPic == 0 && current_header == SOP)) {
             currSlice->current_slice_nr = (short) p_Vid->iSliceNumOfCurrPic;
             if (p_Vid->iSliceNumOfCurrPic > 0) {
-                currSlice->framepoc  = (*ppSliceList)->framepoc;
+                currSlice->PicOrderCnt  = (*ppSliceList)->PicOrderCnt;
                 currSlice->TopFieldOrderCnt    = (*ppSliceList)->TopFieldOrderCnt;
                 currSlice->BottomFieldOrderCnt = (*ppSliceList)->BottomFieldOrderCnt;  
-                currSlice->ThisPOC   = (*ppSliceList)->ThisPOC;
+                currSlice->PicOrderCnt   = (*ppSliceList)->PicOrderCnt;
             }
             p_Vid->iSliceNumOfCurrPic++;
             if (p_Vid->iSliceNumOfCurrPic >= p_Vid->iNumOfSlicesAllocated) {

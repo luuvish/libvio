@@ -38,14 +38,16 @@ enum {
 };
 
 
-/*! Buffer structure for decoded referenc picture marking commands */
-struct DecRefPicMarking_t {
-    int         memory_management_control_operation;
-    int         difference_of_pic_nums_minus1;
-    int         long_term_pic_num;
-    int         long_term_frame_idx;
-    int         max_long_term_frame_idx_plus1;
-    DecRefPicMarking_t* Next;
+struct decoded_reference_picture_marking_t;
+using drpm_t = decoded_reference_picture_marking_t;
+
+struct decoded_reference_picture_marking_t {
+    uint32_t    memory_management_control_operation;                  // ue(v)
+    uint32_t    difference_of_pic_nums_minus1;                        // ue(v)
+    uint32_t    long_term_pic_num;                                    // ue(v)
+    uint32_t    long_term_frame_idx;                                  // ue(v)
+    uint32_t    max_long_term_frame_idx_plus1;                        // ue(v)
+    drpm_t*     Next;
 };
 
 struct VideoParameters;
@@ -134,12 +136,17 @@ struct slice_t {
     bool        no_output_of_prior_pics_flag;                         // u(1)
     bool        long_term_reference_flag;                             // u(1)
     bool        adaptive_ref_pic_marking_mode_flag;                   // u(1)
-  //uint32_t    memory_management_control_operation;                  // ue(v)
-  //uint32_t    difference_of_pic_nums_minus1;                        // ue(v)
-  //uint32_t    long_term_pic_num;                                    // ue(v)
-  //uint32_t    long_term_frame_idx;                                  // ue(v)
-  //uint32_t    max_long_term_frame_idx_plus1;                        // ue(v)
-    DecRefPicMarking_t* dec_ref_pic_marking_buffer;
+    //struct decoded_reference_picture_marking_t;
+    //using drpm_t = decoded_reference_picture_marking_t;
+    //struct decoded_reference_picture_marking_t {
+    //    uint32_t    memory_management_control_operation;              // ue(v)
+    //    uint32_t    difference_of_pic_nums_minus1;                    // ue(v)
+    //    uint32_t    long_term_pic_num;                                // ue(v)
+    //    uint32_t    long_term_frame_idx;                              // ue(v)
+    //    uint32_t    max_long_term_frame_idx_plus1;                    // ue(v)
+    //    drpm_t*     Next;
+    //};
+    drpm_t*     dec_ref_pic_marking_buffer;
 
     uint8_t     cabac_init_idc;                                       // ue(v)
     int8_t      slice_qp_delta;                                       // se(v)
@@ -165,12 +172,10 @@ struct slice_t {
     uint32_t    MapUnitsInSliceGroup0;
 
     int32_t     PicOrderCntMsb;
-    uint32_t    FrameNumOffset;
+    int32_t     FrameNumOffset;
     int32_t     TopFieldOrderCnt;
     int32_t     BottomFieldOrderCnt;
-    // for POC mode 1:
-    int         ThisPOC;
-    int         framepoc;
+    int32_t     PicOrderCnt;
 
     //weighted prediction
     uint16_t    weighted_pred_flag;

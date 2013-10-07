@@ -636,8 +636,8 @@ void interpret_dec_ref_pic_marking_repetition_info( byte* payload, int size, Vid
   int original_idr_flag, original_frame_num;
   int original_field_pic_flag, original_bottom_field_flag;
 
-  DecRefPicMarking_t *tmp_drpm;
-  DecRefPicMarking_t *old_drpm;
+  drpm_t* tmp_drpm;
+  drpm_t* old_drpm;
   int old_idr_flag, old_no_output_of_prior_pics_flag, old_long_term_reference_flag , old_adaptive_ref_pic_buffering_flag;
 
   data_partition_t* buf;

@@ -621,7 +621,7 @@ void InterPrediction::init_weight_prediction(slice_t& slice)
                             slice.wbp_weight[0][i][j][comp] = 32;
                             slice.wbp_weight[1][i][j][comp] = 32;
                         } else {
-                            tb = clip3(-128,127,slice.ThisPOC - slice.listX[LIST_0][i]->poc);
+                            tb = clip3(-128,127,slice.PicOrderCnt - slice.listX[LIST_0][i]->poc);
 
                             tx = (16384 + abs(td/2))/td;
                             DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);

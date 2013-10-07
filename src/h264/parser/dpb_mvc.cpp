@@ -152,7 +152,7 @@ void init_lists_p_slice_mvc(slice_t *currSlice)
     int list0idx = 0;
     int listltidx = 0;
 
-    int currPOC = currSlice->ThisPOC;
+    int currPOC = currSlice->PicOrderCnt;
     int anchor_pic_flag = currSlice->anchor_pic_flag;
 
     currSlice->listinterviewidx0 = 0;
@@ -270,7 +270,7 @@ void init_lists_b_slice_mvc(slice_t *currSlice)
     int list0idx_1 = 0;
     int listltidx = 0;
 
-    int currPOC = currSlice->ThisPOC;
+    int currPOC = currSlice->PicOrderCnt;
     int anchor_pic_flag = currSlice->anchor_pic_flag;
 
     currSlice->listinterviewidx0 = 0;
@@ -281,7 +281,7 @@ void init_lists_b_slice_mvc(slice_t *currSlice)
         for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
             if (p_Dpb->fs_ref[i]->is_used == 3) {
                 if (p_Dpb->fs_ref[i]->frame->used_for_reference && !p_Dpb->fs_ref[i]->frame->is_long_term) {
-                    if (currSlice->framepoc >= p_Dpb->fs_ref[i]->frame->poc) //!KS use >= for error concealment
+                    if (currSlice->PicOrderCnt >= p_Dpb->fs_ref[i]->frame->poc) //!KS use >= for error concealment
                         currSlice->listX[0][list0idx++] = p_Dpb->fs_ref[i]->frame;
                 }
             }
@@ -296,7 +296,7 @@ void init_lists_b_slice_mvc(slice_t *currSlice)
         for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
             if (p_Dpb->fs_ref[i]->is_used == 3) {
                 if (p_Dpb->fs_ref[i]->frame->used_for_reference && !p_Dpb->fs_ref[i]->frame->is_long_term) {
-                    if (currSlice->framepoc < p_Dpb->fs_ref[i]->frame->poc)
+                    if (currSlice->PicOrderCnt < p_Dpb->fs_ref[i]->frame->poc)
                         currSlice->listX[0][list0idx++] = p_Dpb->fs_ref[i]->frame;
                 }
             }
@@ -347,7 +347,7 @@ void init_lists_b_slice_mvc(slice_t *currSlice)
 
         for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
             if (p_Dpb->fs_ref[i]->is_used) {
-                if (currSlice->ThisPOC >= p_Dpb->fs_ref[i]->poc)
+                if (currSlice->PicOrderCnt >= p_Dpb->fs_ref[i]->poc)
                     fs_list0[list0idx++] = p_Dpb->fs_ref[i];
             }
         }
@@ -360,7 +360,7 @@ void init_lists_b_slice_mvc(slice_t *currSlice)
         list0idx_1 = list0idx;
         for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
             if (p_Dpb->fs_ref[i]->is_used) {
-                if (currSlice->ThisPOC < p_Dpb->fs_ref[i]->poc)
+                if (currSlice->PicOrderCnt < p_Dpb->fs_ref[i]->poc)
                     fs_list0[list0idx++] = p_Dpb->fs_ref[i];
             }
         }

@@ -118,7 +118,7 @@ slice_t::~slice_t()
     free_mem4Dint(this->wbp_weight);
 
     while (this->dec_ref_pic_marking_buffer) {
-        DecRefPicMarking_t* tmp_drpm = this->dec_ref_pic_marking_buffer;
+        drpm_t* tmp_drpm = this->dec_ref_pic_marking_buffer;
         this->dec_ref_pic_marking_buffer=tmp_drpm->Next;
         free(tmp_drpm);
     }
@@ -523,7 +523,7 @@ void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *s, slice_t *c
     sps_t *sps = currSlice->active_sps;
     int val;
 
-    DecRefPicMarking_t *tmp_drpm, *tmp_drpm2;
+    drpm_t* tmp_drpm, *tmp_drpm2;
 
     // free old buffer content
     while (currSlice->dec_ref_pic_marking_buffer) {
@@ -546,7 +546,7 @@ void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *s, slice_t *c
         currSlice->adaptive_ref_pic_marking_mode_flag = s->u(1, "SH: adaptive_ref_pic_marking_mode_flag");
         if (currSlice->adaptive_ref_pic_marking_mode_flag) {
             do {
-                tmp_drpm = (DecRefPicMarking_t*)calloc (1,sizeof (DecRefPicMarking_t));
+                tmp_drpm = (drpm_t*)calloc (1,sizeof (decoded_reference_picture_marking_t));
                 tmp_drpm->Next = NULL;
 
                 val = tmp_drpm->memory_management_control_operation = s->ue("SH: memory_management_control_operation");
@@ -590,10 +590,6 @@ void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *s, slice_t *c
 void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
 {
     sps_t *sps = p_Vid->active_sps;
-    uint32_t absFrameNum;
-    int32_t  expectedPicOrderCnt;
-    uint32_t tempPicOrderCnt;
-    int i;
 
     switch (sps->pic_order_cnt_type) {
     case 0:
@@ -601,13 +597,8 @@ void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
             p_Vid->prevPicOrderCntMsb = 0;
             p_Vid->prevPicOrderCntLsb = 0;
         } else if (p_Vid->last_has_mmco_5) {
-            if (p_Vid->last_pic_bottom_field) {
-                p_Vid->prevPicOrderCntMsb = 0;
-                p_Vid->prevPicOrderCntLsb = 0;
-            } else {
-                p_Vid->prevPicOrderCntMsb = 0;
-                p_Vid->prevPicOrderCntLsb = pSlice->TopFieldOrderCnt;
-            }
+            p_Vid->prevPicOrderCntMsb = 0;
+            p_Vid->prevPicOrderCntLsb = !p_Vid->last_pic_bottom_field ? pSlice->TopFieldOrderCnt : 0;
         }
 
         if ((pSlice->pic_order_cnt_lsb < p_Vid->prevPicOrderCntLsb) &&
@@ -628,19 +619,9 @@ void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
         else if (pSlice->bottom_field_flag)
             pSlice->BottomFieldOrderCnt = pSlice->PicOrderCntMsb + pSlice->pic_order_cnt_lsb;
 
-        if (!pSlice->field_pic_flag)
-            pSlice->ThisPOC = pSlice->TopFieldOrderCnt < pSlice->BottomFieldOrderCnt ? pSlice->TopFieldOrderCnt : pSlice->BottomFieldOrderCnt;
-        else if (!pSlice->bottom_field_flag)
-            pSlice->ThisPOC = pSlice->TopFieldOrderCnt;
-        else
-            pSlice->ThisPOC = pSlice->BottomFieldOrderCnt;
-
-        pSlice->framepoc = pSlice->ThisPOC;
-        p_Vid->ThisPOC = pSlice->ThisPOC;
-        p_Vid->prevFrameNum = pSlice->frame_num;
         if (pSlice->nal_ref_idc) {
-            p_Vid->prevPicOrderCntLsb = pSlice->pic_order_cnt_lsb;
             p_Vid->prevPicOrderCntMsb = pSlice->PicOrderCntMsb;
+            p_Vid->prevPicOrderCntLsb = pSlice->pic_order_cnt_lsb;
         }
         break;
 
@@ -657,6 +638,7 @@ void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
         else
             pSlice->FrameNumOffset = p_Vid->prevFrameNumOffset;
 
+        int32_t absFrameNum;
         if (sps->num_ref_frames_in_pic_order_cnt_cycle != 0)
             absFrameNum = pSlice->FrameNumOffset + pSlice->frame_num;
         else
@@ -664,11 +646,12 @@ void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
         if (pSlice->nal_ref_idc == 0 && absFrameNum > 0)
             absFrameNum--;
 
+        int32_t expectedPicOrderCnt;
         if (absFrameNum > 0) {
-            uint32_t picOrderCntCycleCnt        = (absFrameNum - 1) / sps->num_ref_frames_in_pic_order_cnt_cycle;
-            uint32_t frameNumInPicOrderCntCycle = (absFrameNum - 1) % sps->num_ref_frames_in_pic_order_cnt_cycle;
+            int32_t picOrderCntCycleCnt        = (absFrameNum - 1) / sps->num_ref_frames_in_pic_order_cnt_cycle;
+            int32_t frameNumInPicOrderCntCycle = (absFrameNum - 1) % sps->num_ref_frames_in_pic_order_cnt_cycle;
             expectedPicOrderCnt = picOrderCntCycleCnt * sps->ExpectedDeltaPerPicOrderCntCycle;
-            for (i = 0; i <= frameNumInPicOrderCntCycle; i++)
+            for (int i = 0; i <= frameNumInPicOrderCntCycle; i++)
                 expectedPicOrderCnt += sps->offset_for_ref_frame[i];
         } else
             expectedPicOrderCnt = 0;
@@ -684,15 +667,7 @@ void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
         else if (pSlice->bottom_field_flag)
             pSlice->BottomFieldOrderCnt = expectedPicOrderCnt + sps->offset_for_top_to_bottom_field + pSlice->delta_pic_order_cnt[0];
 
-        if (!pSlice->field_pic_flag)
-            pSlice->ThisPOC = pSlice->TopFieldOrderCnt < pSlice->BottomFieldOrderCnt ? pSlice->TopFieldOrderCnt : pSlice->BottomFieldOrderCnt;
-        else if (!pSlice->bottom_field_flag)
-            pSlice->ThisPOC = pSlice->TopFieldOrderCnt;
-        else
-            pSlice->ThisPOC = pSlice->BottomFieldOrderCnt;
-
-        pSlice->framepoc = pSlice->ThisPOC;
-        p_Vid->prevFrameNum = pSlice->frame_num;
+        p_Vid->prevFrameNum       = pSlice->frame_num;
         p_Vid->prevFrameNumOffset = pSlice->FrameNumOffset;
         break;
 
@@ -709,6 +684,7 @@ void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
         else
             pSlice->FrameNumOffset = p_Vid->prevFrameNumOffset;
 
+        int tempPicOrderCnt;
         if (pSlice->idr_flag)
             tempPicOrderCnt = 0;
         else if (pSlice->nal_ref_idc == 0)
@@ -723,15 +699,7 @@ void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
         if (!pSlice->field_pic_flag || pSlice->bottom_field_flag)
             pSlice->BottomFieldOrderCnt = tempPicOrderCnt;
 
-        if (!pSlice->field_pic_flag)
-            pSlice->ThisPOC = pSlice->TopFieldOrderCnt < pSlice->BottomFieldOrderCnt ? pSlice->TopFieldOrderCnt : pSlice->BottomFieldOrderCnt;
-        else if (!pSlice->bottom_field_flag)
-            pSlice->ThisPOC = pSlice->TopFieldOrderCnt;
-        else
-            pSlice->ThisPOC = pSlice->BottomFieldOrderCnt;
-
-        pSlice->framepoc = pSlice->ThisPOC;
-        p_Vid->prevFrameNum = pSlice->frame_num;
+        p_Vid->prevFrameNum       = pSlice->frame_num;
         p_Vid->prevFrameNumOffset = pSlice->FrameNumOffset;
         break;
 
@@ -739,4 +707,13 @@ void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
         assert(false);
         break;
     }
+
+    if (!pSlice->field_pic_flag)
+        pSlice->PicOrderCnt = min(pSlice->TopFieldOrderCnt, pSlice->BottomFieldOrderCnt);
+    else if (!pSlice->bottom_field_flag)
+        pSlice->PicOrderCnt = pSlice->TopFieldOrderCnt;
+    else
+        pSlice->PicOrderCnt = pSlice->BottomFieldOrderCnt;
+    p_Vid->PicOrderCnt      = pSlice->PicOrderCnt;
+    p_Vid->prevFrameNum = pSlice->frame_num;
 }

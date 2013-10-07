@@ -210,7 +210,7 @@ struct VideoParameters {
     int         non_conforming_stream;
 
     // for POC mode 1:
-    int         ThisPOC;
+    int         PicOrderCnt;
 
     int         no_output_of_prior_pics_flag;
 
