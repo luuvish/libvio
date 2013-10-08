@@ -21,6 +21,7 @@ using vio::h264::mb_t;
 
 #include "erc_api.h"
 #include "dpb.h"
+#include "ref_list.h"
 
 
 static inline float psnr(int max_sample_sq, int samples, float sse_distortion ) 

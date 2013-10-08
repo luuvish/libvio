@@ -30,9 +30,9 @@ void error(const char *text, int code)
 {
     fprintf(stderr, "%s\n", text);
     if (p_Dec) {
-        flush_dpb(p_Dec->p_Vid->p_Dpb_layer[0]);
+        p_Dec->p_Vid->p_Dpb_layer[0]->flush();
 #if (MVC_EXTENSION_ENABLE)
-        flush_dpb(p_Dec->p_Vid->p_Dpb_layer[1]);
+        p_Dec->p_Vid->p_Dpb_layer[1]->flush();
 #endif
     }
 
@@ -234,8 +234,8 @@ int DecoderParams::DecodeOneFrame()
 void DecoderParams::FinitDecoder()
 {
 #if (MVC_EXTENSION_ENABLE)
-    flush_dpb(this->p_Vid->p_Dpb_layer[0]);
-    flush_dpb(this->p_Vid->p_Dpb_layer[1]);
+    this->p_Vid->p_Dpb_layer[0]->flush();
+    this->p_Vid->p_Dpb_layer[1]->flush();
 #endif
 
     this->p_Vid->bitstream.reset();
@@ -313,7 +313,7 @@ void DecoderParams::CloseDecoder()
 #endif
 
     for (int i = 0; i < MAX_NUM_DPB_LAYERS; i++)
-        free_dpb(this->p_Vid->p_Dpb_layer[i]);
+        this->p_Vid->p_Dpb_layer[i]->free();
 
     delete this->p_Inp;
     delete this->p_Vid;

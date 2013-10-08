@@ -355,7 +355,7 @@ int InterPrediction::CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
 {
     storable_picture *dec_picture = currMB->p_Slice->dec_picture;
     int y_pos = vec_y >> 2;
-    int maxold_y = (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;
+    int maxold_y = (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y - 1;
 
     if (block_size_y <= (MCBUF_LUMA_PAD_Y-4))
         return 0;
@@ -412,8 +412,8 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
 
     // vars for get_block_luma
     int shift_x  = dec_picture->iLumaStride;
-    int maxold_x = dec_picture->size_x_m1;
-    int maxold_y = (mb->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1;   
+    int maxold_x = dec_picture->size_x - 1;
+    int maxold_y = (mb->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y - 1;
     imgpel tmp_block_l0[16][16];
     imgpel tmp_block_l1[16][16];
     imgpel tmp_block_l2[16][16];
@@ -454,8 +454,8 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
                       mb, pl, l0_refframe, l1_refframe);
 
     if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
-        int maxold_x = dec_picture->size_x_cr_m1;
-        int maxold_y = mb->mb_field_decoding_flag ? (dec_picture->size_y_cr >> 1) - 1 : dec_picture->size_y_cr_m1;
+        int maxold_x = dec_picture->size_x_cr - 1;
+        int maxold_y = mb->mb_field_decoding_flag ? (dec_picture->size_y_cr >> 1) - 1 : dec_picture->size_y_cr - 1;
 
         int ioff_cr = sps->MbWidthC  == 16 ? i * 4 : i * 2;
         int joff_cr = sps->MbHeightC == 16 ? j * 4 : j * 2;

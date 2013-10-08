@@ -2,6 +2,7 @@
 #include "input_parameters.h"
 #include "slice.h"
 #include "dpb.h"
+#include "ref_list.h"
 #include "memalloc.h"
 #include "erc_do.h"
 #include "image.h"
@@ -631,8 +632,8 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
 
       currSlice->decoder.get_block_luma(currSlice->listX[0][ref_frame], vec1_x, vec1_y, 4, 4,
         tmp_block,
-        dec_picture->iLumaStride,dec_picture->size_x_m1,
-        (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1, PLANE_Y, currMB);
+        dec_picture->iLumaStride,dec_picture->size_x - 1,
+        (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y - 1, PLANE_Y, currMB);
 
       for(ii=0;ii<4;ii++)
         for(jj=0;jj<16/4;jj++)
@@ -922,7 +923,8 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
   vec1_x = x*mv_mul + mv[0];
   vec1_y = y*mv_mul + mv[1];
   currSlice->decoder.get_block_luma(currSlice->listX[list][ref_frame],  vec1_x, vec1_y, 4, 4, tmp_block,
-    dec_picture->iLumaStride,dec_picture->size_x_m1, (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y_m1, PLANE_Y, currMB);
+    dec_picture->iLumaStride,dec_picture->size_x - 1,
+    (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y - 1, PLANE_Y, currMB);
 
   for(jj=0;jj<16/4;jj++)
     for(ii=0;ii<4;ii++)
@@ -1258,7 +1260,7 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
     {
       picture->slice_type = I_slice;
       picture->idr_flag = 1;
-      flush_dpb(p_Dpb);
+      p_Dpb->flush();
       picture->top_poc= 0;
       picture->bottom_poc=picture->top_poc;
       picture->frame_poc=picture->top_poc;
@@ -1266,7 +1268,7 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
       p_Vid->last_ref_pic_poc = picture->poc;
     }
 
-    store_picture_in_dpb(p_Vid->p_Dpb_layer[0], picture);
+    p_Vid->p_Dpb_layer[0]->store_picture(picture);
 
     picture=NULL;
 
@@ -1594,161 +1596,105 @@ void delete_list( VideoParameters *p_Vid, struct concealment_node *ptr )
   }
 }
 
-/*!
-************************************************************************
-* \brief
-* Stores the missing non reference frames in the concealment buffer. The
-* detection is based on the POC difference in the sorted POC array. A missing
-* non reference frame is detected when the dpb is full. A singly linked list
-* is maintained for storing the missing non reference frames.
-*
-************************************************************************
-*/
 
-void conceal_non_ref_pics(dpb_t *p_Dpb, int diff)
+
+void decoded_picture_buffer_t::conceal_non_ref_pics(int diff)
 {
-  VideoParameters *p_Vid = p_Dpb->p_Vid;
-  sps_t *sps = p_Vid->active_sps;
-  int missingpoc = 0;
-  unsigned int i, pos = 0;
-  storable_picture *conceal_from_picture = NULL;
-  storable_picture *conceal_to_picture = NULL;
-  struct concealment_node *concealment_ptr = NULL;
-  int temp_used_size = p_Dpb->used_size;
+    VideoParameters *p_Vid = this->p_Vid;
+    sps_t *sps = p_Vid->active_sps;
+    int missingpoc = 0;
+    unsigned int i, pos = 0;
+    storable_picture* conceal_from_picture = NULL;
+    storable_picture* conceal_to_picture = NULL;
+    concealment_node* concealment_ptr = NULL;
+    int temp_used_size = this->used_size;
 
-  if(p_Dpb->used_size == 0 )
-    return;
+    if (this->used_size == 0)
+        return;
 
-  qsort(p_Vid->pocs_in_dpb, p_Dpb->size, sizeof(int), comp);
+    qsort(p_Vid->pocs_in_dpb, this->size, sizeof(int), comp);
 
-  for(i=0;i<p_Dpb->size-diff;i++)
-  {
-    p_Dpb->used_size = p_Dpb->size;
-    if((p_Vid->pocs_in_dpb[i+1] - p_Vid->pocs_in_dpb[i]) > p_Vid->p_Inp->poc_gap)
-    {
-      conceal_to_picture = alloc_storable_picture (p_Vid, FRAME,
-        sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
-        sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
+    for (i = 0; i < this->size-diff; i++) {
+        this->used_size = this->size;
+        if (p_Vid->pocs_in_dpb[i+1] - p_Vid->pocs_in_dpb[i] > p_Vid->p_Inp->poc_gap) {
+            conceal_to_picture = alloc_storable_picture (p_Vid, FRAME,
+                sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+                sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
 
-      missingpoc = p_Vid->pocs_in_dpb[i] + p_Vid->p_Inp->poc_gap;
-      // Diagnostics
-      // printf("\n missingpoc = %d\n",missingpoc);
+            missingpoc = p_Vid->pocs_in_dpb[i] + p_Vid->p_Inp->poc_gap;
 
-      if(missingpoc > p_Vid->earlier_missing_poc)
-      {
-        p_Vid->earlier_missing_poc  = missingpoc;
-        conceal_to_picture->top_poc = missingpoc;
-        conceal_to_picture->bottom_poc = missingpoc;
-        conceal_to_picture->frame_poc = missingpoc;
-        conceal_to_picture->poc = missingpoc;
-        conceal_from_picture = get_pic_from_dpb(p_Dpb, missingpoc, &pos);
+            if (missingpoc > p_Vid->earlier_missing_poc) {
+                p_Vid->earlier_missing_poc  = missingpoc;
+                conceal_to_picture->top_poc = missingpoc;
+                conceal_to_picture->bottom_poc = missingpoc;
+                conceal_to_picture->frame_poc = missingpoc;
+                conceal_to_picture->poc = missingpoc;
+                conceal_from_picture = get_pic_from_dpb(this, missingpoc, &pos);
 
-        assert(conceal_from_picture != NULL);
+                assert(conceal_from_picture != NULL);
 
-        p_Dpb->used_size = pos + 1;
+                this->used_size = pos + 1;
 
-        p_Vid->frame_to_conceal = conceal_from_picture->frame_num + 1;
+                p_Vid->frame_to_conceal = conceal_from_picture->frame_num + 1;
 
-        update_ref_list_for_concealment(p_Dpb);
-        p_Vid->conceal_slice_type = B_slice;
-        copy_to_conceal(conceal_from_picture, conceal_to_picture, p_Vid);
-        concealment_ptr = init_node( conceal_to_picture, missingpoc );
-        add_node(p_Vid, concealment_ptr);
-        // Diagnostics
-        // print_node(concealment_ptr);
-      }
+                update_ref_list_for_concealment(this);
+                p_Vid->conceal_slice_type = B_slice;
+                copy_to_conceal(conceal_from_picture, conceal_to_picture, p_Vid);
+                concealment_ptr = init_node( conceal_to_picture, missingpoc );
+                add_node(p_Vid, concealment_ptr);
+            }
+        }
     }
-  }
 
-  //restore the original value
-  //p_Dpb->used_size = p_Dpb->size;
-  p_Dpb->used_size = temp_used_size;
-}
-
-/*!
-************************************************************************
-* \brief
-* Perform Sliding window decoded reference picture marking process. It
-* maintains the POC s stored in the dpb at a specific instance.
-*
-************************************************************************
-*/
-
-void sliding_window_poc_management(dpb_t *p_Dpb, storable_picture *p)
-{    
-  if (p_Dpb->used_size == p_Dpb->size)
-  {
-    VideoParameters *p_Vid = p_Dpb->p_Vid;
-    unsigned int i;
-
-    for(i=0;i<p_Dpb->size-1; i++)
-      p_Vid->pocs_in_dpb[i] = p_Vid->pocs_in_dpb[i+1];
-  }
+    this->used_size = temp_used_size;
 }
 
 
-/*!
-************************************************************************
-* \brief
-* Outputs the non reference frames. The POCs in the concealment buffer are
-* sorted in ascending order and outputted when the lowest POC in the
-* concealment buffer is lower than the lowest in the p_Dpb-> The linked list
-* entry corresponding to the outputted POC is immediately deleted.
-*
-************************************************************************
-*/
-
-void write_lost_non_ref_pic(dpb_t *p_Dpb, int poc, int p_out)
+void decoded_picture_buffer_t::sliding_window_poc_management(storable_picture* p)
 {
-  VideoParameters *p_Vid = p_Dpb->p_Vid;
-  frame_store concealment_fs;
-  if(poc > 0)
-  {
-    if((poc - p_Dpb->last_output_poc) > p_Vid->p_Inp->poc_gap)
-    {
-
-      concealment_fs.frame = p_Vid->concealment_head->picture;
-      concealment_fs.is_output = 0;
-      concealment_fs.is_reference = 0;
-      concealment_fs.is_used = 3;
-
-      write_stored_frame(p_Vid, &concealment_fs, p_out);
-      delete_node(p_Vid, p_Vid->concealment_head);
+    if (this->used_size == this->size) {
+        VideoParameters* p_Vid = this->p_Vid;
+        for (int i = 0; i < this->size - 1; i++)
+            p_Vid->pocs_in_dpb[i] = p_Vid->pocs_in_dpb[i+1];
     }
-  }
 }
 
-/*!
-************************************************************************
-* \brief
-* Conceals frame loss immediately after the IDR. This special case produces
-* the same result for either frame copy or motion vector copy concealment.
-*
-************************************************************************
-*/
-
-void write_lost_ref_after_idr(dpb_t *p_Dpb, int pos)
+void decoded_picture_buffer_t::write_lost_non_ref_pic(int poc, int p_out)
 {
-  VideoParameters *p_Vid = p_Dpb->p_Vid;
-  sps_t *sps = p_Vid->active_sps;
+    VideoParameters* p_Vid = this->p_Vid;
+    frame_store concealment_fs;
+    if (poc > 0) {
+        if (poc - this->last_output_poc > p_Vid->p_Inp->poc_gap) {
+            concealment_fs.frame = p_Vid->concealment_head->picture;
+            concealment_fs.is_output = 0;
+            concealment_fs.is_reference = 0;
+            concealment_fs.is_used = 3;
 
-  int temp = 1;
-
-  if(p_Vid->last_out_fs->frame == NULL)
-  {
-    p_Vid->last_out_fs->frame = alloc_storable_picture (p_Vid, FRAME,
-      sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
-      sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
-    p_Vid->last_out_fs->is_used = 3;
-  }
-
-  if(p_Vid->conceal_mode == 2)
-  {
-    temp = 2;
-    p_Vid->conceal_mode = 1;
-  }
-  copy_to_conceal(p_Dpb->fs[pos]->frame, p_Vid->last_out_fs->frame, p_Vid);
-
-  p_Vid->conceal_mode = temp;
+            write_stored_frame(p_Vid, &concealment_fs, p_out);
+            delete_node(p_Vid, p_Vid->concealment_head);
+        }
+    }
 }
 
+void decoded_picture_buffer_t::write_lost_ref_after_idr(int pos)
+{
+    VideoParameters *p_Vid = this->p_Vid;
+    sps_t *sps = p_Vid->active_sps;
+
+    int temp = 1;
+
+    if (!p_Vid->last_out_fs->frame) {
+        p_Vid->last_out_fs->frame = alloc_storable_picture (p_Vid, FRAME,
+            sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+            sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
+        p_Vid->last_out_fs->is_used = 3;
+    }
+
+    if (p_Vid->conceal_mode == 2) {
+        temp = 2;
+        p_Vid->conceal_mode = 1;
+    }
+    copy_to_conceal(this->fs[pos]->frame, p_Vid->last_out_fs->frame, p_Vid);
+
+    p_Vid->conceal_mode = temp;
+}

@@ -4,6 +4,7 @@
 #include "slice.h"
 #include "image.h"
 #include "dpb.h"
+#include "ref_list.h"
 #include "memalloc.h"
 #include "output.h"
 

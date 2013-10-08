@@ -1,4 +1,5 @@
 #include "global.h"
+#include "ref_list.h"
 #include "memalloc.h"
 #include "slice.h"
 
@@ -209,10 +210,6 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
     p_stored_pic->size_y                          = p_pic->size_y;
     p_stored_pic->size_x_cr                       = p_pic->size_x_cr;
     p_stored_pic->size_y_cr                       = p_pic->size_y_cr;
-    p_stored_pic->size_x_m1                       = p_pic->size_x - 1;
-    p_stored_pic->size_y_m1                       = p_pic->size_y - 1;
-    p_stored_pic->size_x_cr_m1                    = p_pic->size_x_cr - 1;
-    p_stored_pic->size_y_cr_m1                    = p_pic->size_y_cr - 1;
   
     p_stored_pic->mb_aff_frame_flag               = p_pic->mb_aff_frame_flag;
     p_stored_pic->seiHasTone_mapping              = p_pic->seiHasTone_mapping;

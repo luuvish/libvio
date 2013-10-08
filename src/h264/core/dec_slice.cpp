@@ -17,6 +17,7 @@ using vio::h264::mb_t;
 
 #include "erc_api.h"
 #include "dpb.h"
+#include "ref_list.h"
 
 
 

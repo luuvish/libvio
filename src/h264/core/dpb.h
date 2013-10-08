@@ -106,7 +106,6 @@ struct storable_picture {
     int         separate_colour_plane_flag;
 
     int         size_x, size_y, size_x_cr, size_y_cr;
-    int         size_x_m1, size_y_m1, size_x_cr_m1, size_y_cr_m1;
     int         coded_frame;
     int         mb_aff_frame_flag;
     unsigned    PicWidthInMbs;
@@ -115,18 +114,18 @@ struct storable_picture {
     int         iChromaPadY;
 
 
-    imgpel**    imgY;         //!< Y picture component
-    imgpel***   imgUV;        //!< U and V picture components
+    imgpel**    imgY;
+    imgpel***   imgUV;
 
-    pic_motion_params** mv_info;          //!< Motion info
-    pic_motion_params** JVmv_info[3];          //!< Motion info
+    pic_motion_params** mv_info;
+    pic_motion_params** JVmv_info[3];
 
-    pic_motion_params_old motion;              //!< Motion info  
-    pic_motion_params_old JVmotion[3]; //!< Motion info for 4:4:4 independent mode decoding
+    pic_motion_params_old motion;
+    pic_motion_params_old JVmotion[3];
 
-    storable_picture* top_field;     // for mb aff, if frame for referencing the top field
-    storable_picture* bottom_field;  // for mb aff, if frame for referencing the bottom field
-    storable_picture* frame;         // for mb aff, if field for referencing the combined frame
+    storable_picture* top_field;
+    storable_picture* bottom_field;
+    storable_picture* frame;
 
     int         slice_type;
     int         idr_flag;
@@ -159,7 +158,17 @@ struct storable_picture {
     char              listXsize[MAX_NUM_SLICES][2];
     storable_picture* listX[MAX_NUM_SLICES][2][33];
     int         layer_id;
+
+    int         get_pic_num_x(int difference_of_pic_nums_minus1);
+
+    bool        is_short_ref();
+    bool        is_long_ref();
 };
+
+
+extern storable_picture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure type, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output);
+extern void              free_storable_picture (storable_picture* p);
+
 
 struct frame_store {
     int         is_used;                //!< 0=empty; 1=top; 2=bottom; 3=both fields (or frame)
@@ -193,6 +202,13 @@ struct frame_store {
 
     frame_store() =default;
     ~frame_store();
+
+    void        unmark_for_reference();
+    void        unmark_for_long_term_reference();
+
+    bool        is_short_term_reference();
+    bool        is_long_term_reference();
+    bool        is_used_for_reference();
 };
 
 struct decoded_picture_buffer_t {
@@ -218,70 +234,48 @@ struct decoded_picture_buffer_t {
     frame_store* last_picture;
     unsigned    used_size_il;
     int         layer_id;
+
+    void        init(VideoParameters* p_Vid, int type);
+    void        free();
+
+    void        store_picture(storable_picture* p);
+
+#if (MVC_EXTENSION_ENABLE)
+    void        idr_memory_management(storable_picture* p);
+#endif
+    void        flush();
+
+    void        update_ref_list();
+    void        update_ltref_list();
+
+protected:
+    void        get_smallest_poc(int* poc, int* pos);
+
+    bool        remove_unused_frame();
+    void        remove_frame(int pos);
+    bool        output_one_frame();
+
+    void        check_num_ref();
+    void        mm_unmark_short_term_for_reference(storable_picture* p, int difference_of_pic_nums_minus1);
+    void        mm_unmark_long_term_for_reference(storable_picture* p, int long_term_pic_num);
+    void        unmark_long_term_frame_for_reference_by_frame_idx(int long_term_frame_idx);
+    void        unmark_long_term_field_for_reference_by_frame_idx(PictureStructure structure, int long_term_frame_idx, int mark_current, unsigned curr_frame_num, int curr_pic_num);
+    void        mark_pic_long_term(storable_picture* p, int long_term_frame_idx, int picNumX);
+    void        mm_assign_long_term_frame_idx(storable_picture* p, int difference_of_pic_nums_minus1, int long_term_frame_idx);
+    void        mm_update_max_long_term_frame_idx(int max_long_term_frame_idx_plus1);
+    void        mm_unmark_all_short_term_for_reference();
+    void        mm_unmark_all_long_term_for_reference();
+    void        mm_mark_current_picture_long_term(storable_picture* p, int long_term_frame_idx);
+    void        adaptive_memory_management(storable_picture* p);
+    void        sliding_window_memory_management(storable_picture* p);
+
+    void        conceal_non_ref_pics(int diff);
+    void        sliding_window_poc_management(storable_picture* p);
+    void        write_lost_non_ref_pic(int poc, int p_out);
+    void        write_lost_ref_after_idr(int pos);
 };
 
 using dpb_t = decoded_picture_buffer_t;
 
-
-extern void              init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type);
-extern void              re_init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type);
-extern void              free_dpb(dpb_t *p_Dpb);
-extern storable_picture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructure type, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output);
-extern void              free_storable_picture (storable_picture* p);
-
-#if (MVC_EXTENSION_ENABLE)
-extern void             idr_memory_management(dpb_t *p_Dpb, storable_picture* p);
-extern void             flush_dpbs(dpb_t **p_Dpb, int nLayers);
-#endif
-
-struct slice_t;
-
-
-extern void update_ref_list  (dpb_t *p_Dpb);
-extern void update_ltref_list(dpb_t *p_Dpb);
-extern void update_pic_num   (slice_t *currSlice);
-
-extern void gen_pic_list_from_frame_list(bool bottom_field_flag, frame_store **fs_list, int list_idx, storable_picture **list, char *list_size, int long_term);
-extern void init_lists         (slice_t *currSlice);
-
-extern void reorder_lists   (slice_t *currSlice);
-extern void init_mbaff_lists(VideoParameters *p_Vid, slice_t *currSlice);
-
-extern void store_picture_in_dpb(dpb_t *p_Dpb, storable_picture* p);
-
-
-extern void unmark_for_reference(frame_store* fs);
-extern void unmark_for_long_term_reference(frame_store* fs);
-extern void insert_picture_in_dpb(VideoParameters *p_Vid, frame_store* fs, storable_picture* p);
-extern void remove_frame_from_dpb(dpb_t *p_Dpb, int pos);
-extern int  output_one_frame_from_dpb(dpb_t *p_Dpb);
-
-extern void flush_dpb(dpb_t *p_Dpb);
-
-extern void dpb_split_field      (VideoParameters *p_Vid, frame_store *fs);
-extern void dpb_combine_field_yuv(VideoParameters *p_Vid, frame_store *fs);
-
-extern void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *pSlice);
-
-extern void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture);
-extern void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, int iPadY);
-
-
-#if (MVC_EXTENSION_ENABLE)
-extern void reorder_lists_mvc     (slice_t *currSlice, int currPOC);
-extern void init_lists_p_slice_mvc(slice_t *currSlice);
-extern void init_lists_b_slice_mvc(slice_t *currSlice);
-extern void init_lists_i_slice_mvc(slice_t *currSlice);
-
-extern void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, int **anchor_ref, int **non_anchor_ref,
-                                                 int view_id, int anchor_pic_flag, int currPOC, int listidx);
-
-extern void reorder_short_term(slice_t *currSlice, int cur_list, int num_ref_idx_lX_active_minus1, int picNumLX, int *refIdxLX, int currViewID);
-extern void reorder_long_term(slice_t *currSlice, storable_picture **RefPicListX, int num_ref_idx_lX_active_minus1, int LongTermPicNum, int *refIdxLX, int currViewID);
-#endif
-
-
-extern void get_smallest_poc(dpb_t *p_Dpb, int *poc,int * pos);
-extern int remove_unused_frame_from_dpb(dpb_t *p_Dpb);
 
 #endif

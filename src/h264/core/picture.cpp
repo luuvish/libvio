@@ -20,6 +20,7 @@ using vio::h264::mb_t;
 
 #include "erc_api.h"
 #include "dpb.h"
+#include "ref_list.h"
 
 
 static inline int is_BL_profile(unsigned int profile_idc) 
@@ -100,10 +101,10 @@ void activate_sps(VideoParameters *p_Vid, sps_t *sps)
                 init_global_buffers(p_Vid, 0);
 
                 if (!p_Vid->no_output_of_prior_pics_flag) {
-                    flush_dpb(p_Vid->p_Dpb_layer[0]);
-                    flush_dpb(p_Vid->p_Dpb_layer[1]);
+                    p_Vid->p_Dpb_layer[0]->flush();
+                    p_Vid->p_Dpb_layer[1]->flush();
                 }
-                init_dpb(p_Vid, p_Vid->p_Dpb_layer[0], 1);
+                p_Vid->p_Dpb_layer[0]->init(p_Vid, 1);
 
             } else if ((is_MVC_profile(prev_profile_idc) ||
                         is_MVC_profile(sps->profile_idc)) &&
@@ -111,14 +112,14 @@ void activate_sps(VideoParameters *p_Vid, sps_t *sps)
 
                 assert(p_Vid->p_Dpb_layer[0]->init_done);
                 if (p_Vid->p_Dpb_layer[0]->init_done) {
-                    free_dpb(p_Vid->p_Dpb_layer[0]);
-                    init_dpb(p_Vid, p_Vid->p_Dpb_layer[0], 1);
+                    p_Vid->p_Dpb_layer[0]->free();
+                    p_Vid->p_Dpb_layer[0]->init(p_Vid, 1);
                 }
 
                 init_global_buffers(p_Vid, 1);
                 // for now lets re_init both buffers. Later, we should only re_init appropriate one
                 // Note that we seem to be doing this for every frame which seems not good.
-                init_dpb(p_Vid, p_Vid->p_Dpb_layer[1], 2);
+                p_Vid->p_Dpb_layer[1]->init(p_Vid, 2);
             }
         }
 #endif
@@ -219,9 +220,9 @@ static void init_picture_decoding(VideoParameters *p_Vid)
 
 #if (MVC_EXTENSION_ENABLE)
     if (pSlice->layer_id > 0 && pSlice->svc_extension_flag == 0 && pSlice->NaluHeaderMVCExt.non_idr_flag == 0)
-        idr_memory_management(p_Vid->p_Dpb_layer[pSlice->layer_id], p_Vid->dec_picture);
-    update_ref_list(p_Vid->p_Dpb_layer[pSlice->view_id]);
-    update_ltref_list(p_Vid->p_Dpb_layer[pSlice->view_id]);
+        p_Vid->p_Dpb_layer[pSlice->layer_id]->idr_memory_management(p_Vid->dec_picture);
+    p_Vid->p_Dpb_layer[pSlice->view_id]->update_ref_list();
+    p_Vid->p_Dpb_layer[pSlice->view_id]->update_ltref_list();
     update_pic_num(pSlice);
 #endif
 }
@@ -337,7 +338,7 @@ void exit_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
         pad_dec_picture(p_Vid, *dec_picture);
 #endif
 #if MVC_EXTENSION_ENABLE
-    store_picture_in_dpb(p_Vid->p_Dpb_layer[(*dec_picture)->view_id], *dec_picture);
+    p_Vid->p_Dpb_layer[(*dec_picture)->view_id]->store_picture(*dec_picture);
 #endif
 
     if (p_Vid->last_has_mmco_5)
