@@ -249,7 +249,7 @@ static void write_unpaired_field(VideoParameters *p_Vid, frame_store* fs, int p_
         p = fs->top_field;
         fs->bottom_field = alloc_storable_picture(p_Vid, BOTTOM_FIELD, p->size_x, 2*p->size_y, p->size_x_cr, 2*p->size_y_cr, 1);
         clear_picture(p_Vid, fs->bottom_field);
-        dpb_combine_field_yuv(p_Vid, fs);
+        fs->dpb_combine_field_yuv(p_Vid);
 #if (MVC_EXTENSION_ENABLE)
         fs->frame->view_id = fs->view_id;
 #endif
@@ -262,7 +262,7 @@ static void write_unpaired_field(VideoParameters *p_Vid, frame_store* fs, int p_
         p = fs->bottom_field;
         fs->top_field = alloc_storable_picture(p_Vid, TOP_FIELD, p->size_x, 2*p->size_y, p->size_x_cr, 2*p->size_y_cr, 1);
         clear_picture(p_Vid, fs->top_field);
-        dpb_combine_field_yuv(p_Vid, fs);
+        fs->dpb_combine_field_yuv(p_Vid);
 #if (MVC_EXTENSION_ENABLE)
         fs->frame->view_id = fs->view_id;
 #endif
@@ -331,7 +331,7 @@ void direct_output(VideoParameters *p_Vid, storable_picture *p, int p_out)
 
     if (p_Vid->out_buffer->is_used == 3) {
         // we have both fields, so output them
-        dpb_combine_field_yuv(p_Vid, p_Vid->out_buffer);
+        p_Vid->out_buffer->dpb_combine_field_yuv(p_Vid);
 #if (MVC_EXTENSION_ENABLE)
         p_Vid->out_buffer->frame->view_id = p_Vid->out_buffer->view_id;
 #endif

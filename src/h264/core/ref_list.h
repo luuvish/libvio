@@ -18,9 +18,6 @@ extern void init_mbaff_lists(VideoParameters *p_Vid, slice_t *currSlice);
 
 extern void insert_picture_in_dpb(VideoParameters *p_Vid, frame_store* fs, storable_picture* p);
 
-extern void dpb_split_field      (VideoParameters *p_Vid, frame_store *fs);
-extern void dpb_combine_field_yuv(VideoParameters *p_Vid, frame_store *fs);
-
 extern void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *pSlice);
 
 extern void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture);

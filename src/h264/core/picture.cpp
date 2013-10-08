@@ -203,7 +203,7 @@ static void init_picture_decoding(VideoParameters *p_Vid)
 
     if (p_Vid->pNextPPS->Valid && p_Vid->pNextPPS->pic_parameter_set_id == pSlice->pic_parameter_set_id) {
         pps_t tmpPPS;
-        memcpy(&tmpPPS, &(p_Vid->PicParSet[pSlice->pic_parameter_set_id]), sizeof (pps_t));
+        memcpy(&tmpPPS, &p_Vid->PicParSet[pSlice->pic_parameter_set_id], sizeof (pps_t));
         (p_Vid->PicParSet[pSlice->pic_parameter_set_id]).slice_group_id = NULL;
         MakePPSavailable(p_Vid, p_Vid->pNextPPS->pic_parameter_set_id, p_Vid->pNextPPS);
         memcpy(p_Vid->pNextPPS, &tmpPPS, sizeof (pps_t));

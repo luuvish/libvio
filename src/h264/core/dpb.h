@@ -160,6 +160,7 @@ struct storable_picture {
     int         layer_id;
 
     int         get_pic_num_x(int difference_of_pic_nums_minus1);
+    void        gen_field_ref_ids(VideoParameters* p_Vid);
 
     bool        is_short_ref();
     bool        is_long_ref();
@@ -209,6 +210,10 @@ struct frame_store {
     bool        is_short_term_reference();
     bool        is_long_term_reference();
     bool        is_used_for_reference();
+
+    void        dpb_split_field      (VideoParameters *p_Vid);
+    void        dpb_combine_field_yuv(VideoParameters *p_Vid);
+    void        dpb_combine_field    (VideoParameters *p_Vid);
 };
 
 struct decoded_picture_buffer_t {
@@ -235,6 +240,7 @@ struct decoded_picture_buffer_t {
     unsigned    used_size_il;
     int         layer_id;
 
+public:
     void        init(VideoParameters* p_Vid, int type);
     void        free();
 
