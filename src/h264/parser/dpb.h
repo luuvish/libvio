@@ -134,25 +134,17 @@ struct storable_picture {
     int         long_term_reference_flag;
     int         adaptive_ref_pic_buffering_flag;
 
-    int         chroma_format_idc;
-    int         frame_mbs_only_flag;
-    int         frame_cropping_flag;
-    int         frame_crop_left_offset;
-    int         frame_crop_right_offset;
-    int         frame_crop_top_offset;
-    int         frame_crop_bottom_offset;
     drpm_t*     dec_ref_pic_marking_buffer;
 
     // picture error concealment
     int         concealed_pic; //indicates if this is a concealed picture
-  
+
     // variables for tone mapping
     int         seiHasTone_mapping;
     int         tone_mapping_model_id;
     int         tonemapped_bit_depth;  
     imgpel*     tone_mapping_lut;                //!< tone mapping look up table
 
-    int         proc_flag;
 #if (MVC_EXTENSION_ENABLE)
     int         view_id;
     int         inter_view_flag;
@@ -160,8 +152,6 @@ struct storable_picture {
 #endif
     int         iLumaStride;
     int         iChromaStride;
-    int         iLumaExpandedHeight;
-    int         iChromaExpandedHeight;
     imgpel**    cur_imgY; // for more efficient get_block_luma
     int         no_ref;
     int         iCodingType;

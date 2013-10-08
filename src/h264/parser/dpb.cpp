@@ -262,7 +262,6 @@ void init_dpb(VideoParameters* p_Vid, dpb_t* p_Dpb, int type)
         p_Dpb->fs_ilref[0]->view_id = MVC_INIT_VIEW_ID;
         p_Dpb->fs_ilref[0]->inter_view_flag[0] = p_Dpb->fs_ilref[0]->inter_view_flag[1] = 0;
         p_Dpb->fs_ilref[0]->anchor_pic_flag[0] = p_Dpb->fs_ilref[0]->anchor_pic_flag[1] = 0;
-        // given that this is in a different buffer, do we even need proc_flag anymore?    
     } else
         p_Dpb->fs_ilref[0] = NULL;
 #endif
@@ -351,7 +350,6 @@ void re_init_dpb(VideoParameters *p_Vid, dpb_t *p_Dpb, int type)
     p_Dpb->fs_ilref[0]->view_id = MVC_INIT_VIEW_ID;
     p_Dpb->fs_ilref[0]->inter_view_flag[0] = p_Dpb->fs_ilref[0]->inter_view_flag[1] = 0;
     p_Dpb->fs_ilref[0]->anchor_pic_flag[0] = p_Dpb->fs_ilref[0]->anchor_pic_flag[1] = 0;
-    // given that this is in a different buffer, do we even need proc_flag anymore?    
   }
   else
     p_Dpb->fs_ilref[0] = NULL;
@@ -466,16 +464,13 @@ storable_picture* alloc_storable_picture(VideoParameters *p_Vid, PictureStructur
 
     get_mem2Dpel_pad(&s->imgY, size_y, size_x, MCBUF_LUMA_PAD_Y, MCBUF_LUMA_PAD_X);
     s->iLumaStride = size_x + 2 * MCBUF_LUMA_PAD_X;
-    s->iLumaExpandedHeight = size_y + 2 * MCBUF_LUMA_PAD_Y;
 
     if (sps->chroma_format_idc != YUV400)
         get_mem3Dpel_pad(&s->imgUV, 2, size_y_cr, size_x_cr, iChromaPadY, iChromaPadX);
 
-    s->chroma_format_idc     = sps->chroma_format_idc;
-    s->iChromaStride         = size_x_cr + 2 * iChromaPadX;
-    s->iChromaExpandedHeight = size_y_cr + 2 * iChromaPadY;
-    s->iChromaPadY           = iChromaPadY;
-    s->iChromaPadX           = iChromaPadX;
+    s->iChromaStride     = size_x_cr + 2 * iChromaPadX;
+    s->iChromaPadY       = iChromaPadY;
+    s->iChromaPadX       = iChromaPadX;
 
     s->separate_colour_plane_flag = sps->separate_colour_plane_flag;
 
@@ -539,69 +534,41 @@ frame_store::~frame_store()
 }
 
 
-/*!
- ************************************************************************
- * \brief
- *    Free picture memory.
- *
- * \param p
- *    Picture to be freed
- *
- ************************************************************************
- */
 void free_storable_picture(storable_picture* p)
 {
-  int nplane;
-  if (p)
-  {
-    int iChromaPadX = MCBUF_CHROMA_PAD_X;
-    int iChromaPadY = MCBUF_CHROMA_PAD_Y;
-    if (p->chroma_format_idc == YUV422)
-        iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
-    else if (p->chroma_format_idc == YUV444) {
-        iChromaPadX = MCBUF_LUMA_PAD_X;
-        iChromaPadY = MCBUF_LUMA_PAD_Y;
-    }
-
-    if (p->mv_info)
-    {
-      free_mem2Dmp(p->mv_info);
-      p->mv_info = NULL;
-    }
-    delete []p->motion.mb_field_decoding_flag;
-
-    if( (p->separate_colour_plane_flag != 0) )
-    {
-      for( nplane=0; nplane<3; nplane++ )
-      {
-        if (p->JVmv_info[nplane])
-        {
-          free_mem2Dmp(p->JVmv_info[nplane]);
-          p->JVmv_info[nplane] = NULL;
+    if (p) {
+        if (p->mv_info) {
+            free_mem2Dmp(p->mv_info);
+            p->mv_info = NULL;
         }
-        delete []p->JVmotion[nplane].mb_field_decoding_flag;
-      }
+        delete []p->motion.mb_field_decoding_flag;
+
+        if (p->separate_colour_plane_flag) {
+            for (int nplane=0; nplane < 3; nplane++) {
+                if (p->JVmv_info[nplane]) {
+                    free_mem2Dmp(p->JVmv_info[nplane]);
+                    p->JVmv_info[nplane] = NULL;
+                }
+                delete []p->JVmotion[nplane].mb_field_decoding_flag;
+            }
+        }
+
+        if (p->imgY) {
+            free_mem2Dpel_pad(p->imgY, MCBUF_LUMA_PAD_Y, MCBUF_LUMA_PAD_X);
+            p->imgY = NULL;
+        }
+
+        if (p->imgUV) {
+            free_mem3Dpel_pad(p->imgUV, 2, p->iChromaPadY, p->iChromaPadX);
+            p->imgUV=NULL;
+        }
+
+        if (p->seiHasTone_mapping)
+            free(p->tone_mapping_lut);
+
+        free(p);
+        p = NULL;
     }
-
-    if (p->imgY)
-    {
-      free_mem2Dpel_pad(p->imgY, MCBUF_LUMA_PAD_Y, MCBUF_LUMA_PAD_X);
-      p->imgY = NULL;
-    }
-
-    if (p->imgUV)
-    {
-      free_mem3Dpel_pad(p->imgUV, 2, p->iChromaPadY, p->iChromaPadX);
-      p->imgUV=NULL;
-    }
-
-
-    if (p->seiHasTone_mapping)
-      free(p->tone_mapping_lut);
-
-    free(p);
-    p = NULL;
-  }
 }
 
 /*!
@@ -1068,7 +1035,7 @@ void dpb_split_field(VideoParameters *p_Vid, frame_store *fs)
 
   fs->poc = frame->poc;
 
-  if (!frame->frame_mbs_only_flag)
+  if (!p_Vid->active_sps->frame_mbs_only_flag)
   {
     fs_top = fs->top_field    = alloc_storable_picture(p_Vid, TOP_FIELD,    frame->size_x, frame->size_y, frame->size_x_cr, frame->size_y_cr, 1);
     fs_btm = fs->bottom_field = alloc_storable_picture(p_Vid, BOTTOM_FIELD, frame->size_x, frame->size_y, frame->size_x_cr, frame->size_y_cr, 1);
@@ -1137,7 +1104,6 @@ void dpb_split_field(VideoParameters *p_Vid, frame_store *fs)
     fs_btm->inter_view_flag = fs->inter_view_flag[1];
 #endif
 
-    fs_top->chroma_format_idc = fs_btm->chroma_format_idc = frame->chroma_format_idc;
     fs_top->iCodingType = fs_btm->iCodingType = frame->iCodingType;
     if(frame->used_for_reference)
     {
@@ -1154,7 +1120,7 @@ void dpb_split_field(VideoParameters *p_Vid, frame_store *fs)
     frame->frame = frame;
   }
 
-  if (!frame->frame_mbs_only_flag)
+  if (!p_Vid->active_sps->frame_mbs_only_flag)
   {
     if (frame->mb_aff_frame_flag)
     {
@@ -1296,16 +1262,6 @@ void dpb_combine_field_yuv(VideoParameters *p_Vid, frame_store *fs)
   fs->frame->frame = fs->frame;
 
   fs->frame->coded_frame = 0;
-
-  fs->frame->chroma_format_idc = fs->top_field->chroma_format_idc;
-  fs->frame->frame_cropping_flag = fs->top_field->frame_cropping_flag;
-  if (fs->frame->frame_cropping_flag)
-  {
-    fs->frame->frame_crop_top_offset = fs->top_field->frame_crop_top_offset;
-    fs->frame->frame_crop_bottom_offset = fs->top_field->frame_crop_bottom_offset;
-    fs->frame->frame_crop_left_offset = fs->top_field->frame_crop_left_offset;
-    fs->frame->frame_crop_right_offset = fs->top_field->frame_crop_right_offset;
-  }
 
   fs->top_field->frame = fs->bottom_field->frame = fs->frame;
   fs->top_field->top_field = fs->top_field;

@@ -283,6 +283,8 @@ void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, i
 
 void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture)
 {
+    sps_t* sps = p_Vid->active_sps;
+
     int iPadX = MCBUF_LUMA_PAD_X;
     int iPadY = MCBUF_LUMA_PAD_Y;
     int iWidth = dec_picture->size_x;
@@ -291,19 +293,19 @@ void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture)
 
     int iChromaPadX = MCBUF_CHROMA_PAD_X;
     int iChromaPadY = MCBUF_CHROMA_PAD_Y;
-    if (dec_picture->chroma_format_idc == YUV422)
+    if (sps->chroma_format_idc == YUV422)
         iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
-    else if (dec_picture->chroma_format_idc == YUV444) {
+    else if (sps->chroma_format_idc == YUV444) {
         iChromaPadX = MCBUF_LUMA_PAD_X;
         iChromaPadY = MCBUF_LUMA_PAD_Y;
     }
 
     pad_buf(*dec_picture->imgY, iWidth, iHeight, iStride, iPadX, iPadY);
 
-    if (dec_picture->chroma_format_idc != YUV400) {
-        iPadX = iChromaPadX;
-        iPadY = iChromaPadY;
-        iWidth = dec_picture->size_x_cr;
+    if (sps->chroma_format_idc != YUV400) {
+        iPadX   = iChromaPadX;
+        iPadY   = iChromaPadY;
+        iWidth  = dec_picture->size_x_cr;
         iHeight = dec_picture->size_y_cr;
         iStride = dec_picture->iChromaStride;
         pad_buf(*dec_picture->imgUV[0], iWidth, iHeight, iStride, iPadX, iPadY);
@@ -315,11 +317,10 @@ void exit_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
 {
     sps_t *sps = p_Vid->active_sps;
     slice_t *currSlice = p_Vid->ppSliceList[0];
-    int PicSizeInMbs = sps->PicWidthInMbs * (sps->FrameHeightInMbs / (1 + currSlice->field_pic_flag));
 
     // return if the last picture has already been finished
     if (*dec_picture == NULL ||
-        (p_Vid->num_dec_mb != PicSizeInMbs &&
+        (p_Vid->num_dec_mb != currSlice->PicSizeInMbs &&
          (sps->chroma_format_idc != YUV444 || !sps->separate_colour_plane_flag)))
         return;
 

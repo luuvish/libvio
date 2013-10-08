@@ -47,31 +47,10 @@ static void Configure(InputParameters *p_Inp, int ac, char *av[])
     }
 }
 
-/*********************************************************
-if bOutputAllFrames is 1, then output all valid frames to file onetime; 
-else output the first valid frame and move the buffer to the end of list;
-*********************************************************/
-static int WriteOneFrame(DecodedPicList *pDecPic, int bOutputAllFrames)
-{
-    DecodedPicList *pPic = pDecPic;
-
-    if (pPic &&
-        ((pPic->iYUVStorageFormat == 2 && pPic->bValid == 3) ||
-         (pPic->iYUVStorageFormat != 2 && pPic->bValid == 1))) {
-        do {
-            pPic->bValid = 0;
-            pPic = pPic->pNext;
-        } while (pPic != NULL && pPic->bValid && bOutputAllFrames);
-    }
-
-    return 0;
-}
-
 
 int main(int argc, char** argv)
 {
     int iRet;
-    DecodedPicList *pDecPicList;
     int iFramesDecoded = 0;
     InputParameters InputParams;
     DecoderParams Decoder;
@@ -83,20 +62,16 @@ int main(int argc, char** argv)
 
     //decoding;
     do {
-        iRet = Decoder.DecodeOneFrame(&pDecPicList);
-        if (iRet == DEC_EOS || iRet == DEC_SUCCEED) {
-            //process the decoded picture, output or display;
-            WriteOneFrame(pDecPicList, 0);
+        iRet = Decoder.DecodeOneFrame();
+        if (iRet == DEC_EOS || iRet == DEC_SUCCEED)
             iFramesDecoded++;
-        } else {
+        else
             //error handling;
             fprintf(stderr, "Error in decoding process: 0x%x\n", iRet);
-        }
     } while ((iRet == DEC_SUCCEED) &&
              (Decoder.p_Inp->iDecFrmNum == 0 || iFramesDecoded < Decoder.p_Inp->iDecFrmNum));
 
-    Decoder.FinitDecoder(&pDecPicList);
-    WriteOneFrame(pDecPicList, 1);
+    Decoder.FinitDecoder();
     Decoder.CloseDecoder();
 
     printf("%d frames are decoded.\n", iFramesDecoded);

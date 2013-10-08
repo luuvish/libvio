@@ -232,16 +232,6 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
     p_stored_pic->dec_ref_pic_marking_buffer      = NULL;
     p_stored_pic->PicWidthInMbs                   = p_pic->PicWidthInMbs;
     p_stored_pic->recovery_frame                  = p_pic->recovery_frame;
-    p_stored_pic->chroma_format_idc               = p_pic->chroma_format_idc;
-    p_stored_pic->frame_mbs_only_flag             = p_pic->frame_mbs_only_flag;
-    p_stored_pic->frame_cropping_flag             = p_pic->frame_cropping_flag;
-
-    if (p_stored_pic->frame_cropping_flag) {
-        p_stored_pic->frame_crop_left_offset   = p_pic->frame_crop_left_offset;
-        p_stored_pic->frame_crop_right_offset  = p_pic->frame_crop_right_offset;
-        p_stored_pic->frame_crop_top_offset    = p_pic->frame_crop_top_offset;
-        p_stored_pic->frame_crop_bottom_offset = p_pic->frame_crop_bottom_offset;
-    }
 
     // store BL reconstruction
 
@@ -292,7 +282,6 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
     p_stored_pic->inter_view_flag = p_pic->inter_view_flag;
     p_stored_pic->anchor_pic_flag = 0;
     p_stored_pic->view_id = 0;
-    p_stored_pic->proc_flag = 1;
     p_stored_pic->is_output = 1;
     p_stored_pic->used_for_reference = 1;
 

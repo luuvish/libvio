@@ -115,16 +115,6 @@ static void copy_dec_picture_JV(VideoParameters *p_Vid, storable_picture *dst, s
     dst->recovery_frame                  = src->recovery_frame;
     dst->coded_frame                     = src->coded_frame;
 
-    dst->chroma_format_idc               = src->chroma_format_idc;
-
-    dst->frame_mbs_only_flag             = src->frame_mbs_only_flag;
-    dst->frame_cropping_flag             = src->frame_cropping_flag;
-
-    dst->frame_crop_left_offset          = src->frame_crop_left_offset;
-    dst->frame_crop_right_offset         = src->frame_crop_right_offset;
-    dst->frame_crop_top_offset           = src->frame_crop_top_offset;
-    dst->frame_crop_bottom_offset        = src->frame_crop_bottom_offset;
-
     // store the necessary tone mapping sei into storable_picture structure
     dst->seiHasTone_mapping    = src->seiHasTone_mapping;
     dst->tone_mapping_model_id = src->tone_mapping_model_id;
@@ -286,18 +276,6 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
     dec_picture->recovery_frame                  = (unsigned int) ((int) currSlice->frame_num == p_Vid->recovery_frame_num);
 
     dec_picture->coded_frame                     = !currSlice->field_pic_flag;
-
-    dec_picture->chroma_format_idc               = sps->chroma_format_idc;
-
-    dec_picture->frame_mbs_only_flag             = sps->frame_mbs_only_flag;
-    dec_picture->frame_cropping_flag             = sps->frame_cropping_flag;
-
-    if (dec_picture->frame_cropping_flag) {
-        dec_picture->frame_crop_left_offset      = sps->frame_crop_left_offset;
-        dec_picture->frame_crop_right_offset     = sps->frame_crop_right_offset;
-        dec_picture->frame_crop_top_offset       = sps->frame_crop_top_offset;
-        dec_picture->frame_crop_bottom_offset    = sps->frame_crop_bottom_offset;
-    }
 
     // store the necessary tone mapping sei into storable_picture structure
     if (p_Vid->seiToneMapping->seiHasTone_mapping) {

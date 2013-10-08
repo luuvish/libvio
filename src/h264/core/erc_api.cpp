@@ -369,10 +369,11 @@ void ercMarkCurrMBConcealed( int currMBNum, int comp, int picSizeX, ercVariables
 
 void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
 {
+    sps_t* sps = p_Vid->active_sps;
     frame recfr;
     recfr.p_Vid = p_Vid;
     recfr.yptr = &(*dec_picture)->imgY[0][0];
-    if ((*dec_picture)->chroma_format_idc != YUV400) {
+    if (sps->chroma_format_idc != YUV400) {
         recfr.uptr = &(*dec_picture)->imgUV[0][0][0];
         recfr.vptr = &(*dec_picture)->imgUV[1][0][0];
     }
@@ -387,6 +388,7 @@ void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
         ercStartSegment(0, ercSegment, 0 , p_Vid->erc_errorVar);
         //! generate the segments according to the macroblock map
         for (i = 1; i < (int) (*dec_picture)->PicSizeInMbs; ++i) {
+        //for (i = 1; i < sps->PicWidthInMbs * sps->FrameHeightInMbs; ++i) {
             if (p_Vid->mb_data[i].ei_flag != p_Vid->mb_data[i-1].ei_flag) {
                 ercStopSegment(i-1, ercSegment, 0, p_Vid->erc_errorVar); //! stop current segment
 
@@ -403,6 +405,7 @@ void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
         }
         //! mark end of the last segment
         ercStopSegment((*dec_picture)->PicSizeInMbs-1, ercSegment, 0, p_Vid->erc_errorVar);
+        //ercStopSegment(sps->PicWidthInMbs * sps->FrameHeightInMbs - 1, ercSegment, 0, p_Vid->erc_errorVar);
         if (p_Vid->mb_data[i-1].ei_flag)
             ercMarkCurrSegmentLost((*dec_picture)->size_x, p_Vid->erc_errorVar);
         else
@@ -410,13 +413,14 @@ void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
 
         //! call the right error concealment function depending on the frame type.
         p_Vid->erc_mvperMB /= (*dec_picture)->PicSizeInMbs;
+        //p_Vid->erc_mvperMB /= sps->PicWidthInMbs * sps->FrameHeightInMbs;
 
         p_Vid->erc_img = p_Vid;
 
         if ((*dec_picture)->slice_type == I_slice || (*dec_picture)->slice_type == SI_slice) // I-frame
             ercConcealIntraFrame(p_Vid, &recfr, (*dec_picture)->size_x, (*dec_picture)->size_y, p_Vid->erc_errorVar);
         else
-            ercConcealInterFrame(&recfr, p_Vid->erc_object_list, (*dec_picture)->size_x, (*dec_picture)->size_y, p_Vid->erc_errorVar, (*dec_picture)->chroma_format_idc);
+            ercConcealInterFrame(&recfr, p_Vid->erc_object_list, (*dec_picture)->size_x, (*dec_picture)->size_y, p_Vid->erc_errorVar, sps->chroma_format_idc);
     }
 }
 

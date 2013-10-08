@@ -596,12 +596,12 @@ static void MbAffPostProc(VideoParameters *p_Vid)
 
     imgpel temp_buffer[32][16];
 
-    for (int mbAddr = 0; mbAddr < dec_picture->PicSizeInMbs; mbAddr += 2) {
+    for (int mbAddr = 0; mbAddr < sps->PicWidthInMbs * sps->FrameHeightInMbs; mbAddr += 2) {
         if (dec_picture->motion.mb_field_decoding_flag[mbAddr]) {
             loc_t loc = slice->neighbour.get_location(slice, false, mbAddr);
             update_mbaff_macroblock_data(imgY + loc.y, temp_buffer, loc.x, 16, 16);
 
-            if (dec_picture->chroma_format_idc != YUV400) {
+            if (sps->chroma_format_idc != YUV400) {
                 loc.x = (short) ((loc.x * sps->MbWidthC ) >> 4);
                 loc.y = (short) ((loc.y * sps->MbHeightC) >> 4);
 

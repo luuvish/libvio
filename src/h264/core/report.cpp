@@ -39,7 +39,7 @@ void VideoParameters::status(storable_picture** dec_picture)
     int qp                = 0;
     int pic_num           = (*dec_picture)->PicNum;
     int is_idr            = (*dec_picture)->idr_flag;
-    int chroma_format_idc = (*dec_picture)->chroma_format_idc;
+    int chroma_format_idc = this->active_sps->chroma_format_idc;
 
     // report
     static char cslice_type[9] = { 0 };  

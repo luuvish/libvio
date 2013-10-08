@@ -70,7 +70,9 @@ VideoParameters::VideoParameters()
     this->iNumOfSlicesAllocated = MAX_NUM_DECSLICES;
     this->pNextSlice            = nullptr;
     this->nalu                  = new nalu_t(MAX_CODED_FRAME_SIZE);
-    this->pDecOuputPic          = new DecodedPicList;
+    this->pDecOuputPic.pY       = nullptr;
+    this->pDecOuputPic.pU       = nullptr;
+    this->pDecOuputPic.pV       = nullptr;
     this->pNextPPS              = new pps_t;
     this->first_sps             = 1;
 
@@ -128,13 +130,8 @@ VideoParameters::~VideoParameters()
     if (this->pNextSlice)
         delete this->pNextSlice;
     delete this->nalu;
-    while (this->pDecOuputPic) {
-        DecodedPicList* pPicNext = this->pDecOuputPic->pNext;
-        if (this->pDecOuputPic->pY)
-            free(this->pDecOuputPic->pY);
-        delete this->pDecOuputPic;
-        this->pDecOuputPic = pPicNext;
-    }
+    if (this->pDecOuputPic.pY)
+        delete []this->pDecOuputPic.pY;
     delete this->pNextPPS;
 }
 
@@ -222,31 +219,8 @@ void DecoderParams::OpenDecoder(InputParameters *p_Inp)
 }
 
 
-static void ClearDecPicList(VideoParameters *p_Vid)
+int DecoderParams::DecodeOneFrame()
 {
-    DecodedPicList *pPic = p_Vid->pDecOuputPic, *pPrior = NULL;
-    //find the head first;
-    while (pPic && !pPic->bValid) {
-        pPrior = pPic;
-        pPic = pPic->pNext;
-    }
-
-    if (pPic && (pPic != p_Vid->pDecOuputPic)) {
-        //move all nodes before pPic to the end;
-        DecodedPicList *pPicTail = pPic;
-        while (pPicTail->pNext)
-            pPicTail = pPicTail->pNext;
-
-        pPicTail->pNext = p_Vid->pDecOuputPic;
-        p_Vid->pDecOuputPic = pPic;
-        pPrior->pNext = NULL;
-    }
-}
-
-int DecoderParams::DecodeOneFrame(DecodedPicList **ppDecPicList)
-{
-    ClearDecPicList(this->p_Vid);
-
     int iRet = this->decode_one_frame();
     if (iRet == SOP)
         iRet = DEC_SUCCEED;
@@ -254,15 +228,11 @@ int DecoderParams::DecodeOneFrame(DecodedPicList **ppDecPicList)
         iRet = DEC_EOS;
     else
         iRet |= DEC_ERRMASK;
-
-    *ppDecPicList = this->p_Vid->pDecOuputPic;
     return iRet;
 }
 
-void DecoderParams::FinitDecoder(DecodedPicList **ppDecPicList)
+void DecoderParams::FinitDecoder()
 {
-    ClearDecPicList(this->p_Vid);
-
 #if (MVC_EXTENSION_ENABLE)
     flush_dpb(this->p_Vid->p_Dpb_layer[0]);
     flush_dpb(this->p_Vid->p_Dpb_layer[1]);
@@ -272,7 +242,6 @@ void DecoderParams::FinitDecoder(DecodedPicList **ppDecPicList)
 
     this->p_Vid->newframe = 0;
     this->p_Vid->previous_frame_num = 0;
-    *ppDecPicList = this->p_Vid->pDecOuputPic;
 }
 
 

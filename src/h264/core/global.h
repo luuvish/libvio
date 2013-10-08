@@ -133,7 +133,11 @@ struct VideoParameters {
 
     nalu_t*     nalu;
 
-    DecodedPicList* pDecOuputPic;
+    struct {
+        uint8_t* pY;
+        uint8_t* pU;
+        uint8_t* pV;
+    } pDecOuputPic;
     pps_t*      pNextPPS;
     bool        first_sps; // use only for print first sps
 
