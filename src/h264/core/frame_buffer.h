@@ -152,6 +152,8 @@ struct storable_picture {
     bool        is_short_ref();
     bool        is_long_ref();
 
+    void        clear_picture(VideoParameters* p_Vid);
+
     storable_picture(VideoParameters *p_Vid, PictureStructure type, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output);
     ~storable_picture();
 };
@@ -197,8 +199,12 @@ struct frame_store {
     bool        is_long_term_reference();
     bool        is_used_for_reference();
 
-    void        dpb_split_field      (VideoParameters *p_Vid);
+    void        insert_picture(VideoParameters *p_Vid, storable_picture* p);
+
     void        dpb_combine_field_yuv(VideoParameters *p_Vid);
+
+protected:
+    void        dpb_split_field      (VideoParameters *p_Vid);
     void        dpb_combine_field    (VideoParameters *p_Vid);
 };
 

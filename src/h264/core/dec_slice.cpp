@@ -53,34 +53,29 @@ static void compute_colocated(slice_t* currSlice, storable_picture* listX[6][33]
 // i.e. per slice rather than per MB
 static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
 {
-    int i, j;
-    if (currSlice->active_sps->separate_colour_plane_flag != 0) {
-        storable_picture *vidref = p_Vid->no_reference_picture;
-        int noref = (currSlice->PicOrderCnt < p_Vid->recovery_poc);
+    storable_picture *vidref = p_Vid->no_reference_picture;
+    int noref = (currSlice->PicOrderCnt < p_Vid->recovery_poc);
+
+    if (currSlice->active_sps->separate_colour_plane_flag) {
         if (currSlice->colour_plane_id == 0) {
-            for (j = 0; j < 6; j++) {
-                for (i = 0; i < MAX_LIST_SIZE; i++) {
+            for (int j = 0; j < 6; j++) {
+                for (int i = 0; i < MAX_LIST_SIZE; i++) {
                     storable_picture *curr_ref = currSlice->listX[j][i];
-                    if (curr_ref) {
+                    if (curr_ref)
                         curr_ref->no_ref = noref && (curr_ref == vidref);
-                    }
                 }
             }
         }
     } else {
-        storable_picture *vidref = p_Vid->no_reference_picture;
-        int noref = (currSlice->PicOrderCnt < p_Vid->recovery_poc);
-        int total_lists = currSlice->MbaffFrameFlag ? 6 :
-                          currSlice->slice_type == B_slice ? 2 : 1;
-        for (j = 0; j < total_lists; j++) {
+        int total_lists = currSlice->MbaffFrameFlag ? 6 : currSlice->slice_type == B_slice ? 2 : 1;
+        for (int j = 0; j < total_lists; j++) {
             // note that if we always set this to MAX_LIST_SIZE, we avoid crashes with invalid ref_idx being set
             // since currently this is done at the slice level, it seems safe to do so.
             // Note for some reason I get now a mismatch between version 12 and this one in cabac. I wonder why.
-            for (i = 0; i < MAX_LIST_SIZE; i++) {
+            for (int i = 0; i < MAX_LIST_SIZE; i++) {
                 storable_picture *curr_ref = currSlice->listX[j][i];
-                if (curr_ref) {
+                if (curr_ref)
                     curr_ref->no_ref = noref && (curr_ref == vidref);
-                }
             }
         }
     }
@@ -98,7 +93,6 @@ bool slice_t::init()
 
     this->parser.init(*this);
     this->decoder.init(*this);
-
 
     if (current_header != SOP && current_header != SOS)
         return false;

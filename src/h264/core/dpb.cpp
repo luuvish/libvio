@@ -171,9 +171,9 @@ void decoded_picture_buffer_t::init(VideoParameters* p_Vid, int type)
         this->fs[i]       = new frame_store {};
         this->fs_ref[i]   = nullptr;
         this->fs_ltref[i] = nullptr;
-        this->fs[i]->layer_id = MVC_INIT_VIEW_ID;
+        this->fs[i]->layer_id = -1;
 #if (MVC_EXTENSION_ENABLE)
-        this->fs[i]->view_id = MVC_INIT_VIEW_ID;
+        this->fs[i]->view_id = -1;
         this->fs[i]->inter_view_flag[0] = this->fs[i]->inter_view_flag[1] = 0;
         this->fs[i]->anchor_pic_flag[0] = this->fs[i]->anchor_pic_flag[1] = 0;
 #endif
@@ -183,7 +183,7 @@ void decoded_picture_buffer_t::init(VideoParameters* p_Vid, int type)
     if (type == 2) {
         this->fs_ilref[0] = new frame_store {};
         // These may need some cleanups
-        this->fs_ilref[0]->view_id = MVC_INIT_VIEW_ID;
+        this->fs_ilref[0]->view_id = -1;
         this->fs_ilref[0]->inter_view_flag[0] = this->fs_ilref[0]->inter_view_flag[1] = 0;
         this->fs_ilref[0]->anchor_pic_flag[0] = this->fs_ilref[0]->anchor_pic_flag[1] = 0;
     } else
@@ -275,11 +275,11 @@ void decoded_picture_buffer_t::idr_memory_management(storable_picture* p)
 
     if (p->slice.long_term_reference_flag) {
         this->max_long_term_pic_idx = 0;
-        p->is_long_term              = 1;
-        p->LongTermFrameIdx          = 0;
+        p->is_long_term             = 1;
+        p->LongTermFrameIdx         = 0;
     } else {
         this->max_long_term_pic_idx = -1;
-        p->is_long_term              = 0;
+        p->is_long_term             = 0;
     }
 
 #if (MVC_EXTENSION_ENABLE)
@@ -833,7 +833,7 @@ void decoded_picture_buffer_t::store_picture(storable_picture* p)
                     (p->slice.structure == BOTTOM_FIELD && this->last_picture->is_used == 1)) {
                     if (( p->used_for_reference && this->last_picture->is_orig_reference != 0) ||
                         (!p->used_for_reference && this->last_picture->is_orig_reference == 0)) {
-                        insert_picture_in_dpb(p_Vid, this->last_picture, p);
+                        this->last_picture->insert_picture(p_Vid, p);
                         this->update_ref_list();
                         this->update_ltref_list();
                         this->last_picture = NULL;
@@ -896,7 +896,7 @@ void decoded_picture_buffer_t::store_picture(storable_picture* p)
         }
     }
     // store at end of buffer
-    insert_picture_in_dpb(p_Vid, this->fs[this->used_size],p);
+    this->fs[this->used_size]->insert_picture(p_Vid, p);
 
     // picture error concealment
     if (p->slice.idr_flag)
@@ -919,126 +919,31 @@ void decoded_picture_buffer_t::store_picture(storable_picture* p)
 }
 
 
-
-
-
-
-
-void insert_picture_in_dpb(VideoParameters *p_Vid, frame_store* fs, storable_picture* p)
-{
-    assert(p  != NULL);
-    assert(fs != NULL);
-
-    switch (p->slice.structure) {
-    case FRAME:
-        fs->frame = p;
-        fs->is_used = 3;
-        if (p->used_for_reference) {
-            fs->is_reference = 3;
-            fs->is_orig_reference = 3;
-            if (p->is_long_term) {
-                fs->is_long_term = 3;
-                fs->LongTermFrameIdx = p->LongTermFrameIdx;
-            }
-        }
-        fs->layer_id = p->slice.layer_id;
-#if (MVC_EXTENSION_ENABLE)
-        fs->view_id = p->slice.view_id;
-        fs->inter_view_flag[0] = fs->inter_view_flag[1] = p->slice.inter_view_flag;
-        fs->anchor_pic_flag[0] = fs->anchor_pic_flag[1] = p->slice.anchor_pic_flag;
-#endif
-        // generate field views
-        fs->dpb_split_field(p_Vid);
-        break;
-    case TOP_FIELD:
-        fs->top_field = p;
-        fs->is_used |= 1;
-        fs->layer_id = p->slice.layer_id;
-#if (MVC_EXTENSION_ENABLE)
-        fs->view_id = p->slice.view_id;
-        fs->inter_view_flag[0] = p->slice.inter_view_flag;
-        fs->anchor_pic_flag[0] = p->slice.anchor_pic_flag;
-#endif
-        if (p->used_for_reference) {
-            fs->is_reference |= 1;
-            fs->is_orig_reference |= 1;
-            if (p->is_long_term) {
-                fs->is_long_term |= 1;
-                fs->LongTermFrameIdx = p->LongTermFrameIdx;
-            }
-        }
-        if (fs->is_used == 3) {
-            // generate frame view
-            fs->dpb_combine_field(p_Vid);
-        } else
-            fs->poc = p->poc;
-        p->gen_field_ref_ids(p_Vid);
-        break;
-    case BOTTOM_FIELD:
-        fs->bottom_field = p;
-        fs->is_used |= 2;
-        fs->layer_id = p->slice.layer_id;
-#if (MVC_EXTENSION_ENABLE)
-        fs->view_id = p->slice.view_id;
-        fs->inter_view_flag[1] = p->slice.inter_view_flag;
-        fs->anchor_pic_flag[1] = p->slice.anchor_pic_flag;
-#endif
-        if (p->used_for_reference) {
-            fs->is_reference |= 2;
-            fs->is_orig_reference |= 2;
-            if (p->is_long_term) {
-                fs->is_long_term |= 2;
-                fs->LongTermFrameIdx = p->LongTermFrameIdx;
-            }
-        }
-        if (fs->is_used == 3) {
-            // generate frame view
-            fs->dpb_combine_field(p_Vid);
-        } else
-            fs->poc = p->poc;
-        p->gen_field_ref_ids(p_Vid);
-        break;
-    }
-
-    fs->FrameNum = p->PicNum;
-    fs->recovery_frame = p->recovery_frame;
-    fs->is_output = p->is_output;
-
-    if (fs->is_used == 3)
-        p_Vid->calculate_frame_no(p);
-}
-
-
-
-
-
 void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
 {
     sps_t* sps = p_Vid->active_sps;
   
-    int CurrFrameNum;
-    int UnusedShortTermFrameNum;
-    storable_picture* picture = NULL;
     int tmp1 = currSlice->delta_pic_order_cnt[0];
     int tmp2 = currSlice->delta_pic_order_cnt[1];
-    currSlice->delta_pic_order_cnt[0] = currSlice->delta_pic_order_cnt[1] = 0;
+    currSlice->delta_pic_order_cnt[0] =
+    currSlice->delta_pic_order_cnt[1] = 0;
 
     printf("A gap in frame number is found, try to fill it.\n");
 
-    UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % sps->MaxFrameNum;
-    CurrFrameNum = currSlice->frame_num;
+    int CurrFrameNum            = currSlice->frame_num;
+    int UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % sps->MaxFrameNum;
 
     while (CurrFrameNum != UnusedShortTermFrameNum) {
-        picture = new storable_picture(p_Vid, FRAME,
+        storable_picture* picture = new storable_picture(p_Vid, FRAME,
             sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
             sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
         picture->slice.coded_frame                     = 1;
         picture->slice.adaptive_ref_pic_buffering_flag = 0;
-        picture->PicNum                          = UnusedShortTermFrameNum;
-        picture->frame_num                       = UnusedShortTermFrameNum;
-        picture->non_existing                    = 1;
-        picture->is_output                       = 1;
-        picture->used_for_reference              = 1;
+        picture->PicNum                                = UnusedShortTermFrameNum;
+        picture->frame_num                             = UnusedShortTermFrameNum;
+        picture->non_existing                          = 1;
+        picture->is_output                             = 1;
+        picture->used_for_reference                    = 1;
 #if (MVC_EXTENSION_ENABLE)
         picture->slice.view_id                         = currSlice->view_id;
 #endif
@@ -1053,10 +958,10 @@ void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
 
         currSlice->p_Dpb->store_picture(picture);
 
-        picture = NULL;
         p_Vid->pre_frame_num = UnusedShortTermFrameNum;
         UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % sps->MaxFrameNum;
     }
+
     currSlice->delta_pic_order_cnt[0] = tmp1;
     currSlice->delta_pic_order_cnt[1] = tmp2;
     currSlice->frame_num = CurrFrameNum;

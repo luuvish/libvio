@@ -173,20 +173,6 @@ void UseParameterSet (slice_t *currSlice)
     }
 #endif
 
-    // In theory, and with a well-designed software, the lines above
-    // are everything necessary.  In practice, we need to patch many values
-    // in p_Vid-> (but no more in p_Inp-> -- these have been taken care of)
-
-    // Set Sequence Parameter Stuff first
-    if ((int) sps->pic_order_cnt_type < 0 || sps->pic_order_cnt_type > 2) {
-        printf("invalid sps->pic_order_cnt_type = %d\n", (int) sps->pic_order_cnt_type);
-        error("pic_order_cnt_type != 1", -1000);
-    }
-
-    if (sps->pic_order_cnt_type == 1) {
-        if ((int)sps->num_ref_frames_in_pic_order_cnt_cycle >= MAX_NUM_REF_FRAMES)
-            error("num_ref_frames_in_pic_order_cnt_cycle too large",-1011);
-    }
     p_Vid->dpb_layer_id = currSlice->layer_id;
     activate_sps(p_Vid, sps);
     activate_pps(p_Vid, pps);

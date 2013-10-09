@@ -6,7 +6,7 @@
 #include "memalloc.h"
 
 
-slice_backup_t& slice_backup_t::operator = (const slice_t& slice)
+slice_backup_t& slice_backup_t::operator=(const slice_t& slice)
 {
     sps_t& sps = *slice.active_sps;
 
@@ -42,7 +42,7 @@ slice_backup_t& slice_backup_t::operator = (const slice_t& slice)
     return *this;
 }
 
-bool slice_backup_t::operator != (const slice_t& slice)
+bool slice_backup_t::operator!=(const slice_t& slice)
 {
     sps_t& sps = *slice.active_sps;
     pps_t& pps = *slice.active_pps;
@@ -95,7 +95,7 @@ slice_t::slice_t()
     get_mem3Dpel(&this->mb_pred, 3, 16, 16);
 
 #if (MVC_EXTENSION_ENABLE)
-    this->view_id = MVC_INIT_VIEW_ID;
+    this->view_id         = -1;
     this->inter_view_flag = 0;
     this->anchor_pic_flag = 0;
 #endif
@@ -135,7 +135,7 @@ void slice_header(slice_t *currSlice)
 
     assert(currSlice->pic_parameter_set_id >= 0 && currSlice->pic_parameter_set_id <= 255);
 
-    UseParameterSet (currSlice);
+    UseParameterSet(currSlice);
     sps_t *sps = currSlice->active_sps = p_Vid->active_sps;
     pps_t *pps = currSlice->active_pps = p_Vid->active_pps;
 
@@ -532,11 +532,11 @@ void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *s, slice_t *c
         free(tmp_drpm);
     }
 
+    if (currSlice->idr_flag
 #if (MVC_EXTENSION_ENABLE)
-    if (currSlice->idr_flag || (currSlice->svc_extension_flag == 0 && currSlice->NaluHeaderMVCExt.non_idr_flag == 0) ) {
-#else
-    if (currSlice->idr_flag) {
+        || (currSlice->svc_extension_flag == 0 && currSlice->NaluHeaderMVCExt.non_idr_flag == 0)
 #endif
+    ) {
         currSlice->no_output_of_prior_pics_flag = s->u(1, "SH: no_output_of_prior_pics_flag");
         p_Vid->no_output_of_prior_pics_flag = currSlice->no_output_of_prior_pics_flag;
         currSlice->long_term_reference_flag = s->u(1, "SH: long_term_reference_flag");
@@ -575,18 +575,6 @@ void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *s, slice_t *c
 }
 
 
-
-/*!
- ************************************************************************
- * \brief
- *    To calculate the poc values
- *        based upon JVT-F100d2
- *  POC200301: Until Jan 2003, this function will calculate the correct POC
- *    values, but the management of POCs in buffered pictures may need more work.
- * \return
- *    none
- ************************************************************************
- */
 void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
 {
     sps_t *sps = p_Vid->active_sps;
@@ -714,6 +702,6 @@ void decode_poc(VideoParameters *p_Vid, slice_t *pSlice)
         pSlice->PicOrderCnt = pSlice->TopFieldOrderCnt;
     else
         pSlice->PicOrderCnt = pSlice->BottomFieldOrderCnt;
-    p_Vid->PicOrderCnt      = pSlice->PicOrderCnt;
+    p_Vid->PicOrderCnt  = pSlice->PicOrderCnt;
     p_Vid->prevFrameNum = pSlice->frame_num;
 }

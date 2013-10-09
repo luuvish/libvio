@@ -220,25 +220,6 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
     }
 }
 
-static void clear_picture(VideoParameters *p_Vid, storable_picture *p)
-{
-    sps_t *sps = p_Vid->active_sps;
-    int i,j;
-
-    for (i = 0; i < p->size_y; i++) {
-        for (j = 0; j < p->size_x; j++)
-            p->imgY[i][j] = (imgpel) (1 << (sps->BitDepthY - 1));
-    }
-    for (i = 0; i < p->size_y_cr; i++) {
-        for (j = 0; j < p->size_x_cr; j++)
-            p->imgUV[0][i][j] = (imgpel) (1 << (sps->BitDepthC - 1));
-    }
-    for (i = 0; i < p->size_y_cr; i++) {
-        for (j = 0; j < p->size_x_cr; j++)
-            p->imgUV[1][i][j] = (imgpel) (1 << (sps->BitDepthC - 1));
-    }
-}
-
 static void write_unpaired_field(VideoParameters *p_Vid, frame_store* fs, int p_out)
 {
     storable_picture *p;
@@ -249,8 +230,8 @@ static void write_unpaired_field(VideoParameters *p_Vid, frame_store* fs, int p_
         // construct an empty bottom field
         p = fs->top_field;
         fs->bottom_field = new storable_picture(p_Vid, BOTTOM_FIELD,
-            p->size_x, 2*p->size_y, p->size_x_cr, 2*p->size_y_cr, 1);
-        clear_picture(p_Vid, fs->bottom_field);
+            p->size_x, p->size_y * 2, p->size_x_cr, p->size_y_cr * 2, 1);
+        fs->bottom_field->clear_picture(p_Vid);
         fs->dpb_combine_field_yuv(p_Vid);
 #if (MVC_EXTENSION_ENABLE)
         fs->frame->slice.view_id = fs->view_id;
@@ -263,8 +244,8 @@ static void write_unpaired_field(VideoParameters *p_Vid, frame_store* fs, int p_
         // construct an empty top field
         p = fs->bottom_field;
         fs->top_field = new storable_picture(p_Vid, TOP_FIELD,
-            p->size_x, 2*p->size_y, p->size_x_cr, 2*p->size_y_cr, 1);
-        clear_picture(p_Vid, fs->top_field);
+            p->size_x, p->size_y * 2, p->size_x_cr, p->size_y_cr * 2, 1);
+        fs->top_field->clear_picture(p_Vid);
         fs->dpb_combine_field_yuv(p_Vid);
 #if (MVC_EXTENSION_ENABLE)
         fs->frame->slice.view_id = fs->view_id;

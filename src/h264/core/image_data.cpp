@@ -170,7 +170,7 @@ static void store_proc_picture_in_dpb(dpb_t* p_Dpb, storable_picture* p)
         p_Dpb->used_size_il--;   
     }
 
-    insert_picture_in_dpb(p_Vid, fs, p);
+    fs->insert_picture(p_Vid, p);
     if ((p->slice.structure == FRAME && fs->is_used == 3) ||
         (p->slice.structure != FRAME && fs->is_used && fs->is_used < 3))
         p_Dpb->used_size_il++;  

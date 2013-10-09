@@ -82,7 +82,7 @@ static int parse_idr(slice_t *currSlice)
             }
         }
     }
-    currSlice->layer_id = currSlice->view_id = GetVOIdx( p_Vid, currSlice->view_id );
+    currSlice->layer_id = currSlice->view_id = GetVOIdx(p_Vid, currSlice->view_id);
 #endif
 
     // Some syntax of the slice_t Header depends on the parameter set, which depends on

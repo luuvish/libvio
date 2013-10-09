@@ -422,48 +422,37 @@ int DecoderParams::decode_one_frame()
 #if (MVC_EXTENSION_ENABLE)
 int GetVOIdx(VideoParameters *p_Vid, int iViewId)
 {
-  int iVOIdx = -1;
-  int *piViewIdMap;
-  if(p_Vid->active_subset_sps)
-  {
-    piViewIdMap = p_Vid->active_subset_sps->view_id;
-    for(iVOIdx = p_Vid->active_subset_sps->num_views_minus1; iVOIdx>=0; iVOIdx--)
-      if(piViewIdMap[iVOIdx] == iViewId)
-        break;
-  }
-  else
-  {
-    sub_sps_t *curr_subset_sps;
-    int i;
+    int iVOIdx = -1;
+    if (p_Vid->active_subset_sps) {
+        int* piViewIdMap = p_Vid->active_subset_sps->view_id;
+        for (iVOIdx = p_Vid->active_subset_sps->num_views_minus1; iVOIdx >= 0; iVOIdx--) {
+            if (piViewIdMap[iVOIdx] == iViewId)
+                break;
+        }
+    } else {
+        sub_sps_t *curr_subset_sps;
+        int i;
 
-    curr_subset_sps = p_Vid->SubsetSeqParSet;
-    for(i=0; i<MAXSPS; i++)
-    {
-      if(curr_subset_sps->num_views_minus1>=0 && curr_subset_sps->sps.Valid)
-      {
-        break;
-      }
-      curr_subset_sps++;
+        curr_subset_sps = p_Vid->SubsetSeqParSet;
+        for (i = 0; i < MAXSPS; i++) {
+            if(curr_subset_sps->num_views_minus1>=0 && curr_subset_sps->sps.Valid)
+                break;
+            curr_subset_sps++;
+        }
+
+        if (i < MAXSPS) {
+            p_Vid->active_subset_sps = curr_subset_sps;
+            int* piViewIdMap = p_Vid->active_subset_sps->view_id;
+            for (iVOIdx = p_Vid->active_subset_sps->num_views_minus1; iVOIdx >= 0; iVOIdx--)
+                if (piViewIdMap[iVOIdx] == iViewId)
+                    break;
+
+            return iVOIdx;
+        } else
+            iVOIdx = 0;
     }
 
-    if( i < MAXSPS )
-    {
-      p_Vid->active_subset_sps = curr_subset_sps;
-
-      piViewIdMap = p_Vid->active_subset_sps->view_id;
-      for(iVOIdx = p_Vid->active_subset_sps->num_views_minus1; iVOIdx>=0; iVOIdx--)
-        if(piViewIdMap[iVOIdx] == iViewId)
-          break;
-
-      return iVOIdx;
-    }
-    else
-    {
-      iVOIdx = 0;
-    }
-  }
-
-  return iVOIdx;
+    return iVOIdx;
 }
 
 #endif

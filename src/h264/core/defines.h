@@ -5,7 +5,6 @@
 #define DISABLE_ERC               0    //!< Disable any error concealment processes
 
 #define MVC_EXTENSION_ENABLE      1    //!< enable support for the Multiview High Profile
-#define MVC_INIT_VIEW_ID          -1
 #define MAX_VIEW_NUM              1024   
 
 typedef uint8_t  byte;
