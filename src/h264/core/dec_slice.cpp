@@ -63,7 +63,6 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
                     storable_picture *curr_ref = currSlice->listX[j][i];
                     if (curr_ref) {
                         curr_ref->no_ref = noref && (curr_ref == vidref);
-                        curr_ref->cur_imgY = curr_ref->imgY;
                     }
                 }
             }
@@ -81,7 +80,6 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
                 storable_picture *curr_ref = currSlice->listX[j][i];
                 if (curr_ref) {
                     curr_ref->no_ref = noref && (curr_ref == vidref);
-                    curr_ref->cur_imgY = curr_ref->imgY;
                 }
             }
         }
@@ -91,41 +89,12 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
 
 bool slice_t::init()
 {
-    int i;
-
     VideoParameters *p_Vid = this->p_Vid;
     p_Vid->active_sps = this->active_sps;
     p_Vid->active_pps = this->active_pps;
     int current_header = this->current_header;
 
-    init_lists(this);
-
-#if (MVC_EXTENSION_ENABLE)
-    if (this->svc_extension_flag == 0 || this->svc_extension_flag == 1)
-        reorder_lists_mvc(this, this->PicOrderCnt);
-    else
-        reorder_lists(this);
-
-    if (this->fs_listinterview0) {
-        delete []this->fs_listinterview0;
-        this->fs_listinterview0 = nullptr;
-    }
-    if (this->fs_listinterview1) {
-        delete []this->fs_listinterview1;
-        this->fs_listinterview1 = nullptr;
-    }
-#endif
-
-    if (!this->field_pic_flag)
-        init_mbaff_lists(p_Vid, this);
-
-    // update reference flags and set current p_Vid->ref_flag
-    if (!(this->redundant_pic_cnt != 0 && p_Vid->previous_frame_num == this->frame_num)) {
-        for (i = 16; i > 0; i--)
-            this->ref_flag[i] = this->ref_flag[i-1];
-    }
-    this->ref_flag[0] = this->redundant_pic_cnt == 0 ? p_Vid->Is_primary_correct
-                                                     : p_Vid->Is_redundant_correct;
+    init_ref_lists(this);
 
     this->parser.init(*this);
     this->decoder.init(*this);

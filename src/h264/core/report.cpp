@@ -32,13 +32,13 @@ void VideoParameters::status(storable_picture** dec_picture)
     char yuv_types[4][6]= {"4:0:0","4:2:0","4:2:2","4:4:4"};
     char yuvFormat[10];
 
-    int structure         = (*dec_picture)->structure;
-    int slice_type        = (*dec_picture)->slice_type;
+    int structure         = (*dec_picture)->slice.structure;
+    int slice_type        = (*dec_picture)->slice.slice_type;
     int frame_poc         = (*dec_picture)->frame_poc;  
     int refpic            = (*dec_picture)->used_for_reference;
     int qp                = 0;
     int pic_num           = (*dec_picture)->PicNum;
-    int is_idr            = (*dec_picture)->idr_flag;
+    int is_idr            = (*dec_picture)->slice.idr_flag;
     int chroma_format_idc = this->active_sps->chroma_format_idc;
 
     // report

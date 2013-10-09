@@ -138,7 +138,6 @@ void Decoder::decode_one_component(mb_t& mb, ColorPlane curr_plane)
                     storable_picture *curr_ref = slice.listX[j][i];
                     if (curr_ref) {
                         curr_ref->no_ref = noref && (curr_ref == vidref);
-                        curr_ref->cur_imgY = (curr_plane == PLANE_Y) ? curr_ref->imgY : curr_ref->imgUV[curr_plane-1];
                     }
                 }
             }

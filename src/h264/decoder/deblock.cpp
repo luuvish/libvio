@@ -565,7 +565,10 @@ void Deblock::make_frame_picture_JV(VideoParameters *p_Vid)
             int nsize = sizeof(imgpel) * sps->PicWidthInMbs * 16;
             memcpy(p_Vid->dec_picture->imgUV[uv][line], p_Vid->dec_picture_JV[uv+1]->imgY[line], nsize);
         }
-        free_storable_picture(p_Vid->dec_picture_JV[uv+1]);
+        if (p_Vid->dec_picture_JV[uv + 1]) {
+            delete p_Vid->dec_picture_JV[uv + 1];
+            p_Vid->dec_picture_JV[uv + 1] = nullptr;
+        }
     }
 }
 
@@ -615,7 +618,7 @@ static void MbAffPostProc(VideoParameters *p_Vid)
 void Deblock::deblock(VideoParameters *p_Vid)
 {
     storable_picture* p = p_Vid->dec_picture;
-    if (p->mb_aff_frame_flag)
+    if (p->slice.mb_aff_frame_flag)
         MbAffPostProc(p_Vid);
 
     int iDeblockMode = 1;

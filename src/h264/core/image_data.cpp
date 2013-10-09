@@ -128,10 +128,10 @@ static void process_picture_in_dpb_s(VideoParameters* p_Vid, storable_picture* p
         init_img_data(p_Vid, &p_Vid->tempData3, p_Vid->active_sps);
 
     imgpel*** d_img;
-    if (p_pic->structure == FRAME)
+    if (p_pic->slice.structure == FRAME)
         d_img = p_img_out->frm_data;
     else { //If reference picture is a field, then frm_data will actually contain field data and therefore top/bottom stride is set accordingly.
-        if (p_pic->structure == TOP_FIELD)
+        if (p_pic->slice.structure == TOP_FIELD)
             d_img = p_img_out->top_data;
         else
             d_img = p_img_out->bot_data;
@@ -154,16 +154,16 @@ static void store_proc_picture_in_dpb(dpb_t* p_Dpb, storable_picture* p)
     frame_store *fs = p_Dpb->fs_ilref[0];
     if (p_Dpb->used_size_il > 0 && fs->is_used == 3) {
         if (fs->frame) {
-            free_storable_picture(fs->frame);
-            fs->frame = NULL;
+            delete fs->frame;
+            fs->frame = nullptr;
         }
         if (fs->top_field) {
-            free_storable_picture(fs->top_field);
-            fs->top_field = NULL;
+            delete fs->top_field;
+            fs->top_field = nullptr;
         }
         if (fs->bottom_field) {
-            free_storable_picture(fs->bottom_field);
-            fs->bottom_field = NULL;
+            delete fs->bottom_field;
+            fs->bottom_field = nullptr;
         }
         fs->is_used = 0;
         fs->is_reference = 0;
@@ -171,8 +171,8 @@ static void store_proc_picture_in_dpb(dpb_t* p_Dpb, storable_picture* p)
     }
 
     insert_picture_in_dpb(p_Vid, fs, p);
-    if ((p->structure == FRAME && fs->is_used == 3) ||
-        (p->structure != FRAME && fs->is_used && fs->is_used < 3))
+    if ((p->slice.structure == FRAME && fs->is_used == 3) ||
+        (p->slice.structure != FRAME && fs->is_used && fs->is_used < 3))
         p_Dpb->used_size_il++;  
 }
 
@@ -185,8 +185,7 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
     imgpel ***img_in = NULL;
 
     sps_t *sps = p_Vid->active_sps;
-    storable_picture *p_stored_pic = alloc_storable_picture(
-        p_Vid, (PictureStructure)p_Vid->structure,
+    storable_picture *p_stored_pic = new storable_picture(p_Vid, (PictureStructure)p_Vid->structure,
         sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
         sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 0);
 
@@ -205,13 +204,11 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
     p_stored_pic->LongTermPicNum                  = p_pic->LongTermPicNum;
     p_stored_pic->is_long_term                    = 0;
     p_stored_pic->non_existing                    = p_pic->non_existing;
-    p_stored_pic->structure                       = p_pic->structure;
     p_stored_pic->size_x                          = p_pic->size_x;
     p_stored_pic->size_y                          = p_pic->size_y;
     p_stored_pic->size_x_cr                       = p_pic->size_x_cr;
     p_stored_pic->size_y_cr                       = p_pic->size_y_cr;
   
-    p_stored_pic->mb_aff_frame_flag               = p_pic->mb_aff_frame_flag;
     p_stored_pic->seiHasTone_mapping              = p_pic->seiHasTone_mapping;
     p_stored_pic->poc                             = p_pic->poc;
     p_stored_pic->top_poc                         = p_pic->top_poc;
@@ -219,14 +216,16 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
     p_stored_pic->frame_poc                       = p_pic->frame_poc;
     p_stored_pic->PicNum                          = p_pic->PicNum;
     p_stored_pic->frame_num                       = p_pic->frame_num;
-    p_stored_pic->coded_frame                     = 1;
 
-    p_stored_pic->slice_type                      = p_pic->slice_type;
-    p_stored_pic->idr_flag                        = p_pic->idr_flag;
-    p_stored_pic->no_output_of_prior_pics_flag    = p_pic->no_output_of_prior_pics_flag;
-    p_stored_pic->long_term_reference_flag        = 0;
-    p_stored_pic->adaptive_ref_pic_buffering_flag = 0;
-    p_stored_pic->dec_ref_pic_marking_buffer      = NULL;
+    p_stored_pic->slice.structure                       = p_pic->slice.structure;
+    p_stored_pic->slice.coded_frame                     = 1;
+    p_stored_pic->slice.slice_type                      = p_pic->slice.slice_type;
+    p_stored_pic->slice.idr_flag                        = p_pic->slice.idr_flag;
+    p_stored_pic->slice.mb_aff_frame_flag               = p_pic->slice.mb_aff_frame_flag;
+    p_stored_pic->slice.no_output_of_prior_pics_flag    = p_pic->slice.no_output_of_prior_pics_flag;
+    p_stored_pic->slice.long_term_reference_flag        = 0;
+    p_stored_pic->slice.adaptive_ref_pic_buffering_flag = 0;
+    p_stored_pic->slice.dec_ref_pic_marking_buffer      = NULL;
     p_stored_pic->PicWidthInMbs                   = p_pic->PicWidthInMbs;
     p_stored_pic->recovery_frame                  = p_pic->recovery_frame;
 
@@ -234,10 +233,10 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
 
     ostride[0] = p_stored_pic->iLumaStride;
     ostride[1] = p_stored_pic->iChromaStride;
-    if (p_stored_pic->structure == FRAME) {
+    if (p_stored_pic->slice.structure == FRAME) {
         istride = p_Vid->tempData3.frm_stride;
         img_in  = p_Vid->tempData3.frm_data;
-    } else if (p_stored_pic->structure == TOP_FIELD) {
+    } else if (p_stored_pic->slice.structure == TOP_FIELD) {
         istride = p_Vid->tempData3.top_stride;
         img_in  = p_Vid->tempData3.top_data;
     } else {
@@ -276,9 +275,9 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
     }
 
     // MVC-related parameters
-    p_stored_pic->inter_view_flag = p_pic->inter_view_flag;
-    p_stored_pic->anchor_pic_flag = 0;
-    p_stored_pic->view_id = 0;
+    p_stored_pic->slice.inter_view_flag = p_pic->slice.inter_view_flag;
+    p_stored_pic->slice.anchor_pic_flag = 0;
+    p_stored_pic->slice.view_id = 0;
     p_stored_pic->is_output = 1;
     p_stored_pic->used_for_reference = 1;
 

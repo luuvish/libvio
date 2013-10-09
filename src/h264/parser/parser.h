@@ -27,6 +27,7 @@
 
 #include "bitstream_cabac.h"
 #include "data_partition.h"
+#include "frame_buffer.h"
 
 
 namespace vio  {

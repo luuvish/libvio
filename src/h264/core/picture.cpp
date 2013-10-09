@@ -334,11 +334,11 @@ void exit_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
     if (p_Vid->structure != FRAME)
         p_Vid->number /= 2;
 #if (MVC_EXTENSION_ENABLE)
-    if ((*dec_picture)->used_for_reference || ((*dec_picture)->inter_view_flag == 1))
+    if ((*dec_picture)->used_for_reference || ((*dec_picture)->slice.inter_view_flag == 1))
         pad_dec_picture(p_Vid, *dec_picture);
 #endif
 #if MVC_EXTENSION_ENABLE
-    p_Vid->p_Dpb_layer[(*dec_picture)->view_id]->store_picture(*dec_picture);
+    p_Vid->p_Dpb_layer[(*dec_picture)->slice.view_id]->store_picture(*dec_picture);
 #endif
 
     if (p_Vid->last_has_mmco_5)

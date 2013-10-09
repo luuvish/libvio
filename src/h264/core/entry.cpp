@@ -99,7 +99,7 @@ static int parse_idr(slice_t *currSlice)
 
     // if primary slice is replaced with redundant slice, set the correct image type
     if (currSlice->redundant_pic_cnt && p_Vid->Is_primary_correct == 0 && p_Vid->Is_redundant_correct)
-        p_Vid->dec_picture->slice_type = p_Vid->type;
+        p_Vid->dec_picture->slice.slice_type = p_Vid->type;
 
     if (!p_Vid->dec_picture || *(p_Vid->old_slice) != *currSlice) {
         if (p_Vid->iSliceNumOfCurrPic==0)

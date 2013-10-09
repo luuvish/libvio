@@ -3,6 +3,7 @@
 #include "h264decoder.h"
 #include "dpb.h"
 #include "ref_list.h"
+#include "frame_buffer.h"
 #include "image.h"
 #include "memalloc.h"
 #include "sei.h"
@@ -247,11 +248,12 @@ static void write_unpaired_field(VideoParameters *p_Vid, frame_store* fs, int p_
         // we have a top field
         // construct an empty bottom field
         p = fs->top_field;
-        fs->bottom_field = alloc_storable_picture(p_Vid, BOTTOM_FIELD, p->size_x, 2*p->size_y, p->size_x_cr, 2*p->size_y_cr, 1);
+        fs->bottom_field = new storable_picture(p_Vid, BOTTOM_FIELD,
+            p->size_x, 2*p->size_y, p->size_x_cr, 2*p->size_y_cr, 1);
         clear_picture(p_Vid, fs->bottom_field);
         fs->dpb_combine_field_yuv(p_Vid);
 #if (MVC_EXTENSION_ENABLE)
-        fs->frame->view_id = fs->view_id;
+        fs->frame->slice.view_id = fs->view_id;
 #endif
         write_out_picture(p_Vid, fs->frame, p_out);
     }
@@ -260,11 +262,12 @@ static void write_unpaired_field(VideoParameters *p_Vid, frame_store* fs, int p_
         // we have a bottom field
         // construct an empty top field
         p = fs->bottom_field;
-        fs->top_field = alloc_storable_picture(p_Vid, TOP_FIELD, p->size_x, 2*p->size_y, p->size_x_cr, 2*p->size_y_cr, 1);
+        fs->top_field = new storable_picture(p_Vid, TOP_FIELD,
+            p->size_x, 2*p->size_y, p->size_x_cr, 2*p->size_y_cr, 1);
         clear_picture(p_Vid, fs->top_field);
         fs->dpb_combine_field_yuv(p_Vid);
 #if (MVC_EXTENSION_ENABLE)
-        fs->frame->view_id = fs->view_id;
+        fs->frame->slice.view_id = fs->view_id;
 #endif
         write_out_picture(p_Vid, fs->frame, p_out);
     }
@@ -276,12 +279,18 @@ static void flush_direct_output(VideoParameters *p_Vid, int p_out)
 {
     write_unpaired_field(p_Vid, p_Vid->out_buffer, p_out);
 
-    free_storable_picture(p_Vid->out_buffer->frame);
-    p_Vid->out_buffer->frame = NULL;
-    free_storable_picture(p_Vid->out_buffer->top_field);
-    p_Vid->out_buffer->top_field = NULL;
-    free_storable_picture(p_Vid->out_buffer->bottom_field);
-    p_Vid->out_buffer->bottom_field = NULL;
+    if (p_Vid->out_buffer->frame) {
+        delete p_Vid->out_buffer->frame;
+        p_Vid->out_buffer->frame = nullptr;
+    }
+    if (p_Vid->out_buffer->top_field) {
+        delete p_Vid->out_buffer->top_field;
+        p_Vid->out_buffer->top_field = nullptr;
+    }
+    if (p_Vid->out_buffer->bottom_field) {
+        delete p_Vid->out_buffer->bottom_field;
+        p_Vid->out_buffer->bottom_field = nullptr;
+    }
     p_Vid->out_buffer->is_used = 0;
 }
 
@@ -305,24 +314,27 @@ void write_stored_frame(VideoParameters *p_Vid, frame_store *fs, int p_out)
 
 void direct_output(VideoParameters *p_Vid, storable_picture *p, int p_out)
 {
-    if (p->structure == FRAME) {
+    if (p->slice.structure == FRAME) {
         // we have a frame (or complementary field pair)
         // so output it directly
         flush_direct_output(p_Vid, p_out);
         write_out_picture(p_Vid, p, p_out);
         p_Vid->calculate_frame_no(p);
-        free_storable_picture(p);
+        if (p) {
+            delete p;
+            p = nullptr;
+        }
         return;
     }
 
-    if (p->structure == TOP_FIELD) {
+    if (p->slice.structure == TOP_FIELD) {
         if (p_Vid->out_buffer->is_used & 1)
             flush_direct_output(p_Vid, p_out);
         p_Vid->out_buffer->top_field = p;
         p_Vid->out_buffer->is_used |= 1;
     }
 
-    if (p->structure == BOTTOM_FIELD) {
+    if (p->slice.structure == BOTTOM_FIELD) {
         if (p_Vid->out_buffer->is_used & 2)
             flush_direct_output(p_Vid, p_out);
         p_Vid->out_buffer->bottom_field = p;
@@ -333,17 +345,23 @@ void direct_output(VideoParameters *p_Vid, storable_picture *p, int p_out)
         // we have both fields, so output them
         p_Vid->out_buffer->dpb_combine_field_yuv(p_Vid);
 #if (MVC_EXTENSION_ENABLE)
-        p_Vid->out_buffer->frame->view_id = p_Vid->out_buffer->view_id;
+        p_Vid->out_buffer->frame->slice.view_id = p_Vid->out_buffer->view_id;
 #endif
         write_out_picture(p_Vid, p_Vid->out_buffer->frame, p_out);
 
         p_Vid->calculate_frame_no(p);
-        free_storable_picture(p_Vid->out_buffer->frame);
-        p_Vid->out_buffer->frame = NULL;
-        free_storable_picture(p_Vid->out_buffer->top_field);
-        p_Vid->out_buffer->top_field = NULL;
-        free_storable_picture(p_Vid->out_buffer->bottom_field);
-        p_Vid->out_buffer->bottom_field = NULL;
+        if (p_Vid->out_buffer->frame) {
+            delete p_Vid->out_buffer->frame;
+            p_Vid->out_buffer->frame = nullptr;
+        }
+        if (p_Vid->out_buffer->top_field) {
+            delete p_Vid->out_buffer->top_field;
+            p_Vid->out_buffer->top_field = nullptr;
+        }
+        if (p_Vid->out_buffer->bottom_field) {
+            delete p_Vid->out_buffer->bottom_field;
+            p_Vid->out_buffer->bottom_field = nullptr;
+        }
         p_Vid->out_buffer->is_used = 0;
     }
 }

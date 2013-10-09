@@ -63,7 +63,7 @@ static void init_mvc_picture(slice_t* currSlice)
     if (!currSlice->field_pic_flag) {
         for (int i = 0; i < (int)p_Dpb->used_size/*size*/; ++i) {
             frame_store* fs = p_Dpb->fs[i];
-            if (fs->frame->view_id == 0 && fs->frame->frame_poc == currSlice->PicOrderCnt) {
+            if (fs->frame->slice.view_id == 0 && fs->frame->frame_poc == currSlice->PicOrderCnt) {
                 p_pic = fs->frame;
                 break;
             }
@@ -71,7 +71,7 @@ static void init_mvc_picture(slice_t* currSlice)
     } else if (!currSlice->bottom_field_flag) {
         for (int i = 0; i < (int)p_Dpb->used_size/*size*/; ++i) {
             frame_store* fs = p_Dpb->fs[i];
-            if (fs->top_field->view_id == 0 && fs->top_field->top_poc == currSlice->TopFieldOrderCnt) {
+            if (fs->top_field->slice.view_id == 0 && fs->top_field->top_poc == currSlice->TopFieldOrderCnt) {
                 p_pic = fs->top_field;
                 break;
             }
@@ -79,7 +79,7 @@ static void init_mvc_picture(slice_t* currSlice)
     } else {
         for (int i = 0; i < (int)p_Dpb->used_size/*size*/; ++i) {
             frame_store* fs = p_Dpb->fs[i];
-            if (fs->bottom_field->view_id == 0 && fs->bottom_field->bottom_poc == currSlice->BottomFieldOrderCnt) {
+            if (fs->bottom_field->slice.view_id == 0 && fs->bottom_field->bottom_poc == currSlice->BottomFieldOrderCnt) {
                 p_pic = fs->bottom_field;
                 break;
             }
@@ -99,22 +99,21 @@ static void copy_dec_picture_JV(VideoParameters *p_Vid, storable_picture *dst, s
     dst->frame_poc                       = src->frame_poc;
 
     dst->poc                             = src->poc;
-
-    dst->slice_type                      = src->slice_type;
     dst->used_for_reference              = src->used_for_reference;
-    dst->idr_flag                        = src->idr_flag;
-    dst->no_output_of_prior_pics_flag    = src->no_output_of_prior_pics_flag;
-    dst->long_term_reference_flag        = src->long_term_reference_flag;
-    dst->adaptive_ref_pic_buffering_flag = src->adaptive_ref_pic_buffering_flag;
 
-    dst->dec_ref_pic_marking_buffer      = src->dec_ref_pic_marking_buffer;
+    dst->slice.coded_frame                     = src->slice.coded_frame;
+    dst->slice.slice_type                      = src->slice.slice_type;
+    dst->slice.idr_flag                        = src->slice.idr_flag;
+    dst->slice.mb_aff_frame_flag               = src->slice.mb_aff_frame_flag;
+    dst->slice.no_output_of_prior_pics_flag    = src->slice.no_output_of_prior_pics_flag;
+    dst->slice.long_term_reference_flag        = src->slice.long_term_reference_flag;
+    dst->slice.adaptive_ref_pic_buffering_flag = src->slice.adaptive_ref_pic_buffering_flag;
+    dst->slice.dec_ref_pic_marking_buffer      = src->slice.dec_ref_pic_marking_buffer;
 
-    dst->mb_aff_frame_flag               = src->mb_aff_frame_flag;
     dst->PicWidthInMbs                   = src->PicWidthInMbs;
     dst->PicNum                          = src->PicNum;
     dst->frame_num                       = src->frame_num;
     dst->recovery_frame                  = src->recovery_frame;
-    dst->coded_frame                     = src->coded_frame;
 
     // store the necessary tone mapping sei into storable_picture structure
     dst->seiHasTone_mapping    = src->seiHasTone_mapping;
@@ -204,21 +203,20 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
     if (!currSlice->field_pic_flag || !currSlice->bottom_field_flag)
         p_Vid->snr->start_time = std::chrono::system_clock::now();
 
-    dec_picture = p_Vid->dec_picture = alloc_storable_picture(
-        p_Vid, currSlice->structure,
+    dec_picture = p_Vid->dec_picture = new storable_picture(p_Vid, currSlice->structure,
         sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
         sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
     dec_picture->top_poc     = currSlice->TopFieldOrderCnt;
     dec_picture->bottom_poc  = currSlice->BottomFieldOrderCnt;
     dec_picture->frame_poc   = currSlice->PicOrderCnt;
-    dec_picture->iCodingType = !currSlice->field_pic_flag ?
-                               (currSlice->MbaffFrameFlag ? FRAME_MB_PAIR_CODING : FRAME_CODING) : FIELD_CODING;
-    dec_picture->layer_id    = currSlice->layer_id;
+    dec_picture->slice.iCodingType = !currSlice->field_pic_flag ?
+                                     (currSlice->MbaffFrameFlag ? FRAME_MB_PAIR_CODING : FRAME_CODING) : FIELD_CODING;
+    dec_picture->slice.layer_id    = currSlice->layer_id;
 #if (MVC_EXTENSION_ENABLE)
-    dec_picture->view_id         = currSlice->view_id;
-    dec_picture->inter_view_flag = currSlice->inter_view_flag;
-    dec_picture->anchor_pic_flag = currSlice->anchor_pic_flag;
-    if (dec_picture->view_id == 1) {
+    dec_picture->slice.view_id         = currSlice->view_id;
+    dec_picture->slice.inter_view_flag = currSlice->inter_view_flag;
+    dec_picture->slice.anchor_pic_flag = currSlice->anchor_pic_flag;
+    if (dec_picture->slice.view_id == 1) {
         if ((p_Vid->profile_idc == MVC_HIGH) || (p_Vid->profile_idc == STEREO_HIGH))
             init_mvc_picture(currSlice);
     }
@@ -258,25 +256,23 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
             reset_mbs(currMB++);
     }
 
-    dec_picture->slice_type                      = p_Vid->type;
     dec_picture->used_for_reference              = currSlice->nal_ref_idc != 0;
-    dec_picture->idr_flag                        = currSlice->idr_flag;
-    dec_picture->no_output_of_prior_pics_flag    = currSlice->no_output_of_prior_pics_flag;
-    dec_picture->long_term_reference_flag        = currSlice->long_term_reference_flag;
-    dec_picture->adaptive_ref_pic_buffering_flag = currSlice->adaptive_ref_pic_marking_mode_flag;
 
-    dec_picture->dec_ref_pic_marking_buffer      = currSlice->dec_ref_pic_marking_buffer;
+    dec_picture->slice.coded_frame                     = !currSlice->field_pic_flag;
+    dec_picture->slice.idr_flag                        = currSlice->idr_flag;
+    dec_picture->slice.slice_type                      = p_Vid->type;
+    dec_picture->slice.no_output_of_prior_pics_flag    = currSlice->no_output_of_prior_pics_flag;
+    dec_picture->slice.long_term_reference_flag        = currSlice->long_term_reference_flag;
+    dec_picture->slice.adaptive_ref_pic_buffering_flag = currSlice->adaptive_ref_pic_marking_mode_flag;
+    dec_picture->slice.dec_ref_pic_marking_buffer      = currSlice->dec_ref_pic_marking_buffer;
+    dec_picture->slice.mb_aff_frame_flag               = currSlice->MbaffFrameFlag;
     currSlice->dec_ref_pic_marking_buffer        = NULL;
 
-    dec_picture->mb_aff_frame_flag               = currSlice->MbaffFrameFlag;
     dec_picture->PicWidthInMbs                   = sps->PicWidthInMbs;
 
     dec_picture->PicNum                          = currSlice->frame_num;
     dec_picture->frame_num                       = currSlice->frame_num;
-
     dec_picture->recovery_frame                  = (unsigned int) ((int) currSlice->frame_num == p_Vid->recovery_frame_num);
-
-    dec_picture->coded_frame                     = !currSlice->field_pic_flag;
 
     // store the necessary tone mapping sei into storable_picture structure
     if (p_Vid->seiToneMapping->seiHasTone_mapping) {
@@ -294,12 +290,12 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
 
     if (sps->separate_colour_plane_flag) {
         p_Vid->dec_picture_JV[0] = p_Vid->dec_picture;
-        p_Vid->dec_picture_JV[1] = alloc_storable_picture(
+        p_Vid->dec_picture_JV[1] = new storable_picture(
             p_Vid, (PictureStructure) currSlice->structure,
             sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
             sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
         copy_dec_picture_JV( p_Vid, p_Vid->dec_picture_JV[1], p_Vid->dec_picture_JV[0] );
-        p_Vid->dec_picture_JV[2] = alloc_storable_picture(
+        p_Vid->dec_picture_JV[2] = new storable_picture(
             p_Vid, (PictureStructure) currSlice->structure,
             sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
             sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);

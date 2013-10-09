@@ -141,8 +141,11 @@ void InterPrediction::get_block_luma(
         return;
     }
 
+//    imgpel **cur_imgY = (sps->separate_colour_plane_flag && slice->colour_plane_id > PLANE_Y) ?
+//                        curr_ref->imgUV[slice->colour_plane_id-1] : curr_ref->cur_imgY;
     imgpel **cur_imgY = (sps->separate_colour_plane_flag && slice->colour_plane_id > PLANE_Y) ?
-                        curr_ref->imgUV[slice->colour_plane_id-1] : curr_ref->cur_imgY;
+                        curr_ref->imgUV[slice->colour_plane_id-1] : 
+                        pl ? curr_ref->imgUV[pl - 1] : curr_ref->imgY;
     int dx = (x_pos & 3);
     int dy = (y_pos & 3);
     x_pos >>= 2;
@@ -519,7 +522,7 @@ void InterPrediction::set_chroma_vector(mb_t& mb)
         } else if (!slice.bottom_field_flag) {
             for (int l = LIST_0; l <= LIST_1; l++) {
                 for (int k = 0; k < slice.listXsize[l]; k++) {
-                    if (p_Vid->structure != slice.listX[l][k]->structure)
+                    if (p_Vid->structure != slice.listX[l][k]->slice.structure)
                         this->chroma_vector_adjustment[l][k] = -2; 
                     else
                         this->chroma_vector_adjustment[l][k] = 0; 
@@ -528,7 +531,7 @@ void InterPrediction::set_chroma_vector(mb_t& mb)
         } else {
             for (int l = LIST_0; l <= LIST_1; l++) {
                 for (int k = 0; k < slice.listXsize[l]; k++) {
-                    if (p_Vid->structure != slice.listX[l][k]->structure)
+                    if (p_Vid->structure != slice.listX[l][k]->slice.structure)
                         this->chroma_vector_adjustment[l][k] = 2; 
                     else
                         this->chroma_vector_adjustment[l][k] = 0; 
@@ -546,9 +549,9 @@ void InterPrediction::set_chroma_vector(mb_t& mb)
 
             for (int l = LIST_0 + list_offset; l <= LIST_1 + list_offset; l++) {
                 for (int k = 0; k < slice.listXsize[l]; k++) {
-                    if (mb_nr == 0 && slice.listX[l][k]->structure == BOTTOM_FIELD)
+                    if (mb_nr == 0 && slice.listX[l][k]->slice.structure == BOTTOM_FIELD)
                         this->chroma_vector_adjustment[l][k] = -2; 
-                    else if (mb_nr == 1 && slice.listX[l][k]->structure == TOP_FIELD)
+                    else if (mb_nr == 1 && slice.listX[l][k]->slice.structure == TOP_FIELD)
                         this->chroma_vector_adjustment[l][k] = 2; 
                     else
                         this->chroma_vector_adjustment[l][k] = 0; 

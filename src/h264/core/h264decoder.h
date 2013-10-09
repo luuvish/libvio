@@ -2,9 +2,6 @@
 #define _H264DECODER_H_
 
 
-#include <cstdint>
-
-
 enum {
     DEC_SUCCEED = 0,
     DEC_EOS     = 1,

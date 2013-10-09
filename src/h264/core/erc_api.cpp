@@ -383,7 +383,7 @@ void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
     int ercSegment = 0;
 
     //! mark the start of the first segment
-    if (!(*dec_picture)->mb_aff_frame_flag) {
+    if (!(*dec_picture)->slice.mb_aff_frame_flag) {
         int i;
         ercStartSegment(0, ercSegment, 0 , p_Vid->erc_errorVar);
         //! generate the segments according to the macroblock map
@@ -417,7 +417,7 @@ void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture)
 
         p_Vid->erc_img = p_Vid;
 
-        if ((*dec_picture)->slice_type == I_slice || (*dec_picture)->slice_type == SI_slice) // I-frame
+        if ((*dec_picture)->slice.slice_type == I_slice || (*dec_picture)->slice.slice_type == SI_slice) // I-frame
             ercConcealIntraFrame(p_Vid, &recfr, (*dec_picture)->size_x, (*dec_picture)->size_y, p_Vid->erc_errorVar);
         else
             ercConcealInterFrame(&recfr, p_Vid->erc_object_list, (*dec_picture)->size_x, (*dec_picture)->size_y, p_Vid->erc_errorVar, sps->chroma_format_idc);

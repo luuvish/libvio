@@ -271,8 +271,8 @@ void free_layer_buffers(VideoParameters *p_Vid, int layer_id)
 static void free_global_buffers(VideoParameters *p_Vid)
 {
     if (p_Vid->dec_picture) {
-        free_storable_picture(p_Vid->dec_picture);
-        p_Vid->dec_picture = NULL;
+        delete p_Vid->dec_picture;
+        p_Vid->dec_picture = nullptr;
     }
 #if MVC_EXTENSION_ENABLE
     if (p_Vid->active_subset_sps && p_Vid->active_subset_sps->sps.Valid &&

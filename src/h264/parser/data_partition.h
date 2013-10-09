@@ -25,7 +25,6 @@
 #define _DATA_PARTITION_H_
 
 #include <cstdint>
-#include "memalloc.h"
 
 
 namespace vio  {
@@ -78,8 +77,6 @@ struct nalu_t {
     nalu_t(int buffersize) {
         this->max_size = buffersize;
         this->buf = new uint8_t[buffersize]; 
-        if (!this->buf)
-            no_mem_exit("AllocNALU: n->buf");
     }
 
     ~nalu_t() {

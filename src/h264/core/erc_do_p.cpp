@@ -1074,13 +1074,13 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
 
     dst->PicSizeInMbs  = src->PicSizeInMbs;
 
-    dst->slice_type = src->slice_type = p_Vid->conceal_slice_type;
+    dst->slice.slice_type = src->slice.slice_type = p_Vid->conceal_slice_type;
 
-    dst->idr_flag = 0; //since we do not want to clears the ref list
+    dst->slice.idr_flag = 0; //since we do not want to clears the ref list
 
-    dst->no_output_of_prior_pics_flag    = src->no_output_of_prior_pics_flag;
-    dst->long_term_reference_flag        = src->long_term_reference_flag;
-    dst->adaptive_ref_pic_buffering_flag = src->adaptive_ref_pic_buffering_flag = 0;
+    dst->slice.no_output_of_prior_pics_flag    = src->slice.no_output_of_prior_pics_flag;
+    dst->slice.long_term_reference_flag        = src->slice.long_term_reference_flag;
+    dst->slice.adaptive_ref_pic_buffering_flag = src->slice.adaptive_ref_pic_buffering_flag = 0;
 
     dec_picture = src;
 
@@ -1114,7 +1114,7 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
         if (p_Vid->conceal_slice_type == B_slice) {
             init_lists_for_non_reference_loss(
                 p_Vid->p_Dpb_layer[0],
-                dst->slice_type, p_Vid->ppSliceList[0]->field_pic_flag);
+                dst->slice.slice_type, p_Vid->ppSliceList[0]->field_pic_flag);
         } else
             init_lists(p_Vid->ppSliceList[0]);
 
@@ -1231,11 +1231,11 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
 
   while (CurrFrameNum != UnusedShortTermFrameNum)
   {
-    picture = alloc_storable_picture (p_Vid, FRAME,
+    picture = new storable_picture(p_Vid, FRAME,
         sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
         sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
 
-    picture->coded_frame = 1;
+    picture->slice.coded_frame = 1;
     picture->PicNum = UnusedShortTermFrameNum;
     picture->frame_num = UnusedShortTermFrameNum;
     picture->non_existing = 0;
@@ -1243,7 +1243,7 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
     picture->used_for_reference = 1;
     picture->concealed_pic = 1;
 
-    picture->adaptive_ref_pic_buffering_flag = 0;
+    picture->slice.adaptive_ref_pic_buffering_flag = 0;
 
     pSlice->frame_num = UnusedShortTermFrameNum;
 
@@ -1258,8 +1258,8 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
     //if (UnusedShortTermFrameNum == 0)
     if(p_Vid->IDR_concealment_flag == 1)
     {
-      picture->slice_type = I_slice;
-      picture->idr_flag = 1;
+      picture->slice.slice_type = I_slice;
+      picture->slice.idr_flag = 1;
       p_Dpb->flush();
       picture->top_poc= 0;
       picture->bottom_poc=picture->top_poc;
@@ -1617,7 +1617,7 @@ void decoded_picture_buffer_t::conceal_non_ref_pics(int diff)
     for (i = 0; i < this->size-diff; i++) {
         this->used_size = this->size;
         if (p_Vid->pocs_in_dpb[i+1] - p_Vid->pocs_in_dpb[i] > p_Vid->p_Inp->poc_gap) {
-            conceal_to_picture = alloc_storable_picture (p_Vid, FRAME,
+            conceal_to_picture = new storable_picture(p_Vid, FRAME,
                 sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
                 sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
 
@@ -1684,7 +1684,7 @@ void decoded_picture_buffer_t::write_lost_ref_after_idr(int pos)
     int temp = 1;
 
     if (!p_Vid->last_out_fs->frame) {
-        p_Vid->last_out_fs->frame = alloc_storable_picture (p_Vid, FRAME,
+        p_Vid->last_out_fs->frame = new storable_picture(p_Vid, FRAME,
             sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
             sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
         p_Vid->last_out_fs->is_used = 3;
