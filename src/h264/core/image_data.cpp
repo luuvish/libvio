@@ -148,34 +148,6 @@ static void process_picture_in_dpb_s(VideoParameters* p_Vid, storable_picture* p
 }
 
 #if (MVC_EXTENSION_ENABLE)
-static void store_proc_picture_in_dpb(dpb_t* p_Dpb, storable_picture* p)
-{
-    VideoParameters *p_Vid = p_Dpb->p_Vid;
-    frame_store *fs = p_Dpb->fs_ilref[0];
-    if (p_Dpb->used_size_il > 0 && fs->is_used == 3) {
-        if (fs->frame) {
-            delete fs->frame;
-            fs->frame = nullptr;
-        }
-        if (fs->top_field) {
-            delete fs->top_field;
-            fs->top_field = nullptr;
-        }
-        if (fs->bottom_field) {
-            delete fs->bottom_field;
-            fs->bottom_field = nullptr;
-        }
-        fs->is_used = 0;
-        fs->is_reference = 0;
-        p_Dpb->used_size_il--;   
-    }
-
-    fs->insert_picture(p_Vid, p);
-    if ((p->slice.structure == FRAME && fs->is_used == 3) ||
-        (p->slice.structure != FRAME && fs->is_used && fs->is_used < 3))
-        p_Dpb->used_size_il++;  
-}
-
 static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable_picture* p_pic)
 {
     int i, j;
@@ -288,5 +260,5 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
 void picture_in_dpb(slice_t* currSlice, VideoParameters *p_Vid, storable_picture *p_pic)
 {
     process_picture_in_dpb_s(p_Vid, p_pic);
-    store_proc_picture_in_dpb(currSlice->p_Dpb, clone_storable_picture(p_Vid, p_pic));
+    currSlice->p_Dpb->store_proc_picture(clone_storable_picture(p_Vid, p_pic));
 }

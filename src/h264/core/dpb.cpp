@@ -287,6 +287,34 @@ void decoded_picture_buffer_t::idr_memory_management(storable_picture* p)
 #endif
 }
 
+void decoded_picture_buffer_t::store_proc_picture(storable_picture* p)
+{
+    VideoParameters* p_Vid = this->p_Vid;
+    frame_store* fs = this->fs_ilref[0];
+    if (this->used_size_il > 0 && fs->is_used == 3) {
+        if (fs->frame) {
+            delete fs->frame;
+            fs->frame = nullptr;
+        }
+        if (fs->top_field) {
+            delete fs->top_field;
+            fs->top_field = nullptr;
+        }
+        if (fs->bottom_field) {
+            delete fs->bottom_field;
+            fs->bottom_field = nullptr;
+        }
+        fs->is_used = 0;
+        fs->is_reference = 0;
+        this->used_size_il--;   
+    }
+
+    fs->insert_picture(p_Vid, p);
+    if ((p->slice.structure == FRAME && fs->is_used == 3) ||
+        (p->slice.structure != FRAME && fs->is_used && fs->is_used < 3))
+        this->used_size_il++;  
+}
+
 void decoded_picture_buffer_t::remove_frame(int pos)
 {
     frame_store* fs = this->fs[pos];
@@ -965,4 +993,15 @@ void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
     currSlice->delta_pic_order_cnt[0] = tmp1;
     currSlice->delta_pic_order_cnt[1] = tmp2;
     currSlice->frame_num = CurrFrameNum;
+}
+
+
+storable_picture* get_ref_pic(mb_t& mb, storable_picture** RefPicListX, int ref_idx)
+{
+    slice_t& slice = *mb.p_Slice;
+
+    return (ref_idx < 0) ? nullptr :
+            !slice.MbaffFrameFlag || !mb.mb_field_decoding_flag ? RefPicListX[ref_idx] :
+            mb.mbAddrX % 2 == ref_idx % 2 ? 
+            RefPicListX[ref_idx / 2]->top_field : RefPicListX[ref_idx / 2]->bottom_field;
 }

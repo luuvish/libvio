@@ -379,22 +379,20 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
 
     mv_t *l0_mv_array, *l1_mv_array;
     short l0_refframe, l1_refframe;
-    storable_picture *list0, *list1;
+    storable_picture* RefPicList0, *RefPicList1;
 
-    int list_offset = slice->MbaffFrameFlag && mb->mb_field_decoding_flag ?
-                      mb->mbAddrX % 2 ? 4 : 2 : 0;
     auto mv_info = &dec_picture->mv_info[mb->mb.y * 4 + j][mb->mb.x * 4 + i];
     if (pred_dir != 2) {
         l0_mv_array = &mv_info->mv[pred_dir];
         l0_refframe = mv_info->ref_idx[pred_dir];
-        list0 = slice->listX[pred_dir + list_offset][l0_refframe];
+        RefPicList0 = get_ref_pic(*mb, slice->RefPicList[pred_dir], l0_refframe);
     } else {
         l0_mv_array = &mv_info->mv[LIST_0];
         l1_mv_array = &mv_info->mv[LIST_1];
         l0_refframe = mv_info->ref_idx[LIST_0];
         l1_refframe = mv_info->ref_idx[LIST_1];
-        list0 = slice->listX[LIST_0 + list_offset][l0_refframe];
-        list1 = slice->listX[LIST_1 + list_offset][l1_refframe];
+        RefPicList0 = get_ref_pic(*mb, slice->RefPicList[LIST_0], l0_refframe);
+        RefPicList1 = get_ref_pic(*mb, slice->RefPicList[LIST_1], l1_refframe);
     }
 
     int block_y_aff;
@@ -423,26 +421,26 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
     imgpel tmp_block_l3[16][16];
 
     if (CheckVertMV(mb, vec1_y, block_size_y)) {
-        get_block_luma(list0, vec1_x, vec1_y,
+        get_block_luma(RefPicList0, vec1_x, vec1_y,
                        block_size_x, 8, tmp_block_l0, shift_x,
                        maxold_x, maxold_y, pl, mb);
-        get_block_luma(list0, vec1_x, vec1_y+32,
+        get_block_luma(RefPicList0, vec1_x, vec1_y+32,
                        block_size_x, block_size_y-8, tmp_block_l0 + 8, shift_x,
                        maxold_x, maxold_y, pl, mb);
     } else
-        get_block_luma(list0, vec1_x, vec1_y,
+        get_block_luma(RefPicList0, vec1_x, vec1_y,
                        block_size_x, block_size_y, tmp_block_l0, shift_x,
                        maxold_x, maxold_y, pl, mb);
     if (pred_dir == 2) {
         if (CheckVertMV(mb, vec2_y, block_size_y)) {
-            get_block_luma(list1, vec2_x, vec2_y,
+            get_block_luma(RefPicList1, vec2_x, vec2_y,
                            block_size_x, 8, tmp_block_l1, shift_x,
                            maxold_x, maxold_y, pl, mb);
-            get_block_luma(list1, vec2_x, vec2_y+32,
+            get_block_luma(RefPicList1, vec2_x, vec2_y+32,
                            block_size_x, block_size_y-8, tmp_block_l1 + 8, shift_x,
                            maxold_x, maxold_y, pl, mb);
         } else
-            get_block_luma(list1, vec2_x, vec2_y,
+            get_block_luma(RefPicList1, vec2_x, vec2_y,
                            block_size_x, block_size_y, tmp_block_l1, shift_x,
                            maxold_x, maxold_y, pl, mb);
     }
@@ -457,6 +455,8 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
                       mb, pl, l0_refframe, l1_refframe);
 
     if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
+        int list_offset = slice->MbaffFrameFlag && mb->mb_field_decoding_flag ? mb->mbAddrX % 2 ? 4 : 2 : 0;
+
         int maxold_x = dec_picture->size_x_cr - 1;
         int maxold_y = mb->mb_field_decoding_flag ? (dec_picture->size_y_cr >> 1) - 1 : dec_picture->size_y_cr - 1;
 
@@ -481,11 +481,11 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
             }
         }
 
-        get_block_chroma(list0, vec1_x, vec1_y_cr,
+        get_block_chroma(RefPicList0, vec1_x, vec1_y_cr,
                          maxold_x, maxold_y, block_size_x_cr, block_size_y_cr,
                          tmp_block_l0, tmp_block_l2, mb);
         if (pred_dir == 2)
-            get_block_chroma(list1, vec2_x, vec2_y_cr,
+            get_block_chroma(RefPicList1, vec2_x, vec2_y_cr,
                              maxold_x, maxold_y, block_size_x_cr, block_size_y_cr,
                              tmp_block_l1, tmp_block_l3, mb);
 
@@ -516,13 +516,13 @@ void InterPrediction::set_chroma_vector(mb_t& mb)
     if (!slice.MbaffFrameFlag) {
         if (!slice.field_pic_flag) {
             for (int l = LIST_0; l <= LIST_1; l++) {
-                for (int k = 0; k < slice.listXsize[l]; k++)
+                for (int k = 0; k < slice.RefPicSize[l]; k++)
                     this->chroma_vector_adjustment[l][k] = 0; 
             }
         } else if (!slice.bottom_field_flag) {
             for (int l = LIST_0; l <= LIST_1; l++) {
-                for (int k = 0; k < slice.listXsize[l]; k++) {
-                    if (p_Vid->structure != slice.listX[l][k]->slice.structure)
+                for (int k = 0; k < slice.RefPicSize[l]; k++) {
+                    if (p_Vid->structure != slice.RefPicList[l][k]->slice.structure)
                         this->chroma_vector_adjustment[l][k] = -2; 
                     else
                         this->chroma_vector_adjustment[l][k] = 0; 
@@ -530,8 +530,8 @@ void InterPrediction::set_chroma_vector(mb_t& mb)
             }
         } else {
             for (int l = LIST_0; l <= LIST_1; l++) {
-                for (int k = 0; k < slice.listXsize[l]; k++) {
-                    if (p_Vid->structure != slice.listX[l][k]->slice.structure)
+                for (int k = 0; k < slice.RefPicSize[l]; k++) {
+                    if (p_Vid->structure != slice.RefPicList[l][k]->slice.structure)
                         this->chroma_vector_adjustment[l][k] = 2; 
                     else
                         this->chroma_vector_adjustment[l][k] = 0; 
@@ -544,14 +544,12 @@ void InterPrediction::set_chroma_vector(mb_t& mb)
         //////////////////////////
         // find out the correct list offsets
         if (mb.mb_field_decoding_flag) {
-            int list_offset = slice.MbaffFrameFlag && mb.mb_field_decoding_flag ?
-                              mb.mbAddrX % 2 ? 4 : 2 : 0;
-
+            int list_offset = slice.MbaffFrameFlag && mb.mb_field_decoding_flag ? mb.mbAddrX % 2 ? 4 : 2 : 0;
             for (int l = LIST_0 + list_offset; l <= LIST_1 + list_offset; l++) {
-                for (int k = 0; k < slice.listXsize[l]; k++) {
-                    if (mb_nr == 0 && slice.listX[l][k]->slice.structure == BOTTOM_FIELD)
+                for (int k = 0; k < slice.RefPicSize[l]; k++) {
+                    if (mb_nr == 0 && slice.RefPicList[l][k]->slice.structure == BOTTOM_FIELD)
                         this->chroma_vector_adjustment[l][k] = -2; 
-                    else if (mb_nr == 1 && slice.listX[l][k]->slice.structure == TOP_FIELD)
+                    else if (mb_nr == 1 && slice.RefPicList[l][k]->slice.structure == TOP_FIELD)
                         this->chroma_vector_adjustment[l][k] = 2; 
                     else
                         this->chroma_vector_adjustment[l][k] = 0; 
@@ -559,7 +557,7 @@ void InterPrediction::set_chroma_vector(mb_t& mb)
             }
         } else {
             for (int l = LIST_0; l <= LIST_1; l++) {
-                for(int k = 0; k < slice.listXsize[l]; k++)
+                for(int k = 0; k < slice.RefPicSize[l]; k++)
                     this->chroma_vector_adjustment[l][k] = 0; 
             }
         }
@@ -619,12 +617,12 @@ void InterPrediction::init_weight_prediction(slice_t& slice)
                         slice.wbp_weight[0][i][j][comp] =  slice.wp_weight[0][i][comp];
                         slice.wbp_weight[1][i][j][comp] =  slice.wp_weight[1][j][comp];
                     } else if (slice.active_pps->weighted_bipred_idc == 2) {
-                        td = clip3(-128,127,slice.listX[LIST_1][j]->poc - slice.listX[LIST_0][i]->poc);
-                        if (td == 0 || slice.listX[LIST_1][j]->is_long_term || slice.listX[LIST_0][i]->is_long_term) {
+                        td = clip3(-128,127,slice.RefPicList[LIST_1][j]->poc - slice.RefPicList[LIST_0][i]->poc);
+                        if (td == 0 || slice.RefPicList[LIST_1][j]->is_long_term || slice.RefPicList[LIST_0][i]->is_long_term) {
                             slice.wbp_weight[0][i][j][comp] = 32;
                             slice.wbp_weight[1][i][j][comp] = 32;
                         } else {
-                            tb = clip3(-128,127,slice.PicOrderCnt - slice.listX[LIST_0][i]->poc);
+                            tb = clip3(-128,127,slice.PicOrderCnt - slice.RefPicList[LIST_0][i]->poc);
 
                             tx = (16384 + abs(td/2))/td;
                             DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);
@@ -656,12 +654,12 @@ void InterPrediction::init_weight_prediction(slice_t& slice)
                                 slice.wbp_weight[k+0][i][j][comp] =  slice.wp_weight[0][i>>1][comp];
                                 slice.wbp_weight[k+1][i][j][comp] =  slice.wp_weight[1][j>>1][comp];
                             } else if (slice.active_pps->weighted_bipred_idc == 2) {
-                                td = clip3(-128, 127, slice.listX[k+LIST_1][j]->poc - slice.listX[k+LIST_0][i]->poc);
-                                if (td == 0 || slice.listX[k+LIST_1][j]->is_long_term || slice.listX[k+LIST_0][i]->is_long_term) {
+                                td = clip3(-128, 127, slice.RefPicList[k+LIST_1][j]->poc - slice.RefPicList[k+LIST_0][i]->poc);
+                                if (td == 0 || slice.RefPicList[k+LIST_1][j]->is_long_term || slice.RefPicList[k+LIST_0][i]->is_long_term) {
                                     slice.wbp_weight[k+0][i][j][comp] =   32;
                                     slice.wbp_weight[k+1][i][j][comp] =   32;
                                 } else {
-                                    tb = clip3(-128,127,((k==2)?slice.TopFieldOrderCnt:slice.BottomFieldOrderCnt) - slice.listX[k+LIST_0][i]->poc);
+                                    tb = clip3(-128,127,((k==2)?slice.TopFieldOrderCnt:slice.BottomFieldOrderCnt) - slice.RefPicList[k+LIST_0][i]->poc);
 
                                     tx = (16384 + abs(td/2))/td;
                                     DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);

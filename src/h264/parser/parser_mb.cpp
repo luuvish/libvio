@@ -599,19 +599,16 @@ void Parser::Macroblock::mb_pred_inter()
     if (slice.slice_type == B_slice)
         this->mvd_l(LIST_1);
 
-    int list_offset = slice.MbaffFrameFlag && mb.mb_field_decoding_flag ? mb.mbAddrX % 2 ? 4 : 2 : 0;
-    storable_picture **list0 = slice.listX[LIST_0 + list_offset];
-    storable_picture **list1 = slice.listX[LIST_1 + list_offset];
-    pic_motion_params **p_mv_info = slice.dec_picture->mv_info;
+    pic_motion_params** p_mv_info = slice.dec_picture->mv_info;
     // record reference picture Ids for deblocking decisions
     for (int j4 = 0; j4 < 4; j4++) {
         for (int i4 = 0; i4 < 4; ++i4) {
             auto mv_info = &p_mv_info[mb.mb.y * 4 + j4][mb.mb.x * 4 + i4];
             int  ref_idx = mv_info->ref_idx[LIST_0];
-            mv_info->ref_pic[LIST_0] = (ref_idx >= 0) ? list0[ref_idx] : NULL;
+            mv_info->ref_pic[LIST_0] = get_ref_pic(mb, slice.RefPicList[LIST_0], ref_idx);
             if (slice.slice_type == B_slice) {
                 ref_idx = mv_info->ref_idx[LIST_1];
-                mv_info->ref_pic[LIST_1] = (ref_idx >= 0) ? list1[ref_idx] : NULL;
+                mv_info->ref_pic[LIST_1] = get_ref_pic(mb, slice.RefPicList[LIST_1], ref_idx);
             }
         }
     }

@@ -29,7 +29,7 @@ static void compute_colocated(slice_t* currSlice, storable_picture* listX[6][33]
 
     if (currSlice->direct_spatial_mv_pred_flag == 0) {
         for (j = 0; j < 2 + (currSlice->MbaffFrameFlag * 4); j += 2) {
-            for (i = 0; i < currSlice->listXsize[j]; i++) {
+            for (i = 0; i < currSlice->RefPicSize[j]; i++) {
                 int curPoc = (j == 0) ? p_Vid->dec_picture->poc :
                              (j == 2) ? p_Vid->dec_picture->top_poc :
                                         p_Vid->dec_picture->bottom_poc;
@@ -60,7 +60,7 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
         if (currSlice->colour_plane_id == 0) {
             for (int j = 0; j < 6; j++) {
                 for (int i = 0; i < MAX_LIST_SIZE; i++) {
-                    storable_picture *curr_ref = currSlice->listX[j][i];
+                    storable_picture *curr_ref = currSlice->RefPicList[j][i];
                     if (curr_ref)
                         curr_ref->no_ref = noref && (curr_ref == vidref);
                 }
@@ -73,7 +73,7 @@ static void init_cur_imgy(slice_t *currSlice, VideoParameters *p_Vid)
             // since currently this is done at the slice level, it seems safe to do so.
             // Note for some reason I get now a mismatch between version 12 and this one in cabac. I wonder why.
             for (int i = 0; i < MAX_LIST_SIZE; i++) {
-                storable_picture *curr_ref = currSlice->listX[j][i];
+                storable_picture *curr_ref = currSlice->RefPicList[j][i];
                 if (curr_ref)
                     curr_ref->no_ref = noref && (curr_ref == vidref);
             }
@@ -105,7 +105,7 @@ bool slice_t::init()
     this->dec_picture = p_Vid->dec_picture;
 
     if (this->slice_type == B_slice)
-        compute_colocated(this, this->listX);
+        compute_colocated(this, this->RefPicList);
 
     if (this->slice_type != I_slice && this->slice_type != SI_slice)
         init_cur_imgy(this, p_Vid);

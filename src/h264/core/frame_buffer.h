@@ -199,13 +199,13 @@ struct frame_store {
     bool        is_long_term_reference();
     bool        is_used_for_reference();
 
-    void        insert_picture(VideoParameters *p_Vid, storable_picture* p);
+    void        insert_picture(VideoParameters* p_Vid, storable_picture* p);
 
-    void        dpb_combine_field_yuv(VideoParameters *p_Vid);
+    void        dpb_combine_field_yuv(VideoParameters* p_Vid);
 
 protected:
-    void        dpb_split_field      (VideoParameters *p_Vid);
-    void        dpb_combine_field    (VideoParameters *p_Vid);
+    void        dpb_split_field  (VideoParameters* p_Vid);
+    void        dpb_combine_field(VideoParameters* p_Vid);
 };
 
 #endif // _FRAME_BUFFER_H_

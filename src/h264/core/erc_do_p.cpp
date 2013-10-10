@@ -311,7 +311,7 @@ static void copyBetweenFrames (frame *recfr, int currYBlockNum, int picSizeX, in
   VideoParameters *p_Vid = recfr->p_Vid;
   sps_t* sps = p_Vid->active_sps;
   int j, k, location, xmin, ymin;
-  storable_picture* refPic = p_Vid->ppSliceList[0]->listX[0][0];
+  storable_picture* refPic = p_Vid->ppSliceList[0]->RefPicList[0][0];
 
   /* set the position of the region to be copied */
   xmin = (xPosYBlock(currYBlockNum,picSizeX)<<3);
@@ -630,7 +630,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
       vec1_x = i4*4*mv_mul + mv[0];
       vec1_y = j4*4*mv_mul + mv[1];
 
-      currSlice->decoder.get_block_luma(currSlice->listX[0][ref_frame], vec1_x, vec1_y, 4, 4,
+      currSlice->decoder.get_block_luma(currSlice->RefPicList[0][ref_frame], vec1_x, vec1_y, 4, 4,
         tmp_block,
         dec_picture->iLumaStride,dec_picture->size_x - 1,
         (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y - 1, PLANE_Y, currMB);
@@ -692,10 +692,10 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
               jf0=f1_y-jf1;
 
               currSlice->mb_pred[uv + 1][jj+joff][ii+ioff] = (imgpel) 
-                ((if0*jf0*currSlice->listX[0][ref_frame]->imgUV[uv][jj0][ii0]+
-                if1*jf0*currSlice->listX[0][ref_frame]->imgUV[uv][jj0][ii1]+
-                if0*jf1*currSlice->listX[0][ref_frame]->imgUV[uv][jj1][ii0]+
-                if1*jf1*currSlice->listX[0][ref_frame]->imgUV[uv][jj1][ii1]+f4)/f3);
+                ((if0*jf0*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj0][ii0]+
+                  if1*jf0*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj0][ii1]+
+                  if0*jf1*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj1][ii0]+
+                  if1*jf1*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj1][ii1]+f4)/f3);
             }
           }
         }
@@ -922,7 +922,7 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
 
   vec1_x = x*mv_mul + mv[0];
   vec1_y = y*mv_mul + mv[1];
-  currSlice->decoder.get_block_luma(currSlice->listX[list][ref_frame],  vec1_x, vec1_y, 4, 4, tmp_block,
+  currSlice->decoder.get_block_luma(currSlice->RefPicList[list][ref_frame],  vec1_x, vec1_y, 4, 4, tmp_block,
     dec_picture->iLumaStride,dec_picture->size_x - 1,
     (currMB->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y - 1, PLANE_Y, currMB);
 
@@ -976,10 +976,10 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
           if0=f1_x-if1;
           jf0=f1_y-jf1;
 
-          currSlice->mb_pred[uv + 1][jj][ii]=(imgpel) ((if0*jf0*currSlice->listX[list][ref_frame]->imgUV[uv][jj0][ii0]+
-            if1*jf0*currSlice->listX[list][ref_frame]->imgUV[uv][jj0][ii1]+
-            if0*jf1*currSlice->listX[list][ref_frame]->imgUV[uv][jj1][ii0]+
-            if1*jf1*currSlice->listX[list][ref_frame]->imgUV[uv][jj1][ii1]+f4)/f3);
+          currSlice->mb_pred[uv + 1][jj][ii]=(imgpel) ((if0*jf0*currSlice->RefPicList[list][ref_frame]->imgUV[uv][jj0][ii0]+
+                                                        if1*jf0*currSlice->RefPicList[list][ref_frame]->imgUV[uv][jj0][ii1]+
+                                                        if0*jf1*currSlice->RefPicList[list][ref_frame]->imgUV[uv][jj1][ii0]+
+                                                        if1*jf1*currSlice->RefPicList[list][ref_frame]->imgUV[uv][jj1][ii1]+f4)/f3);
         }
       }
 
@@ -1352,16 +1352,16 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
         if (!field_pic_flag) {
             for (i = 0; i < p_Dpb->used_size; i++) {
                 if (p_Dpb->fs[i]->concealment_reference == 1)
-                    p_Vid->ppSliceList[0]->listX[0][list0idx++] = p_Dpb->fs[i]->frame;
+                    p_Vid->ppSliceList[0]->RefPicList[0][list0idx++] = p_Dpb->fs[i]->frame;
             }
             // order list 0 by PicNum
-            std::qsort(p_Vid->ppSliceList[0]->listX[0], list0idx, sizeof(storable_picture*), [](const void *arg1, const void *arg2) {
+            std::qsort(p_Vid->ppSliceList[0]->RefPicList[0], list0idx, sizeof(storable_picture*), [](const void *arg1, const void *arg2) {
                 int pic_num1 = (*(storable_picture**)arg1)->PicNum;
                 int pic_num2 = (*(storable_picture**)arg2)->PicNum;
                 return (pic_num1 < pic_num2) ? 1 : (pic_num1 > pic_num2) ? -1 : 0;
             });
 
-            p_Vid->ppSliceList[0]->listXsize[0] = (char) list0idx;
+            p_Vid->ppSliceList[0]->RefPicSize[0] = (char) list0idx;
         }
     }
 
@@ -1370,11 +1370,11 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
             for (i = 0; i < p_Dpb->used_size; i++) {
                 if (p_Dpb->fs[i]->concealment_reference == 1) {
                     if (p_Vid->earlier_missing_poc > p_Dpb->fs[i]->frame->poc)
-                        p_Vid->ppSliceList[0]->listX[0][list0idx++] = p_Dpb->fs[i]->frame;
+                        p_Vid->ppSliceList[0]->RefPicList[0][list0idx++] = p_Dpb->fs[i]->frame;
                 }
             }
 
-            std::qsort(p_Vid->ppSliceList[0]->listX[0], list0idx, sizeof(storable_picture*), [](const void *arg1, const void *arg2) {
+            std::qsort(p_Vid->ppSliceList[0]->RefPicList[0], list0idx, sizeof(storable_picture*), [](const void *arg1, const void *arg2) {
                 int poc1 = (*(storable_picture**)arg1)->poc;
                 int poc2 = (*(storable_picture**)arg2)->poc;
                 return (poc1 < poc2) ? 1 : (poc1 > poc2) ? -1 : 0;
@@ -1385,11 +1385,11 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
             for (i = 0; i < p_Dpb->used_size; i++) {
                 if (p_Dpb->fs[i]->concealment_reference == 1) {
                     if (p_Vid->earlier_missing_poc < p_Dpb->fs[i]->frame->poc)
-                        p_Vid->ppSliceList[0]->listX[0][list0idx++] = p_Dpb->fs[i]->frame;
+                        p_Vid->ppSliceList[0]->RefPicList[0][list0idx++] = p_Dpb->fs[i]->frame;
                 }
             }
 
-            std::qsort(&p_Vid->ppSliceList[0]->listX[0][list0idx_1], list0idx-list0idx_1,
+            std::qsort(&p_Vid->ppSliceList[0]->RefPicList[0][list0idx_1], list0idx-list0idx_1,
                        sizeof(storable_picture*), [](const void *arg1, const void *arg2) {
                 int poc1 = (*(storable_picture**)arg1)->poc;
                 int poc2 = (*(storable_picture**)arg2)->poc;
@@ -1397,52 +1397,52 @@ void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool fie
             });
 
             for (j = 0; j < list0idx_1; j++)
-                p_Vid->ppSliceList[0]->listX[1][list0idx-list0idx_1+j]=p_Vid->ppSliceList[0]->listX[0][j];
+                p_Vid->ppSliceList[0]->RefPicList[1][list0idx-list0idx_1+j]=p_Vid->ppSliceList[0]->RefPicList[0][j];
             for (j = list0idx_1; j < list0idx; j++)
-                p_Vid->ppSliceList[0]->listX[1][j-list0idx_1]=p_Vid->ppSliceList[0]->listX[0][j];
+                p_Vid->ppSliceList[0]->RefPicList[1][j-list0idx_1]=p_Vid->ppSliceList[0]->RefPicList[0][j];
 
-            p_Vid->ppSliceList[0]->listXsize[0] = p_Vid->ppSliceList[0]->listXsize[1] = (char) list0idx;
+            p_Vid->ppSliceList[0]->RefPicSize[0] = p_Vid->ppSliceList[0]->RefPicSize[1] = (char) list0idx;
 
-            std::qsort(&p_Vid->ppSliceList[0]->listX[0][(short) p_Vid->ppSliceList[0]->listXsize[0]], list0idx-p_Vid->ppSliceList[0]->listXsize[0],
+            std::qsort(&p_Vid->ppSliceList[0]->RefPicList[0][(short) p_Vid->ppSliceList[0]->RefPicSize[0]], list0idx-p_Vid->ppSliceList[0]->RefPicSize[0],
                        sizeof(storable_picture*), [](const void *arg1, const void *arg2) {
                 int long_term_pic_num1 = (*(storable_picture**)arg1)->LongTermPicNum;
                 int long_term_pic_num2 = (*(storable_picture**)arg2)->LongTermPicNum;
                 return (long_term_pic_num1 < long_term_pic_num2) ? -1 : (long_term_pic_num1 > long_term_pic_num2) ? 1 : 0;
             });
-            std::qsort(&p_Vid->ppSliceList[0]->listX[1][(short) p_Vid->ppSliceList[0]->listXsize[0]], list0idx-p_Vid->ppSliceList[0]->listXsize[0],
+            std::qsort(&p_Vid->ppSliceList[0]->RefPicList[1][(short) p_Vid->ppSliceList[0]->RefPicSize[0]], list0idx-p_Vid->ppSliceList[0]->RefPicSize[0],
                        sizeof(storable_picture*), [](const void *arg1, const void *arg2) {
                 int long_term_pic_num1 = (*(storable_picture**)arg1)->LongTermPicNum;
                 int long_term_pic_num2 = (*(storable_picture**)arg2)->LongTermPicNum;
                 return (long_term_pic_num1 < long_term_pic_num2) ? -1 : (long_term_pic_num1 > long_term_pic_num2) ? 1 : 0;
             });
-            p_Vid->ppSliceList[0]->listXsize[0] = p_Vid->ppSliceList[0]->listXsize[1] = (char) list0idx;
+            p_Vid->ppSliceList[0]->RefPicSize[0] = p_Vid->ppSliceList[0]->RefPicSize[1] = (char) list0idx;
         }
     }
 
-    if ((p_Vid->ppSliceList[0]->listXsize[0] == p_Vid->ppSliceList[0]->listXsize[1]) &&
-        (p_Vid->ppSliceList[0]->listXsize[0] > 1)) {
+    if ((p_Vid->ppSliceList[0]->RefPicSize[0] == p_Vid->ppSliceList[0]->RefPicSize[1]) &&
+        (p_Vid->ppSliceList[0]->RefPicSize[0] > 1)) {
         // check if lists are identical, if yes swap first two elements of listX[1]
         diff = 0;
-        for (j = 0; j < p_Vid->ppSliceList[0]->listXsize[0]; j++) {
-            if (p_Vid->ppSliceList[0]->listX[0][j]!=p_Vid->ppSliceList[0]->listX[1][j])
+        for (j = 0; j < p_Vid->ppSliceList[0]->RefPicSize[0]; j++) {
+            if (p_Vid->ppSliceList[0]->RefPicList[0][j]!=p_Vid->ppSliceList[0]->RefPicList[1][j])
                 diff = 1;
         }
         if (!diff) {
-            tmp_s = p_Vid->ppSliceList[0]->listX[1][0];
-            p_Vid->ppSliceList[0]->listX[1][0]=p_Vid->ppSliceList[0]->listX[1][1];
-            p_Vid->ppSliceList[0]->listX[1][1]=tmp_s;
+            tmp_s = p_Vid->ppSliceList[0]->RefPicList[1][0];
+            p_Vid->ppSliceList[0]->RefPicList[1][0]=p_Vid->ppSliceList[0]->RefPicList[1][1];
+            p_Vid->ppSliceList[0]->RefPicList[1][1]=tmp_s;
         }
     }
 
     // set max size
-    p_Vid->ppSliceList[0]->listXsize[0] = (char) min<int>(p_Vid->ppSliceList[0]->listXsize[0], (int)active_sps->max_num_ref_frames);
-    p_Vid->ppSliceList[0]->listXsize[1] = 0;
+    p_Vid->ppSliceList[0]->RefPicSize[0] = (char) min<int>(p_Vid->ppSliceList[0]->RefPicSize[0], (int)active_sps->max_num_ref_frames);
+    p_Vid->ppSliceList[0]->RefPicSize[1] = 0;
 
     // set the unused list entries to NULL
-    for (i = p_Vid->ppSliceList[0]->listXsize[0]; i < MAX_LIST_SIZE; i++)
-        p_Vid->ppSliceList[0]->listX[0][i] = NULL;
-    for (i = p_Vid->ppSliceList[0]->listXsize[1]; i < MAX_LIST_SIZE; i++)
-        p_Vid->ppSliceList[0]->listX[1][i] = NULL;
+    for (i = p_Vid->ppSliceList[0]->RefPicSize[0]; i < MAX_LIST_SIZE; i++)
+        p_Vid->ppSliceList[0]->RefPicList[0][i] = NULL;
+    for (i = p_Vid->ppSliceList[0]->RefPicSize[1]; i < MAX_LIST_SIZE; i++)
+        p_Vid->ppSliceList[0]->RefPicList[1][i] = NULL;
 }
 
 

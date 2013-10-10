@@ -135,14 +135,14 @@ void storable_picture::gen_field_ref_ids(VideoParameters* p_Vid)
     //copy the list;
     for (int j = 0; j < p_Vid->iSliceNumOfCurrPic; j++) {
         if (this->listX[j][LIST_0]) {
-            this->listXsize[j][LIST_0] = p_Vid->ppSliceList[j]->listXsize[LIST_0];
+            this->listXsize[j][LIST_0] = p_Vid->ppSliceList[j]->RefPicSize[LIST_0];
             for (int i = 0; i < this->listXsize[j][LIST_0]; i++)
-                this->listX[j][LIST_0][i] = p_Vid->ppSliceList[j]->listX[LIST_0][i];
+                this->listX[j][LIST_0][i] = p_Vid->ppSliceList[j]->RefPicList[LIST_0][i];
         }
         if (this->listX[j][LIST_1]) {
-            this->listXsize[j][LIST_1] = p_Vid->ppSliceList[j]->listXsize[LIST_1];
+            this->listXsize[j][LIST_1] = p_Vid->ppSliceList[j]->RefPicSize[LIST_1];
             for (int i = 0; i < this->listXsize[j][LIST_1]; i++)
-                this->listX[j][LIST_1][i] = p_Vid->ppSliceList[j]->listX[LIST_1][i];
+                this->listX[j][LIST_1][i] = p_Vid->ppSliceList[j]->RefPicList[LIST_1][i];
         }
     }
 }
@@ -327,7 +327,7 @@ void frame_store::dpb_split_field(VideoParameters* p_Vid)
             frame->size_x, frame->size_y, frame->size_x_cr, frame->size_y_cr, 1);
 
         for (int i = 0; i < (frame->size_y >> 1); i++)
-            memcpy(fs_top->imgY[i], frame->imgY[i*2], frame->size_x*sizeof(imgpel));
+            memcpy(fs_top->imgY[i], frame->imgY[i * 2], frame->size_x * sizeof(imgpel));
 
         for (int i = 0; i < (frame->size_y_cr >> 1); i++) {
             memcpy(fs_top->imgUV[0][i], frame->imgUV[0][i * 2], frame->size_x_cr * sizeof(imgpel));
@@ -350,11 +350,9 @@ void frame_store::dpb_split_field(VideoParameters* p_Vid)
         fs_btm->slice.view_id = frame->slice.view_id;
 #endif
 
-        fs_top->frame_poc = frame->frame_poc;
-
-        fs_top->bottom_poc = fs_btm->bottom_poc = frame->bottom_poc;
+        fs_top->frame_poc  = fs_btm->frame_poc  = frame->frame_poc;
         fs_top->top_poc    = fs_btm->top_poc    = frame->top_poc;
-        fs_btm->frame_poc  = frame->frame_poc;
+        fs_top->bottom_poc = fs_btm->bottom_poc = frame->bottom_poc;
 
         fs_top->used_for_reference = fs_btm->used_for_reference = frame->used_for_reference;
         fs_top->is_long_term = fs_btm->is_long_term = frame->is_long_term;
@@ -409,12 +407,12 @@ void frame_store::dpb_split_field(VideoParameters* p_Vid)
                         fs_btm->mv_info[j][i].mv[LIST_1] = frame->mv_info[jj4][i].mv[LIST_1];
                         fs_btm->mv_info[j][i].ref_idx[LIST_0] = frame->mv_info[jj4][i].ref_idx[LIST_0];
                         if (fs_btm->mv_info[j][i].ref_idx[LIST_0] >=0)
-                            fs_btm->mv_info[j][i].ref_pic[LIST_0] = p_Vid->ppSliceList[frame->mv_info[jj4][i].slice_no]->listX[4][(short) fs_btm->mv_info[j][i].ref_idx[LIST_0]];
+                            fs_btm->mv_info[j][i].ref_pic[LIST_0] = p_Vid->ppSliceList[frame->mv_info[jj4][i].slice_no]->RefPicList[4][(short) fs_btm->mv_info[j][i].ref_idx[LIST_0]];
                         else
                             fs_btm->mv_info[j][i].ref_pic[LIST_0] = NULL;
                         fs_btm->mv_info[j][i].ref_idx[LIST_1] = frame->mv_info[jj4][i].ref_idx[LIST_1];
                         if (fs_btm->mv_info[j][i].ref_idx[LIST_1] >=0)
-                            fs_btm->mv_info[j][i].ref_pic[LIST_1] = p_Vid->ppSliceList[frame->mv_info[jj4][i].slice_no]->listX[5][(short) fs_btm->mv_info[j][i].ref_idx[LIST_1]];
+                            fs_btm->mv_info[j][i].ref_pic[LIST_1] = p_Vid->ppSliceList[frame->mv_info[jj4][i].slice_no]->RefPicList[5][(short) fs_btm->mv_info[j][i].ref_idx[LIST_1]];
                         else
                             fs_btm->mv_info[j][i].ref_pic[LIST_1] = NULL;
           
@@ -422,12 +420,12 @@ void frame_store::dpb_split_field(VideoParameters* p_Vid)
                         fs_top->mv_info[j][i].mv[LIST_1] = frame->mv_info[jj][i].mv[LIST_1];
                         fs_top->mv_info[j][i].ref_idx[LIST_0] = frame->mv_info[jj][i].ref_idx[LIST_0];
                         if (fs_top->mv_info[j][i].ref_idx[LIST_0] >=0)
-                            fs_top->mv_info[j][i].ref_pic[LIST_0] = p_Vid->ppSliceList[frame->mv_info[jj][i].slice_no]->listX[2][(short) fs_top->mv_info[j][i].ref_idx[LIST_0]];
+                            fs_top->mv_info[j][i].ref_pic[LIST_0] = p_Vid->ppSliceList[frame->mv_info[jj][i].slice_no]->RefPicList[2][(short) fs_top->mv_info[j][i].ref_idx[LIST_0]];
                         else
                             fs_top->mv_info[j][i].ref_pic[LIST_0] = NULL;
                         fs_top->mv_info[j][i].ref_idx[LIST_1] = frame->mv_info[jj][i].ref_idx[LIST_1];
                         if (fs_top->mv_info[j][i].ref_idx[LIST_1] >=0)
-                            fs_top->mv_info[j][i].ref_pic[LIST_1] = p_Vid->ppSliceList[frame->mv_info[jj][i].slice_no]->listX[3][(short) fs_top->mv_info[j][i].ref_idx[LIST_1]];
+                            fs_top->mv_info[j][i].ref_pic[LIST_1] = p_Vid->ppSliceList[frame->mv_info[jj][i].slice_no]->RefPicList[3][(short) fs_top->mv_info[j][i].ref_idx[LIST_1]];
                         else
                             fs_top->mv_info[j][i].ref_pic[LIST_1] = NULL;
                     }
@@ -455,7 +453,7 @@ void frame_store::dpb_split_field(VideoParameters* p_Vid)
                         fs_top->mv_info[j][i].ref_pic[LIST_0] = fs_btm->mv_info[j][i].ref_pic[LIST_0] = NULL;
                     } else {
                         fs_top->mv_info[j][i].ref_idx[LIST_0] = fs_btm->mv_info[j][i].ref_idx[LIST_0] = frame->mv_info[jj][ii].ref_idx[LIST_0];
-                        fs_top->mv_info[j][i].ref_pic[LIST_0] = fs_btm->mv_info[j][i].ref_pic[LIST_0] = p_Vid->ppSliceList[frame->mv_info[jj][ii].slice_no]->listX[LIST_0][(short) frame->mv_info[jj][ii].ref_idx[LIST_0]];
+                        fs_top->mv_info[j][i].ref_pic[LIST_0] = fs_btm->mv_info[j][i].ref_pic[LIST_0] = p_Vid->ppSliceList[frame->mv_info[jj][ii].slice_no]->RefPicList[LIST_0][(short) frame->mv_info[jj][ii].ref_idx[LIST_0]];
                     }
 
                     if (frame->mv_info[jj][ii].ref_idx[LIST_1] == -1) {
@@ -463,7 +461,7 @@ void frame_store::dpb_split_field(VideoParameters* p_Vid)
                         fs_top->mv_info[j][i].ref_pic[LIST_1] = fs_btm->mv_info[j][i].ref_pic[LIST_1] = NULL;
                     } else {
                         fs_top->mv_info[j][i].ref_idx[LIST_1] = fs_btm->mv_info[j][i].ref_idx[LIST_1] = frame->mv_info[jj][ii].ref_idx[LIST_1];
-                        fs_top->mv_info[j][i].ref_pic[LIST_1] = fs_btm->mv_info[j][i].ref_pic[LIST_1] = p_Vid->ppSliceList[frame->mv_info[jj][ii].slice_no]->listX[LIST_1][(short) frame->mv_info[jj][ii].ref_idx[LIST_1]];
+                        fs_top->mv_info[j][i].ref_pic[LIST_1] = fs_btm->mv_info[j][i].ref_pic[LIST_1] = p_Vid->ppSliceList[frame->mv_info[jj][ii].slice_no]->RefPicList[LIST_1][(short) frame->mv_info[jj][ii].ref_idx[LIST_1]];
                     }
                 }
             }
@@ -489,12 +487,13 @@ void frame_store::dpb_combine_field_yuv(VideoParameters* p_Vid)
             memcpy(this->frame->imgUV[j][i*2 + 1], this->bottom_field->imgUV[j][i], this->bottom_field->size_x_cr*sizeof(imgpel));
         }
     }
-    this->poc=this->frame->poc =this->frame->frame_poc = min (this->top_field->poc, this->bottom_field->poc);
 
-    this->bottom_field->frame_poc=this->top_field->frame_poc=this->frame->poc;
+    this->poc = this->frame->poc = this->frame->frame_poc = min(this->top_field->poc, this->bottom_field->poc);
 
-    this->bottom_field->top_poc=this->frame->top_poc=this->top_field->poc;
-    this->top_field->bottom_poc=this->frame->bottom_poc=this->bottom_field->poc;
+    this->bottom_field->frame_poc = this->top_field->frame_poc = this->frame->poc;
+
+    this->bottom_field->top_poc = this->frame->top_poc = this->top_field->poc;
+    this->top_field->bottom_poc = this->frame->bottom_poc = this->bottom_field->poc;
 
     this->frame->used_for_reference = (this->top_field->used_for_reference && this->bottom_field->used_for_reference );
     this->frame->is_long_term = (this->top_field->is_long_term && this->bottom_field->is_long_term );

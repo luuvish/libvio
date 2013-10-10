@@ -61,7 +61,7 @@ static void init_mvc_picture(slice_t* currSlice)
 
     // find BL reconstructed picture
     if (!currSlice->field_pic_flag) {
-        for (int i = 0; i < (int)p_Dpb->used_size/*size*/; ++i) {
+        for (int i = 0; i < (int)p_Dpb->used_size; ++i) {
             frame_store* fs = p_Dpb->fs[i];
             if (fs->frame->slice.view_id == 0 && fs->frame->frame_poc == currSlice->PicOrderCnt) {
                 p_pic = fs->frame;
@@ -69,7 +69,7 @@ static void init_mvc_picture(slice_t* currSlice)
             }
         }
     } else if (!currSlice->bottom_field_flag) {
-        for (int i = 0; i < (int)p_Dpb->used_size/*size*/; ++i) {
+        for (int i = 0; i < (int)p_Dpb->used_size; ++i) {
             frame_store* fs = p_Dpb->fs[i];
             if (fs->top_field->slice.view_id == 0 && fs->top_field->top_poc == currSlice->TopFieldOrderCnt) {
                 p_pic = fs->top_field;
@@ -77,7 +77,7 @@ static void init_mvc_picture(slice_t* currSlice)
             }
         }
     } else {
-        for (int i = 0; i < (int)p_Dpb->used_size/*size*/; ++i) {
+        for (int i = 0; i < (int)p_Dpb->used_size; ++i) {
             frame_store* fs = p_Dpb->fs[i];
             if (fs->bottom_field->slice.view_id == 0 && fs->bottom_field->bottom_poc == currSlice->BottomFieldOrderCnt) {
                 p_pic = fs->bottom_field;
@@ -101,6 +101,11 @@ static void copy_dec_picture_JV(VideoParameters *p_Vid, storable_picture *dst, s
     dst->poc                             = src->poc;
     dst->used_for_reference              = src->used_for_reference;
 
+    dst->PicWidthInMbs                   = src->PicWidthInMbs;
+    dst->PicNum                          = src->PicNum;
+    dst->frame_num                       = src->frame_num;
+    dst->recovery_frame                  = src->recovery_frame;
+
     dst->slice.coded_frame                     = src->slice.coded_frame;
     dst->slice.slice_type                      = src->slice.slice_type;
     dst->slice.idr_flag                        = src->slice.idr_flag;
@@ -110,20 +115,13 @@ static void copy_dec_picture_JV(VideoParameters *p_Vid, storable_picture *dst, s
     dst->slice.adaptive_ref_pic_buffering_flag = src->slice.adaptive_ref_pic_buffering_flag;
     dst->slice.dec_ref_pic_marking_buffer      = src->slice.dec_ref_pic_marking_buffer;
 
-    dst->PicWidthInMbs                   = src->PicWidthInMbs;
-    dst->PicNum                          = src->PicNum;
-    dst->frame_num                       = src->frame_num;
-    dst->recovery_frame                  = src->recovery_frame;
-
     // store the necessary tone mapping sei into storable_picture structure
     dst->seiHasTone_mapping    = src->seiHasTone_mapping;
     dst->tone_mapping_model_id = src->tone_mapping_model_id;
     dst->tonemapped_bit_depth  = src->tonemapped_bit_depth;
     if (src->tone_mapping_lut) {
         int coded_data_bit_max = (1 << p_Vid->seiToneMapping->coded_data_bit_depth);
-        dst->tone_mapping_lut = (imgpel *)malloc(sizeof(int) * coded_data_bit_max);
-        if (NULL == dst->tone_mapping_lut)
-            no_mem_exit("copy_dec_picture_JV: tone_mapping_lut");
+        dst->tone_mapping_lut = new imgpel[coded_data_bit_max];
         memcpy(dst->tone_mapping_lut, src->tone_mapping_lut, sizeof(imgpel) * coded_data_bit_max);
     }
 }

@@ -198,8 +198,8 @@ struct slice_t {
 
     //slice header information;
     int               ref_flag[17]; //!< 0: i-th previous frame is incorrect
-    char              listXsize[6];
-    storable_picture* listX[6][33];
+    char              RefPicSize[6];
+    storable_picture* RefPicList[6][33];
 
 #if (MVC_EXTENSION_ENABLE)
     int           listinterviewidx0;

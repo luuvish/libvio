@@ -134,8 +134,8 @@ void Decoder::decode_one_component(mb_t& mb, ColorPlane curr_plane)
             storable_picture *vidref = p_Vid->no_reference_picture;
             int noref = slice.PicOrderCnt < p_Vid->recovery_poc;
             for (int j = 0; j < 6; j++) {
-                for (int i = 0; i < slice.listXsize[j] ; i++) {
-                    storable_picture *curr_ref = slice.listX[j][i];
+                for (int i = 0; i < slice.RefPicSize[j] ; i++) {
+                    storable_picture *curr_ref = slice.RefPicList[j][i];
                     if (curr_ref) {
                         curr_ref->no_ref = noref && (curr_ref == vidref);
                     }

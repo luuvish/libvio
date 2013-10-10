@@ -1,5 +1,5 @@
-#ifndef _MBUFFERDEC_H_
-#define _MBUFFERDEC_H_
+#ifndef _DPB_H_
+#define _DPB_H_
 
 #include "global.h"
 #include "bitstream_cabac.h"
@@ -56,6 +56,7 @@ public:
 
 #if (MVC_EXTENSION_ENABLE)
     void        idr_memory_management(storable_picture* p);
+    void        store_proc_picture(storable_picture* p);
 #endif
     void        flush();
 
@@ -97,4 +98,7 @@ extern void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_pictur
 extern void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, int iPadY);
 
 
-#endif
+storable_picture* get_ref_pic(mb_t& mb, storable_picture** RefPicListX, int ref_idx);
+
+
+#endif // _DPB_H_
