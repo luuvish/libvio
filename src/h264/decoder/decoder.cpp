@@ -71,8 +71,6 @@ void Decoder::decode(mb_t& mb)
     slice_t& slice = *mb.p_Slice;
     const sps_t& sps = *slice.active_sps;
 
-    this->inter_prediction->set_chroma_vector(mb);
-
     this->decode_one_component(mb, PLANE_Y);
 
     if (sps.ChromaArrayType == 3) {

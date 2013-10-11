@@ -42,8 +42,6 @@ public:
     void        perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y);
     void        motion_compensation(mb_t* mb);
 
-    void        set_chroma_vector(mb_t& mb);
-
 protected:
     void        init_weight_prediction(slice_t& slice);
 
@@ -60,10 +58,6 @@ protected:
 
     void        check_motion_vector_range(mb_t& mb, const mv_t *mv, slice_t *pSlice);
     int         CheckVertMV(mb_t *currMB, int vec_y, int block_size_y);
-
-private:
-    char        chroma_vector_adjustment[6][32];
-    int         max_mb_vmv_r;
 };
 
 

@@ -345,12 +345,24 @@ void InterPrediction::get_block_chroma(
 
 void InterPrediction::check_motion_vector_range(mb_t& mb, const mv_t *mv, slice_t *pSlice)
 {
+    int max_vmv_r;
+    const sps_t& sps = *pSlice->active_sps;
+    if (sps.level_idc <= 10)
+        max_vmv_r = 64 * 4;
+    else if (sps.level_idc <= 20)
+        max_vmv_r = 128 * 4;
+    else if (sps.level_idc <= 30)
+        max_vmv_r = 256 * 4;
+    else
+        max_vmv_r = 512 * 4; // 512 pixels in quarter pixels
+    max_vmv_r = pSlice->field_pic_flag || mb.mb_field_decoding_flag ? max_vmv_r >> 1 : max_vmv_r;
+
     if (mv->mv_x > 8191 || mv->mv_x < -8192)
         fprintf(stderr, "WARNING! Horizontal motion vector %d is out of allowed range {-8192, 8191} in picture %d, macroblock %d\n",
                 mv->mv_x, pSlice->p_Vid->number, mb.mbAddrX);
-    if ((mv->mv_y > this->max_mb_vmv_r - 1) || (mv->mv_y < -this->max_mb_vmv_r))
+    if ((mv->mv_y > max_vmv_r - 1) || (mv->mv_y < -max_vmv_r))
         fprintf(stderr, "WARNING! Vertical motion vector %d is out of allowed range {%d, %d} in picture %d, macroblock %d\n",
-                mv->mv_y, -this->max_mb_vmv_r, this->max_mb_vmv_r - 1,
+                mv->mv_y, -max_vmv_r, max_vmv_r - 1,
                 pSlice->p_Vid->number, mb.mbAddrX);
 }
 
@@ -368,6 +380,24 @@ int InterPrediction::CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
         return 1;
     else
         return 0;
+}
+
+static int chroma_vector_adjustment(mb_t& mb, storable_picture* RefPic)
+{
+    slice_t& slice = *mb.p_Slice;
+
+    if (!slice.MbaffFrameFlag && slice.field_pic_flag) {
+        if (slice.structure != RefPic->slice.structure)
+            return !slice.bottom_field_flag ? -2 : 2;
+    }
+    if (slice.MbaffFrameFlag && mb.mb_field_decoding_flag) {
+        if (mb.mbAddrX % 2 == 0 && RefPic->slice.structure == BOTTOM_FIELD)
+            return -2;
+        if (mb.mbAddrX % 2 == 1 && RefPic->slice.structure == TOP_FIELD)
+            return 2;
+    }
+
+    return 0;
 }
 
 void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y)
@@ -455,8 +485,6 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
                       mb, pl, l0_refframe, l1_refframe);
 
     if (sps->chroma_format_idc != YUV400 && sps->chroma_format_idc != YUV444) {
-        int list_offset = slice->MbaffFrameFlag && mb->mb_field_decoding_flag ? mb->mbAddrX % 2 ? 4 : 2 : 0;
-
         int maxold_x = dec_picture->size_x_cr - 1;
         int maxold_y = mb->mb_field_decoding_flag ? (dec_picture->size_y_cr >> 1) - 1 : dec_picture->size_y_cr - 1;
 
@@ -468,13 +496,13 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
         int vec2_y_cr, vec1_y_cr;
         if (pred_dir != 2) {
             if (sps->chroma_format_idc == 1)
-                vec1_y_cr = vec1_y + this->chroma_vector_adjustment[pred_dir + list_offset][l0_refframe]; 
+                vec1_y_cr = vec1_y + vio::h264::chroma_vector_adjustment(*mb, RefPicList0);
             else
                 vec1_y_cr = vec1_y;
         } else {
             if (sps->chroma_format_idc == 1) {
-                vec1_y_cr = vec1_y + this->chroma_vector_adjustment[LIST_0 + list_offset][l0_refframe]; 
-                vec2_y_cr = vec2_y + this->chroma_vector_adjustment[LIST_1 + list_offset][l1_refframe]; 
+                vec1_y_cr = vec1_y + vio::h264::chroma_vector_adjustment(*mb, RefPicList0);
+                vec2_y_cr = vec2_y + vio::h264::chroma_vector_adjustment(*mb, RefPicList1);
             } else {
                 vec1_y_cr = vec1_y;
                 vec2_y_cr = vec2_y;
@@ -505,76 +533,6 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
                           mb, PLANE_V, l0_refframe, l1_refframe);
         }
     }
-}
-
-void InterPrediction::set_chroma_vector(mb_t& mb)
-{
-    slice_t& slice = *mb.p_Slice;
-
-    VideoParameters* p_Vid = slice.p_Vid;
-
-    if (!slice.MbaffFrameFlag) {
-        if (!slice.field_pic_flag) {
-            for (int l = LIST_0; l <= LIST_1; l++) {
-                for (int k = 0; k < slice.RefPicSize[l]; k++)
-                    this->chroma_vector_adjustment[l][k] = 0; 
-            }
-        } else if (!slice.bottom_field_flag) {
-            for (int l = LIST_0; l <= LIST_1; l++) {
-                for (int k = 0; k < slice.RefPicSize[l]; k++) {
-                    if (p_Vid->structure != slice.RefPicList[l][k]->slice.structure)
-                        this->chroma_vector_adjustment[l][k] = -2; 
-                    else
-                        this->chroma_vector_adjustment[l][k] = 0; 
-                }
-            }
-        } else {
-            for (int l = LIST_0; l <= LIST_1; l++) {
-                for (int k = 0; k < slice.RefPicSize[l]; k++) {
-                    if (p_Vid->structure != slice.RefPicList[l][k]->slice.structure)
-                        this->chroma_vector_adjustment[l][k] = 2; 
-                    else
-                        this->chroma_vector_adjustment[l][k] = 0; 
-                }
-            }
-        }
-    } else {
-        int mb_nr = (mb.mbAddrX & 0x01);
-
-        //////////////////////////
-        // find out the correct list offsets
-        if (mb.mb_field_decoding_flag) {
-            int list_offset = slice.MbaffFrameFlag && mb.mb_field_decoding_flag ? mb.mbAddrX % 2 ? 4 : 2 : 0;
-            for (int l = LIST_0 + list_offset; l <= LIST_1 + list_offset; l++) {
-                for (int k = 0; k < slice.RefPicSize[l]; k++) {
-                    if (mb_nr == 0 && slice.RefPicList[l][k]->slice.structure == BOTTOM_FIELD)
-                        this->chroma_vector_adjustment[l][k] = -2; 
-                    else if (mb_nr == 1 && slice.RefPicList[l][k]->slice.structure == TOP_FIELD)
-                        this->chroma_vector_adjustment[l][k] = 2; 
-                    else
-                        this->chroma_vector_adjustment[l][k] = 0; 
-                }
-            }
-        } else {
-            for (int l = LIST_0; l <= LIST_1; l++) {
-                for(int k = 0; k < slice.RefPicSize[l]; k++)
-                    this->chroma_vector_adjustment[l][k] = 0; 
-            }
-        }
-    }
-
-    int max_vmv_r;
-    const sps_t& sps = *slice.active_sps;
-    if (sps.level_idc <= 10)
-        max_vmv_r = 64 * 4;
-    else if (sps.level_idc <= 20)
-        max_vmv_r = 128 * 4;
-    else if (sps.level_idc <= 30)
-        max_vmv_r = 256 * 4;
-    else
-        max_vmv_r = 512 * 4; // 512 pixels in quarter pixels
-
-    this->max_mb_vmv_r = slice.field_pic_flag || mb.mb_field_decoding_flag ? max_vmv_r >> 1 : max_vmv_r;
 }
 
 
