@@ -43,8 +43,6 @@ public:
     void        motion_compensation(mb_t* mb);
 
 protected:
-    void        init_weight_prediction(slice_t& slice);
-
     void        get_block_chroma(storable_picture* curr_ref, int x_pos, int y_pos,
                     int maxold_x, int maxold_y, int block_size_x, int vert_block_size,
                     imgpel block1[16][16], imgpel block2[16][16], mb_t* mb);

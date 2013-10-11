@@ -253,15 +253,13 @@ void slice_header(slice_t *currSlice)
 #endif
         ref_pic_list_modification(currSlice);
 
-    currSlice->weighted_pred_flag = (currSlice->slice_type == P_slice || currSlice->slice_type == SP_slice) ?
-                                    pps->weighted_pred_flag :
-                                    (currSlice->slice_type == B_slice && pps->weighted_bipred_idc == 1);
-    currSlice->weighted_bipred_idc = (currSlice->slice_type == B_slice && pps->weighted_bipred_idc > 0);
-
-    if ((pps->weighted_pred_flag &&
-         (currSlice->slice_type == P_slice || currSlice->slice_type == SP_slice)) ||
+    if ((pps->weighted_pred_flag && (currSlice->slice_type == P_slice || currSlice->slice_type == SP_slice)) ||
         (pps->weighted_bipred_idc == 1 && currSlice->slice_type == B_slice))
         pred_weight_table(currSlice);
+    else {
+        currSlice->luma_log2_weight_denom   = 5;
+        currSlice->chroma_log2_weight_denom = 5;
+    }
 
     if (currSlice->nal_ref_idc != 0)
         dec_ref_pic_marking(p_Vid, s, currSlice);
@@ -406,103 +404,73 @@ void ref_pic_list_mvc_modification(slice_t *currSlice)
 
 void pred_weight_table(slice_t *currSlice)
 {
-    data_partition_t *s = &currSlice->parser.partArr[0];
+    slice_t& slice = *currSlice;
+    sps_t& sps = *slice.active_sps;
+    data_partition_t *s = &slice.parser.partArr[0];
 
-    sps_t *sps = currSlice->active_sps;
-    int i, j;
+    slice.luma_log2_weight_denom = s->ue("SH: luma_log2_weight_denom");
+    slice.chroma_log2_weight_denom = 0;
+    if (sps.ChromaArrayType != 0)
+        slice.chroma_log2_weight_denom = s->ue("SH: chroma_log2_weight_denom");
 
-    currSlice->luma_log2_weight_denom = s->ue("SH: luma_log2_weight_denom");
-    currSlice->chroma_log2_weight_denom = 0;
-    if (sps->ChromaArrayType != 0)
-        currSlice->chroma_log2_weight_denom = s->ue("SH: chroma_log2_weight_denom");
+    assert(slice.luma_log2_weight_denom >= 0 && slice.luma_log2_weight_denom <= 7);
+    assert(slice.chroma_log2_weight_denom >= 0 && slice.chroma_log2_weight_denom <= 7);
 
-    assert(currSlice->luma_log2_weight_denom >= 0 && currSlice->luma_log2_weight_denom <= 7);
-    assert(currSlice->chroma_log2_weight_denom >= 0 && currSlice->chroma_log2_weight_denom <= 7);
-
-    for (i = 0; i < MAX_NUM_REF_IDX; i++) {
-        int comp;
-        for (comp = 0; comp < 3; comp++) {
-            int log_weight_denom = (comp == 0) ? currSlice->luma_log2_weight_denom : currSlice->chroma_log2_weight_denom;
-            currSlice->wp_weight[0][i][comp] = 1 << log_weight_denom;
-            currSlice->wp_weight[1][i][comp] = 1 << log_weight_denom;
-        }
-    }
-
-    for (i = 0; i <= currSlice->num_ref_idx_l0_active_minus1; i++) {
-        currSlice->luma_weight_l0_flag[i] = s->u(1, "SH: luma_weight_flag_l0");
-        currSlice->luma_weight_l0     [i] = 1 << currSlice->luma_log2_weight_denom;
-        currSlice->luma_offset_l0     [i] = 0;
-        if (currSlice->luma_weight_l0_flag[i]) {
-            currSlice->luma_weight_l0[i] = s->se("SH: luma_weight_l0");
-            currSlice->luma_offset_l0[i] = s->se("SH: luma_offset_l0");
+    for (int i = 0; i <= slice.num_ref_idx_l0_active_minus1; ++i) {
+        slice.luma_weight_l0_flag[i] = s->u(1, "SH: luma_weight_flag_l0");
+        slice.luma_weight_l0     [i] = 1 << slice.luma_log2_weight_denom;
+        slice.luma_offset_l0     [i] = 0;
+        if (slice.luma_weight_l0_flag[i]) {
+            slice.luma_weight_l0[i] = s->se("SH: luma_weight_l0");
+            slice.luma_offset_l0[i] = s->se("SH: luma_offset_l0");
         }
 
-        assert(currSlice->luma_weight_l0[i] >= -128 && currSlice->luma_weight_l0[i] <= 127);
-        assert(currSlice->luma_offset_l0[i] >= -128 && currSlice->luma_offset_l0[i] <= 127);
+        assert(slice.luma_weight_l0[i] >= -128 && slice.luma_weight_l0[i] <= 127);
+        assert(slice.luma_offset_l0[i] >= -128 && slice.luma_offset_l0[i] <= 127);
 
-        currSlice->wp_weight[LIST_0][i][0] = currSlice->luma_weight_l0[i];
-        currSlice->wp_offset[LIST_0][i][0] = currSlice->luma_offset_l0[i];
-        currSlice->wp_offset[LIST_0][i][0] <<= sps->bit_depth_luma_minus8;
-
-        if (sps->ChromaArrayType != 0) {
-            currSlice->chroma_weight_l0_flag[i] = s->u(1, "SH: chroma_weight_flag_l0");
-            for (j = 0; j < 2; j++) {
-                currSlice->chroma_weight_l0[i][j] = 1 << currSlice->chroma_log2_weight_denom;
-                currSlice->chroma_offset_l0[i][j] = 0;
-                if (currSlice->chroma_weight_l0_flag[i]) {
-                    currSlice->chroma_weight_l0[i][j] = s->se("SH: chroma_weight_l0");
-                    currSlice->chroma_offset_l0[i][j] = s->se("SH: chroma_offset_l0");
+        if (sps.ChromaArrayType != 0) {
+            slice.chroma_weight_l0_flag[i] = s->u(1, "SH: chroma_weight_flag_l0");
+            for (int comp = 0; comp < 2; ++comp) {
+                slice.chroma_weight_l0[i][comp] = 1 << slice.chroma_log2_weight_denom;
+                slice.chroma_offset_l0[i][comp] = 0;
+                if (slice.chroma_weight_l0_flag[i]) {
+                    slice.chroma_weight_l0[i][comp] = s->se("SH: chroma_weight_l0");
+                    slice.chroma_offset_l0[i][comp] = s->se("SH: chroma_offset_l0");
                 }
 
-                assert(currSlice->chroma_weight_l0[i][j] >= -128 &&
-                       currSlice->chroma_weight_l0[i][j] <=  127);
-                assert(currSlice->chroma_offset_l0[i][j] >= -128 &&
-                       currSlice->chroma_offset_l0[i][j] <=  127);
-
-                currSlice->wp_weight[LIST_0][i][j + 1] = currSlice->chroma_weight_l0[i][j];
-                currSlice->wp_offset[LIST_0][i][j + 1] = currSlice->chroma_offset_l0[i][j];
-                currSlice->wp_offset[LIST_0][i][j + 1] <<= sps->bit_depth_chroma_minus8;
+                assert(slice.chroma_weight_l0[i][comp] >= -128 && slice.chroma_weight_l0[i][comp] <=  127);
+                assert(slice.chroma_offset_l0[i][comp] >= -128 && slice.chroma_offset_l0[i][comp] <=  127);
             }
         }
     }
 
-    if (currSlice->slice_type != B_slice)
+    if (slice.slice_type != B_slice)
         return;
 
-    for (i = 0; i <= currSlice->num_ref_idx_l1_active_minus1; i++) {
-        currSlice->luma_weight_l1_flag[i] = s->u(1, "SH: luma_weight_flag_l1");
-        currSlice->luma_weight_l1     [i] = 1 << currSlice->luma_log2_weight_denom;
-        currSlice->luma_offset_l1     [i] = 0;
-        if (currSlice->luma_weight_l1_flag[i]) {
-            currSlice->luma_weight_l1[i] = s->se("SH: luma_weight_l1");
-            currSlice->luma_offset_l1[i] = s->se("SH: luma_offset_l1");
+    for (int i = 0; i <= slice.num_ref_idx_l1_active_minus1; ++i) {
+        slice.luma_weight_l1_flag[i] = s->u(1, "SH: luma_weight_flag_l1");
+        slice.luma_weight_l1     [i] = 1 << slice.luma_log2_weight_denom;
+        slice.luma_offset_l1     [i] = 0;
+        if (slice.luma_weight_l1_flag[i]) {
+            slice.luma_weight_l1[i] = s->se("SH: luma_weight_l1");
+            slice.luma_offset_l1[i] = s->se("SH: luma_offset_l1");
         }
 
-        assert(currSlice->luma_weight_l1[i] >= -128 && currSlice->luma_weight_l1[i] <= 127);
-        assert(currSlice->luma_offset_l1[i] >= -128 && currSlice->luma_offset_l1[i] <= 127);
+        assert(slice.luma_weight_l1[i] >= -128 && slice.luma_weight_l1[i] <= 127);
+        assert(slice.luma_offset_l1[i] >= -128 && slice.luma_offset_l1[i] <= 127);
 
-        currSlice->wp_weight[LIST_1][i][0] = currSlice->luma_weight_l1[i];
-        currSlice->wp_offset[LIST_1][i][0] = currSlice->luma_offset_l1[i];
-        currSlice->wp_offset[LIST_1][i][0] <<= sps->bit_depth_luma_minus8;
-
-        if (sps->ChromaArrayType != 0) {
-            currSlice->chroma_weight_l1_flag[i] = s->u(1, "SH: chroma_weight_flag_l1");
-            for (j = 0; j < 2; j++) {
-                currSlice->chroma_weight_l1[i][j] = 1 << currSlice->chroma_log2_weight_denom;
-                currSlice->chroma_offset_l1[i][j] = 0;
-                if (currSlice->chroma_weight_l1_flag[i]) {
-                    currSlice->chroma_weight_l1[i][j] = s->se("SH: chroma_weight_l1");
-                    currSlice->chroma_offset_l1[i][j] = s->se("SH: chroma_offset_l1");
+        if (sps.ChromaArrayType != 0) {
+            slice.chroma_weight_l1_flag[i] = s->u(1, "SH: chroma_weight_flag_l1");
+            for (int comp = 0; comp < 2; ++comp) {
+                slice.chroma_weight_l1[i][comp] = 1 << slice.chroma_log2_weight_denom;
+                slice.chroma_offset_l1[i][comp] = 0;
+                if (slice.chroma_weight_l1_flag[i]) {
+                    slice.chroma_weight_l1[i][comp] = s->se("SH: chroma_weight_l1");
+                    slice.chroma_offset_l1[i][comp] = s->se("SH: chroma_offset_l1");
                 }
 
-                assert(currSlice->chroma_weight_l1[i][j] >= -128 &&
-                       currSlice->chroma_weight_l1[i][j] <=  127);
-                assert(currSlice->chroma_offset_l1[i][j] >= -128 &&
-                       currSlice->chroma_offset_l1[i][j] <=  127);
-
-                currSlice->wp_weight[LIST_1][i][j + 1] = currSlice->chroma_weight_l1[i][j];
-                currSlice->wp_offset[LIST_1][i][j + 1] = currSlice->chroma_offset_l1[i][j];
-                currSlice->wp_offset[LIST_1][i][j + 1] <<= sps->bit_depth_chroma_minus8;
+                assert(slice.chroma_weight_l1[i][comp] >= -128 && slice.chroma_weight_l1[i][comp] <=  127);
+                assert(slice.chroma_offset_l1[i][comp] >= -128 && slice.chroma_offset_l1[i][comp] <=  127);
             }
         }
     }

@@ -132,11 +132,6 @@ struct slice_t {
     bool        chroma_weight_l1_flag[MAX_NUM_REF_IDX];               // u(1)
     int8_t      chroma_weight_l1     [MAX_NUM_REF_IDX][2];            // se(v)
     int8_t      chroma_offset_l1     [MAX_NUM_REF_IDX][2];            // se(v)
-    //weighted prediction
-    uint16_t    weighted_pred_flag;
-    uint16_t    weighted_bipred_idc;
-    int32_t     wp_weight[2][MAX_REFERENCE_PICTURES][3];
-    int32_t     wp_offset[2][MAX_REFERENCE_PICTURES][3];
 
     bool        no_output_of_prior_pics_flag;                         // u(1)
     bool        long_term_reference_flag;                             // u(1)

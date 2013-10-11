@@ -53,9 +53,6 @@ InterPrediction::~InterPrediction()
 
 void InterPrediction::init(slice_t& slice)
 {
-    if ((slice.active_pps->weighted_bipred_idc > 0 && slice.slice_type == B_slice) ||
-        (slice.active_pps->weighted_pred_flag && slice.slice_type != I_slice))
-        this->init_weight_prediction(slice);
 }
 
 void InterPrediction::mc_prediction(
@@ -64,21 +61,27 @@ void InterPrediction::mc_prediction(
 {
     slice_t& slice = *mb->p_Slice;
     sps_t& sps = *slice.active_sps;
-//    pps_t& pps = *slice.active_pps;
+    pps_t& pps = *slice.active_pps;
 
+    bool weighted_pred_flag = (pps.weighted_pred_flag && (slice.slice_type == P_slice || slice.slice_type == SP_slice)) ||
+                              (pps.weighted_bipred_idc == 1 && (slice.slice_type == B_slice));
     int weight, offset, denom, color_clip;
-    if (slice.weighted_pred_flag) {
+    if (weighted_pred_flag) {
         int ref_idx = slice.MbaffFrameFlag && mb->mb_field_decoding_flag ? l0_refframe >> 1 : l0_refframe;
 
-        weight = slice.wp_weight[pred_dir][ref_idx][pl];
-        offset = slice.wp_offset[pred_dir][ref_idx][pl];
+        weight = pl == 0 ? (pred_dir == 0 ? slice.luma_weight_l0 : slice.luma_weight_l1)[ref_idx] :
+                           (pred_dir == 0 ? slice.chroma_weight_l0 : slice.chroma_weight_l1)[ref_idx][pl - 1];
+        offset = pl == 0 ? (pred_dir == 0 ? slice.luma_offset_l0 : slice.luma_offset_l1)[ref_idx] :
+                           (pred_dir == 0 ? slice.chroma_offset_l0 : slice.chroma_offset_l1)[ref_idx][pl - 1];
+        offset <<= pl == 0 ? sps.bit_depth_luma_minus8 : sps.bit_depth_chroma_minus8;
+
         denom  = pl > 0 ? slice.chroma_log2_weight_denom : slice.luma_log2_weight_denom;
         color_clip = (1 << (pl > 0 ? sps.BitDepthC : sps.BitDepthY)) - 1;
     }
 
     for (int j = 0; j < block_size_y; ++j) {
         for (int i = 0; i < block_size_x; ++i) {
-            if (slice.weighted_pred_flag) {
+            if (weighted_pred_flag) {
                 int result = RSHIFT_RND((weight * block[j][i]), denom);
                 mb_pred[i] = (imgpel) clip1(color_clip, result + offset);
             } else
@@ -103,12 +106,13 @@ void InterPrediction::bi_prediction(
         int ref_idx1 = slice.MbaffFrameFlag && mb->mb_field_decoding_flag ? l1_refframe >> 1 : l1_refframe;
 
         if (pps.weighted_bipred_idc == 1) {
-            weight0 = slice.wp_weight[0][ref_idx0][pl];
-            weight1 = slice.wp_weight[1][ref_idx1][pl];
+            weight0 = pl == 0 ? slice.luma_weight_l0[ref_idx0] : slice.chroma_weight_l0[ref_idx0][pl - 1];
+            weight1 = pl == 0 ? slice.luma_weight_l1[ref_idx1] : slice.chroma_weight_l1[ref_idx1][pl - 1];
+            offset0 = pl == 0 ? slice.luma_offset_l0[ref_idx0] : slice.chroma_offset_l0[ref_idx0][pl - 1];
+            offset1 = pl == 0 ? slice.luma_offset_l1[ref_idx1] : slice.chroma_offset_l1[ref_idx1][pl - 1];
+            offset0 <<= pl == 0 ? sps.bit_depth_luma_minus8 : sps.bit_depth_chroma_minus8;
+            offset1 <<= pl == 0 ? sps.bit_depth_luma_minus8 : sps.bit_depth_chroma_minus8;
         }
-
-        offset0 = slice.wp_offset[0][ref_idx0][pl];
-        offset1 = slice.wp_offset[1][ref_idx1][pl];
 
         if (pps.weighted_bipred_idc == 2) {
             storable_picture* ref_pic0 = slice.RefPicList[LIST_0][ref_idx0];
@@ -134,10 +138,9 @@ void InterPrediction::bi_prediction(
                 if (weight1 < -64 || weight1 > 128) {
                     weight0 = 32;
                     weight1 = 32;
-                    offset0 = 0;
-                    offset1 = 0;
                 }
             }
+            offset0 = offset1 = 0;
         }
 
         offset = (offset0 + offset1 + 1) >> 1;
@@ -565,26 +568,6 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
 
 void InterPrediction::motion_compensation(mb_t *mb)
 {
-}
-
-void InterPrediction::init_weight_prediction(slice_t& slice)
-{
-    if (slice.slice_type == B_slice) {
-        if (slice.active_pps->weighted_bipred_idc == 2) {
-            slice.luma_log2_weight_denom = 5;
-            slice.chroma_log2_weight_denom = 5;
-
-            for (int i = 0; i < MAX_REFERENCE_PICTURES; ++i) {
-                for (int comp = 0; comp < 3; ++comp) {
-                    int log_weight_denom = (comp == 0) ? slice.luma_log2_weight_denom : slice.chroma_log2_weight_denom;
-                    slice.wp_weight[0][i][comp] = 1 << log_weight_denom;
-                    slice.wp_weight[1][i][comp] = 1 << log_weight_denom;
-                    slice.wp_offset[0][i][comp] = 0;
-                    slice.wp_offset[1][i][comp] = 0;
-                }
-            }
-        }
-    }
 }
 
 
