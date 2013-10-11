@@ -1212,44 +1212,6 @@ static void reorder_lists_mvc(slice_t* currSlice, int currPOC)
 
 #endif
 
-/*!
- ************************************************************************
- * \brief
- *    Initialize listX[2..5] from lists 0 and 1
- *    listX[2]: list0 for current_field==top
- *    listX[3]: list1 for current_field==top
- *    listX[4]: list0 for current_field==bottom
- *    listX[5]: list1 for current_field==bottom
- *
- ************************************************************************
- */
-static void init_mbaff_lists(slice_t* currSlice)
-{
-    VideoParameters* p_Vid = currSlice->p_Vid;
-
-    for (int i = 2; i < 6; i++) {
-        for (int j = 0; j < MAX_LIST_SIZE; j++)
-            currSlice->RefPicList[i][j] = p_Vid->no_reference_picture;
-        currSlice->RefPicSize[i] = 0;
-    }
-
-    for (int i = 0; i < currSlice->RefPicSize[0]; i++) {
-        currSlice->RefPicList[2][2 * i    ] = currSlice->RefPicList[0][i]->top_field;
-        currSlice->RefPicList[2][2 * i + 1] = currSlice->RefPicList[0][i]->bottom_field;
-        currSlice->RefPicList[4][2 * i    ] = currSlice->RefPicList[0][i]->bottom_field;
-        currSlice->RefPicList[4][2 * i + 1] = currSlice->RefPicList[0][i]->top_field;
-    }
-    currSlice->RefPicSize[2] = currSlice->RefPicSize[4] = currSlice->RefPicSize[0] * 2;
-
-    for (int i = 0; i < currSlice->RefPicSize[1]; i++) {
-        currSlice->RefPicList[3][2 * i    ] = currSlice->RefPicList[1][i]->top_field;
-        currSlice->RefPicList[3][2 * i + 1] = currSlice->RefPicList[1][i]->bottom_field;
-        currSlice->RefPicList[5][2 * i    ] = currSlice->RefPicList[1][i]->bottom_field;
-        currSlice->RefPicList[5][2 * i + 1] = currSlice->RefPicList[1][i]->top_field;
-    }
-    currSlice->RefPicSize[3] = currSlice->RefPicSize[5] = currSlice->RefPicSize[1] * 2;
-}
-
 
 void init_ref_lists(slice_t* slice)
 {
@@ -1272,9 +1234,6 @@ void init_ref_lists(slice_t* slice)
         slice->fs_listinterview1 = nullptr;
     }
 #endif
-
-    if (!slice->field_pic_flag)
-        init_mbaff_lists(slice);
 
     // update reference flags and set current p_Vid->ref_flag
     if (!(slice->redundant_pic_cnt != 0 && p_Vid->previous_frame_num == slice->frame_num)) {

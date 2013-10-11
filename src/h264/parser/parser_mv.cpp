@@ -289,7 +289,7 @@ pic_motion_params* get_colocated_info(mb_t& mb, int i, int j)
     return colocated;
 }
 
-int MapColToList0(mb_t& mb, pic_motion_params* colocated)
+static int MapColToList0(mb_t& mb, pic_motion_params* colocated)
 {
     slice_t& slice = *mb.p_Slice;
     sps_t& sps = *slice.active_sps;
@@ -333,14 +333,36 @@ int MapColToList0(mb_t& mb, pic_motion_params* colocated)
     return mapped_idx;
 }
 
+static int DistScaleFactor(mb_t& mb, int ref_idx)
+{
+    slice_t& slice = *mb.p_Slice;
+    storable_picture* dec_picture = slice.p_Vid->dec_picture;
+    storable_picture* ref_pic0 = get_ref_pic(mb, slice.RefPicList[LIST_0], ref_idx);
+    storable_picture* ref_pic1 = get_ref_pic(mb, slice.RefPicList[LIST_1], 0);
+
+    if (ref_pic0->is_long_term)
+        return 9999;
+
+    int curPoc = (!slice.MbaffFrameFlag || !mb.mb_field_decoding_flag) ? dec_picture->poc :
+                 (mb.mbAddrX % 2 == 0) ? dec_picture->top_poc : dec_picture->bottom_poc;
+
+    int tb = clip3(-128, 127, curPoc - ref_pic0->poc);
+    int td = clip3(-128, 127, ref_pic1->poc - ref_pic0->poc);
+    if (td == 0)
+        return 9999;
+    int tx = (16384 + abs(td / 2)) / td;
+
+    int DistScaleFactor = clip3(-1024, 1023, (tb * tx + 32) >> 6);
+
+    return DistScaleFactor;
+}
+
 void Parser::Macroblock::get_direct_temporal()
 {
     bool has_direct = (mb.SubMbType[0] == 0) | (mb.SubMbType[1] == 0) |
                       (mb.SubMbType[2] == 0) | (mb.SubMbType[3] == 0);
     if (!has_direct)
         return;
-
-    int list_offset = slice.MbaffFrameFlag && mb.mb_field_decoding_flag ? mb.mbAddrX % 2 ? 4 : 2 : 0;
 
     for (int block4x4 = 0; block4x4 < 16; ++block4x4) {
         if (mb.SubMbType[block4x4 / 4] != 0)
@@ -373,10 +395,10 @@ void Parser::Macroblock::get_direct_temporal()
             }
 
             int mapped_idx = MapColToList0(mb, colocated);
-            int mv_scale = slice.mvscale[LIST_0 + list_offset][mapped_idx];
+            int mv_scale = DistScaleFactor(mb, mapped_idx);
             mv_info->ref_idx[LIST_0] = (char) mapped_idx;
             //! In such case, an array is needed for each different reference.
-            if (mv_scale == 9999 || get_ref_pic(mb, slice.RefPicList[LIST_0], mapped_idx)->is_long_term) {
+            if (mv_scale == 9999) {
                 mv_info->mv[LIST_0] = mvCol;
                 mv_info->mv[LIST_1] = {0, 0};
             } else {

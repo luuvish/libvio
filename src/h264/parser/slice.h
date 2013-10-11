@@ -188,6 +188,7 @@ struct slice_t {
     short       current_slice_nr;
     int         current_header;
 
+    int         layer_id;
 #if (MVC_EXTENSION_ENABLE)
     int         view_id;
     int         inter_view_flag;
@@ -198,8 +199,8 @@ struct slice_t {
 
     //slice header information;
     int               ref_flag[17]; //!< 0: i-th previous frame is incorrect
-    char              RefPicSize[6];
-    storable_picture* RefPicList[6][33];
+    char              RefPicSize[2];
+    storable_picture* RefPicList[2][33];
 
 #if (MVC_EXTENSION_ENABLE)
     int           listinterviewidx0;
@@ -207,10 +208,6 @@ struct slice_t {
     frame_store** fs_listinterview0;
     frame_store** fs_listinterview1;
 #endif
-
-    int         mvscale[6][MAX_REFERENCE_PICTURES];
-
-    int         layer_id;
 
 
     int         dpB_NotPresent;    //!< non-zero, if data partition B is lost

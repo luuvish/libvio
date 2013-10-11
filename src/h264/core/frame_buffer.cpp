@@ -116,37 +116,6 @@ storable_picture::~storable_picture()
         free(this->tone_mapping_lut);
 }
 
-int storable_picture::get_pic_num_x(int difference_of_pic_nums_minus1)
-{
-    int currPicNum;
-
-    if (this->slice.structure == FRAME)
-        currPicNum = this->frame_num;
-    else
-        currPicNum = 2 * this->frame_num + 1;
-
-    return currPicNum - (difference_of_pic_nums_minus1 + 1);
-}
-
-void storable_picture::gen_field_ref_ids(VideoParameters* p_Vid)
-{
-    //! Generate Frame parameters from field information.
-
-    //copy the list;
-    for (int j = 0; j < p_Vid->iSliceNumOfCurrPic; j++) {
-        if (this->listX[j][LIST_0]) {
-            this->listXsize[j][LIST_0] = p_Vid->ppSliceList[j]->RefPicSize[LIST_0];
-            for (int i = 0; i < this->listXsize[j][LIST_0]; i++)
-                this->listX[j][LIST_0][i] = p_Vid->ppSliceList[j]->RefPicList[LIST_0][i];
-        }
-        if (this->listX[j][LIST_1]) {
-            this->listXsize[j][LIST_1] = p_Vid->ppSliceList[j]->RefPicSize[LIST_1];
-            for (int i = 0; i < this->listXsize[j][LIST_1]; i++)
-                this->listX[j][LIST_1][i] = p_Vid->ppSliceList[j]->RefPicList[LIST_1][i];
-        }
-    }
-}
-
 bool storable_picture::is_short_ref()
 {
     return this->used_for_reference && !this->is_long_term;
@@ -403,31 +372,38 @@ void frame_store::dpb_split_field(VideoParameters* p_Vid)
                     currentmb = twosz16*(jdiv >> 1)+ (idiv)*2 + (jdiv & 0x01);
                     // Assign field mvs attached to MB-Frame buffer to the proper buffer
                     if (frm_motion->mb_field_decoding_flag[currentmb]) {
+                        auto RefPicList0 = p_Vid->ppSliceList[frame->mv_info[jj4][i].slice_no]->RefPicList[LIST_0];
+                        auto RefPicList1 = p_Vid->ppSliceList[frame->mv_info[jj4][i].slice_no]->RefPicList[LIST_1];
+
                         fs_btm->mv_info[j][i].mv[LIST_0] = frame->mv_info[jj4][i].mv[LIST_0];
                         fs_btm->mv_info[j][i].mv[LIST_1] = frame->mv_info[jj4][i].mv[LIST_1];
                         fs_btm->mv_info[j][i].ref_idx[LIST_0] = frame->mv_info[jj4][i].ref_idx[LIST_0];
-                        if (fs_btm->mv_info[j][i].ref_idx[LIST_0] >=0)
-                            fs_btm->mv_info[j][i].ref_pic[LIST_0] = p_Vid->ppSliceList[frame->mv_info[jj4][i].slice_no]->RefPicList[4][(short) fs_btm->mv_info[j][i].ref_idx[LIST_0]];
-                        else
-                            fs_btm->mv_info[j][i].ref_pic[LIST_0] = NULL;
+                        fs_btm->mv_info[j][i].ref_pic[LIST_0] = NULL;
+                        if (fs_btm->mv_info[j][i].ref_idx[LIST_0] >= 0) {
+                            int ref_idx = fs_btm->mv_info[j][i].ref_idx[LIST_0];
+                            fs_btm->mv_info[j][i].ref_pic[LIST_0] = ref_idx % 2 ? RefPicList0[ref_idx / 2]->top_field : RefPicList0[ref_idx / 2]->bottom_field;
+                        }
                         fs_btm->mv_info[j][i].ref_idx[LIST_1] = frame->mv_info[jj4][i].ref_idx[LIST_1];
-                        if (fs_btm->mv_info[j][i].ref_idx[LIST_1] >=0)
-                            fs_btm->mv_info[j][i].ref_pic[LIST_1] = p_Vid->ppSliceList[frame->mv_info[jj4][i].slice_no]->RefPicList[5][(short) fs_btm->mv_info[j][i].ref_idx[LIST_1]];
-                        else
-                            fs_btm->mv_info[j][i].ref_pic[LIST_1] = NULL;
+                        fs_btm->mv_info[j][i].ref_pic[LIST_1] = NULL;
+                        if (fs_btm->mv_info[j][i].ref_idx[LIST_1] >= 0) {
+                            int ref_idx = fs_btm->mv_info[j][i].ref_idx[LIST_1];
+                            fs_btm->mv_info[j][i].ref_pic[LIST_1] = ref_idx % 2 ? RefPicList1[ref_idx / 2]->top_field : RefPicList1[ref_idx / 2]->bottom_field;
+                        }
           
                         fs_top->mv_info[j][i].mv[LIST_0] = frame->mv_info[jj][i].mv[LIST_0];
                         fs_top->mv_info[j][i].mv[LIST_1] = frame->mv_info[jj][i].mv[LIST_1];
                         fs_top->mv_info[j][i].ref_idx[LIST_0] = frame->mv_info[jj][i].ref_idx[LIST_0];
-                        if (fs_top->mv_info[j][i].ref_idx[LIST_0] >=0)
-                            fs_top->mv_info[j][i].ref_pic[LIST_0] = p_Vid->ppSliceList[frame->mv_info[jj][i].slice_no]->RefPicList[2][(short) fs_top->mv_info[j][i].ref_idx[LIST_0]];
-                        else
-                            fs_top->mv_info[j][i].ref_pic[LIST_0] = NULL;
+                        fs_top->mv_info[j][i].ref_pic[LIST_0] = NULL;
+                        if (fs_top->mv_info[j][i].ref_idx[LIST_0] >= 0) {
+                            int ref_idx = fs_top->mv_info[j][i].ref_idx[LIST_0];
+                            fs_top->mv_info[j][i].ref_pic[LIST_0] = ref_idx % 2 ? RefPicList0[ref_idx / 2]->bottom_field : RefPicList0[ref_idx / 2]->top_field;
+                        }
                         fs_top->mv_info[j][i].ref_idx[LIST_1] = frame->mv_info[jj][i].ref_idx[LIST_1];
-                        if (fs_top->mv_info[j][i].ref_idx[LIST_1] >=0)
-                            fs_top->mv_info[j][i].ref_pic[LIST_1] = p_Vid->ppSliceList[frame->mv_info[jj][i].slice_no]->RefPicList[3][(short) fs_top->mv_info[j][i].ref_idx[LIST_1]];
-                        else
-                            fs_top->mv_info[j][i].ref_pic[LIST_1] = NULL;
+                        fs_top->mv_info[j][i].ref_pic[LIST_1] = NULL;
+                        if (fs_top->mv_info[j][i].ref_idx[LIST_1] >= 0) {
+                            int ref_idx = fs_top->mv_info[j][i].ref_idx[LIST_1];
+                            fs_top->mv_info[j][i].ref_pic[LIST_1] = ref_idx % 2 ? RefPicList1[ref_idx / 2]->bottom_field : RefPicList1[ref_idx / 2]->top_field;
+                        }
                     }
                 }
             }
@@ -531,31 +507,29 @@ void frame_store::dpb_combine_field(VideoParameters* p_Vid)
         int jj = (j << 1);
         int jj4 = jj + 1;
         for (int i = 0; i < (this->top_field->size_x >> 2); i++) {
-            this->frame->mv_info[jj][i].mv[LIST_0] = this->top_field->mv_info[j][i].mv[LIST_0];
-            this->frame->mv_info[jj][i].mv[LIST_1] = this->top_field->mv_info[j][i].mv[LIST_1];
-
-            this->frame->mv_info[jj][i].ref_idx[LIST_0] = this->top_field->mv_info[j][i].ref_idx[LIST_0];
-            this->frame->mv_info[jj][i].ref_idx[LIST_1] = this->top_field->mv_info[j][i].ref_idx[LIST_1];
+            auto& mv_info_t = this->top_field->mv_info[j][i];
+            this->frame->mv_info[jj][i].mv     [LIST_0] = mv_info_t.mv     [LIST_0];
+            this->frame->mv_info[jj][i].mv     [LIST_1] = mv_info_t.mv     [LIST_1];
+            this->frame->mv_info[jj][i].ref_idx[LIST_0] = mv_info_t.ref_idx[LIST_0];
+            this->frame->mv_info[jj][i].ref_idx[LIST_1] = mv_info_t.ref_idx[LIST_1];
 
             /* bug: top field list doesnot exist.*/
-            int l = this->top_field->mv_info[j][i].slice_no;
-            int k = this->top_field->mv_info[j][i].ref_idx[LIST_0];
-            this->frame->mv_info[jj][i].ref_pic[LIST_0] = k>=0? this->top_field->listX[l][LIST_0][k]: NULL;  
-            k = this->top_field->mv_info[j][i].ref_idx[LIST_1];
-            this->frame->mv_info[jj][i].ref_pic[LIST_1] = k>=0? this->top_field->listX[l][LIST_1][k]: NULL;
+            this->frame->mv_info[jj][i].ref_pic[LIST_0] = mv_info_t.ref_idx[LIST_0] >= 0 ?
+                p_Vid->ppSliceList[mv_info_t.slice_no]->RefPicList[LIST_0][(int)mv_info_t.ref_idx[LIST_0]] : NULL;
+            this->frame->mv_info[jj][i].ref_pic[LIST_1] = mv_info_t.ref_idx[LIST_1] >= 0 ?
+                p_Vid->ppSliceList[mv_info_t.slice_no]->RefPicList[LIST_1][(int)mv_info_t.ref_idx[LIST_1]] : NULL;
 
             //! association with id already known for fields.
-            this->frame->mv_info[jj4][i].mv[LIST_0] = this->bottom_field->mv_info[j][i].mv[LIST_0];
-            this->frame->mv_info[jj4][i].mv[LIST_1] = this->bottom_field->mv_info[j][i].mv[LIST_1];
+            auto& mv_info_b = this->bottom_field->mv_info[j][i];
+            this->frame->mv_info[jj4][i].mv     [LIST_0] = mv_info_b.mv     [LIST_0];
+            this->frame->mv_info[jj4][i].mv     [LIST_1] = mv_info_b.mv     [LIST_1];
+            this->frame->mv_info[jj4][i].ref_idx[LIST_0] = mv_info_b.ref_idx[LIST_0];
+            this->frame->mv_info[jj4][i].ref_idx[LIST_1] = mv_info_b.ref_idx[LIST_1];
 
-            this->frame->mv_info[jj4][i].ref_idx[LIST_0] = this->bottom_field->mv_info[j][i].ref_idx[LIST_0];
-            this->frame->mv_info[jj4][i].ref_idx[LIST_1] = this->bottom_field->mv_info[j][i].ref_idx[LIST_1];
-            l = this->bottom_field->mv_info[j][i].slice_no;
-
-            k = this->bottom_field->mv_info[j][i].ref_idx[LIST_0];
-            this->frame->mv_info[jj4][i].ref_pic[LIST_0] = k>=0? this->bottom_field->listX[l][LIST_0][k]: NULL;
-            k = this->bottom_field->mv_info[j][i].ref_idx[LIST_1];
-            this->frame->mv_info[jj4][i].ref_pic[LIST_1] = k>=0? this->bottom_field->listX[l][LIST_1][k]: NULL;
+            this->frame->mv_info[jj4][i].ref_pic[LIST_0] = mv_info_b.ref_idx[LIST_0] >= 0 ?
+                p_Vid->ppSliceList[mv_info_b.slice_no]->RefPicList[LIST_0][(int)mv_info_b.ref_idx[LIST_0]] : NULL;
+            this->frame->mv_info[jj4][i].ref_pic[LIST_1] = mv_info_b.ref_idx[LIST_1] >= 0 ?
+                p_Vid->ppSliceList[mv_info_b.slice_no]->RefPicList[LIST_1][(int)mv_info_b.ref_idx[LIST_1]] : NULL;
         }
     }
 }
@@ -607,7 +581,6 @@ void frame_store::insert_picture(VideoParameters* p_Vid, storable_picture* p)
             this->dpb_combine_field(p_Vid);
         } else
             this->poc = p->poc;
-        p->gen_field_ref_ids(p_Vid);
         break;
     case BOTTOM_FIELD:
         this->bottom_field = p;
@@ -631,7 +604,6 @@ void frame_store::insert_picture(VideoParameters* p_Vid, storable_picture* p)
             this->dpb_combine_field(p_Vid);
         } else
             this->poc = p->poc;
-        p->gen_field_ref_ids(p_Vid);
         break;
     }
 

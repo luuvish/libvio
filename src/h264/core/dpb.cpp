@@ -466,7 +466,8 @@ void decoded_picture_buffer_t::check_num_ref()
 
 void decoded_picture_buffer_t::mm_unmark_short_term_for_reference(storable_picture* p, int difference_of_pic_nums_minus1)
 {
-    int picNumX = p->get_pic_num_x(difference_of_pic_nums_minus1);
+    int currPicNum = (p->slice.structure == FRAME) ? p->frame_num : 2 * p->frame_num + 1;
+    int picNumX = currPicNum - (difference_of_pic_nums_minus1 + 1);
 
     for (int i = 0; i < this->ref_frames_in_buffer; i++) {
         if (p->slice.structure == FRAME) {
@@ -670,7 +671,8 @@ void decoded_picture_buffer_t::mark_pic_long_term(storable_picture* p, int long_
 
 void decoded_picture_buffer_t::mm_assign_long_term_frame_idx(storable_picture* p, int difference_of_pic_nums_minus1, int long_term_frame_idx)
 {
-    int picNumX = p->get_pic_num_x(difference_of_pic_nums_minus1);
+    int currPicNum = (p->slice.structure == FRAME) ? p->frame_num : 2 * p->frame_num + 1;
+    int picNumX = currPicNum - (difference_of_pic_nums_minus1 + 1);
 
     // remove frames/fields with same long_term_frame_idx
     if (p->slice.structure == FRAME)

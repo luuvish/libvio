@@ -102,7 +102,7 @@ slice_t::slice_t()
     // reference flag initialization
     for (int i = 0; i < 17; i++)
         this->ref_flag[i] = 1;
-    for (int j = 0; j < 6; j++) {
+    for (int j = 0; j < 2; j++) {
         for (int i = 0; i < MAX_LIST_SIZE; i++)
             this->RefPicList[j][i] = NULL;
         this->RefPicSize[j] = 0;

@@ -612,12 +612,14 @@ void InterPrediction::init_weight_prediction(slice_t& slice)
                                 slice.wbp_weight[k+0][i][j][comp] =  slice.wp_weight[0][i>>1][comp];
                                 slice.wbp_weight[k+1][i][j][comp] =  slice.wp_weight[1][j>>1][comp];
                             } else if (slice.active_pps->weighted_bipred_idc == 2) {
-                                td = clip3(-128, 127, slice.RefPicList[k+LIST_1][j]->poc - slice.RefPicList[k+LIST_0][i]->poc);
-                                if (td == 0 || slice.RefPicList[k+LIST_1][j]->is_long_term || slice.RefPicList[k+LIST_0][i]->is_long_term) {
+                                auto RefPicList0 = ((k - 2) / 2) % 2 == j % 2 ? slice.RefPicList[LIST_0][j / 2]->top_field : slice.RefPicList[LIST_0][j / 2]->bottom_field;
+                                auto RefPicList1 = ((k - 2) / 2) % 2 == j % 2 ? slice.RefPicList[LIST_1][j / 2]->top_field : slice.RefPicList[LIST_1][j / 2]->bottom_field;
+                                td = clip3(-128, 127, RefPicList1->poc - RefPicList0->poc);
+                                if (td == 0 || RefPicList1->is_long_term || RefPicList0->is_long_term) {
                                     slice.wbp_weight[k+0][i][j][comp] =   32;
                                     slice.wbp_weight[k+1][i][j][comp] =   32;
                                 } else {
-                                    tb = clip3(-128,127,((k==2)?slice.TopFieldOrderCnt:slice.BottomFieldOrderCnt) - slice.RefPicList[k+LIST_0][i]->poc);
+                                    tb = clip3(-128, 127, (k == 2 ? slice.TopFieldOrderCnt : slice.BottomFieldOrderCnt) - RefPicList0->poc);
 
                                     tx = (16384 + abs(td/2))/td;
                                     DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);

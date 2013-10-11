@@ -142,12 +142,6 @@ struct storable_picture {
     int         tone_mapping_model_id;
     int         tonemapped_bit_depth;  
     imgpel*     tone_mapping_lut;                //!< tone mapping look up table
-    //
-    char              listXsize[MAX_NUM_SLICES][2];
-    storable_picture* listX[MAX_NUM_SLICES][2][33];
-
-    int         get_pic_num_x(int difference_of_pic_nums_minus1);
-    void        gen_field_ref_ids(VideoParameters* p_Vid);
 
     bool        is_short_ref();
     bool        is_long_ref();
