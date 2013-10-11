@@ -88,10 +88,6 @@ bool slice_backup_t::operator!=(const slice_t& slice)
 
 slice_t::slice_t()
 {
-    get_mem3Dint(&this->wp_weight, 2, MAX_REFERENCE_PICTURES, 3);
-    get_mem3Dint(&this->wp_offset, 6, MAX_REFERENCE_PICTURES, 3);
-    get_mem4Dint(&this->wbp_weight, 6, MAX_REFERENCE_PICTURES, MAX_REFERENCE_PICTURES, 3);
-
     get_mem3Dpel(&this->mb_pred, 3, 16, 16);
 
 #if (MVC_EXTENSION_ENABLE)
@@ -112,10 +108,6 @@ slice_t::slice_t()
 slice_t::~slice_t()
 {
     free_mem3Dpel(this->mb_pred);
-
-    free_mem3Dint(this->wp_weight);
-    free_mem3Dint(this->wp_offset);
-    free_mem4Dint(this->wbp_weight);
 
     while (this->dec_ref_pic_marking_buffer) {
         drpm_t* tmp_drpm = this->dec_ref_pic_marking_buffer;

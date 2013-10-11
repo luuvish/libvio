@@ -62,25 +62,23 @@ void InterPrediction::mc_prediction(
     imgpel* mb_pred, imgpel block[16][16], int block_size_y, int block_size_x,
     mb_t* mb, ColorPlane pl, short l0_refframe, int pred_dir)
 {
-    int weight, offset, denom, color_clip;
-    slice_t* slice = mb->p_Slice;
-    sps_t* sps = slice->active_sps;
-    pps_t* pps = slice->active_pps;
-    if (slice->weighted_pred_flag) {
-        bool field = mb->mb_field_decoding_flag &&
-            ((pps->weighted_pred_flag && (slice->slice_type == P_slice || slice->slice_type == SP_slice))||
-             (pps->weighted_bipred_idc == 1 && (slice->slice_type == B_slice)));
-        short ref_idx_wp = field ? l0_refframe >> 1 : l0_refframe;
+    slice_t& slice = *mb->p_Slice;
+    sps_t& sps = *slice.active_sps;
+//    pps_t& pps = *slice.active_pps;
 
-        weight = slice->wp_weight[pred_dir][ref_idx_wp][pl];
-        offset = slice->wp_offset[pred_dir][ref_idx_wp][pl];
-        denom  = pl > 0 ? slice->chroma_log2_weight_denom : slice->luma_log2_weight_denom;
-        color_clip = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
+    int weight, offset, denom, color_clip;
+    if (slice.weighted_pred_flag) {
+        int ref_idx = slice.MbaffFrameFlag && mb->mb_field_decoding_flag ? l0_refframe >> 1 : l0_refframe;
+
+        weight = slice.wp_weight[pred_dir][ref_idx][pl];
+        offset = slice.wp_offset[pred_dir][ref_idx][pl];
+        denom  = pl > 0 ? slice.chroma_log2_weight_denom : slice.luma_log2_weight_denom;
+        color_clip = (1 << (pl > 0 ? sps.BitDepthC : sps.BitDepthY)) - 1;
     }
 
     for (int j = 0; j < block_size_y; ++j) {
         for (int i = 0; i < block_size_x; ++i) {
-            if (slice->weighted_pred_flag) {
+            if (slice.weighted_pred_flag) {
                 int result = RSHIFT_RND((weight * block[j][i]), denom);
                 mb_pred[i] = (imgpel) clip1(color_clip, result + offset);
             } else
@@ -94,31 +92,62 @@ void InterPrediction::bi_prediction(
     imgpel* mb_pred, imgpel block_l0[16][16], imgpel block_l1[16][16],
     int block_size_y, int block_size_x, mb_t* mb, ColorPlane pl, short l0_refframe, short l1_refframe)
 {
-    int weight0, weight1, offset, denom, color_clip;
-    slice_t* slice = mb->p_Slice;
-    sps_t* sps = slice->active_sps;
-    pps_t* pps = slice->active_pps;
-    if (pps->weighted_bipred_idc) {
-        int list_offset = slice->MbaffFrameFlag && mb->mb_field_decoding_flag ?
-                          mb->mbAddrX % 2 ? 4 : 2 : 0;
-        int l0_ref_idx  = (mb->mb_field_decoding_flag && pps->weighted_bipred_idc == 1) ? l0_refframe >> 1: l0_refframe;
-        int l1_ref_idx  = (mb->mb_field_decoding_flag && pps->weighted_bipred_idc == 1) ? l1_refframe >> 1: l1_refframe;
-        int wt_list_offset = (pps->weighted_bipred_idc == 2) ? list_offset : 0;
-        int* wp_weight0 = slice->wbp_weight[LIST_0 + wt_list_offset][l0_ref_idx][l1_ref_idx];
-        int* wp_weight1 = slice->wbp_weight[LIST_1 + wt_list_offset][l0_ref_idx][l1_ref_idx];
-        int* wp_offset0 = slice->wp_offset[LIST_0 + wt_list_offset][l0_ref_idx];
-        int* wp_offset1 = slice->wp_offset[LIST_1 + wt_list_offset][l1_ref_idx];
+    slice_t& slice = *mb->p_Slice;
+    sps_t& sps = *slice.active_sps;
+    pps_t& pps = *slice.active_pps;
 
-        weight0 = wp_weight0[pl];
-        weight1 = wp_weight1[pl];
-        offset  = (wp_offset0[pl] + wp_offset1[pl] + 1) >> 1;
-        denom   = pl > 0 ? slice->chroma_log2_weight_denom + 1 : slice->luma_log2_weight_denom + 1;
-        color_clip = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
+    int weight0, weight1, offset0, offset1;
+    int offset, denom, color_clip;
+    if (pps.weighted_bipred_idc) {
+        int ref_idx0 = slice.MbaffFrameFlag && mb->mb_field_decoding_flag ? l0_refframe >> 1 : l0_refframe;
+        int ref_idx1 = slice.MbaffFrameFlag && mb->mb_field_decoding_flag ? l1_refframe >> 1 : l1_refframe;
+
+        if (pps.weighted_bipred_idc == 1) {
+            weight0 = slice.wp_weight[0][ref_idx0][pl];
+            weight1 = slice.wp_weight[1][ref_idx1][pl];
+        }
+
+        offset0 = slice.wp_offset[0][ref_idx0][pl];
+        offset1 = slice.wp_offset[1][ref_idx1][pl];
+
+        if (pps.weighted_bipred_idc == 2) {
+            storable_picture* ref_pic0 = slice.RefPicList[LIST_0][ref_idx0];
+            storable_picture* ref_pic1 = slice.RefPicList[LIST_1][ref_idx1];
+            if (slice.MbaffFrameFlag && mb->mb_field_decoding_flag) {
+                ref_pic0 = (mb->mbAddrX % 2 == l0_refframe % 2) ? ref_pic0->top_field : ref_pic0->bottom_field;
+                ref_pic1 = (mb->mbAddrX % 2 == l1_refframe % 2) ? ref_pic1->top_field : ref_pic1->bottom_field;
+            }
+
+            int td = clip3(-128, 127, ref_pic1->poc - ref_pic0->poc);
+            if (td == 0 || ref_pic1->is_long_term || ref_pic0->is_long_term) {
+                weight0 = 32;
+                weight1 = 32;
+            } else {
+                int poc = !slice.MbaffFrameFlag || !mb->mb_field_decoding_flag ? slice.PicOrderCnt :
+                          mb->mbAddrX % 2 == 0 ? slice.TopFieldOrderCnt : slice.BottomFieldOrderCnt;
+                int tb = clip3(-128, 127, poc - ref_pic0->poc);
+                int tx = (16384 + abs(td / 2)) / td;
+                int DistScaleFactor = clip3(-1024, 1023, (tx * tb + 32) >> 6);
+
+                weight1 = DistScaleFactor >> 2;
+                weight0 = 64 - weight1;
+                if (weight1 < -64 || weight1 > 128) {
+                    weight0 = 32;
+                    weight1 = 32;
+                    offset0 = 0;
+                    offset1 = 0;
+                }
+            }
+        }
+
+        offset = (offset0 + offset1 + 1) >> 1;
+        denom  = pl > 0 ? slice.chroma_log2_weight_denom + 1 : slice.luma_log2_weight_denom + 1;
+        color_clip = (1 << (pl > 0 ? sps.BitDepthC : sps.BitDepthY)) - 1;
     }
 
     for (int j = 0; j < block_size_y; ++j) {
         for (int i = 0; i < block_size_x; ++i) {
-            if (pps->weighted_bipred_idc) {
+            if (pps.weighted_bipred_idc) {
                 int result = RSHIFT_RND((weight0 * block_l0[j][i] + weight1 * block_l1[j][i]), denom);
                 mb_pred[i] = (imgpel) clip1(color_clip, result + offset);
             } else
@@ -141,8 +170,6 @@ void InterPrediction::get_block_luma(
         return;
     }
 
-//    imgpel **cur_imgY = (sps->separate_colour_plane_flag && slice->colour_plane_id > PLANE_Y) ?
-//                        curr_ref->imgUV[slice->colour_plane_id-1] : curr_ref->cur_imgY;
     imgpel **cur_imgY = (sps->separate_colour_plane_flag && slice->colour_plane_id > PLANE_Y) ?
                         curr_ref->imgUV[slice->colour_plane_id-1] : 
                         pl ? curr_ref->imgUV[pl - 1] : curr_ref->imgY;
@@ -543,99 +570,17 @@ void InterPrediction::motion_compensation(mb_t *mb)
 void InterPrediction::init_weight_prediction(slice_t& slice)
 {
     if (slice.slice_type == B_slice) {
-        int i, j, k;
-        int comp;
-        int log_weight_denom;
-        int tb, td;  
-        int tx,DistScaleFactor;
-
-        int max_l0_ref = slice.num_ref_idx_l0_active_minus1 + 1;
-        int max_l1_ref = slice.num_ref_idx_l1_active_minus1 + 1;
-
         if (slice.active_pps->weighted_bipred_idc == 2) {
             slice.luma_log2_weight_denom = 5;
             slice.chroma_log2_weight_denom = 5;
 
-            for (i = 0; i < MAX_REFERENCE_PICTURES; ++i) {
-                for (comp = 0; comp < 3; ++comp) {
-                    log_weight_denom = (comp == 0) ? slice.luma_log2_weight_denom : slice.chroma_log2_weight_denom;
+            for (int i = 0; i < MAX_REFERENCE_PICTURES; ++i) {
+                for (int comp = 0; comp < 3; ++comp) {
+                    int log_weight_denom = (comp == 0) ? slice.luma_log2_weight_denom : slice.chroma_log2_weight_denom;
                     slice.wp_weight[0][i][comp] = 1 << log_weight_denom;
                     slice.wp_weight[1][i][comp] = 1 << log_weight_denom;
                     slice.wp_offset[0][i][comp] = 0;
                     slice.wp_offset[1][i][comp] = 0;
-                }
-            }
-        }
-
-        for (i = 0; i < max_l0_ref; ++i) {
-            for (j = 0; j < max_l1_ref; ++j) {
-                for (comp = 0; comp < 3; ++comp) {
-                    log_weight_denom = (comp == 0) ? slice.luma_log2_weight_denom : slice.chroma_log2_weight_denom;
-                    if (slice.active_pps->weighted_bipred_idc == 1) {
-                        slice.wbp_weight[0][i][j][comp] =  slice.wp_weight[0][i][comp];
-                        slice.wbp_weight[1][i][j][comp] =  slice.wp_weight[1][j][comp];
-                    } else if (slice.active_pps->weighted_bipred_idc == 2) {
-                        td = clip3(-128,127,slice.RefPicList[LIST_1][j]->poc - slice.RefPicList[LIST_0][i]->poc);
-                        if (td == 0 || slice.RefPicList[LIST_1][j]->is_long_term || slice.RefPicList[LIST_0][i]->is_long_term) {
-                            slice.wbp_weight[0][i][j][comp] = 32;
-                            slice.wbp_weight[1][i][j][comp] = 32;
-                        } else {
-                            tb = clip3(-128,127,slice.PicOrderCnt - slice.RefPicList[LIST_0][i]->poc);
-
-                            tx = (16384 + abs(td/2))/td;
-                            DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);
-
-                            slice.wbp_weight[1][i][j][comp] = DistScaleFactor >> 2;
-                            slice.wbp_weight[0][i][j][comp] = 64 - slice.wbp_weight[1][i][j][comp];
-                            if (slice.wbp_weight[1][i][j][comp] < -64 || slice.wbp_weight[1][i][j][comp] > 128) {
-                                slice.wbp_weight[0][i][j][comp] = 32;
-                                slice.wbp_weight[1][i][j][comp] = 32;
-                                slice.wp_offset[0][i][comp] = 0;
-                                slice.wp_offset[1][j][comp] = 0;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (slice.MbaffFrameFlag) {
-            for (i = 0; i < 2 * max_l0_ref; ++i) {
-                for (j = 0; j < 2 * max_l1_ref; ++j) {
-                    for (comp = 0; comp < 3; ++comp) {
-                        for (k = 2; k < 6; k += 2) {
-                            slice.wp_offset[k+0][i][comp] = slice.wp_offset[0][i>>1][comp];
-                            slice.wp_offset[k+1][j][comp] = slice.wp_offset[1][j>>1][comp];
-
-                            log_weight_denom = (comp == 0) ? slice.luma_log2_weight_denom : slice.chroma_log2_weight_denom;
-                            if (slice.active_pps->weighted_bipred_idc == 1) {
-                                slice.wbp_weight[k+0][i][j][comp] =  slice.wp_weight[0][i>>1][comp];
-                                slice.wbp_weight[k+1][i][j][comp] =  slice.wp_weight[1][j>>1][comp];
-                            } else if (slice.active_pps->weighted_bipred_idc == 2) {
-                                auto RefPicList0 = ((k - 2) / 2) % 2 == j % 2 ? slice.RefPicList[LIST_0][j / 2]->top_field : slice.RefPicList[LIST_0][j / 2]->bottom_field;
-                                auto RefPicList1 = ((k - 2) / 2) % 2 == j % 2 ? slice.RefPicList[LIST_1][j / 2]->top_field : slice.RefPicList[LIST_1][j / 2]->bottom_field;
-                                td = clip3(-128, 127, RefPicList1->poc - RefPicList0->poc);
-                                if (td == 0 || RefPicList1->is_long_term || RefPicList0->is_long_term) {
-                                    slice.wbp_weight[k+0][i][j][comp] =   32;
-                                    slice.wbp_weight[k+1][i][j][comp] =   32;
-                                } else {
-                                    tb = clip3(-128, 127, (k == 2 ? slice.TopFieldOrderCnt : slice.BottomFieldOrderCnt) - RefPicList0->poc);
-
-                                    tx = (16384 + abs(td/2))/td;
-                                    DistScaleFactor = clip3(-1024, 1023, (tx*tb + 32 )>>6);
-
-                                    slice.wbp_weight[k+1][i][j][comp] = DistScaleFactor >> 2;
-                                    slice.wbp_weight[k+0][i][j][comp] = 64 - slice.wbp_weight[k+1][i][j][comp];
-                                    if (slice.wbp_weight[k+1][i][j][comp] < -64 || slice.wbp_weight[k+1][i][j][comp] > 128) {
-                                        slice.wbp_weight[k+1][i][j][comp] = 32;
-                                        slice.wbp_weight[k+0][i][j][comp] = 32;
-                                        slice.wp_offset[k+0][i][comp] = 0;
-                                        slice.wp_offset[k+1][j][comp] = 0;
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
