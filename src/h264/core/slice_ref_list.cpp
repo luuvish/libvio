@@ -6,7 +6,6 @@
 #include "slice.h"
 #include "image.h"
 #include "dpb.h"
-#include "ref_list.h"
 #include "memalloc.h"
 #include "output.h"
 
@@ -15,40 +14,40 @@ using vio::h264::mb_t;
 #include "erc_api.h"
 
 
-void update_pic_num(slice_t *currSlice)
+void slice_t::update_pic_num()
 {
-    dpb_t *dpb = currSlice->p_Dpb;
-    sps_t *sps = currSlice->active_sps;
+    dpb_t& dpb = *this->p_Dpb;
+    sps_t& sps = *this->active_sps;
 
-    if (!currSlice->field_pic_flag) {
-        for (int i = 0; i < dpb->ref_frames_in_buffer; ++i) {
-            frame_store* fs = dpb->fs_ref[i];
+    if (!this->field_pic_flag) {
+        for (int i = 0; i < dpb.ref_frames_in_buffer; ++i) {
+            frame_store* fs = dpb.fs_ref[i];
             if (fs->is_used == 3) {
                 if (fs->frame->used_for_reference && !fs->frame->is_long_term) {
-                    if (fs->FrameNum > currSlice->frame_num)
-                        fs->FrameNumWrap = fs->FrameNum - sps->MaxFrameNum;
+                    if (fs->FrameNum > this->frame_num)
+                        fs->FrameNumWrap = fs->FrameNum - sps.MaxFrameNum;
                     else
                         fs->FrameNumWrap = fs->FrameNum;
                     fs->frame->PicNum = fs->FrameNumWrap;
                 }
             }
         }
-        for (int i = 0; i < dpb->ltref_frames_in_buffer; ++i) {
-            frame_store* fs = dpb->fs_ltref[i];
+        for (int i = 0; i < dpb.ltref_frames_in_buffer; ++i) {
+            frame_store* fs = dpb.fs_ltref[i];
             if (fs->is_used == 3) {
                 if (fs->frame->is_long_term)
                     fs->frame->LongTermPicNum = fs->frame->LongTermFrameIdx;
             }
         }
     } else {
-        int add_top    = !currSlice->bottom_field_flag ? 1 : 0;
-        int add_bottom = !currSlice->bottom_field_flag ? 0 : 1;
+        int add_top    = !this->bottom_field_flag ? 1 : 0;
+        int add_bottom = !this->bottom_field_flag ? 0 : 1;
 
-        for (int i = 0; i < dpb->ref_frames_in_buffer; ++i) {
-            frame_store* fs = dpb->fs_ref[i];
+        for (int i = 0; i < dpb.ref_frames_in_buffer; ++i) {
+            frame_store* fs = dpb.fs_ref[i];
             if (fs->is_reference) {
-                if (fs->FrameNum > currSlice->frame_num)
-                    fs->FrameNumWrap = fs->FrameNum - sps->MaxFrameNum;
+                if (fs->FrameNum > this->frame_num)
+                    fs->FrameNumWrap = fs->FrameNum - sps.MaxFrameNum;
                 else
                     fs->FrameNumWrap = fs->FrameNum;
                 if (fs->is_reference & 1)
@@ -57,8 +56,8 @@ void update_pic_num(slice_t *currSlice)
                     fs->bottom_field->PicNum = 2 * fs->FrameNumWrap + add_bottom;
             }
         }
-        for (int i = 0; i < dpb->ltref_frames_in_buffer; ++i) {
-            frame_store* fs = dpb->fs_ltref[i];
+        for (int i = 0; i < dpb.ltref_frames_in_buffer; ++i) {
+            frame_store* fs = dpb.fs_ltref[i];
             if (fs->is_long_term & 1)
                 fs->top_field->LongTermPicNum = 2 * fs->top_field->LongTermFrameIdx + add_top;
             if (fs->is_long_term & 2)
@@ -804,21 +803,21 @@ static void init_lists_b_slice_mvc(slice_t *currSlice)
 #endif
 
 
-void init_lists(slice_t *currSlice)
+void slice_t::init_lists()
 {
 #if (MVC_EXTENSION_ENABLE)
-    if (currSlice->view_id) {
-        switch (currSlice->slice_type) {
+    if (this->view_id) {
+        switch (this->slice_type) {
         case P_slice: 
         case SP_slice:
-            init_lists_p_slice_mvc(currSlice);
+            init_lists_p_slice_mvc(this);
             return;
         case B_slice:
-            init_lists_b_slice_mvc(currSlice);
+            init_lists_b_slice_mvc(this);
             return;
         case I_slice: 
         case SI_slice: 
-            init_lists_i_slice_mvc(currSlice);
+            init_lists_i_slice_mvc(this);
             return;
         default:
             printf("Unsupported slice type\n");
@@ -827,17 +826,17 @@ void init_lists(slice_t *currSlice)
     } else
 #endif
     {
-        switch (currSlice->slice_type) {
+        switch (this->slice_type) {
         case P_slice:
         case SP_slice:
-            init_lists_p_slice(currSlice);
+            init_lists_p_slice(this);
             return;
         case B_slice:
-            init_lists_b_slice(currSlice);
+            init_lists_b_slice(this);
             return;
         case I_slice:
         case SI_slice:
-            init_lists_i_slice(currSlice);
+            init_lists_i_slice(this);
             return;
         default:
             printf("Unsupported slice type\n");
@@ -1213,32 +1212,32 @@ static void reorder_lists_mvc(slice_t* currSlice, int currPOC)
 #endif
 
 
-void init_ref_lists(slice_t* slice)
+void slice_t::init_ref_lists()
 {
-    VideoParameters* p_Vid = slice->p_Vid;
+    VideoParameters* p_Vid = this->p_Vid;
 
-    init_lists(slice);
+    this->init_lists();
 
 #if (MVC_EXTENSION_ENABLE)
-    if (slice->svc_extension_flag == 0 || slice->svc_extension_flag == 1)
-        reorder_lists_mvc(slice, slice->PicOrderCnt);
+    if (this->svc_extension_flag == 0 || this->svc_extension_flag == 1)
+        reorder_lists_mvc(this, this->PicOrderCnt);
     else
-        reorder_lists(slice);
+        reorder_lists(this);
 
-    if (slice->fs_listinterview0) {
-        delete []slice->fs_listinterview0;
-        slice->fs_listinterview0 = nullptr;
+    if (this->fs_listinterview0) {
+        delete []this->fs_listinterview0;
+        this->fs_listinterview0 = nullptr;
     }
-    if (slice->fs_listinterview1) {
-        delete []slice->fs_listinterview1;
-        slice->fs_listinterview1 = nullptr;
+    if (this->fs_listinterview1) {
+        delete []this->fs_listinterview1;
+        this->fs_listinterview1 = nullptr;
     }
 #endif
 
     // update reference flags and set current p_Vid->ref_flag
-    if (!(slice->redundant_pic_cnt != 0 && p_Vid->previous_frame_num == slice->frame_num)) {
+    if (!(this->redundant_pic_cnt != 0 && p_Vid->previous_frame_num == this->frame_num)) {
         for (int i = 16; i > 0; i--)
-            slice->ref_flag[i] = slice->ref_flag[i-1];
+            this->ref_flag[i] = this->ref_flag[i-1];
     }
-    slice->ref_flag[0] = slice->redundant_pic_cnt == 0 ? p_Vid->Is_primary_correct : p_Vid->Is_redundant_correct;
+    this->ref_flag[0] = this->redundant_pic_cnt == 0 ? p_Vid->Is_primary_correct : p_Vid->Is_redundant_correct;
 }

@@ -8,7 +8,6 @@
 #include "image.h"
 #include "parset.h"
 #include "memalloc.h"
-#include "fmo.h"
 #include "dpb.h"
 #include "erc_api.h"
 #include "macroblock.h"

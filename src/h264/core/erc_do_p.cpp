@@ -2,7 +2,6 @@
 #include "input_parameters.h"
 #include "slice.h"
 #include "dpb.h"
-#include "ref_list.h"
 #include "memalloc.h"
 #include "erc_do.h"
 #include "image.h"
@@ -1114,7 +1113,7 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
                 p_Vid->p_Dpb_layer[0],
                 dst->slice.slice_type, p_Vid->ppSliceList[0]->field_pic_flag);
         } else
-            init_lists(p_Vid->ppSliceList[0]);
+            p_Vid->ppSliceList[0]->init_lists();
 
         multiplier = 4;
 

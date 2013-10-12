@@ -1,7 +1,6 @@
 #include "global.h"
 #include "slice.h"
 #include "image.h"
-#include "fmo.h"
 #include "data_partition.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
@@ -17,7 +16,6 @@ using vio::h264::mb_t;
 
 #include "erc_api.h"
 #include "dpb.h"
-#include "ref_list.h"
 
 
 // this is intended to make get_block_luma faster by doing this at a more appropriate level
@@ -56,7 +54,7 @@ bool slice_t::init()
     p_Vid->active_pps = this->active_pps;
     int current_header = this->current_header;
 
-    init_ref_lists(this);
+    this->init_ref_lists();
 
     this->parser.init(*this);
     this->decoder.init(*this);

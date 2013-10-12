@@ -2,7 +2,6 @@
 #include "input_parameters.h"
 #include "h264decoder.h"
 #include "dpb.h"
-#include "ref_list.h"
 #include "frame_buffer.h"
 #include "image.h"
 #include "memalloc.h"

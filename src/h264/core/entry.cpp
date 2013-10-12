@@ -1,7 +1,6 @@
 #include "global.h"
 #include "input_parameters.h"
 #include "image.h"
-#include "fmo.h"
 #include "data_partition.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"

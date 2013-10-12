@@ -10,7 +10,6 @@
 #include "image.h"
 #include "memalloc.h"
 #include "dpb.h"
-#include "fmo.h"
 #include "output.h"
 #include "parset.h"
 #include "sei.h"
@@ -284,7 +283,7 @@ static void free_global_buffers(VideoParameters *p_Vid)
 void DecoderParams::CloseDecoder()
 {
     this->p_Vid->report();
-    FmoFinit(this->p_Vid);
+    this->p_Vid->ppSliceList[0]->fmo_close();
 
     free_layer_buffers(this->p_Vid, 0);
     free_layer_buffers(this->p_Vid, 1);

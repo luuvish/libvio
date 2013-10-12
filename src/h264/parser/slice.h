@@ -220,6 +220,15 @@ struct slice_t {
     slice_t();
     ~slice_t();
 
+    void        update_pic_num();
+    void        init_lists    ();
+    void        init_ref_lists();
+
+    int         fmo_init();
+    int         fmo_close();
+
+    int         FmoGetNextMBNr(int CurrentMbNr);
+
     bool        init();
     void        decode();
 };

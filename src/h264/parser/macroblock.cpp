@@ -3,7 +3,6 @@
 #include "dpb.h"
 #include "data_partition.h"
 #include "macroblock.h"
-#include "fmo.h"
 #include "image.h"
 #include "neighbour.h"
 #include "intra_prediction.h"
@@ -99,7 +98,7 @@ bool macroblock_t::close(slice_t& slice)
     if (this->mbAddrX == slice.PicSizeInMbs - 1)
         return true;
 
-    slice.parser.current_mb_nr = FmoGetNextMBNr(slice.p_Vid, slice.parser.current_mb_nr);
+    slice.parser.current_mb_nr = slice.FmoGetNextMBNr(slice.parser.current_mb_nr);
 
     if (pps.entropy_coding_mode_flag)
         startcode_follows = eos_bit && slice.parser.partArr[0].de_cabac.decode_terminate();

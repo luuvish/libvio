@@ -4,7 +4,6 @@
 
 #include "slice.h"
 #include "image.h"
-#include "fmo.h"
 #include "data_partition.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
@@ -20,7 +19,6 @@ using vio::h264::mb_t;
 
 #include "erc_api.h"
 #include "dpb.h"
-#include "ref_list.h"
 
 
 static inline int is_BL_profile(unsigned int profile_idc) 
@@ -202,14 +200,14 @@ static void init_picture_decoding(VideoParameters *p_Vid)
 
     p_Vid->structure = pSlice->structure;
 
-    fmo_init(p_Vid, pSlice);
+    pSlice->fmo_init();
 
 #if (MVC_EXTENSION_ENABLE)
     if (pSlice->layer_id > 0 && pSlice->svc_extension_flag == 0 && pSlice->NaluHeaderMVCExt.non_idr_flag == 0)
         p_Vid->p_Dpb_layer[pSlice->layer_id]->idr_memory_management(p_Vid->dec_picture);
     p_Vid->p_Dpb_layer[pSlice->view_id]->update_ref_list();
     p_Vid->p_Dpb_layer[pSlice->view_id]->update_ltref_list();
-    update_pic_num(pSlice);
+    pSlice->update_pic_num();
 #endif
 }
 

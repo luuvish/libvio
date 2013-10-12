@@ -1,6 +1,5 @@
 #include "global.h"
 #include "slice.h"
-#include "fmo.h"
 
 
 static void FmoGenerateType0MapUnitMap(VideoParameters *p_Vid)
@@ -239,38 +238,38 @@ static int FmoGenerateMbToSliceGroupMap(VideoParameters *p_Vid, slice_t *pSlice)
 }
 
 
-int fmo_init(VideoParameters *p_Vid, slice_t *pSlice)
+int slice_t::fmo_init()
 {
-    FmoGenerateMapUnitToSliceGroupMap(p_Vid, pSlice);
-    FmoGenerateMbToSliceGroupMap(p_Vid, pSlice);
+    FmoGenerateMapUnitToSliceGroupMap(this->p_Vid, this);
+    FmoGenerateMbToSliceGroupMap(this->p_Vid, this);
     return 0;
 }
 
-int FmoFinit(VideoParameters *p_Vid)
+int slice_t::fmo_close()
 {
-    if (p_Vid->MbToSliceGroupMap) {
-        free(p_Vid->MbToSliceGroupMap);
-        p_Vid->MbToSliceGroupMap = NULL;
+    if (this->p_Vid->MbToSliceGroupMap) {
+        free(this->p_Vid->MbToSliceGroupMap);
+        this->p_Vid->MbToSliceGroupMap = NULL;
     }
-    if (p_Vid->MapUnitToSliceGroupMap) {
-        free(p_Vid->MapUnitToSliceGroupMap);
-        p_Vid->MapUnitToSliceGroupMap = NULL;
+    if (this->p_Vid->MapUnitToSliceGroupMap) {
+        free(this->p_Vid->MapUnitToSliceGroupMap);
+        this->p_Vid->MapUnitToSliceGroupMap = NULL;
     }
     return 0;
 }
 
-int FmoGetNextMBNr(VideoParameters *p_Vid, int n)
+int slice_t::FmoGetNextMBNr(int n)
 {
-    slice_t *currSlice = p_Vid->ppSliceList[0];
+    slice_t *currSlice = this->p_Vid->ppSliceList[0];
     int SliceGroup, i;
 
     assert(n < currSlice->PicSizeInMbs);
-    assert(p_Vid->MbToSliceGroupMap != NULL);
+    assert(this->p_Vid->MbToSliceGroupMap != NULL);
 
-    SliceGroup = p_Vid->MbToSliceGroupMap[n];
+    SliceGroup = this->p_Vid->MbToSliceGroupMap[n];
 
     i = n + 1;
-    while (i < currSlice->PicSizeInMbs && p_Vid->MbToSliceGroupMap[i] != SliceGroup)
+    while (i < currSlice->PicSizeInMbs && this->p_Vid->MbToSliceGroupMap[i] != SliceGroup)
         i++;
 
     return (i < currSlice->PicSizeInMbs) ? i : -1;
