@@ -489,7 +489,7 @@ void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *s, slice_t *c
     while (currSlice->dec_ref_pic_marking_buffer) {
         tmp_drpm = currSlice->dec_ref_pic_marking_buffer;
         currSlice->dec_ref_pic_marking_buffer = tmp_drpm->Next;
-        free(tmp_drpm);
+        delete tmp_drpm;
     }
 
     if (currSlice->idr_flag
@@ -506,28 +506,29 @@ void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *s, slice_t *c
         currSlice->adaptive_ref_pic_marking_mode_flag = s->u(1, "SH: adaptive_ref_pic_marking_mode_flag");
         if (currSlice->adaptive_ref_pic_marking_mode_flag) {
             do {
-                tmp_drpm = (drpm_t*)calloc (1,sizeof (decoded_reference_picture_marking_t));
+                tmp_drpm = new decoded_reference_picture_marking_t {};
                 tmp_drpm->Next = NULL;
 
                 val = tmp_drpm->memory_management_control_operation = s->ue("SH: memory_management_control_operation");
 
-                if ((val==1)||(val==3))
+                if (val == 1 || val == 3)
                     tmp_drpm->difference_of_pic_nums_minus1 = s->ue("SH: difference_of_pic_nums_minus1");
-                if (val==2)
+                if (val == 2)
                     tmp_drpm->long_term_pic_num = s->ue("SH: long_term_pic_num");
 
-                if ((val==3)||(val==6))
+                if (val == 3 || val == 6)
                     tmp_drpm->long_term_frame_idx = s->ue("SH: long_term_frame_idx");
-                if (val==4)
+                if (val == 4)
                     tmp_drpm->max_long_term_frame_idx_plus1 = s->ue("SH: max_long_term_pic_idx_plus1");
 
                 // add command
-                if (currSlice->dec_ref_pic_marking_buffer==NULL)
-                    currSlice->dec_ref_pic_marking_buffer=tmp_drpm;
+                if (!currSlice->dec_ref_pic_marking_buffer)
+                    currSlice->dec_ref_pic_marking_buffer = tmp_drpm;
                 else {
-                    tmp_drpm2=currSlice->dec_ref_pic_marking_buffer;
-                    while (tmp_drpm2->Next!=NULL) tmp_drpm2=tmp_drpm2->Next;
-                        tmp_drpm2->Next=tmp_drpm;
+                    tmp_drpm2 = currSlice->dec_ref_pic_marking_buffer;
+                    while (tmp_drpm2->Next)
+                        tmp_drpm2 = tmp_drpm2->Next;
+                    tmp_drpm2->Next = tmp_drpm;
                 }
             } while (val != 0);
         }

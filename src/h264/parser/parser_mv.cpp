@@ -206,7 +206,6 @@ pic_motion_params* get_colocated(mb_t& mb, int i, int j)
     int j4 = block_y_aff + j;
 
     pic_motion_params* colocated;
-
     if (sps.direct_8x8_inference_flag)
         colocated = &ref_pic->mv_info[RSD(j4)][RSD(i4)];
     else
@@ -215,74 +214,24 @@ pic_motion_params* get_colocated(mb_t& mb, int i, int j)
     if (sps.direct_8x8_inference_flag) {
         if (slice.MbaffFrameFlag) {
             if (!mb.mb_field_decoding_flag &&
-                ((slice.RefPicList[LIST_1][0]->slice.iCodingType == FRAME_MB_PAIR_CODING &&
-                  slice.RefPicList[LIST_1][0]->motion.mb_field_decoding_flag[mb.mbAddrX]) ||
-                 (slice.RefPicList[LIST_1][0]->slice.iCodingType == FIELD_CODING))) {
-                if (abs(slice.dec_picture->poc - slice.RefPicList[LIST_1][0]->bottom_field->poc) >
-                    abs(slice.dec_picture->poc - slice.RefPicList[LIST_1][0]->top_field->poc))
-                    colocated = &slice.RefPicList[LIST_1][0]->top_field->mv_info[RSD(j4) >> 1][RSD(i4)];
-                else
-                    colocated = &slice.RefPicList[LIST_1][0]->bottom_field->mv_info[RSD(j4) >> 1][RSD(i4)];
-            }
-        } else if (!sps.frame_mbs_only_flag && !slice.field_pic_flag &&
-                   slice.RefPicList[LIST_1][0]->slice.iCodingType != FRAME_CODING) {
-            if (abs(slice.dec_picture->poc - ref_pic->bottom_field->poc) >
-                abs(slice.dec_picture->poc - ref_pic->top_field->poc) )
-                colocated = &ref_pic->top_field->mv_info[RSD(j4) >> 1][RSD(i4)];
-            else
-                colocated = &ref_pic->bottom_field->mv_info[RSD(j4) >> 1][RSD(i4)];
-        } else if (!sps.frame_mbs_only_flag && slice.field_pic_flag &&
-                   slice.structure != ref_pic->slice.structure && ref_pic->slice.coded_frame) {
-            if (!slice.bottom_field_flag)
-                colocated = &ref_pic->frame->top_field->mv_info[RSD(j4)][RSD(i4)];
-            else
-                colocated = &ref_pic->frame->bottom_field->mv_info[RSD(j4)][RSD(i4)];
-        }
-    }
-
-    return colocated;
-}
-
-pic_motion_params* get_colocated_info(mb_t& mb, int i, int j)
-{
-    slice_t& slice = *mb.p_Slice;
-    sps_t& sps = *slice.active_sps;
-
-    storable_picture* ref_pic = get_ref_pic(mb, slice.RefPicList[LIST_1], 0);
-
-    int block_y_aff;
-    if (slice.MbaffFrameFlag && mb.mb_field_decoding_flag)
-        block_y_aff = (mb.mb.y * 4 - 4 * (mb.mbAddrX % 2)) / 2;
-    else
-        block_y_aff = mb.mb.y * 4;
-
-    int i4 = mb.mb.x * 4 + i;
-    int j4 = block_y_aff + j;
-
-    pic_motion_params* colocated;
-
-    if (sps.direct_8x8_inference_flag)
-        colocated = &ref_pic->mv_info[RSD(j4)][RSD(i4)];
-    else
-        colocated = &ref_pic->mv_info[j4][i4];
-
-    if (sps.direct_8x8_inference_flag) {
-        if (slice.MbaffFrameFlag ||
-            (!sps.frame_mbs_only_flag && !slice.field_pic_flag && ref_pic->slice.iCodingType == FIELD_CODING) ||
-            (!sps.frame_mbs_only_flag && slice.structure != ref_pic->slice.structure && ref_pic->slice.coded_frame)) {
-            if (slice.field_pic_flag && slice.structure != ref_pic->slice.structure && ref_pic->slice.coded_frame) {
-                if (!slice.bottom_field_flag)
-                    colocated = &ref_pic->top_field->mv_info[RSD(j4)][RSD(i4)];
-                else
-                    colocated = &ref_pic->bottom_field->mv_info[RSD(j4)][RSD(i4)];
-            } else if ((!mb.mb_field_decoding_flag && ref_pic->slice.iCodingType == FIELD_CODING) ||
-                       (!mb.mb_field_decoding_flag && ref_pic->motion.mb_field_decoding_flag[mb.mbAddrX])) {
+                (ref_pic->slice.iCodingType == FIELD_CODING || ref_pic->motion.mb_field_decoding_flag[mb.mbAddrX])) {
                 if (abs(slice.dec_picture->poc - ref_pic->bottom_field->poc) >
                     abs(slice.dec_picture->poc - ref_pic->top_field->poc))
                     colocated = &ref_pic->top_field->mv_info[RSD(j4) >> 1][RSD(i4)];
                 else
                     colocated = &ref_pic->bottom_field->mv_info[RSD(j4) >> 1][RSD(i4)];
             }
+        } else if (!sps.frame_mbs_only_flag && !slice.field_pic_flag && ref_pic->slice.iCodingType == FIELD_CODING) {
+            if (abs(slice.dec_picture->poc - ref_pic->bottom_field->poc) >
+                abs(slice.dec_picture->poc - ref_pic->top_field->poc) )
+                colocated = &ref_pic->top_field->mv_info[RSD(j4) >> 1][RSD(i4)];
+            else
+                colocated = &ref_pic->bottom_field->mv_info[RSD(j4) >> 1][RSD(i4)];
+        } else if (slice.field_pic_flag && ref_pic->slice.iCodingType != FIELD_CODING) {
+            if (!slice.bottom_field_flag)
+                colocated = &ref_pic->frame->top_field->mv_info[RSD(j4)][RSD(i4)];
+            else
+                colocated = &ref_pic->frame->bottom_field->mv_info[RSD(j4)][RSD(i4)];
         }
     }
 
@@ -372,8 +321,7 @@ void Parser::Macroblock::get_direct_temporal()
         int i = ((block4x4 / 4) % 2) * 2 + ((block4x4 % 4) % 2);
         int j = ((block4x4 / 4) / 2) * 2 + ((block4x4 % 4) / 2);
 
-        //auto colocated = vio::h264::get_colocated(mb, i, j);
-        auto colocated = vio::h264::get_colocated_info(mb, i, j);
+        auto colocated = vio::h264::get_colocated(mb, i, j);
         int  refList = colocated->ref_idx[LIST_0] == -1 ? LIST_1 : LIST_0;
         int  ref_idx = colocated->ref_idx[refList];
 
@@ -456,7 +404,6 @@ void Parser::Macroblock::get_direct_spatial()
         bool colZeroFlag = false;
         if (!get_ref_pic(mb, slice.RefPicList[LIST_1], 0)->is_long_term) {
             auto colocated = vio::h264::get_colocated(mb, i, j);
-            //auto colocated = vio::h264::get_colocated_info(mb, i, j);
             colZeroFlag =
                 (colocated->ref_idx[LIST_0] == 0 &&
                    abs(colocated->mv[LIST_0].mv_x) >> 1 == 0 && abs(colocated->mv[LIST_0].mv_y) >> 1 == 0) ||

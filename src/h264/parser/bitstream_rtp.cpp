@@ -189,12 +189,9 @@ int get_nalu_from_rtp(nalu_t *nalu, int BitStreamFile)
     RTPpacket_t *p;
     int ret;
 
-    if ((p = (RTPpacket_t *)malloc(sizeof(RTPpacket_t))) == NULL)
-        no_mem_exit("GetRTPNALU-1");
-    if ((p->packet = (byte *)malloc(MAXRTPPACKETSIZE)) == NULL)
-        no_mem_exit("GetRTPNALU-2");
-    if ((p->payload = (byte *)malloc(MAXRTPPACKETSIZE)) == NULL)
-        no_mem_exit("GetRTPNALU-3");
+    p = new RTPpacket_t;
+    p->packet  = new uint8_t[MAXRTPPACKETSIZE];
+    p->payload = new uint8_t[MAXRTPPACKETSIZE];
 
     ret = RTPReadPacket(p, BitStreamFile);
     nalu->forbidden_bit = 1;
@@ -221,9 +218,9 @@ int get_nalu_from_rtp(nalu_t *nalu, int BitStreamFile)
     }
 
     // free memory
-    free(p->payload);
-    free(p->packet);
-    free(p);
+    delete []p->payload;
+    delete []p->packet;
+    delete p;
   
     if (ret > 0)
         // length of packet

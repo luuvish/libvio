@@ -97,181 +97,150 @@ typedef struct {
 */
 void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
 {
-  int i,x,y;
-  data_partition_t* buf;
-  int bit0, bit1, bitc, no_bit0;
-  int target_frame_num = 0;
-  int num_spare_pics;
-  int delta_spare_frame_num, CandidateSpareFrameNum, SpareFrameNum = 0;
-  int ref_area_indicator;
+    sps_t* sps = p_Vid->active_sps;
 
-  sps_t *sps = p_Vid->active_sps;
+    assert(payload);
+    assert(p_Vid);
 
-  int m, n, left, right, top, bottom,directx, directy;
-  byte ***map;
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
 
-  assert( payload!=NULL);
-  assert( p_Vid!=NULL);
+    uint32_t target_frame_num = buf->ue("SEI: target_frame_num");
+    uint32_t num_spare_pics = 1 + buf->ue("SEI: num_spare_pics_minus1");
 
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
+    uint8_t** map = new uint8_t*[num_spare_pics];
 
-  target_frame_num = buf->ue("SEI: target_frame_num");
+    for (int i = 0; i < num_spare_pics; ++i) {
+        map[i] = new uint8_t[sps->PicWidthInMbs * sps->FrameHeightInMbs];
 
-  num_spare_pics = 1 + buf->ue("SEI: num_spare_pics_minus1");
+        int CandidateSpareFrameNum, SpareFrameNum = 0;
+        if (i == 0) {
+            CandidateSpareFrameNum = target_frame_num - 1;
+            if (CandidateSpareFrameNum < 0)
+                CandidateSpareFrameNum = MAX_FN - 1;
+        } else
+            CandidateSpareFrameNum = SpareFrameNum;
 
-  get_mem3D(&map, num_spare_pics, sps->FrameHeightInMbs, sps->PicWidthInMbs);
+        uint32_t delta_spare_frame_num = buf->ue("SEI: delta_spare_frame_num");
 
-  for (i=0; i<num_spare_pics; i++)
-  {
-    if (i==0)
-    {
-      CandidateSpareFrameNum = target_frame_num - 1;
-      if ( CandidateSpareFrameNum < 0 ) CandidateSpareFrameNum = MAX_FN - 1;
-    }
-    else
-      CandidateSpareFrameNum = SpareFrameNum;
+        SpareFrameNum = CandidateSpareFrameNum - delta_spare_frame_num;
+        if (SpareFrameNum < 0)
+            SpareFrameNum = MAX_FN + SpareFrameNum;
 
-    delta_spare_frame_num = buf->ue("SEI: delta_spare_frame_num");
+        uint32_t ref_area_indicator = buf->ue("SEI: ref_area_indicator");
 
-    SpareFrameNum = CandidateSpareFrameNum - delta_spare_frame_num;
-    if( SpareFrameNum < 0 )
-      SpareFrameNum = MAX_FN + SpareFrameNum;
-
-    ref_area_indicator = buf->ue("SEI: ref_area_indicator");
-
-    switch ( ref_area_indicator )
-    {
-    case 0:   // The whole frame can serve as spare picture
-      for (y=0; y<sps->FrameHeightInMbs; y++)
-        for (x=0; x<sps->PicWidthInMbs; x++)
-          map[i][y][x] = 0;
-      break;
-    case 1:   // The map is not compressed
-      for (y=0; y<sps->FrameHeightInMbs; y++)
-        for (x=0; x<sps->PicWidthInMbs; x++)
+        switch (ref_area_indicator) {
+        case 0:   // The whole frame can serve as spare picture
+            for (int y = 0; y < sps->FrameHeightInMbs; ++y) {
+                for (int x = 0; x < sps->PicWidthInMbs; ++x)
+                    map[i][y * sps->PicWidthInMbs + x] = 0;
+            }
+            break;
+        case 1:   // The map is not compressed
+            for (int y = 0; y < sps->FrameHeightInMbs; ++y) {
+                for (int x = 0; x < sps->PicWidthInMbs; ++x)
+                    map[i][y * sps->PicWidthInMbs + x] = (byte) buf->u(1, "SEI: ref_mb_indicator");
+            }
+            break;
+        case 2:   // The map is compressed
+                  //!KS: could not check this function, description is unclear (as stated in Ed. Note)
         {
-          map[i][y][x] = (byte) buf->u(1, "SEI: ref_mb_indicator");
+            int bit0 = 0;
+            int bit1 = 1;
+            int no_bit0 = -1;
+
+            int x = (sps->PicWidthInMbs    - 1) / 2;
+            int y = (sps->FrameHeightInMbs - 1) / 2;
+            int left = x, right = x;
+            int top = y, bottom = y;
+            int directx = 0;
+            int directy = 1;
+
+            for (int m = 0; m < sps->FrameHeightInMbs; ++m) {
+                for (int n = 0; n < sps->PicWidthInMbs; ++n) {
+                    if (no_bit0 < 0)
+                        no_bit0 = buf->ue("SEI: zero_run_length");
+                    if (no_bit0 > 0)
+                        map[i][y * sps->PicWidthInMbs + x] = (uint8_t)bit0;
+                    else
+                        map[i][y * sps->PicWidthInMbs + x] = (uint8_t)bit1;
+                    no_bit0--;
+
+                    // go to the next mb:
+                    if (directx == -1 && directy == 0) {
+                        if (x > left)
+                            x--;
+                        else if (x == 0) {
+                            y = bottom + 1;
+                            bottom++;
+                            directx = 1;
+                            directy = 0;
+                        } else if (x == left) {
+                            x--;
+                            left--;
+                            directx = 0;
+                            directy = 1;
+                        }
+                    } else if (directx == 1 && directy == 0) {
+                        if (x < right)
+                            x++;
+                        else if (x == sps->PicWidthInMbs - 1) {
+                            y = top - 1;
+                            top--;
+                            directx = -1;
+                            directy = 0;
+                        } else if (x == right) {
+                            x++;
+                            right++;
+                            directx = 0;
+                            directy = -1;
+                        }
+                    } else if (directx == 0 && directy == -1) {
+                        if (y > top)
+                            y--;
+                        else if (y == 0) {
+                            x = left - 1;
+                            left--;
+                            directx = 0;
+                            directy = 1;
+                        } else if (y == top) {
+                            y--;
+                            top--;
+                            directx = -1;
+                            directy = 0;
+                        }
+                    } else if (directx == 0 && directy == 1) {
+                        if (y < bottom)
+                            y++;
+                        else if (y == sps->FrameHeightInMbs - 1) {
+                            x = right + 1;
+                            right++;
+                            directx = 0;
+                            directy = -1;
+                        } else if (y == bottom) {
+                            y++;
+                            bottom++;
+                            directx = 1;
+                            directy = 0;
+                        }
+                    }
+                }
+            }
+            break;
         }
-      break;
-    case 2:   // The map is compressed
-              //!KS: could not check this function, description is unclear (as stated in Ed. Note)
-      bit0 = 0;
-      bit1 = 1;
-      bitc = bit0;
-      no_bit0 = -1;
-
-      x = ( sps->PicWidthInMbs - 1 ) / 2;
-      y = ( sps->FrameHeightInMbs - 1 ) / 2;
-      left = right = x;
-      top = bottom = y;
-      directx = 0;
-      directy = 1;
-
-      for (m=0; m<sps->FrameHeightInMbs; m++)
-        for (n=0; n<sps->PicWidthInMbs; n++)
-        {
-
-          if (no_bit0<0)
-          {
-            no_bit0 = buf->ue("SEI: zero_run_length");
-          }
-          if (no_bit0>0) 
-            map[i][y][x] = (byte) bit0;
-          else 
-            map[i][y][x] = (byte) bit1;
-          no_bit0--;
-
-          // go to the next mb:
-          if ( directx == -1 && directy == 0 )
-          {
-            if (x > left) x--;
-            else if (x == 0)
-            {
-              y = bottom + 1;
-              bottom++;
-              directx = 1;
-              directy = 0;
-            }
-            else if (x == left)
-            {
-              x--;
-              left--;
-              directx = 0;
-              directy = 1;
-            }
-          }
-          else if ( directx == 1 && directy == 0 )
-          {
-            if (x < right) x++;
-            else if (x == sps->PicWidthInMbs - 1)
-            {
-              y = top - 1;
-              top--;
-              directx = -1;
-              directy = 0;
-            }
-            else if (x == right)
-            {
-              x++;
-              right++;
-              directx = 0;
-              directy = -1;
-            }
-          }
-          else if ( directx == 0 && directy == -1 )
-          {
-            if ( y > top) y--;
-            else if (y == 0)
-            {
-              x = left - 1;
-              left--;
-              directx = 0;
-              directy = 1;
-            }
-            else if (y == top)
-            {
-              y--;
-              top--;
-              directx = -1;
-              directy = 0;
-            }
-          }
-          else if ( directx == 0 && directy == 1 )
-          {
-            if (y < bottom) y++;
-            else if (y == sps->FrameHeightInMbs - 1)
-            {
-              x = right+1;
-              right++;
-              directx = 0;
-              directy = -1;
-            }
-            else if (y == bottom)
-            {
-              y++;
-              bottom++;
-              directx = 1;
-              directy = 0;
-            }
-          }
-
-
+        default:
+            printf("Wrong ref_area_indicator %d!\n", ref_area_indicator);
+            exit(0);
+            break;
         }
-      break;
-    default:
-      printf( "Wrong ref_area_indicator %d!\n", ref_area_indicator );
-      exit(0);
-      break;
-    }
 
-  } // end of num_spare_pics
+        delete []map[i];
+    } // end of num_spare_pics
 
-  free_mem3D( map );
-
-  free(buf);
+    delete []map;
+    delete buf;
 }
 
 
@@ -1537,30 +1506,33 @@ void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping)
  */
 void interpret_post_filter_hints_info( byte* payload, int size, VideoParameters *p_Vid )
 {
-  data_partition_t* buf;
-  unsigned int filter_hint_size_y, filter_hint_size_x, filter_hint_type, color_component, cx, cy, additional_extension_flag;
-  int ***filter_hint;
+    data_partition_t* buf;
 
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
+    buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
 
-  filter_hint_size_y = buf->ue("SEI: filter_hint_size_y"); // interpret post-filter hint SEI here
-  filter_hint_size_x = buf->ue("SEI: filter_hint_size_x"); // interpret post-filter hint SEI here
-  filter_hint_type   = buf->u(2, "SEI: filter_hint_type"); // interpret post-filter hint SEI here
+    uint32_t filter_hint_size_y = buf->ue("SEI: filter_hint_size_y"); // interpret post-filter hint SEI here
+    uint32_t filter_hint_size_x = buf->ue("SEI: filter_hint_size_x"); // interpret post-filter hint SEI here
+    uint32_t filter_hint_type   = buf->u(2, "SEI: filter_hint_type"); // interpret post-filter hint SEI here
+    int32_t* filter_hint[3];
 
-  get_mem3Dint (&filter_hint, 3, filter_hint_size_y, filter_hint_size_x);
+    for (int color_component = 0; color_component < 3; ++color_component) {
+        filter_hint[color_component] = new int[filter_hint_size_x * filter_hint_size_y];
+        for (int cy = 0; cy < filter_hint_size_y; ++cy) {
+            for (int cx = 0; cx < filter_hint_size_x; ++cx)
+                filter_hint[color_component][cy * filter_hint_size_x + cx] = buf->se("SEI: filter_hint"); // interpret post-filter hint SEI here
+        }
+        delete []filter_hint[color_component];
+    }
 
-  for (color_component = 0; color_component < 3; color_component ++)
-    for (cy = 0; cy < filter_hint_size_y; cy ++)
-      for (cx = 0; cx < filter_hint_size_x; cx ++)
-        filter_hint[color_component][cy][cx] = buf->se("SEI: filter_hint"); // interpret post-filter hint SEI here
+    bool additional_extension_flag = buf->u(1, "SEI: additional_extension_flag"); // interpret post-filter hint SEI here
 
-  additional_extension_flag = buf->u(1, "SEI: additional_extension_flag"); // interpret post-filter hint SEI here
+    filter_hint_type = 0;
+    additional_extension_flag = false;
 
-  free_mem3Dint (filter_hint);
-  free( buf );
+    delete buf;
 }
 
 

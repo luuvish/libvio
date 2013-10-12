@@ -126,11 +126,9 @@ int ercConcealInterFrame(frame *recfr, objectBuffer_t *object_list,
     if ( errorVar->nOfCorruptedSegments )
     {
       if (chroma_format_idc != YUV400)
-        predMB = (imgpel *) malloc ( (256 + sps->MbWidthC * sps->MbHeightC * 2) * sizeof (imgpel));
+        predMB = new imgpel[256 + sps->MbWidthC * sps->MbHeightC * 2];
       else
-        predMB = (imgpel *) malloc(256 * sizeof (imgpel));
-
-      if ( predMB == NULL ) no_mem_exit("ercConcealInterFrame: predMB");
+        predMB = new imgpel[256];
 
       lastRow = (int) (picSizeY>>4);
       lastColumn = (int) (picSizeX>>4);
@@ -249,7 +247,7 @@ int ercConcealInterFrame(frame *recfr, objectBuffer_t *object_list,
         }
       }
 
-      free(predMB);
+      delete []predMB;
     }
     return 1;
   }

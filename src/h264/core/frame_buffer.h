@@ -122,7 +122,7 @@ struct storable_picture {
     int         iChromaPadX;
     int         iChromaPadY;
     imgpel**    imgY;
-    imgpel***   imgUV;
+    imgpel**    imgUV[2];
 
     pic_motion_params** mv_info;
     pic_motion_params** JVmv_info[3];

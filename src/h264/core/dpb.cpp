@@ -392,7 +392,7 @@ bool decoded_picture_buffer_t::output_one_frame()
     // picture error concealment
     if (p_Vid->conceal_mode == 0) {
         if (this->last_output_poc >= poc)
-            error ("output POC must be in ascending order", 150);
+            error("output POC must be in ascending order", 150);
     }
 
     this->last_output_poc = poc;
@@ -785,7 +785,7 @@ void decoded_picture_buffer_t::adaptive_memory_management(storable_picture* p)
             error("invalid memory_management_control_operation in buffer", 500);
         }
         p->slice.dec_ref_pic_marking_buffer = tmp_drpm->Next;
-        ::free(tmp_drpm);
+        delete tmp_drpm;
     }
     if (p_Vid->last_has_mmco_5) {
         p->PicNum = p->frame_num = 0;

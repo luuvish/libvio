@@ -430,8 +430,7 @@ void pic_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, pps_t *
         } else if (pps->slice_group_map_type == 6) {
             const int bitsSliceGroupId[8] = { 1, 1, 2, 2, 3, 3, 3, 3 };
             pps->pic_size_in_map_units_minus1      = s->ue("PPS: pic_size_in_map_units_minus1");
-            if ((pps->slice_group_id = (byte *)calloc (pps->pic_size_in_map_units_minus1+1, 1)) == NULL)
-                no_mem_exit ("InterpretPPS: slice_group_id");
+            pps->slice_group_id = new uint8_t[pps->pic_size_in_map_units_minus1 + 1];
             for (i = 0; i <= pps->pic_size_in_map_units_minus1; i++)
                 pps->slice_group_id[i] = (byte) s->u(bitsSliceGroupId[pps->num_slice_groups_minus1], "slice_group_id[i]");
         }
@@ -1049,30 +1048,27 @@ void SubsetSPSConsistencyCheck (sub_sps_t *subset_sps)
 
 void MakePPSavailable (VideoParameters *p_Vid, int id, pps_t *pps)
 {
-  assert (pps->Valid);
+    assert (pps->Valid);
 
-  if (p_Vid->PicParSet[id].Valid && p_Vid->PicParSet[id].slice_group_id)
-    free (p_Vid->PicParSet[id].slice_group_id);
+    if (p_Vid->PicParSet[id].Valid && p_Vid->PicParSet[id].slice_group_id)
+        delete []p_Vid->PicParSet[id].slice_group_id;
 
-  memcpy (&p_Vid->PicParSet[id], pps, sizeof (pps_t));
+    memcpy(&p_Vid->PicParSet[id], pps, sizeof (pps_t));
 
   // we can simply use the memory provided with the pps. the PPS is destroyed after this function
   // call and will not try to free if pps->slice_group_id == NULL
-  p_Vid->PicParSet[id].slice_group_id = pps->slice_group_id;
-  pps->slice_group_id          = NULL;
+    p_Vid->PicParSet[id].slice_group_id = pps->slice_group_id;
+    pps->slice_group_id          = NULL;
 }
 
 void CleanUpPPS(VideoParameters *p_Vid)
 {
-  int i;
+    for (int i = 0; i < MAXPPS; ++i) {
+        if (p_Vid->PicParSet[i].Valid && p_Vid->PicParSet[i].slice_group_id)
+            delete []p_Vid->PicParSet[i].slice_group_id;
 
-  for (i=0; i<MAXPPS; i++)
-  {
-    if (p_Vid->PicParSet[i].Valid && p_Vid->PicParSet[i].slice_group_id)
-      free (p_Vid->PicParSet[i].slice_group_id);
-
-    p_Vid->PicParSet[i].Valid = false;
-  }
+        p_Vid->PicParSet[i].Valid = false;
+    }
 }
 
 

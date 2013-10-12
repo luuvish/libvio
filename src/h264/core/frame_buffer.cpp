@@ -29,8 +29,10 @@ storable_picture::storable_picture(VideoParameters *p_Vid, PictureStructure stru
     this->iChromaStride = size_x_cr + 2 * this->iChromaPadX;
 
     get_mem2Dpel_pad(&this->imgY, size_y, size_x, MCBUF_LUMA_PAD_Y, MCBUF_LUMA_PAD_X);
-    if (sps->chroma_format_idc != YUV400)
-        get_mem3Dpel_pad(&this->imgUV, 2, size_y_cr, size_x_cr, this->iChromaPadY, this->iChromaPadX);
+    if (sps->chroma_format_idc != YUV400) {
+        get_mem2Dpel_pad(&this->imgUV[0], size_y_cr, size_x_cr, this->iChromaPadY, this->iChromaPadX);
+        get_mem2Dpel_pad(&this->imgUV[1], size_y_cr, size_x_cr, this->iChromaPadY, this->iChromaPadX);
+    }
 
     get_mem2Dmp(&this->mv_info, (size_y / 4), (size_x / 4));
     this->motion.mb_field_decoding_flag = new bool[(size_x / 4) * (size_y / 4)];
@@ -107,13 +109,15 @@ storable_picture::~storable_picture()
         this->imgY = nullptr;
     }
 
-    if (this->imgUV) {
-        free_mem3Dpel_pad(this->imgUV, 2, this->iChromaPadY, this->iChromaPadX);
-        this->imgUV = nullptr;
+    if (this->imgUV[0]) {
+        free_mem2Dpel_pad(this->imgUV[0], this->iChromaPadY, this->iChromaPadX);
+        free_mem2Dpel_pad(this->imgUV[1], this->iChromaPadY, this->iChromaPadX);
+        this->imgUV[0] = nullptr;
+        this->imgUV[1] = nullptr;
     }
 
     if (this->seiHasTone_mapping)
-        free(this->tone_mapping_lut);
+        delete this->tone_mapping_lut;
 }
 
 bool storable_picture::is_short_ref()

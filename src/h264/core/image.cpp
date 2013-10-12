@@ -26,7 +26,7 @@ using vio::h264::mb_t;
 
 static inline float psnr(int max_sample_sq, int samples, float sse_distortion ) 
 {
-  return (float) (sse_distortion == 0.0 ? 0.0 : (10.0 * log10(max_sample_sq * (double) ((double) samples / sse_distortion))));
+    return (float) (sse_distortion == 0.0 ? 0.0 : (10.0 * log10(max_sample_sq * (double) ((double) samples / sse_distortion))));
 }
 
 static inline void reset_mbs(mb_t *currMB)
@@ -278,9 +278,7 @@ void init_picture(VideoParameters *p_Vid, slice_t *currSlice, InputParameters *p
         dec_picture->seiHasTone_mapping    = 1;
         dec_picture->tone_mapping_model_id = p_Vid->seiToneMapping->model_id;
         dec_picture->tonemapped_bit_depth  = p_Vid->seiToneMapping->sei_bit_depth;
-        dec_picture->tone_mapping_lut      = (imgpel *)malloc(coded_data_bit_max * sizeof(int));
-        if (NULL == dec_picture->tone_mapping_lut)
-            no_mem_exit("init_picture: tone_mapping_lut");
+        dec_picture->tone_mapping_lut      = new imgpel[coded_data_bit_max];
         memcpy(dec_picture->tone_mapping_lut, p_Vid->seiToneMapping->lut, sizeof(imgpel) * coded_data_bit_max);
         update_tone_mapping_sei(p_Vid->seiToneMapping);
     } else

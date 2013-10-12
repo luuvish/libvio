@@ -149,7 +149,7 @@ static char *GetConfigFileContent (const char *Filename)
     return NULL;
   }
 
-  if ((buf = (char *)malloc (FileSize + 1))==NULL) no_mem_exit("GetConfigFileContent: buf");
+  buf = new char[FileSize + 1];
 
   // Note that ftell() gives us the file size as the file system sees it.  The actual file size,
   // as reported by fread() below will be often smaller due to CR/LF to CR conversion and/or

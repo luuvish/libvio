@@ -197,7 +197,7 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
                 error("write_out_picture: error writing to YUV file", 500);
         }
     } else if (p_Inp->write_uv) {
-        get_mem3Dpel(&p->imgUV, 1, size_y_l / 2, size_x_l / 2);
+        get_mem2Dpel(&p->imgUV[0], size_y_l / 2, size_x_l / 2);
   
         imgpel cr_val = (imgpel)(1 << (sps.BitDepthY - 1));
         for (int j = 0; j < size_y_l / 2; j++) {
@@ -215,8 +215,8 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
             error("write_out_picture: error writing to YUV file", 500);
         delete []buf;
 
-        free_mem3Dpel(p->imgUV);
-        p->imgUV = nullptr;
+        free_mem2Dpel(p->imgUV[0]);
+        p->imgUV[0] = nullptr;
     }
 }
 

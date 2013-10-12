@@ -81,6 +81,7 @@ protected:
     void        mm_unmark_all_short_term_for_reference();
     void        mm_unmark_all_long_term_for_reference();
     void        mm_mark_current_picture_long_term(storable_picture* p, int long_term_frame_idx);
+
     void        adaptive_memory_management(storable_picture* p);
     void        sliding_window_memory_management(storable_picture* p);
 
