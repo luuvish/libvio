@@ -124,13 +124,14 @@ void Decoder::decode_one_component(mb_t& mb, ColorPlane curr_plane)
 {
     const slice_t& slice = *mb.p_Slice;
     const sps_t& sps = *slice.active_sps;
+    const shr_t& shr = slice.header;
 
     VideoParameters* p_Vid = slice.p_Vid;
 
     if (sps.ChromaArrayType == 3) {
         if (!mb.is_intra_block) {
             storable_picture *vidref = p_Vid->no_reference_picture;
-            int noref = slice.PicOrderCnt < p_Vid->recovery_poc;
+            int noref = shr.PicOrderCnt < p_Vid->recovery_poc;
             for (int j = 0; j < 2; j++) {
                 for (int i = 0; i < slice.RefPicSize[j] ; i++) {
                     storable_picture *curr_ref = slice.RefPicList[j][i];
@@ -221,14 +222,15 @@ void Decoder::mb_pred_inter(mb_t& mb, ColorPlane curr_plane)
 {
     slice_t& slice = *mb.p_Slice;
     const sps_t& sps = *slice.active_sps;
+    const shr_t& shr = slice.header;
 
-    bool b_inter_8x8 = (slice.slice_type == B_slice && mb.mb_type == B_8x8);
+    bool b_inter_8x8 = (shr.slice_type == B_slice && mb.mb_type == B_8x8);
 
     int step_h0 = BLOCK_STEP[mb.mb_type][0];
     int step_v0 = BLOCK_STEP[mb.mb_type][1];
     if (mb.mb_type == P_Skip) {
-        step_h0 = slice.slice_type == B_slice ? 2 : 4;
-        step_v0 = slice.slice_type == B_slice ? 2 : 4;
+        step_h0 = shr.slice_type == B_slice ? 2 : 4;
+        step_v0 = shr.slice_type == B_slice ? 2 : 4;
     }
 
     for (int j0 = 0; j0 < 4; j0 += step_v0) {
@@ -243,7 +245,7 @@ void Decoder::mb_pred_inter(mb_t& mb, ColorPlane curr_plane)
                 step_v4 = sps.direct_8x8_inference_flag ? 2 : 1;
             }
 
-            if (b_inter_8x8 && slice.direct_spatial_mv_pred_flag) {
+            if (b_inter_8x8 && shr.direct_spatial_mv_pred_flag) {
                 auto mv_info = &slice.dec_picture->mv_info[mb.mb.y * 4 + j0][mb.mb.x * 4 + i0];
                 pred_dir = (mv_info->ref_idx[LIST_1] < 0) ? 0 : (mv_info->ref_idx[LIST_0] < 0) ? 1 : 2;
             }
@@ -255,7 +257,7 @@ void Decoder::mb_pred_inter(mb_t& mb, ColorPlane curr_plane)
         }
     }
 
-    if (slice.slice_type == SP_slice)
+    if (shr.slice_type == SP_slice)
         this->transform->inverse_transform_sp(&mb, curr_plane);
     else
         this->transform->inverse_transform_inter(&mb, curr_plane);

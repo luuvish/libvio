@@ -2,102 +2,102 @@
 #include "slice.h"
 
 
-static void FmoGenerateType0MapUnitMap(VideoParameters *p_Vid)
+void slice_t::FmoGenerateType0MapUnitMap()
 {
-    sps_t *sps = p_Vid->active_sps;
-    pps_t* pps = p_Vid->active_pps;
-    int iGroup, j, i = 0;
+    sps_t& sps = *this->active_sps;
+    pps_t& pps = *this->active_pps;
+    shr_t& shr = this->header;
+    int i = 0;
 
     do {
-        for (iGroup = 0;
-             iGroup <= pps->num_slice_groups_minus1 && i < sps->PicSizeInMapUnits;
-             i += pps->run_length_minus1[iGroup++] + 1) {
-            for (j = 0; j <= pps->run_length_minus1[iGroup] && i + j < sps->PicSizeInMapUnits; j++)
-                p_Vid->MapUnitToSliceGroupMap[i+j] = iGroup;
+        for (int iGroup = 0;
+             iGroup <= pps.num_slice_groups_minus1 && i < sps.PicSizeInMapUnits;
+             i += pps.run_length_minus1[iGroup++] + 1) {
+            for (int j = 0; j <= pps.run_length_minus1[iGroup] && i + j < sps.PicSizeInMapUnits; ++j)
+                shr.MapUnitToSliceGroupMap[i + j] = iGroup;
         }
-    } while (i < sps->PicSizeInMapUnits);
+    } while (i < sps.PicSizeInMapUnits);
 }
 
-static void FmoGenerateType1MapUnitMap(VideoParameters *p_Vid)
+void slice_t::FmoGenerateType1MapUnitMap()
 {
-    sps_t *sps = p_Vid->active_sps;
-    pps_t *pps = p_Vid->active_pps;
-    int i;
+    sps_t& sps = *this->active_sps;
+    pps_t& pps = *this->active_pps;
+    shr_t& shr = this->header;
 
-    for (i = 0; i < sps->PicSizeInMapUnits; i++)
-        p_Vid->MapUnitToSliceGroupMap[i] =
-            ((i % sps->PicWidthInMbs) +
-             (((i / sps->PicWidthInMbs) * (pps->num_slice_groups_minus1 + 1)) / 2))
-            % (pps->num_slice_groups_minus1 + 1);
+    for (int i = 0; i < sps.PicSizeInMapUnits; ++i)
+        shr.MapUnitToSliceGroupMap[i] =
+            ((i % sps.PicWidthInMbs) +
+             (((i / sps.PicWidthInMbs) * (pps.num_slice_groups_minus1 + 1)) / 2))
+            % (pps.num_slice_groups_minus1 + 1);
 }
 
-static void FmoGenerateType2MapUnitMap(VideoParameters *p_Vid)
+void slice_t::FmoGenerateType2MapUnitMap()
 {
-    sps_t *sps = p_Vid->active_sps;
-    pps_t *pps = p_Vid->active_pps;
-    int iGroup, i, x, y;
+    sps_t& sps = *this->active_sps;
+    pps_t& pps = *this->active_pps;
+    shr_t& shr = this->header;
 
-    for (i = 0; i < sps->PicSizeInMapUnits; i++)
-        p_Vid->MapUnitToSliceGroupMap[i] = pps->num_slice_groups_minus1;
+    for (int i = 0; i < sps.PicSizeInMapUnits; ++i)
+        shr.MapUnitToSliceGroupMap[i] = pps.num_slice_groups_minus1;
 
-    for (iGroup = pps->num_slice_groups_minus1 - 1 ; iGroup >= 0; iGroup--) {
-        int xTopLeft     = pps->top_left    [iGroup] % sps->PicWidthInMbs;
-        int yTopLeft     = pps->top_left    [iGroup] / sps->PicWidthInMbs;
-        int xBottomRight = pps->bottom_right[iGroup] % sps->PicWidthInMbs;
-        int yBottomRight = pps->bottom_right[iGroup] / sps->PicWidthInMbs;
-        for (y = yTopLeft; y <= yBottomRight; y++) {
-            for (x = xTopLeft; x <= xBottomRight; x++)
-                p_Vid->MapUnitToSliceGroupMap[y * sps->PicWidthInMbs + x] = iGroup;
+    for (int iGroup = pps.num_slice_groups_minus1 - 1 ; iGroup >= 0; --iGroup) {
+        int xTopLeft     = pps.top_left    [iGroup] % sps.PicWidthInMbs;
+        int yTopLeft     = pps.top_left    [iGroup] / sps.PicWidthInMbs;
+        int xBottomRight = pps.bottom_right[iGroup] % sps.PicWidthInMbs;
+        int yBottomRight = pps.bottom_right[iGroup] / sps.PicWidthInMbs;
+        for (int y = yTopLeft; y <= yBottomRight; ++y) {
+            for (int x = xTopLeft; x <= xBottomRight; ++x)
+                shr.MapUnitToSliceGroupMap[y * sps.PicWidthInMbs + x] = iGroup;
         }
     }
 }
 
-static void FmoGenerateType3MapUnitMap(VideoParameters *p_Vid, slice_t *currSlice)
+void slice_t::FmoGenerateType3MapUnitMap()
 {
-    sps_t *sps = p_Vid->active_sps;
-    pps_t *pps = p_Vid->active_pps;
-    int i, k;
-    int x, y, leftBound, topBound, rightBound, bottomBound;
-    int xDir, yDir, mapUnitVacant;
+    sps_t& sps = *this->active_sps;
+    pps_t& pps = *this->active_pps;
+    shr_t& shr = this->header;
 
-    for (i = 0; i < sps->PicSizeInMapUnits; i++)
-        p_Vid->MapUnitToSliceGroupMap[i] = 1;
+    for (int i = 0; i < sps.PicSizeInMapUnits; ++i)
+        shr.MapUnitToSliceGroupMap[i] = 1;
 
-    x = (sps->PicWidthInMbs       - pps->slice_group_change_direction_flag) / 2;
-    y = (sps->PicHeightInMapUnits - pps->slice_group_change_direction_flag) / 2;
+    int x = (sps.PicWidthInMbs       - pps.slice_group_change_direction_flag) / 2;
+    int y = (sps.PicHeightInMapUnits - pps.slice_group_change_direction_flag) / 2;
 
-    leftBound   = x;
-    topBound    = y;
-    rightBound  = x;
-    bottomBound = y;
+    int leftBound   = x;
+    int topBound    = y;
+    int rightBound  = x;
+    int bottomBound = y;
 
-    xDir = pps->slice_group_change_direction_flag - 1;
-    yDir = pps->slice_group_change_direction_flag;
+    int xDir = pps.slice_group_change_direction_flag - 1;
+    int yDir = pps.slice_group_change_direction_flag;
 
-    for (k = 0; k < currSlice->MapUnitsInSliceGroup0; k += mapUnitVacant) {
-        mapUnitVacant = (p_Vid->MapUnitToSliceGroupMap[y * sps->PicWidthInMbs + x] == 1);
+    int mapUnitVacant = 1;
+    for (int k = 0; k < shr.MapUnitsInSliceGroup0; k += mapUnitVacant) {
+        mapUnitVacant = (shr.MapUnitToSliceGroupMap[y * sps.PicWidthInMbs + x] == 1);
         if (mapUnitVacant)
-            p_Vid->MapUnitToSliceGroupMap[y * sps->PicWidthInMbs + x] = 0;
+            shr.MapUnitToSliceGroupMap[y * sps.PicWidthInMbs + x] = 0;
 
         if (xDir == -1 && x == leftBound) {
             leftBound = max<int>(leftBound - 1, 0);
             x = leftBound;
             xDir = 0;
-            yDir = 2 * pps->slice_group_change_direction_flag - 1;
+            yDir = 2 * pps.slice_group_change_direction_flag - 1;
         } else if (xDir == 1 && x == rightBound) {
-            rightBound = min<int>(rightBound + 1, sps->PicWidthInMbs - 1);
+            rightBound = min<int>(rightBound + 1, sps.PicWidthInMbs - 1);
             x = rightBound;
             xDir = 0;
-            yDir = 1 - 2 * pps->slice_group_change_direction_flag;
+            yDir = 1 - 2 * pps.slice_group_change_direction_flag;
         } else if (yDir == -1 && y == topBound) {
             topBound = max<int>(topBound - 1, 0);
             y = topBound;
-            xDir = 1 - 2 * pps->slice_group_change_direction_flag;
+            xDir = 1 - 2 * pps.slice_group_change_direction_flag;
             yDir = 0;
         } else if (yDir == 1 && y == bottomBound) {
-            bottomBound = min<int>(bottomBound + 1, sps->PicHeightInMapUnits - 1);
+            bottomBound = min<int>(bottomBound + 1, sps.PicHeightInMapUnits - 1);
             y = bottomBound;
-            xDir = 2 * pps->slice_group_change_direction_flag - 1;
+            xDir = 2 * pps.slice_group_change_direction_flag - 1;
             yDir = 0;
         } else {
             x += xDir;
@@ -106,171 +106,146 @@ static void FmoGenerateType3MapUnitMap(VideoParameters *p_Vid, slice_t *currSlic
     }
 }
 
-static void FmoGenerateType4MapUnitMap(VideoParameters *p_Vid, slice_t *currSlice)
+void slice_t::FmoGenerateType4MapUnitMap()
 {
-    sps_t *sps = p_Vid->active_sps;
-    pps_t *pps = p_Vid->active_pps;
-    int i;
+    sps_t& sps = *this->active_sps;
+    pps_t& pps = *this->active_pps;
+    shr_t& shr = this->header;
 
     uint32_t sizeOfUpperLeftGroup =
-        pps->slice_group_change_direction_flag ?
-            (sps->PicSizeInMapUnits - currSlice->MapUnitsInSliceGroup0) :
-            currSlice->MapUnitsInSliceGroup0;
+        pps.slice_group_change_direction_flag ?
+            (sps.PicSizeInMapUnits - shr.MapUnitsInSliceGroup0) :
+            shr.MapUnitsInSliceGroup0;
 
-    for (i = 0; i < sps->PicSizeInMapUnits; i++) {
+    for (int i = 0; i < sps.PicSizeInMapUnits; ++i) {
         if (i < sizeOfUpperLeftGroup)
-            p_Vid->MapUnitToSliceGroupMap[i] = pps->slice_group_change_direction_flag;
+            shr.MapUnitToSliceGroupMap[i] = pps.slice_group_change_direction_flag;
         else
-            p_Vid->MapUnitToSliceGroupMap[i] = 1 - pps->slice_group_change_direction_flag;
+            shr.MapUnitToSliceGroupMap[i] = 1 - pps.slice_group_change_direction_flag;
     }
 }
 
-static void FmoGenerateType5MapUnitMap(VideoParameters *p_Vid, slice_t *currSlice)
+void slice_t::FmoGenerateType5MapUnitMap()
 {
-    sps_t *sps = p_Vid->active_sps;
-    pps_t *pps = p_Vid->active_pps;
-    int i, j, k = 0;
+    sps_t& sps = *this->active_sps;
+    pps_t& pps = *this->active_pps;
+    shr_t& shr = this->header;
 
     uint32_t sizeOfUpperLeftGroup =
-        pps->slice_group_change_direction_flag ?
-            (sps->PicSizeInMapUnits - currSlice->MapUnitsInSliceGroup0) :
-            currSlice->MapUnitsInSliceGroup0;
+        pps.slice_group_change_direction_flag ?
+            (sps.PicSizeInMapUnits - shr.MapUnitsInSliceGroup0) :
+            shr.MapUnitsInSliceGroup0;
 
-    for (j = 0; j < sps->PicWidthInMbs; j++) {
-        for (i = 0; i < sps->PicHeightInMapUnits; i++) {
+    int k = 0;
+    for (int j = 0; j < sps.PicWidthInMbs; ++j) {
+        for (int i = 0; i < sps.PicHeightInMapUnits; ++i) {
             if (k++ < sizeOfUpperLeftGroup)
-                p_Vid->MapUnitToSliceGroupMap[i * sps->PicWidthInMbs + j] = pps->slice_group_change_direction_flag;
+                shr.MapUnitToSliceGroupMap[i * sps.PicWidthInMbs + j] = pps.slice_group_change_direction_flag;
             else
-                p_Vid->MapUnitToSliceGroupMap[i * sps->PicWidthInMbs + j] = 1 - pps->slice_group_change_direction_flag;
+                shr.MapUnitToSliceGroupMap[i * sps.PicWidthInMbs + j] = 1 - pps.slice_group_change_direction_flag;
         }
     }
 }
 
-static void FmoGenerateType6MapUnitMap(VideoParameters *p_Vid)
+void slice_t::FmoGenerateType6MapUnitMap()
 {
-    sps_t *sps = p_Vid->active_sps;
-    pps_t *pps = p_Vid->active_pps; 
-    int i;
+    sps_t& sps = *this->active_sps;
+    pps_t& pps = *this->active_pps; 
+    shr_t& shr = this->header;
 
-    for (i = 0; i < sps->PicSizeInMapUnits; i++)
-        p_Vid->MapUnitToSliceGroupMap[i] = pps->slice_group_id[i];
+    for (int i = 0; i < sps.PicSizeInMapUnits; ++i)
+        shr.MapUnitToSliceGroupMap[i] = pps.slice_group_id[i];
 }
 
-static int FmoGenerateMapUnitToSliceGroupMap(VideoParameters *p_Vid, slice_t *currSlice)
+void slice_t::FmoGenerateMapUnitToSliceGroupMap()
 {
-    sps_t *sps = p_Vid->active_sps;
-    pps_t *pps = p_Vid->active_pps;
+    sps_t& sps = *this->active_sps;
+    pps_t& pps = *this->active_pps;
+    shr_t& shr = this->header;
 
-    if (pps->slice_group_map_type == 6) {
-        if ((pps->pic_size_in_map_units_minus1 + 1) != sps->PicSizeInMapUnits)
-            error("wrong pps->pic_size_in_map_units_minus1 for used SPS and FMO type 6", 500);
+    if (shr.MapUnitToSliceGroupMap)
+        delete []shr.MapUnitToSliceGroupMap;
+    shr.MapUnitToSliceGroupMap = new uint8_t[sps.PicSizeInMapUnits];
+
+    if (pps.num_slice_groups_minus1 == 0) {
+        memset(shr.MapUnitToSliceGroupMap, 0, sps.PicSizeInMapUnits * sizeof(uint8_t));
+        return;
     }
 
-    // allocate memory for p_Vid->MapUnitToSliceGroupMap
-    if (p_Vid->MapUnitToSliceGroupMap)
-        free(p_Vid->MapUnitToSliceGroupMap);
-    if ((p_Vid->MapUnitToSliceGroupMap = (int *)malloc ((sps->PicSizeInMapUnits) * sizeof (int))) == NULL) {
-        printf ("cannot allocated %d bytes for p_Vid->MapUnitToSliceGroupMap, exit\n", (int) ( (pps->pic_size_in_map_units_minus1+1) * sizeof (int)));
-        exit (-1);
-    }
-
-    if (pps->num_slice_groups_minus1 == 0) {
-        memset(p_Vid->MapUnitToSliceGroupMap, 0, sps->PicSizeInMapUnits * sizeof (int));
-        return 0;
-    }
-
-    switch (pps->slice_group_map_type) {
+    switch (pps.slice_group_map_type) {
     case 0:
-        FmoGenerateType0MapUnitMap(p_Vid);
-        break;
+        return this->FmoGenerateType0MapUnitMap();
     case 1:
-        FmoGenerateType1MapUnitMap(p_Vid);
-        break;
+        return this->FmoGenerateType1MapUnitMap();
     case 2:
-        FmoGenerateType2MapUnitMap(p_Vid);
-        break;
+        return this->FmoGenerateType2MapUnitMap();
     case 3:
-        FmoGenerateType3MapUnitMap(p_Vid, currSlice);
-        break;
+        return this->FmoGenerateType3MapUnitMap();
     case 4:
-        FmoGenerateType4MapUnitMap(p_Vid, currSlice);
-        break;
+        return this->FmoGenerateType4MapUnitMap();
     case 5:
-        FmoGenerateType5MapUnitMap(p_Vid, currSlice);
-        break;
+        return this->FmoGenerateType5MapUnitMap();
     case 6:
-        FmoGenerateType6MapUnitMap(p_Vid);
-        break;
-    default:
-        printf("Illegal slice_group_map_type %d , exit \n", (int) pps->slice_group_map_type);
-        exit(-1);
+        return this->FmoGenerateType6MapUnitMap();
     }
-    return 0;
 }
 
-static int FmoGenerateMbToSliceGroupMap(VideoParameters *p_Vid, slice_t *pSlice)
+void slice_t::FmoGenerateMbToSliceGroupMap()
 {
-    sps_t *sps = p_Vid->active_sps;
-    int i;
+    sps_t& sps = *this->active_sps;
+    shr_t& shr = this->header;
 
-    // allocate memory for p_Vid->MbToSliceGroupMap
-    if (p_Vid->MbToSliceGroupMap)
-        free(p_Vid->MbToSliceGroupMap);
+    if (shr.MbToSliceGroupMap)
+        delete []shr.MbToSliceGroupMap;
+    shr.MbToSliceGroupMap = new uint8_t[shr.PicSizeInMbs];
 
-    if ((p_Vid->MbToSliceGroupMap = (int *)malloc (pSlice->PicSizeInMbs * sizeof (int))) == NULL) {
-        printf("cannot allocate %d bytes for p_Vid->MbToSliceGroupMap, exit\n", (int) ((pSlice->PicSizeInMbs) * sizeof (int)));
-        exit(-1);
-    }
-
-    if (sps->frame_mbs_only_flag || pSlice->field_pic_flag) {
-        for (i = 0; i < pSlice->PicSizeInMbs; i++)
-            p_Vid->MbToSliceGroupMap[i] = p_Vid->MapUnitToSliceGroupMap[i];
-    } else if (pSlice->MbaffFrameFlag) {
-        for (i = 0; i < pSlice->PicSizeInMbs; i++)
-            p_Vid->MbToSliceGroupMap[i] = p_Vid->MapUnitToSliceGroupMap[i/2];
+    if (sps.frame_mbs_only_flag || shr.field_pic_flag) {
+        for (int i = 0; i < shr.PicSizeInMbs; ++i)
+            shr.MbToSliceGroupMap[i] = shr.MapUnitToSliceGroupMap[i];
+    } else if (shr.MbaffFrameFlag) {
+        for (int i = 0; i < shr.PicSizeInMbs; ++i)
+            shr.MbToSliceGroupMap[i] = shr.MapUnitToSliceGroupMap[i / 2];
     } else {
-        for (i = 0; i < pSlice->PicSizeInMbs; i++)
-            p_Vid->MbToSliceGroupMap[i] = p_Vid->MapUnitToSliceGroupMap[
-                (i / (2 * sps->PicWidthInMbs)) * sps->PicWidthInMbs
-                + (i % sps->PicWidthInMbs)];
+        for (int i = 0; i < shr.PicSizeInMbs; ++i)
+            shr.MbToSliceGroupMap[i] = shr.MapUnitToSliceGroupMap[
+                (i / (2 * sps.PicWidthInMbs)) * sps.PicWidthInMbs
+                + (i % sps.PicWidthInMbs)];
     }
-    return 0;
 }
 
 
-int slice_t::fmo_init()
+void slice_t::fmo_init()
 {
-    FmoGenerateMapUnitToSliceGroupMap(this->p_Vid, this);
-    FmoGenerateMbToSliceGroupMap(this->p_Vid, this);
-    return 0;
+    this->FmoGenerateMapUnitToSliceGroupMap();
+    this->FmoGenerateMbToSliceGroupMap();
 }
 
-int slice_t::fmo_close()
+void slice_t::fmo_close()
 {
-    if (this->p_Vid->MbToSliceGroupMap) {
-        free(this->p_Vid->MbToSliceGroupMap);
-        this->p_Vid->MbToSliceGroupMap = NULL;
+    shr_t& shr = this->header;
+
+    if (shr.MbToSliceGroupMap) {
+        delete []shr.MbToSliceGroupMap;
+        shr.MbToSliceGroupMap = nullptr;
     }
-    if (this->p_Vid->MapUnitToSliceGroupMap) {
-        free(this->p_Vid->MapUnitToSliceGroupMap);
-        this->p_Vid->MapUnitToSliceGroupMap = NULL;
+
+    if (shr.MapUnitToSliceGroupMap) {
+        delete []shr.MapUnitToSliceGroupMap;
+        shr.MapUnitToSliceGroupMap = nullptr;
     }
-    return 0;
 }
 
 int slice_t::FmoGetNextMBNr(int n)
 {
-    slice_t *currSlice = this->p_Vid->ppSliceList[0];
-    int SliceGroup, i;
+    shr_t& shr = this->header;
 
-    assert(n < currSlice->PicSizeInMbs);
-    assert(this->p_Vid->MbToSliceGroupMap != NULL);
+    assert(n < shr.PicSizeInMbs);
+    assert(shr.MbToSliceGroupMap);
 
-    SliceGroup = this->p_Vid->MbToSliceGroupMap[n];
+    int i = n + 1;
+    int SliceGroup = shr.MbToSliceGroupMap[n];
+    while (i < shr.PicSizeInMbs && shr.MbToSliceGroupMap[i] != SliceGroup)
+        ++i;
 
-    i = n + 1;
-    while (i < currSlice->PicSizeInMbs && this->p_Vid->MbToSliceGroupMap[i] != SliceGroup)
-        i++;
-
-    return (i < currSlice->PicSizeInMbs) ? i : -1;
+    return (i < shr.PicSizeInMbs) ? i : -1;
 }

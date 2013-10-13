@@ -315,6 +315,8 @@ static uint32_t unary_exp_golomb_level_decode(cabac_engine_t* dep_dp, cabac_cont
 void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
                                             ColorPlane pl, bool chroma, bool ac, int blkIdx)
 {
+    shr_t& shr = slice.header;
+
     data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int context;
@@ -349,7 +351,7 @@ void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startId
     if (!coded_block_flag)
         return;
 
-    bool field = slice.field_pic_flag || mb.mb_field_decoding_flag;
+    bool field = shr.field_pic_flag || mb.mb_field_decoding_flag;
     const uint8_t* pos2ctx_Map  = pos2ctx_map [field][context];
     const uint8_t* pos2ctx_Last = pos2ctx_last[context];
     cabac_context_t* map_ctx  = slice.parser.mot_ctx.map_contexts [field] + type2ctx_map[context];

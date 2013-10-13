@@ -85,7 +85,7 @@ private:
     int         InvLevelScale8x8_Intra[3][6][8][8];
     int         InvLevelScale8x8_Inter[3][6][8][8];
 
-    int*        qmatrix[12];
+    const int*  qmatrix[12];
 
     int         mb_rres[3][16][16];
     imgpel      mb_rec [3][16][16];

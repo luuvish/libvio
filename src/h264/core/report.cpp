@@ -207,7 +207,7 @@ void VideoParameters::report()
         fprintf(p_log, "%3d %2d %2d %2.2f %2.2f %2.2f %5d "
                        "%2.2f %2.2f %2.2f %5d "
                        "%2.2f %2.2f %2.2f %5d %.3f\n",
-                this->number, 0, this->ppSliceList[0]->SliceQpY,
+                this->number, 0, this->ppSliceList[0]->header.SliceQpY,
                 snr->snr1[0], snr->snr1[1], snr->snr1[2], 0,
                 0.0, 0.0, 0.0, 0,
                 snr->snra[0], snr->snra[1], snr->snra[2], 0,
@@ -216,7 +216,7 @@ void VideoParameters::report()
         fprintf(p_log, "%3d %2d %2d %2.2f %2.2f %2.2f %5d "
                        "%2.2f %2.2f %2.2f %5d "
                        "%2.2f %2.2f %2.2f %5d %.3f\n",
-                this->number, 0, this->ppSliceList[0] ? this->ppSliceList[0]->SliceQpY : 0,
+                this->number, 0, this->ppSliceList[0] ? this->ppSliceList[0]->header.SliceQpY : 0,
                 snr->snr1[0], snr->snr1[1], snr->snr1[2], 0,
                 0.0, 0.0, 0.0, 0,
                 snr->snra[0], snr->snra[1], snr->snra[2], 0,

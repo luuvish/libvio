@@ -15,6 +15,7 @@ namespace h264 {
 void macroblock_t::init(slice_t& slice)
 {
     sps_t& sps = *slice.active_sps;
+    shr_t& shr = slice.header;
     mb_t& mb = *this;
 
     mb.p_Slice = &slice;
@@ -26,7 +27,7 @@ void macroblock_t::init(slice_t& slice)
     mb.dpl_flag = 0;
 
     /* Update coordinates of the current macroblock */
-    if (slice.MbaffFrameFlag) {
+    if (shr.MbaffFrameFlag) {
         mb.mb.x = (mb.mbAddrX / 2) % sps.PicWidthInMbs;
         mb.mb.y = (mb.mbAddrX / 2) / sps.PicWidthInMbs * 2 + (mb.mbAddrX % 2);
     } else {
@@ -43,9 +44,9 @@ void macroblock_t::init(slice_t& slice)
     mb.CodedBlockPatternChroma = 0;
 
     // Reset syntax element entries in MB struct
-    if (slice.slice_type != I_slice) {
+    if (shr.slice_type != I_slice) {
         memset(mb.mvd_l0, 0, sizeof(mb.mvd_l0));
-        if (slice.slice_type == B_slice)
+        if (shr.slice_type == B_slice)
             memset(mb.mvd_l1, 0, sizeof(mb.mvd_l1));
     }
 
@@ -62,7 +63,7 @@ void macroblock_t::init(slice_t& slice)
     }
 
     mb.mb_field_decoding_flag = 0;
-    if (slice.MbaffFrameFlag) {
+    if (shr.MbaffFrameFlag) {
         bool prevMbSkipped = (mb.mbAddrX % 2 == 1) ?
             slice.neighbour.mb_data[mb.mbAddrX - 1].mb_skip_flag : 0;
         if (mb.mbAddrX % 2 == 0 || prevMbSkipped) {
@@ -85,8 +86,9 @@ void macroblock_t::init(slice_t& slice)
 bool macroblock_t::close(slice_t& slice)
 {
     pps_t& pps = *slice.active_pps;
+    shr_t& shr = slice.header;
 
-    bool eos_bit = (!slice.MbaffFrameFlag || this->mbAddrX % 2);
+    bool eos_bit = (!shr.MbaffFrameFlag || this->mbAddrX % 2);
     bool startcode_follows;
 
     //! The if() statement below resembles the original code, which tested
@@ -94,10 +96,10 @@ bool macroblock_t::close(slice_t& slice)
     //! In an error prone environment, one can only be sure to have a new
     //! picture by checking the tr of the next slice header!
 
-    if (this->mbAddrX == slice.PicSizeInMbs - 1)
+    if (this->mbAddrX == shr.PicSizeInMbs - 1)
         return true;
 
-    slice.parser.current_mb_nr = slice.FmoGetNextMBNr(slice.parser.current_mb_nr);
+    slice.parser.current_mb_nr = slice.p_Vid->ppSliceList[0]->FmoGetNextMBNr(slice.parser.current_mb_nr);
 
     if (pps.entropy_coding_mode_flag)
         startcode_follows = eos_bit && slice.parser.partArr[0].de_cabac.decode_terminate();
@@ -112,7 +114,7 @@ bool macroblock_t::close(slice_t& slice)
     if (!startcode_follows)
         return false;
 
-    if (slice.slice_type == I_slice || slice.slice_type == SI_slice)
+    if (shr.slice_type == I_slice || shr.slice_type == SI_slice)
         return true;
     if (pps.entropy_coding_mode_flag)
         return true;

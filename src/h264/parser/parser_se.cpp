@@ -93,15 +93,17 @@ bool Parser::SyntaxElement::mb_field_decoding_flag()
 
 uint8_t Parser::SyntaxElement::mb_type()
 {
+    shr_t& shr = slice.header;
+
     uint8_t mb_type;
 
     if (!pps.entropy_coding_mode_flag) {
         mb_type = cavlc.ue();
     } else {
         auto reading =
-            slice.slice_type == I_slice || slice.slice_type == SI_slice ? std::mem_fn(&Parser::SyntaxElement::mb_type_i_slice) :
-            slice.slice_type == P_slice || slice.slice_type == SP_slice ? std::mem_fn(&Parser::SyntaxElement::mb_type_p_slice) :
-                                                                          std::mem_fn(&Parser::SyntaxElement::mb_type_b_slice);
+            shr.slice_type == I_slice || shr.slice_type == SI_slice ? std::mem_fn(&Parser::SyntaxElement::mb_type_i_slice) :
+            shr.slice_type == P_slice || shr.slice_type == SP_slice ? std::mem_fn(&Parser::SyntaxElement::mb_type_p_slice) :
+                                                                      std::mem_fn(&Parser::SyntaxElement::mb_type_b_slice);
         mb_type = reading(this);
     }
 
@@ -110,15 +112,17 @@ uint8_t Parser::SyntaxElement::mb_type()
 
 uint8_t Parser::SyntaxElement::mb_type_i_slice()
 {
+    shr_t& shr = slice.header;
+
     uint8_t mb_type = 0;
 
-    if (slice.slice_type == SI_slice) {
+    if (shr.slice_type == SI_slice) {
         cabac_context_t* ctx = contexts.mb_type_contexts; // ctxIdxOffset = 0
         int ctxIdxInc = ctxidx.mb_type_si_slice();
         mb_type = cabac.decode_decision(ctx + ctxIdxInc);
     }
 
-    if (slice.slice_type == I_slice || mb_type == 1) {
+    if (shr.slice_type == I_slice || mb_type == 1) {
         cabac_context_t* ctx = contexts.mb_type_contexts + 3; // ctxIdxOffset = 3
         int ctxIdxInc = ctxidx.mb_type_i_slice();
         if (cabac.decode_decision(ctx + ctxIdxInc)) {
@@ -224,12 +228,14 @@ uint8_t Parser::SyntaxElement::mb_type_b_slice()
 
 uint8_t Parser::SyntaxElement::sub_mb_type()
 {
+    shr_t& shr = slice.header;
+
     uint8_t sub_mb_type;
 
     if (!pps.entropy_coding_mode_flag) 
         sub_mb_type = cavlc.ue();
     else {
-        if (slice.slice_type == P_slice || slice.slice_type == SP_slice)
+        if (shr.slice_type == P_slice || shr.slice_type == SP_slice)
             sub_mb_type = this->sub_mb_type_p_slice();
         else
             sub_mb_type = this->sub_mb_type_b_slice();
@@ -334,11 +340,13 @@ uint8_t Parser::SyntaxElement::intra_chroma_pred_mode()
 
 uint8_t Parser::SyntaxElement::ref_idx_l(uint8_t list, uint8_t x0, uint8_t y0)
 {
+    shr_t& shr = slice.header;
+
     bool refidx_present =
-        slice.slice_type == B_slice || !mb.allrefzero || mb.mb_type != P_8x8;
+        shr.slice_type == B_slice || !mb.allrefzero || mb.mb_type != P_8x8;
     int num_ref_idx_active = list == LIST_0 ?
-        slice.num_ref_idx_l0_active_minus1 + 1 :
-        slice.num_ref_idx_l1_active_minus1 + 1;
+        shr.num_ref_idx_l0_active_minus1 + 1 :
+        shr.num_ref_idx_l1_active_minus1 + 1;
 
     if (!refidx_present || num_ref_idx_active <= 1)
         return 0;

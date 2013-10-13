@@ -946,22 +946,24 @@ void decoded_picture_buffer_t::store_picture(storable_picture* p)
 
 void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
 {
-    sps_t* sps = p_Vid->active_sps;
+    sps_t& sps = *p_Vid->active_sps;
+    slice_t& slice = *currSlice;
+    shr_t& shr = slice.header;
   
-    int tmp1 = currSlice->delta_pic_order_cnt[0];
-    int tmp2 = currSlice->delta_pic_order_cnt[1];
-    currSlice->delta_pic_order_cnt[0] =
-    currSlice->delta_pic_order_cnt[1] = 0;
+    int tmp1 = shr.delta_pic_order_cnt[0];
+    int tmp2 = shr.delta_pic_order_cnt[1];
+    shr.delta_pic_order_cnt[0] =
+    shr.delta_pic_order_cnt[1] = 0;
 
     printf("A gap in frame number is found, try to fill it.\n");
 
-    int CurrFrameNum            = currSlice->frame_num;
-    int UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % sps->MaxFrameNum;
+    int CurrFrameNum            = shr.frame_num;
+    int UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % sps.MaxFrameNum;
 
     while (CurrFrameNum != UnusedShortTermFrameNum) {
         storable_picture* picture = new storable_picture(p_Vid, FRAME,
-            sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
-            sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
+            sps.PicWidthInMbs * 16, sps.FrameHeightInMbs * 16,
+            sps.PicWidthInMbs * sps.MbWidthC, sps.FrameHeightInMbs * sps.MbHeightC, 1);
         picture->slice.coded_frame                     = 1;
         picture->slice.adaptive_ref_pic_buffering_flag = 0;
         picture->PicNum                                = UnusedShortTermFrameNum;
@@ -970,35 +972,36 @@ void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
         picture->is_output                             = 1;
         picture->used_for_reference                    = 1;
 #if (MVC_EXTENSION_ENABLE)
-        picture->slice.view_id                         = currSlice->view_id;
+        picture->slice.view_id                         = slice.view_id;
 #endif
 
-        currSlice->frame_num = UnusedShortTermFrameNum;
-        if (sps->pic_order_cnt_type != 0)
+        shr.frame_num = UnusedShortTermFrameNum;
+        if (sps.pic_order_cnt_type != 0)
             decode_poc(p_Vid, p_Vid->ppSliceList[0]);
-        picture->top_poc    = currSlice->TopFieldOrderCnt;
-        picture->bottom_poc = currSlice->BottomFieldOrderCnt;
-        picture->frame_poc  = currSlice->PicOrderCnt;
-        picture->poc        = currSlice->PicOrderCnt;
+        picture->top_poc    = shr.TopFieldOrderCnt;
+        picture->bottom_poc = shr.BottomFieldOrderCnt;
+        picture->frame_poc  = shr.PicOrderCnt;
+        picture->poc        = shr.PicOrderCnt;
 
-        currSlice->p_Dpb->store_picture(picture);
+        slice.p_Dpb->store_picture(picture);
 
         p_Vid->pre_frame_num = UnusedShortTermFrameNum;
-        UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % sps->MaxFrameNum;
+        UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % sps.MaxFrameNum;
     }
 
-    currSlice->delta_pic_order_cnt[0] = tmp1;
-    currSlice->delta_pic_order_cnt[1] = tmp2;
-    currSlice->frame_num = CurrFrameNum;
+    shr.delta_pic_order_cnt[0] = tmp1;
+    shr.delta_pic_order_cnt[1] = tmp2;
+    shr.frame_num = CurrFrameNum;
 }
 
 
 storable_picture* get_ref_pic(mb_t& mb, storable_picture** RefPicListX, int ref_idx)
 {
     slice_t& slice = *mb.p_Slice;
+    shr_t& shr = slice.header;
 
     return (ref_idx < 0) ? nullptr :
-            !slice.MbaffFrameFlag || !mb.mb_field_decoding_flag ? RefPicListX[ref_idx] :
+            !shr.MbaffFrameFlag || !mb.mb_field_decoding_flag ? RefPicListX[ref_idx] :
             mb.mbAddrX % 2 == ref_idx % 2 ? 
             RefPicListX[ref_idx / 2]->top_field : RefPicListX[ref_idx / 2]->bottom_field;
 }

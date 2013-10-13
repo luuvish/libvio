@@ -78,16 +78,18 @@ int GetVOIdx(VideoParameters *p_Vid, int iViewId)
 
 static void Error_tracking(VideoParameters *p_Vid, slice_t *currSlice)
 {
-    if (currSlice->redundant_pic_cnt == 0)
+    shr_t& shr = currSlice->header;
+
+    if (shr.redundant_pic_cnt == 0)
         p_Vid->Is_primary_correct = p_Vid->Is_redundant_correct = 1;
 
-    if (currSlice->redundant_pic_cnt == 0 && p_Vid->type != I_slice) {
-        for (int i = 0; i < currSlice->num_ref_idx_l0_active_minus1 + 1 ; i++) {
+    if (shr.redundant_pic_cnt == 0 && p_Vid->type != I_slice) {
+        for (int i = 0; i < shr.num_ref_idx_l0_active_minus1 + 1 ; i++) {
             if (currSlice->ref_flag[i] == 0)  // any reference of primary slice is incorrect
                 p_Vid->Is_primary_correct = 0; // primary slice is incorrect
         }
-    } else if (currSlice->redundant_pic_cnt != 0 && p_Vid->type != I_slice) {
-        int redundant_slice_ref_idx = currSlice->abs_diff_pic_num_minus1[0][0] + 1;
+    } else if (shr.redundant_pic_cnt != 0 && p_Vid->type != I_slice) {
+        int redundant_slice_ref_idx = shr.abs_diff_pic_num_minus1[0][0] + 1;
         if (currSlice->ref_flag[redundant_slice_ref_idx] == 0)  // reference of redundant slice is incorrect
             p_Vid->Is_redundant_correct = 0;  // redundant slice is incorrect
     }
@@ -167,8 +169,10 @@ static int parse_idr(slice_t *currSlice)
 
     currSlice->decoder.assign_quant_params(*currSlice);
 
+    shr_t& shr = currSlice->header;
+
     // if primary slice is replaced with redundant slice, set the correct image type
-    if (currSlice->redundant_pic_cnt && p_Vid->Is_primary_correct == 0 && p_Vid->Is_redundant_correct)
+    if (shr.redundant_pic_cnt && p_Vid->Is_primary_correct == 0 && p_Vid->Is_redundant_correct)
         p_Vid->dec_picture->slice.slice_type = p_Vid->type;
 
     if (!p_Vid->dec_picture || *(p_Vid->old_slice) != *currSlice) {
@@ -463,21 +467,23 @@ int DecoderParams::decode_slice_headers()
 
         current_header = read_new_slice(currSlice);
 
+        shr_t& shr = currSlice->header;
+
         // error tracking of primary and redundant slices.
         Error_tracking(p_Vid, currSlice);
         // If primary and redundant are received and primary is correct, discard the redundant
         // else, primary slice will be replaced with redundant slice.
-        if (currSlice->frame_num == p_Vid->previous_frame_num &&
-            currSlice->redundant_pic_cnt != 0 &&
+        if (shr.frame_num == p_Vid->previous_frame_num &&
+            shr.redundant_pic_cnt != 0 &&
             p_Vid->Is_primary_correct != 0 && current_header != EOS)
             continue;
 
         if ((current_header == SOS) || (current_header == SOP && p_Vid->iSliceNumOfCurrPic == 0)) {
             currSlice->current_slice_nr = (short) p_Vid->iSliceNumOfCurrPic;
             if (p_Vid->iSliceNumOfCurrPic > 0) {
-                currSlice->PicOrderCnt         = (*ppSliceList)->PicOrderCnt;
-                currSlice->TopFieldOrderCnt    = (*ppSliceList)->TopFieldOrderCnt;
-                currSlice->BottomFieldOrderCnt = (*ppSliceList)->BottomFieldOrderCnt;  
+                shr.PicOrderCnt         = (*ppSliceList)->header.PicOrderCnt;
+                shr.TopFieldOrderCnt    = (*ppSliceList)->header.TopFieldOrderCnt;
+                shr.BottomFieldOrderCnt = (*ppSliceList)->header.BottomFieldOrderCnt;  
             }
             p_Vid->iSliceNumOfCurrPic++;
             if (p_Vid->iSliceNumOfCurrPic >= p_Vid->iNumOfSlicesAllocated) {

@@ -75,7 +75,6 @@ VideoParameters::VideoParameters()
     this->pDecOuputPic.pU       = nullptr;
     this->pDecOuputPic.pV       = nullptr;
     this->pNextPPS              = new pps_t;
-    this->first_sps             = 1;
 
     this->recovery_flag         = 0;
 
@@ -93,9 +92,6 @@ VideoParameters::VideoParameters()
     this->snr->tot_time         = 0;
 
     this->dec_picture            = nullptr;
-
-    this->MbToSliceGroupMap      = nullptr;
-    this->MapUnitToSliceGroupMap = nullptr;
 
     init_tone_mapping_sei(this->seiToneMapping);
 
@@ -230,7 +226,7 @@ int DecoderParams::DecodeOneFrame()
     this->decode_slice_datas();
 
     exit_picture(this->p_Vid);
-    this->p_Vid->previous_frame_num = this->p_Vid->ppSliceList[0]->frame_num;
+    this->p_Vid->previous_frame_num = this->p_Vid->ppSliceList[0]->header.frame_num;
 
     if (iRet == SOP)
         iRet = DEC_SUCCEED;
@@ -294,7 +290,6 @@ static void free_global_buffers(VideoParameters *p_Vid)
 void DecoderParams::CloseDecoder()
 {
     this->p_Vid->report();
-    this->p_Vid->ppSliceList[0]->fmo_close();
 
     free_layer_buffers(this->p_Vid, 0);
     free_layer_buffers(this->p_Vid, 1);

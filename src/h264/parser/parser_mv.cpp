@@ -193,11 +193,12 @@ pic_motion_params* get_colocated(mb_t& mb, int i, int j)
 {
     slice_t& slice = *mb.p_Slice;
     sps_t& sps = *slice.active_sps;
+    shr_t& shr = slice.header;
 
     storable_picture* ref_pic = get_ref_pic(mb, slice.RefPicList[LIST_1], 0);
 
     int block_y_aff;
-    if (slice.MbaffFrameFlag && mb.mb_field_decoding_flag)
+    if (shr.MbaffFrameFlag && mb.mb_field_decoding_flag)
         block_y_aff = (mb.mb.y * 4 - 4 * (mb.mbAddrX % 2)) / 2;
     else
         block_y_aff = mb.mb.y * 4;
@@ -212,7 +213,7 @@ pic_motion_params* get_colocated(mb_t& mb, int i, int j)
         colocated = &ref_pic->mv_info[j4][i4];
 
     if (sps.direct_8x8_inference_flag) {
-        if (slice.MbaffFrameFlag) {
+        if (shr.MbaffFrameFlag) {
             if (!mb.mb_field_decoding_flag &&
                 (ref_pic->slice.iCodingType == FIELD_CODING || ref_pic->motion.mb_field_decoding_flag[mb.mbAddrX])) {
                 if (abs(slice.dec_picture->poc - ref_pic->bottom_field->poc) >
@@ -221,14 +222,14 @@ pic_motion_params* get_colocated(mb_t& mb, int i, int j)
                 else
                     colocated = &ref_pic->bottom_field->mv_info[RSD(j4) >> 1][RSD(i4)];
             }
-        } else if (!sps.frame_mbs_only_flag && !slice.field_pic_flag && ref_pic->slice.iCodingType == FIELD_CODING) {
+        } else if (!sps.frame_mbs_only_flag && !shr.field_pic_flag && ref_pic->slice.iCodingType == FIELD_CODING) {
             if (abs(slice.dec_picture->poc - ref_pic->bottom_field->poc) >
                 abs(slice.dec_picture->poc - ref_pic->top_field->poc) )
                 colocated = &ref_pic->top_field->mv_info[RSD(j4) >> 1][RSD(i4)];
             else
                 colocated = &ref_pic->bottom_field->mv_info[RSD(j4) >> 1][RSD(i4)];
-        } else if (slice.field_pic_flag && ref_pic->slice.iCodingType != FIELD_CODING) {
-            if (!slice.bottom_field_flag)
+        } else if (shr.field_pic_flag && ref_pic->slice.iCodingType != FIELD_CODING) {
+            if (!shr.bottom_field_flag)
                 colocated = &ref_pic->frame->top_field->mv_info[RSD(j4)][RSD(i4)];
             else
                 colocated = &ref_pic->frame->bottom_field->mv_info[RSD(j4)][RSD(i4)];
@@ -242,18 +243,19 @@ static int MapColToList0(mb_t& mb, pic_motion_params* colocated)
 {
     slice_t& slice = *mb.p_Slice;
     sps_t& sps = *slice.active_sps;
+    shr_t& shr = slice.header;
 
-    int num_ref_list = min<int>(slice.num_ref_idx_l0_active_minus1 + 1,
-                                slice.RefPicSize[LIST_0] * (1 + (slice.MbaffFrameFlag && mb.mb_field_decoding_flag)));
+    int num_ref_list = min<int>(shr.num_ref_idx_l0_active_minus1 + 1,
+                                slice.RefPicSize[LIST_0] * (1 + (shr.MbaffFrameFlag && mb.mb_field_decoding_flag)));
 
     int  refList = colocated->ref_idx[LIST_0] == -1 ? LIST_1 : LIST_0;
     auto ref_pic = colocated->ref_pic[refList];
 
     bool direct_8x8 = sps.direct_8x8_inference_flag && (
-        (slice.MbaffFrameFlag && !mb.mb_field_decoding_flag && ref_pic->slice.structure != FRAME) ||
-        (!slice.MbaffFrameFlag && !slice.field_pic_flag && ref_pic->slice.structure != FRAME) ||
-        (slice.MbaffFrameFlag && mb.mb_field_decoding_flag && ref_pic->slice.structure == FRAME) ||
-        (!slice.MbaffFrameFlag && slice.field_pic_flag && ref_pic->slice.structure == FRAME));
+        (shr.MbaffFrameFlag && !mb.mb_field_decoding_flag && ref_pic->slice.structure != FRAME) ||
+        (!shr.MbaffFrameFlag && !shr.field_pic_flag && ref_pic->slice.structure != FRAME) ||
+        (shr.MbaffFrameFlag && mb.mb_field_decoding_flag && ref_pic->slice.structure == FRAME) ||
+        (!shr.MbaffFrameFlag && shr.field_pic_flag && ref_pic->slice.structure == FRAME));
 
     int mapped_idx = 0;
     for (int iref = 0; iref < num_ref_list; ++iref) {
@@ -263,7 +265,7 @@ static int MapColToList0(mb_t& mb, pic_motion_params* colocated)
                             ref_pic_i->bottom_field == ref_pic ||
                             ref_pic_i->frame == ref_pic;
 
-            if (same_pic && (!slice.field_pic_flag || ref_pic_i->slice.structure == slice.structure)) {
+            if (same_pic && (!shr.field_pic_flag || ref_pic_i->slice.structure == shr.structure)) {
                 mapped_idx = iref;
                 break;
             } else
@@ -285,6 +287,8 @@ static int MapColToList0(mb_t& mb, pic_motion_params* colocated)
 static int DistScaleFactor(mb_t& mb, int ref_idx)
 {
     slice_t& slice = *mb.p_Slice;
+    shr_t& shr = slice.header;
+
     storable_picture* dec_picture = slice.p_Vid->dec_picture;
     storable_picture* ref_pic0 = get_ref_pic(mb, slice.RefPicList[LIST_0], ref_idx);
     storable_picture* ref_pic1 = get_ref_pic(mb, slice.RefPicList[LIST_1], 0);
@@ -292,7 +296,7 @@ static int DistScaleFactor(mb_t& mb, int ref_idx)
     if (ref_pic0->is_long_term)
         return 9999;
 
-    int curPoc = (!slice.MbaffFrameFlag || !mb.mb_field_decoding_flag) ? dec_picture->poc :
+    int curPoc = (!shr.MbaffFrameFlag || !mb.mb_field_decoding_flag) ? dec_picture->poc :
                  (mb.mbAddrX % 2 == 0) ? dec_picture->top_poc : dec_picture->bottom_poc;
 
     int tb = clip3(-128, 127, curPoc - ref_pic0->poc);
@@ -312,6 +316,8 @@ void Parser::Macroblock::get_direct_temporal()
                       (mb.SubMbType[2] == 0) | (mb.SubMbType[3] == 0);
     if (!has_direct)
         return;
+
+    shr_t& shr = slice.header;
 
     for (int block4x4 = 0; block4x4 < 16; ++block4x4) {
         if (mb.SubMbType[block4x4 / 4] != 0)
@@ -334,11 +340,11 @@ void Parser::Macroblock::get_direct_temporal()
             auto ref_pic = colocated->ref_pic[refList];
             mv_t mvCol   = colocated->mv     [refList];
             if (sps.direct_8x8_inference_flag) {
-                if ((slice.MbaffFrameFlag && !mb.mb_field_decoding_flag && ref_pic->slice.structure != FRAME) ||
-                    (!slice.MbaffFrameFlag && !slice.field_pic_flag && ref_pic->slice.structure != FRAME))
+                if ((shr.MbaffFrameFlag && !mb.mb_field_decoding_flag && ref_pic->slice.structure != FRAME) ||
+                    (!shr.MbaffFrameFlag && !shr.field_pic_flag && ref_pic->slice.structure != FRAME))
                     mvCol.mv_y *= 2;
-                if ((slice.MbaffFrameFlag && mb.mb_field_decoding_flag && ref_pic->slice.structure == FRAME) ||
-                    (!slice.MbaffFrameFlag && slice.field_pic_flag && ref_pic->slice.structure == FRAME))
+                if ((shr.MbaffFrameFlag && mb.mb_field_decoding_flag && ref_pic->slice.structure == FRAME) ||
+                    (!shr.MbaffFrameFlag && shr.field_pic_flag && ref_pic->slice.structure == FRAME))
                     mvCol.mv_y /= 2;
             }
 

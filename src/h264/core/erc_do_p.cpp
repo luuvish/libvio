@@ -1110,7 +1110,7 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
         if (p_Vid->conceal_slice_type == B_slice) {
             init_lists_for_non_reference_loss(
                 p_Vid->p_Dpb_layer[0],
-                dst->slice.slice_type, p_Vid->ppSliceList[0]->field_pic_flag);
+                dst->slice.slice_type, p_Vid->ppSliceList[0]->header.field_pic_flag);
         } else
             p_Vid->ppSliceList[0]->init_lists();
 
@@ -1204,11 +1204,11 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
   int CurrFrameNum;
   int UnusedShortTermFrameNum;
   storable_picture *picture = NULL;
-  int tmp1 = pSlice->delta_pic_order_cnt[0];
-  int tmp2 = pSlice->delta_pic_order_cnt[1];
+  int tmp1 = pSlice->header.delta_pic_order_cnt[0];
+  int tmp2 = pSlice->header.delta_pic_order_cnt[1];
   int i;
 
-  pSlice->delta_pic_order_cnt[0] = pSlice->delta_pic_order_cnt[1] = 0;
+  pSlice->header.delta_pic_order_cnt[0] = pSlice->header.delta_pic_order_cnt[1] = 0;
 
   // printf("A gap in frame number is found, try to fill it.\n");
 
@@ -1223,7 +1223,7 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
   else
     UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % p_Vid->active_sps->MaxFrameNum;
 
-  CurrFrameNum = pSlice->frame_num;
+  CurrFrameNum = pSlice->header.frame_num;
 
   while (CurrFrameNum != UnusedShortTermFrameNum)
   {
@@ -1241,7 +1241,7 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
 
     picture->slice.adaptive_ref_pic_buffering_flag = 0;
 
-    pSlice->frame_num = UnusedShortTermFrameNum;
+    pSlice->header.frame_num = UnusedShortTermFrameNum;
 
     picture->top_poc=p_Vid->last_ref_pic_poc + p_Vid->p_Inp->ref_poc_gap;
     picture->bottom_poc=picture->top_poc;
@@ -1278,9 +1278,9 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
     }
     pSlice->ref_flag[0] = 0;
   }
-  pSlice->delta_pic_order_cnt[0] = tmp1;
-  pSlice->delta_pic_order_cnt[1] = tmp2;
-  pSlice->frame_num = CurrFrameNum;
+  pSlice->header.delta_pic_order_cnt[0] = tmp1;
+  pSlice->header.delta_pic_order_cnt[1] = tmp2;
+  pSlice->header.frame_num = CurrFrameNum;
 }
 
 /*!

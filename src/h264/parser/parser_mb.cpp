@@ -138,18 +138,20 @@ static const uint8_t sub_mb_types_b_slice[13][5] = {
 
 void Parser::init(slice_t& slice)
 {
+    shr_t& shr = slice.header;
+
     this->mb_skip_run = -1;
 
     this->prescan_skip_read = false;
     this->prescan_mb_field_decoding_read = false;
 
-    this->QpY = slice.SliceQpY;
+    this->QpY = shr.SliceQpY;
 
     this->is_reset_coeff    = false;
     this->is_reset_coeff_cr = false;
 
     if (slice.active_pps->entropy_coding_mode_flag) {
-        this->mot_ctx.init(slice.slice_type, slice.cabac_init_idc, slice.SliceQpY);
+        this->mot_ctx.init(shr.slice_type, shr.cabac_init_idc, shr.SliceQpY);
         this->last_dquant = 0;
     }
 }
@@ -178,10 +180,12 @@ Parser::Macroblock::~Macroblock()
 
 void Parser::Macroblock::parse()
 {
+    shr_t& shr = slice.header;
+
     int CurrMbAddr = mb.mbAddrX;
     bool moreDataFlag = 1;
 
-    if (slice.slice_type != I_slice && slice.slice_type != SI_slice) {
+    if (shr.slice_type != I_slice && shr.slice_type != SI_slice) {
         if (pps.entropy_coding_mode_flag) {
             if (slice.parser.prescan_skip_read) {
                 slice.parser.prescan_skip_read = false;
@@ -204,7 +208,7 @@ void Parser::Macroblock::parse()
         mb.CodedBlockPatternLuma   = !mb.mb_skip_flag;
         mb.CodedBlockPatternChroma = 0;
 
-        if (slice.MbaffFrameFlag && CurrMbAddr % 2 == 0) {
+        if (shr.MbaffFrameFlag && CurrMbAddr % 2 == 0) {
             if (pps.entropy_coding_mode_flag) {
                 if (mb.mb_skip_flag) {
                     //get next MB
@@ -246,7 +250,7 @@ void Parser::Macroblock::parse()
     if (moreDataFlag) {
         bool prevMbSkipped = (CurrMbAddr % 2 == 1) ?
             slice.neighbour.mb_data[CurrMbAddr - 1].mb_skip_flag : 0;
-        if (slice.MbaffFrameFlag &&
+        if (shr.MbaffFrameFlag &&
             (CurrMbAddr % 2 == 0 || (CurrMbAddr % 2 == 1 && prevMbSkipped))) {
             if (slice.parser.prescan_mb_field_decoding_read) {
                 slice.parser.prescan_mb_field_decoding_read = false;
@@ -258,17 +262,17 @@ void Parser::Macroblock::parse()
 
     if (moreDataFlag) {
         mb.mb_type = se.mb_type();
-        mb.mb_type += (slice.slice_type == P_slice || slice.slice_type == SP_slice) ? 1 : 0;
+        mb.mb_type += (shr.slice_type == P_slice || shr.slice_type == SP_slice) ? 1 : 0;
         mb.ei_flag = 0;
     }
 
     this->mb_type(mb.mb_type);
 
     slice.dec_picture->motion.mb_field_decoding_flag[mb.mbAddrX] = mb.mb_field_decoding_flag;
-    if (slice.slice_type != I_slice && slice.slice_type != SI_slice) {
-        if (slice.MbaffFrameFlag && mb.mb_field_decoding_flag) {
-            slice.num_ref_idx_l0_active_minus1 = ((slice.num_ref_idx_l0_active_minus1 + 1) << 1) - 1;
-            slice.num_ref_idx_l1_active_minus1 = ((slice.num_ref_idx_l1_active_minus1 + 1) << 1) - 1;
+    if (shr.slice_type != I_slice && shr.slice_type != SI_slice) {
+        if (shr.MbaffFrameFlag && mb.mb_field_decoding_flag) {
+            shr.num_ref_idx_l0_active_minus1 = ((shr.num_ref_idx_l0_active_minus1 + 1) << 1) - 1;
+            shr.num_ref_idx_l1_active_minus1 = ((shr.num_ref_idx_l1_active_minus1 + 1) << 1) - 1;
         }
     }
 
@@ -288,7 +292,7 @@ void Parser::Macroblock::parse()
     if (mb.mb_type == 0) {
         mb.transform_size_8x8_flag = 0;
 
-        if (slice.slice_type == P_slice)
+        if (shr.slice_type == P_slice)
             return;
         if (slice.parser.mb_skip_run >= 0) {
             if (pps.entropy_coding_mode_flag) {
@@ -314,7 +318,9 @@ void Parser::Macroblock::parse()
 
 void Parser::Macroblock::mb_type(uint8_t mb_type)
 {
-    switch (slice.slice_type) {
+    shr_t& shr = slice.header;
+
+    switch (shr.slice_type) {
     case I_slice:
         break;
     case SI_slice:
@@ -474,6 +480,8 @@ void Parser::Macroblock::parse_i_pcm()
 
 void Parser::Macroblock::sub_mb_type()
 {
+    shr_t& shr = slice.header;
+
     mb.noSubMbPartSizeLessThan8x8Flag = 1;
     mb.transform_size_8x8_flag = 0;
 
@@ -481,9 +489,9 @@ void Parser::Macroblock::sub_mb_type()
         for (int mbPartIdx = 0; mbPartIdx < 4; mbPartIdx++) {
             uint8_t sub_mb_type = se.sub_mb_type();
 
-            assert(slice.slice_type != B_slice ? sub_mb_type < 4 : sub_mb_type < 13);
+            assert(shr.slice_type != B_slice ? sub_mb_type < 4 : sub_mb_type < 13);
 
-            const uint8_t (*sub_mb_types)[5] = (slice.slice_type != B_slice) ?
+            const uint8_t (*sub_mb_types)[5] = (shr.slice_type != B_slice) ?
                 sub_mb_types_p_slice : sub_mb_types_b_slice;
             mb.SubMbType    [mbPartIdx] = sub_mb_types[sub_mb_type][0];
             mb.SubMbPredMode[mbPartIdx] = sub_mb_types[sub_mb_type][2];
@@ -563,7 +571,9 @@ void Parser::Macroblock::mb_pred_intra()
 
 void Parser::Macroblock::mb_pred_inter()
 {
-    if (slice.slice_type != B_slice && mb.mb_type == P_Skip)
+    shr_t& shr = slice.header;
+
+    if (shr.slice_type != B_slice && mb.mb_type == P_Skip)
         return this->skip_macroblock();
 
     if (mb.mb_type != 0) {
@@ -581,22 +591,22 @@ void Parser::Macroblock::mb_pred_inter()
         }
     }
 
-    if (slice.slice_type == B_slice && (mb.mb_type == B_Skip || mb.mb_type == B_8x8)) {
-        if (slice.direct_spatial_mv_pred_flag)
+    if (shr.slice_type == B_slice && (mb.mb_type == B_Skip || mb.mb_type == B_8x8)) {
+        if (shr.direct_spatial_mv_pred_flag)
             this->get_direct_spatial();
         else
             this->get_direct_temporal();
     }
 
-    if (slice.slice_type == B_slice && mb.mb_type == B_Skip)
+    if (shr.slice_type == B_slice && mb.mb_type == B_Skip)
         return;
 
     this->ref_idx_l(LIST_0);
-    if (slice.slice_type == B_slice)
+    if (shr.slice_type == B_slice)
         this->ref_idx_l(LIST_1);
 
     this->mvd_l(LIST_0);
-    if (slice.slice_type == B_slice)
+    if (shr.slice_type == B_slice)
         this->mvd_l(LIST_1);
 
     pic_motion_params** p_mv_info = slice.dec_picture->mv_info;
@@ -606,7 +616,7 @@ void Parser::Macroblock::mb_pred_inter()
             auto mv_info = &p_mv_info[mb.mb.y * 4 + j4][mb.mb.x * 4 + i4];
             int  ref_idx = mv_info->ref_idx[LIST_0];
             mv_info->ref_pic[LIST_0] = get_ref_pic(mb, slice.RefPicList[LIST_0], ref_idx);
-            if (slice.slice_type == B_slice) {
+            if (shr.slice_type == B_slice) {
                 ref_idx = mv_info->ref_idx[LIST_1];
                 mv_info->ref_pic[LIST_1] = get_ref_pic(mb, slice.RefPicList[LIST_1], ref_idx);
             }
@@ -697,6 +707,8 @@ void Parser::Macroblock::mvd_l(int list)
 
 void Parser::Macroblock::coded_block_pattern()
 {
+    shr_t& shr = slice.header;
+
     uint8_t coded_block_pattern = se.coded_block_pattern();
     mb.CodedBlockPatternLuma   = coded_block_pattern % 16;
     mb.CodedBlockPatternChroma = coded_block_pattern / 16;
@@ -705,7 +717,7 @@ void Parser::Macroblock::coded_block_pattern()
             slice.parser.last_dquant = 0;
     }
 
-#define IS_DIRECT(MB) ((MB)->mb_type == 0 && slice.slice_type == B_slice)
+#define IS_DIRECT(MB) ((MB)->mb_type == 0 && shr.slice_type == B_slice)
     int need_transform_size_flag =
         mb.CodedBlockPatternLuma > 0 &&
         pps.transform_8x8_mode_flag && !mb.is_intra_block &&
@@ -772,6 +784,8 @@ static const uint8_t QP_SCALE_CR[52] = {
 
 void Parser::Macroblock::update_qp(int qp)
 {
+    shr_t& shr = slice.header;
+
     int QpOffset[2] = { pps.chroma_qp_index_offset, pps.second_chroma_qp_index_offset };
 
     mb.QpY          = qp;
@@ -783,7 +797,7 @@ void Parser::Macroblock::update_qp(int qp)
         mb.QpC[i]           = QpC;
         mb.qp_scaled[i + 1] = QpC + sps.QpBdOffsetC;
 
-        int8_t QsI = clip3(-(sps.QpBdOffsetC), 51, slice.QsY + QpOffset[i]);
+        int8_t QsI = clip3(-(sps.QpBdOffsetC), 51, shr.QsY + QpOffset[i]);
         int8_t QsC = QsI < 30 ? QsI : QP_SCALE_CR[QsI];
         mb.QsC[i]           = QsC;
     }

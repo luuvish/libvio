@@ -33,14 +33,14 @@ namespace vio  {
 namespace h264 {
 
 
-static int Flat_4x4_16[16] = {
+static const int Flat_4x4_16[16] = {
     16, 16, 16, 16,
     16, 16, 16, 16,
     16, 16, 16, 16,
     16, 16, 16, 16
 };
 
-static int Flat_8x8_16[64] = {
+static const int Flat_8x8_16[64] = {
     16, 16, 16, 16, 16, 16, 16, 16,
     16, 16, 16, 16, 16, 16, 16, 16,
     16, 16, 16, 16, 16, 16, 16, 16,
@@ -53,14 +53,14 @@ static int Flat_8x8_16[64] = {
 
 // Table 7-3 Specification of default scaling lists Default_4x4_Intra and Default_4x4_Inter
 
-static int Default_4x4_Intra[16] = {
+static const int Default_4x4_Intra[16] = {
      6, 13, 20, 28,
     13, 20, 28, 32,
     20, 28, 32, 37,
     28, 32, 37, 42
 };
 
-static int Default_4x4_Inter[16] = {
+static const int Default_4x4_Inter[16] = {
     10, 14, 20, 24,
     14, 20, 24, 27,
     20, 24, 27, 30,
@@ -69,7 +69,7 @@ static int Default_4x4_Inter[16] = {
 
 // Table 7-4 Specification of default scaling lists Default_8x8_Intra and Default_8x8_Inter
 
-static int Default_8x8_Intra[64] = {
+static const int Default_8x8_Intra[64] = {
      6, 10, 13, 16, 18, 23, 25, 27,
     10, 11, 16, 18, 23, 25, 27, 29,
     13, 16, 18, 23, 25, 27, 29, 31,
@@ -80,7 +80,7 @@ static int Default_8x8_Intra[64] = {
     27, 29, 31, 33, 36, 38, 40, 42
 };
 
-static int Default_8x8_Inter[64] = {
+static const int Default_8x8_Inter[64] = {
      9, 13, 15, 17, 19, 21, 22, 24,
     13, 13, 17, 19, 21, 22, 24, 25,
     15, 17, 19, 21, 22, 24, 25, 27,
@@ -174,82 +174,81 @@ static const int dequant_coef8[6][8][8] = {
 
 void Transform::init(slice_t& slice)
 {
-    sps_t* sps = slice.active_sps;
-    pps_t* pps = slice.active_pps;
+    sps_t& sps = *slice.active_sps;
+    pps_t& pps = *slice.active_pps;
 
-    if (!pps->pic_scaling_matrix_present_flag &&
-        !sps->seq_scaling_matrix_present_flag) {
+    if (!pps.pic_scaling_matrix_present_flag && !sps.seq_scaling_matrix_present_flag) {
         for (int i = 0; i < 12; i++)
             this->qmatrix[i] = (i < 6) ? Flat_4x4_16 : Flat_8x8_16;
     } else {
-        int n_ScalingList = (sps->chroma_format_idc != YUV444) ? 8 : 12;
-        if (sps->seq_scaling_matrix_present_flag) { // check sps first
+        int n_ScalingList = (sps.chroma_format_idc != YUV444) ? 8 : 12;
+        if (sps.seq_scaling_matrix_present_flag) { // check sps first
             for (int i = 0; i < n_ScalingList; i++) {
                 if (i < 6) {
-                    if (!sps->seq_scaling_list_present_flag[i]) { // fall-back rule A
+                    if (!sps.seq_scaling_list_present_flag[i]) { // fall-back rule A
                         if (i == 0)
                             this->qmatrix[i] = Default_4x4_Intra;
                         else if (i == 3)
                             this->qmatrix[i] = Default_4x4_Inter;
                         else
-                            this->qmatrix[i] = this->qmatrix[i-1];
+                            this->qmatrix[i] = this->qmatrix[i - 1];
                     } else {
-                        if (sps->UseDefaultScalingMatrix4x4Flag[i])
+                        if (sps.UseDefaultScalingMatrix4x4Flag[i])
                             this->qmatrix[i] = (i < 3) ? Default_4x4_Intra : Default_4x4_Inter;
                         else
-                            this->qmatrix[i] = sps->ScalingList4x4[i];
+                            this->qmatrix[i] = sps.ScalingList4x4[i];
                     }
                 } else {
-                    if (!sps->seq_scaling_list_present_flag[i]) { // fall-back rule A
+                    if (!sps.seq_scaling_list_present_flag[i]) { // fall-back rule A
                         if (i == 6)
                             this->qmatrix[i] = Default_8x8_Intra;
                         else if (i == 7)
                             this->qmatrix[i] = Default_8x8_Inter;
                         else
-                            this->qmatrix[i] = this->qmatrix[i-2];
+                            this->qmatrix[i] = this->qmatrix[i - 2];
                     } else {
-                        if (sps->UseDefaultScalingMatrix8x8Flag[i-6])
+                        if (sps.UseDefaultScalingMatrix8x8Flag[i - 6])
                             this->qmatrix[i] = (i == 6 || i == 8 || i == 10) ? Default_8x8_Intra : Default_8x8_Inter;
                         else
-                            this->qmatrix[i] = sps->ScalingList8x8[i-6];
+                            this->qmatrix[i] = sps.ScalingList8x8[i - 6];
                     }
                 }
             }
         }
 
-        if (pps->pic_scaling_matrix_present_flag) { // then check pps
+        if (pps.pic_scaling_matrix_present_flag) { // then check pps
             for (int i = 0; i < n_ScalingList; i++) {
                 if (i < 6) {
-                    if (!pps->pic_scaling_list_present_flag[i]) { // fall-back rule B
+                    if (!pps.pic_scaling_list_present_flag[i]) { // fall-back rule B
                         if (i == 0) {
-                            if (!sps->seq_scaling_matrix_present_flag)
+                            if (!sps.seq_scaling_matrix_present_flag)
                                 this->qmatrix[i] = Default_4x4_Intra;
                         } else if (i == 3) {
-                            if (!sps->seq_scaling_matrix_present_flag)
+                            if (!sps.seq_scaling_matrix_present_flag)
                                 this->qmatrix[i] = Default_4x4_Inter;
                         } else
-                            this->qmatrix[i] = this->qmatrix[i-1];
+                            this->qmatrix[i] = this->qmatrix[i - 1];
                     } else {
-                        if (pps->UseDefaultScalingMatrix4x4Flag[i])
+                        if (pps.UseDefaultScalingMatrix4x4Flag[i])
                             this->qmatrix[i] = (i < 3) ? Default_4x4_Intra : Default_4x4_Inter;
                         else
-                            this->qmatrix[i] = pps->ScalingList4x4[i];
+                            this->qmatrix[i] = pps.ScalingList4x4[i];
                     }
                 } else {
-                    if (!pps->pic_scaling_list_present_flag[i]) { // fall-back rule B
+                    if (!pps.pic_scaling_list_present_flag[i]) { // fall-back rule B
                         if (i == 6) {
-                            if (!sps->seq_scaling_matrix_present_flag)
+                            if (!sps.seq_scaling_matrix_present_flag)
                                 this->qmatrix[i] = Default_8x8_Intra;
                         } else if (i == 7) {
-                            if (!sps->seq_scaling_matrix_present_flag)
+                            if (!sps.seq_scaling_matrix_present_flag)
                                 this->qmatrix[i] = Default_8x8_Inter;
                         } else  
-                            this->qmatrix[i] = this->qmatrix[i-2];
+                            this->qmatrix[i] = this->qmatrix[i - 2];
                     } else {
-                        if (pps->UseDefaultScalingMatrix8x8Flag[i-6])
+                        if (pps.UseDefaultScalingMatrix8x8Flag[i - 6])
                             this->qmatrix[i] = (i == 6 || i == 8 || i == 10) ? Default_8x8_Intra : Default_8x8_Inter;
                         else
-                            this->qmatrix[i] = pps->ScalingList8x8[i-6];
+                            this->qmatrix[i] = pps.ScalingList8x8[i - 6];
                     }
                 }
             }
@@ -261,12 +260,12 @@ void Transform::init(slice_t& slice)
 
 void Transform::set_quant(slice_t& slice)
 {
-    sps_t* sps = slice.active_sps;
-    pps_t* pps = slice.active_pps;
+    sps_t& sps = *slice.active_sps;
+    pps_t& pps = *slice.active_pps;
 
-    for (int k = 0; k < 6; k++) {
-        for (int j = 0; j < 4; j++) {
-            for (int i = 0; i < 4; i++) {
+    for (int k = 0; k < 6; ++k) {
+        for (int j = 0; j < 4; ++j) {
+            for (int i = 0; i < 4; ++i) {
                 this->InvLevelScale4x4_Intra[0][k][j][i] = dequant_coef[k][j][i] * this->qmatrix[0][4 * j + i];
                 this->InvLevelScale4x4_Intra[1][k][j][i] = dequant_coef[k][j][i] * this->qmatrix[1][4 * j + i];
                 this->InvLevelScale4x4_Intra[2][k][j][i] = dequant_coef[k][j][i] * this->qmatrix[2][4 * j + i];
@@ -277,24 +276,24 @@ void Transform::set_quant(slice_t& slice)
         }
     }
 
-    if (!pps->transform_8x8_mode_flag)
+    if (!pps.transform_8x8_mode_flag)
         return;
 
-    for (int k = 0; k < 6; k++) {
-        for (int j = 0; j < 8; j++) {
-            for (int i = 0; i < 8; i++) {
+    for (int k = 0; k < 6; ++k) {
+        for (int j = 0; j < 8; ++j) {
+            for (int i = 0; i < 8; ++i) {
                 this->InvLevelScale8x8_Intra[0][k][j][i] = dequant_coef8[k][j][i] * this->qmatrix[6][8 * j + i];
                 this->InvLevelScale8x8_Inter[0][k][j][i] = dequant_coef8[k][j][i] * this->qmatrix[7][8 * j + i];
             }
         }
     }
 
-    if (sps->chroma_format_idc != 3)
+    if (sps.chroma_format_idc != 3)
         return;
 
-    for (int k = 0; k < 6; k++) {
-        for (int j = 0; j < 8; j++) {
-            for (int i = 0; i < 8; i++) {
+    for (int k = 0; k < 6; ++k) {
+        for (int j = 0; j < 8; ++j) {
+            for (int i = 0; i < 8; ++i) {
                 this->InvLevelScale8x8_Intra[1][k][j][i] = dequant_coef8[k][j][i] * this->qmatrix[ 8][8 * j + i];
                 this->InvLevelScale8x8_Inter[1][k][j][i] = dequant_coef8[k][j][i] * this->qmatrix[ 9][8 * j + i];
                 this->InvLevelScale8x8_Intra[2][k][j][i] = dequant_coef8[k][j][i] * this->qmatrix[10][8 * j + i];
@@ -341,9 +340,10 @@ static const uint8_t ZIGZAG_SCAN_8x8[2][64][2] = {
 
 pos_t Transform::inverse_scan_luma_dc(mb_t* mb, int run)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t& slice = *mb->p_Slice;
+    shr_t& shr = slice.header;
 
-    bool field = slice->field_pic_flag || mb->mb_field_decoding_flag;
+    bool field = shr.field_pic_flag || mb->mb_field_decoding_flag;
     const uint8_t (*zigzag_scan_4x4)[2] = ZIGZAG_SCAN_4x4[field];
 
     return {zigzag_scan_4x4[run][0], zigzag_scan_4x4[run][1]};
@@ -351,9 +351,10 @@ pos_t Transform::inverse_scan_luma_dc(mb_t* mb, int run)
 
 pos_t Transform::inverse_scan_luma_ac(mb_t* mb, int run)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t& slice = *mb->p_Slice;
+    shr_t& shr = slice.header;
 
-    bool field = slice->field_pic_flag || mb->mb_field_decoding_flag;
+    bool field = shr.field_pic_flag || mb->mb_field_decoding_flag;
     const uint8_t (*zigzag_scan_4x4)[2] = ZIGZAG_SCAN_4x4[field];
     const uint8_t (*zigzag_scan_8x8)[2] = ZIGZAG_SCAN_8x8[field];
 
@@ -365,21 +366,22 @@ pos_t Transform::inverse_scan_luma_ac(mb_t* mb, int run)
 
 pos_t Transform::inverse_scan_chroma_dc(mb_t* mb, int run)
 {
-    slice_t* slice = mb->p_Slice;
-    sps_t* sps = slice->active_sps;
+    slice_t& slice = *mb->p_Slice;
+    sps_t& sps = *slice.active_sps;
 
-    if (sps->ChromaArrayType == 1)
+    if (sps.ChromaArrayType == 1)
         return {run % 2, run / 2};
-    if (sps->ChromaArrayType == 2)
+    if (sps.ChromaArrayType == 2)
         return {ZIGZAG_SCAN_4x4[1][run][0], ZIGZAG_SCAN_4x4[1][run][1]};
     return {0, 0};
 }
 
 pos_t Transform::inverse_scan_chroma_ac(mb_t* mb, int run)
 {
-    slice_t* slice = mb->p_Slice;
+    slice_t& slice = *mb->p_Slice;
+    shr_t& shr = slice.header;
 
-    bool field = slice->field_pic_flag || mb->mb_field_decoding_flag;
+    bool field = shr.field_pic_flag || mb->mb_field_decoding_flag;
     const uint8_t (*zigzag_scan_4x4)[2] = ZIGZAG_SCAN_4x4[field];
 
     return {zigzag_scan_4x4[run][0], zigzag_scan_4x4[run][1]};
@@ -393,12 +395,13 @@ static inline int rshift_rnd_sf(int x, int a)
 
 int Transform::inverse_quantize(mb_t* mb, bool uv, ColorPlane pl, int i0, int j0, int levarr)
 {
-    slice_t* slice = mb->p_Slice;
-    sps_t* sps = slice->active_sps;
+    slice_t& slice = *mb->p_Slice;
+    sps_t& sps = *slice.active_sps;
+    shr_t& shr = slice.header;
 
     int qp_per = mb->qp_scaled[pl] / 6;
     int qp_rem = mb->qp_scaled[pl] % 6;
-    int transform_pl = sps->separate_colour_plane_flag ? slice->colour_plane_id : pl;
+    int transform_pl = sps.separate_colour_plane_flag ? shr.colour_plane_id : pl;
 
     if (uv) {
         int (*InvLevelScale4x4)[4] = mb->is_intra_block ?
@@ -857,11 +860,12 @@ void Transform::transform_luma_dc(mb_t* mb, ColorPlane pl)
 void Transform::transform_chroma_dc(mb_t* mb, ColorPlane pl)
 {
     if (!mb->TransformBypassModeFlag) {
-        slice_t* slice = mb->p_Slice;
-        sps_t* sps = slice->active_sps;
+        slice_t& slice = *mb->p_Slice;
+        sps_t& sps = *slice.active_sps;
+        shr_t& shr = slice.header;
 
-        bool smb = (slice->slice_type == SP_slice && !mb->is_intra_block) ||
-                   (slice->slice_type == SI_slice && mb->mb_type == SI);
+        bool smb = (shr.slice_type == SP_slice && !mb->is_intra_block) ||
+                   (shr.slice_type == SI_slice && mb->mb_type == SI);
         int (*cof)[16] = this->cof[pl];
         int (*dcC)[16] = this->cof[pl];
 
@@ -870,33 +874,33 @@ void Transform::transform_chroma_dc(mb_t* mb, ColorPlane pl)
             this->InvLevelScale4x4_Intra[pl][qP % 6][0][0] :
             this->InvLevelScale4x4_Inter[pl][qP % 6][0][0];
 
-        if (sps->ChromaArrayType == 1 && !smb) {
+        if (sps.ChromaArrayType == 1 && !smb) {
             int c[2][2];
             int f[2][2];
-            for (int i = 0; i < sps->MbHeightC; i += 4) {
-                for (int j = 0; j < sps->MbWidthC; j += 4)
+            for (int i = 0; i < sps.MbHeightC; i += 4) {
+                for (int j = 0; j < sps.MbWidthC; j += 4)
                     c[i / 4][j / 4] = cof[i][j];
             }
 
             this->ihadamard_2x2(c, f);
 
-            for (int i = 0; i < sps->MbHeightC; i += 4) {
-                for (int j = 0; j < sps->MbWidthC; j += 4)
+            for (int i = 0; i < sps.MbHeightC; i += 4) {
+                for (int j = 0; j < sps.MbWidthC; j += 4)
                     dcC[i][j] = ((f[i / 4][j / 4] * scale) << (qP / 6)) >> 5;
             }
         }
-        if (sps->ChromaArrayType == 2) {
+        if (sps.ChromaArrayType == 2) {
             int c[4][2];
             int f[4][2];
-            for (int i = 0; i < sps->MbHeightC; i += 4) {
-                for (int j = 0; j < sps->MbWidthC; j += 4)
+            for (int i = 0; i < sps.MbHeightC; i += 4) {
+                for (int j = 0; j < sps.MbWidthC; j += 4)
                     c[i / 4][j / 4] = cof[i][j];
             }
 
             this->ihadamard_2x4(c, f);
 
-            for (int i = 0; i < sps->MbHeightC; i += 4) {
-                for (int j = 0; j < sps->MbWidthC; j += 4) {
+            for (int i = 0; i < sps.MbHeightC; i += 4) {
+                for (int j = 0; j < sps.MbWidthC; j += 4) {
                     if (qP >= 36)
                         dcC[i][j] = (f[i / 4][j / 4] * scale) << (qP / 6 - 6);
                     else
@@ -1129,16 +1133,17 @@ static const uint16_t LevelScale2[6][4][4] = {
 
 void Transform::itrans_sp(mb_t* mb, ColorPlane pl, int ioff, int joff)
 {
-    slice_t* slice = mb->p_Slice;
-    sps_t* sps = slice->active_sps;
+    slice_t& slice = *mb->p_Slice;
+    sps_t& sps = *slice.active_sps;
+    shr_t& shr = slice.header;
 
-    int QpY = (slice->slice_type == SI_slice) ? slice->QsY : slice->parser.QpY;
-    int QsY = slice->QsY;
+    int QpY = (shr.slice_type == SI_slice) ? shr.QsY : slice.parser.QpY;
+    int QsY = shr.QsY;
 
     int    (*cof    )[16] = this->cof    [pl];
     int    (*mb_rres)[16] = this->mb_rres[pl];
     imgpel (*mb_rec )[16] = this->mb_rec [pl];
-    int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
+    int max_pel_value_comp = (1 << (pl > 0 ? sps.BitDepthC : sps.BitDepthY)) - 1;
 
     const int (*InvLevelScale4x4)  [4] = dequant_coef[QpY % 6];
     const int (*InvLevelScale4x4SP)[4] = dequant_coef[QsY % 6];  
@@ -1147,7 +1152,7 @@ void Transform::itrans_sp(mb_t* mb, ColorPlane pl, int ioff, int joff)
     int c[16][16];
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j)
-            p[joff + i][ioff + j] = slice->mb_pred[pl][joff + i][ioff + j];
+            p[joff + i][ioff + j] = slice.mb_pred[pl][joff + i][ioff + j];
     }
 
     this->forward_4x4(p, c, joff, ioff);
@@ -1158,7 +1163,7 @@ void Transform::itrans_sp(mb_t* mb, ColorPlane pl, int ioff, int joff)
             //crij = (cof[joff + j][ioff + i] >> (QpY / 6)) / InvLevelScale4x4[j][i];
             crij = cof[joff + j][ioff + i];
             cpij = c  [joff + j][ioff + i];
-            if (slice->sp_for_switch_flag || slice->slice_type == SI_slice) {
+            if (shr.sp_for_switch_flag || shr.slice_type == SI_slice) {
                 csij = sign(cpij) * ((abs(cpij) * LevelScale2[QsY % 6][j][i] + (1 << (14 + QsY / 6))) >> (15 + QsY / 6));
                 cij  = crij + csij;
             } else {
@@ -1186,9 +1191,10 @@ void Transform::itrans_sp(mb_t* mb, ColorPlane pl, int ioff, int joff)
 
 void Transform::itrans_sp_cr(mb_t* mb, ColorPlane pl)
 {
-    slice_t* slice = mb->p_Slice;
-    sps_t* sps = slice->active_sps;
-    imgpel** mb_pred = slice->mb_pred[pl];
+    slice_t& slice = *mb->p_Slice;
+    sps_t& sps = *slice.active_sps;
+    shr_t& shr = slice.header;
+    imgpel** mb_pred = slice.mb_pred[pl];
     int (*cof)[16] = this->cof[pl];
 
     int QpC = mb->QpC[pl - 1];
@@ -1199,14 +1205,14 @@ void Transform::itrans_sp_cr(mb_t* mb, ColorPlane pl)
 
     int p[16][16];
     int c[16][16];
-    for (int j = 0; j < sps->MbHeightC; ++j) {
-        for (int i = 0; i < sps->MbWidthC; ++i)
+    for (int j = 0; j < sps.MbHeightC; ++j) {
+        for (int i = 0; i < sps.MbWidthC; ++i)
             p[j][i] = mb_pred[j][i];
             //mb_pred[j][i] = 0;
     }
 
-    for (int j = 0; j < sps->MbHeightC; j += 4) {
-        for (int i = 0; i < sps->MbWidthC; i += 4)
+    for (int j = 0; j < sps.MbHeightC; j += 4) {
+        for (int i = 0; i < sps.MbWidthC; i += 4)
             this->forward_4x4(p, c, j, i);
     }
 
@@ -1222,7 +1228,7 @@ void Transform::itrans_sp_cr(mb_t* mb, ColorPlane pl)
         for (int n1 = 0; n1 < 2; ++n1) {
             crij = cof[n2 * 4][n1 * 4];
             cpij = mp1[n2][n1];
-            if (slice->sp_for_switch_flag || slice->slice_type == SI_slice) {
+            if (shr.sp_for_switch_flag || shr.slice_type == SI_slice) {
                 csij = (sign(cpij) * (abs(cpij) * LevelScale2[QsC][0][0] + (1 << (15 + QsC / 6)))) >> (16 + QsC / 6);
                 cij  = csij + cpij;
             } else {
@@ -1234,14 +1240,14 @@ void Transform::itrans_sp_cr(mb_t* mb, ColorPlane pl)
         }
     }
 
-    for (int n2 = 0; n2 < sps->MbHeightC; n2 += 4) {
-        for (int n1 = 0; n1 < sps->MbWidthC; n1 += 4) {
+    for (int n2 = 0; n2 < sps.MbHeightC; n2 += 4) {
+        for (int n1 = 0; n1 < sps.MbWidthC; n1 += 4) {
             for (int j = 0; j < 4; ++j) {
                 for (int i = 0; i < 4; ++i) {
                     crij = cof[n2 + j][n1 + i];
                     cpij = p[n2 + j][n1 + i];
                     //icof = (cof[n2 + j][n1 + i] >> qp_per) / dequant_coef[qp_rem][j][i];
-                    if (slice->sp_for_switch_flag || slice->slice_type == SI_slice) {
+                    if (shr.sp_for_switch_flag || shr.slice_type == SI_slice) {
                         csij = (sign(cpij) * (abs(cpij) * LevelScale2[QsC % 6][j][i] + (1 << (14 + QsC / 6)))) >> (15 + QsC / 6);
                         cij  = crij + csij;
                     } else {

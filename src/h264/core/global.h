@@ -132,7 +132,6 @@ struct VideoParameters {
         uint8_t* pV;
     } pDecOuputPic;
     pps_t*      pNextPPS;
-    bool        first_sps; // use only for print first sps
 
 
     frame_store* out_buffer;
@@ -145,10 +144,6 @@ struct VideoParameters {
     int         last_has_mmco_5;
     int         last_pic_bottom_field;
 
-    // FMO
-    int*        MbToSliceGroupMap;
-    int*        MapUnitToSliceGroupMap;
-
     pps_t*      active_pps;
     sps_t*      active_sps;
     sps_t       SeqParSet[MAXSPS];
@@ -158,8 +153,6 @@ struct VideoParameters {
     sub_sps_t*  active_subset_sps;
     sub_sps_t   SubsetSeqParSet[MAXSPS];
 #endif
-
-    sei_params* p_SEI;
 
     int         number;                                 //!< frame number
 
@@ -194,8 +187,10 @@ struct VideoParameters {
     int         IDR_concealment_flag;
     int         conceal_slice_type;
 
+    // SEI
     bool        recovery_point;
     uint32_t    recovery_frame_cnt;
+
     // random access point decoding
     bool        recovery_flag;
     bool        recovery_point_found;
