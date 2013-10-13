@@ -179,7 +179,6 @@ struct slice_t {
 
     unsigned    num_dec_mb;
     short       current_slice_nr;
-    int         current_header;
 
     int         layer_id;
 #if (MVC_EXTENSION_ENABLE)

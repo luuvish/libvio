@@ -3,7 +3,6 @@
 #include "dpb.h"
 #include "data_partition.h"
 #include "macroblock.h"
-#include "image.h"
 #include "neighbour.h"
 #include "intra_prediction.h"
 #include "transform.h"

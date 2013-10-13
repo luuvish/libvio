@@ -177,6 +177,9 @@ typedef struct seq_parameter_set_t {
 #endif
 } sps_t;
 
+bool operator==(const sps_t& l, const sps_t& r);
+
+
 typedef struct pic_parameter_set_t {
     bool        Valid;                  // indicates the parameter set is valid
 
@@ -217,6 +220,8 @@ typedef struct pic_parameter_set_t {
     pic_parameter_set_t();
     ~pic_parameter_set_t();
 } pps_t;
+
+bool operator==(const pps_t& l, const pps_t& r);
 
 
 
@@ -379,7 +384,6 @@ void UseParameterSet (struct slice_t *currSlice);
 void ProcessSubsetSPS (VideoParameters* p_Vid, nalu_t *nalu);
 void init_subset_sps_list(sub_sps_t *subset_sps_list, int iSize);
 void reset_subset_sps(sub_sps_t *subset_sps);
-int  GetBaseViewId(VideoParameters* p_Vid, sub_sps_t **subset_sps);
 #endif
 
 #endif /* _PARSET_H_ */

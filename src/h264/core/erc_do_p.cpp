@@ -4,7 +4,6 @@
 #include "dpb.h"
 #include "memalloc.h"
 #include "erc_do.h"
-#include "image.h"
 #include "macroblock.h"
 
 

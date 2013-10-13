@@ -4,7 +4,6 @@
 #include "input_parameters.h"
 
 #include "slice.h"
-#include "image.h"
 #include "dpb.h"
 #include "memalloc.h"
 #include "output.h"
@@ -17,9 +16,6 @@ static inline int RSD(int x)
 {
     return ((x&2)?(x|1):(x&(~1)));
 }
-
-
-#define MAX_LIST_SIZE 33
 
 
 static inline int is_FREXT_profile(unsigned int profile_idc) 

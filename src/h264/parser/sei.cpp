@@ -564,26 +564,22 @@ void interpret_pan_scan_rect_info( byte* payload, int size, VideoParameters *p_V
  */
 void interpret_recovery_point_info( byte* payload, int size, VideoParameters *p_Vid )
 {
-  int recovery_frame_cnt, exact_match_flag, broken_link_flag, changing_slice_group_idc;
+    int recovery_frame_cnt, exact_match_flag, broken_link_flag, changing_slice_group_idc;
 
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
 
-  data_partition_t* buf;
+    recovery_frame_cnt       = buf->ue("SEI: recovery_frame_cnt");
+    exact_match_flag         = buf->u(1, "SEI: exact_match_flag");
+    broken_link_flag         = buf->u(1, "SEI: broken_link_flag");
+    changing_slice_group_idc = buf->u(2, "SEI: changing_slice_group_idc");
 
+    p_Vid->recovery_point     = true;
+    p_Vid->recovery_frame_cnt = recovery_frame_cnt;
 
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  recovery_frame_cnt       = buf->ue("SEI: recovery_frame_cnt");
-  exact_match_flag         = buf->u(1, "SEI: exact_match_flag");
-  broken_link_flag         = buf->u(1, "SEI: broken_link_flag");
-  changing_slice_group_idc = buf->u(2, "SEI: changing_slice_group_idc");
-
-  p_Vid->recovery_point = 1;
-  p_Vid->recovery_frame_cnt = recovery_frame_cnt;
-
-  free (buf);
+    free(buf);
 }
 
 

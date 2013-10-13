@@ -3,10 +3,14 @@
 #include "h264decoder.h"
 #include "dpb.h"
 #include "frame_buffer.h"
-#include "image.h"
 #include "memalloc.h"
 #include "sei.h"
 #include "output.h"
+
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 
 static int testEndian(void)

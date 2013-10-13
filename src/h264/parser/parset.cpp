@@ -5,15 +5,11 @@
 #include "data_partition.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
-#include "image.h"
 #include "parset.h"
 #include "memalloc.h"
 #include "dpb.h"
 #include "erc_api.h"
 #include "macroblock.h"
-
-
-#define BASE_VIEW_IDX             0
 
 
 static inline int is_FREXT_profile(unsigned int profile_idc) 
@@ -499,21 +495,6 @@ void pic_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, pps_t *
 }
 
 
-
-
-
-
-void PPSConsistencyCheck (pps_t *pps);
-void SPSConsistencyCheck (sps_t *sps);
-
-void MakeSPSavailable (VideoParameters *p_Vid, int id, sps_t *sps);
-
-#if (MVC_EXTENSION_ENABLE)
-void SubsetSPSConsistencyCheck (sub_sps_t *subset_sps);
-#endif
-
-
-
 // fill subset_sps with content of p
 #if (MVC_EXTENSION_ENABLE)
 
@@ -876,174 +857,142 @@ void prefix_nal_unit_svc(void)
 #endif
 
 
-static int sps_is_equal(sps_t *sps1, sps_t *sps2)
+bool operator==(const sps_t& l, const sps_t& r)
 {
-  unsigned i;
-  int equal = 1;
+    if (!l.Valid || !r.Valid)
+        return false;
 
-  if ((!sps1->Valid) || (!sps2->Valid))
-    return 0;
+    bool equal = true;
 
-  equal &= (sps1->profile_idc == sps2->profile_idc);
-  equal &= (sps1->constraint_set0_flag == sps2->constraint_set0_flag);
-  equal &= (sps1->constraint_set1_flag == sps2->constraint_set1_flag);
-  equal &= (sps1->constraint_set2_flag == sps2->constraint_set2_flag);
-  equal &= (sps1->level_idc == sps2->level_idc);
-  equal &= (sps1->seq_parameter_set_id == sps2->seq_parameter_set_id);
-  equal &= (sps1->log2_max_frame_num_minus4 == sps2->log2_max_frame_num_minus4);
-  equal &= (sps1->pic_order_cnt_type == sps2->pic_order_cnt_type);
+    equal &= (l.profile_idc               == r.profile_idc);
+    equal &= (l.constraint_set0_flag      == r.constraint_set0_flag);
+    equal &= (l.constraint_set1_flag      == r.constraint_set1_flag);
+    equal &= (l.constraint_set2_flag      == r.constraint_set2_flag);
+    equal &= (l.level_idc                 == r.level_idc);
+    equal &= (l.seq_parameter_set_id      == r.seq_parameter_set_id);
+    equal &= (l.log2_max_frame_num_minus4 == r.log2_max_frame_num_minus4);
+    equal &= (l.pic_order_cnt_type        == r.pic_order_cnt_type);
+    if (!equal)
+        return false;
 
-  if (!equal) return equal;
+    if (l.pic_order_cnt_type == 0)
+        equal &= (l.log2_max_pic_order_cnt_lsb_minus4 == r.log2_max_pic_order_cnt_lsb_minus4);
+    else if (l.pic_order_cnt_type == 1) {
+        equal &= (l.delta_pic_order_always_zero_flag == r.delta_pic_order_always_zero_flag);
+        equal &= (l.offset_for_non_ref_pic == r.offset_for_non_ref_pic);
+        equal &= (l.offset_for_top_to_bottom_field == r.offset_for_top_to_bottom_field);
+        equal &= (l.num_ref_frames_in_pic_order_cnt_cycle == r.num_ref_frames_in_pic_order_cnt_cycle);
+        if (!equal)
+            return false;
 
-  if( sps1->pic_order_cnt_type == 0 )
-  {
-    equal &= (sps1->log2_max_pic_order_cnt_lsb_minus4 == sps2->log2_max_pic_order_cnt_lsb_minus4);
-  }
-
-  else if( sps1->pic_order_cnt_type == 1 )
-  {
-    equal &= (sps1->delta_pic_order_always_zero_flag == sps2->delta_pic_order_always_zero_flag);
-    equal &= (sps1->offset_for_non_ref_pic == sps2->offset_for_non_ref_pic);
-    equal &= (sps1->offset_for_top_to_bottom_field == sps2->offset_for_top_to_bottom_field);
-    equal &= (sps1->num_ref_frames_in_pic_order_cnt_cycle == sps2->num_ref_frames_in_pic_order_cnt_cycle);
-    if (!equal) return equal;
-
-    for ( i = 0 ; i< sps1->num_ref_frames_in_pic_order_cnt_cycle ;i ++)
-      equal &= (sps1->offset_for_ref_frame[i] == sps2->offset_for_ref_frame[i]);
-  }
-
-  equal &= (sps1->max_num_ref_frames == sps2->max_num_ref_frames);
-  equal &= (sps1->gaps_in_frame_num_value_allowed_flag == sps2->gaps_in_frame_num_value_allowed_flag);
-  equal &= (sps1->pic_width_in_mbs_minus1 == sps2->pic_width_in_mbs_minus1);
-  equal &= (sps1->pic_height_in_map_units_minus1 == sps2->pic_height_in_map_units_minus1);
-  equal &= (sps1->frame_mbs_only_flag == sps2->frame_mbs_only_flag);
-
-  if (!equal) return equal;
-  if( !sps1->frame_mbs_only_flag )
-    equal &= (sps1->mb_adaptive_frame_field_flag == sps2->mb_adaptive_frame_field_flag);
-
-  equal &= (sps1->direct_8x8_inference_flag == sps2->direct_8x8_inference_flag);
-  equal &= (sps1->frame_cropping_flag == sps2->frame_cropping_flag);
-  if (!equal) return equal;
-  if (sps1->frame_cropping_flag)
-  {
-    equal &= (sps1->frame_crop_left_offset == sps2->frame_crop_left_offset);
-    equal &= (sps1->frame_crop_right_offset == sps2->frame_crop_right_offset);
-    equal &= (sps1->frame_crop_top_offset == sps2->frame_crop_top_offset);
-    equal &= (sps1->frame_crop_bottom_offset == sps2->frame_crop_bottom_offset);
-  }
-  equal &= (sps1->vui_parameters_present_flag == sps2->vui_parameters_present_flag);
-
-  return equal;
-}
-
-static int pps_is_equal(pps_t *pps1, pps_t *pps2)
-{
-  unsigned i, j;
-  int equal = 1;
-
-  if ((!pps1->Valid) || (!pps2->Valid))
-    return 0;
-
-  equal &= (pps1->pic_parameter_set_id == pps2->pic_parameter_set_id);
-  equal &= (pps1->seq_parameter_set_id == pps2->seq_parameter_set_id);
-  equal &= (pps1->entropy_coding_mode_flag == pps2->entropy_coding_mode_flag);
-  equal &= (pps1->bottom_field_pic_order_in_frame_present_flag == pps2->bottom_field_pic_order_in_frame_present_flag);
-  equal &= (pps1->num_slice_groups_minus1 == pps2->num_slice_groups_minus1);
-
-  if (!equal) return equal;
-
-  if (pps1->num_slice_groups_minus1>0)
-  {
-      equal &= (pps1->slice_group_map_type == pps2->slice_group_map_type);
-      if (!equal) return equal;
-      if (pps1->slice_group_map_type == 0)
-      {
-        for (i=0; i<=pps1->num_slice_groups_minus1; i++)
-          equal &= (pps1->run_length_minus1[i] == pps2->run_length_minus1[i]);
-      }
-      else if( pps1->slice_group_map_type == 2 )
-      {
-        for (i=0; i<pps1->num_slice_groups_minus1; i++)
-        {
-          equal &= (pps1->top_left[i] == pps2->top_left[i]);
-          equal &= (pps1->bottom_right[i] == pps2->bottom_right[i]);
-        }
-      }
-      else if( pps1->slice_group_map_type == 3 || pps1->slice_group_map_type==4 || pps1->slice_group_map_type==5 )
-      {
-        equal &= (pps1->slice_group_change_direction_flag == pps2->slice_group_change_direction_flag);
-        equal &= (pps1->slice_group_change_rate_minus1 == pps2->slice_group_change_rate_minus1);
-      }
-      else if( pps1->slice_group_map_type == 6 )
-      {
-        equal &= (pps1->pic_size_in_map_units_minus1 == pps2->pic_size_in_map_units_minus1);
-        if (!equal) return equal;
-        for (i=0; i<=pps1->pic_size_in_map_units_minus1; i++)
-          equal &= (pps1->slice_group_id[i] == pps2->slice_group_id[i]);
-      }
-  }
-
-  equal &= (pps1->num_ref_idx_l0_default_active_minus1 == pps2->num_ref_idx_l0_default_active_minus1);
-  equal &= (pps1->num_ref_idx_l1_default_active_minus1 == pps2->num_ref_idx_l1_default_active_minus1);
-  equal &= (pps1->weighted_pred_flag == pps2->weighted_pred_flag);
-  equal &= (pps1->weighted_bipred_idc == pps2->weighted_bipred_idc);
-  equal &= (pps1->pic_init_qp_minus26 == pps2->pic_init_qp_minus26);
-  equal &= (pps1->pic_init_qs_minus26 == pps2->pic_init_qs_minus26);
-  equal &= (pps1->chroma_qp_index_offset == pps2->chroma_qp_index_offset);
-  equal &= (pps1->deblocking_filter_control_present_flag == pps2->deblocking_filter_control_present_flag);
-  equal &= (pps1->constrained_intra_pred_flag == pps2->constrained_intra_pred_flag);
-  equal &= (pps1->redundant_pic_cnt_present_flag == pps2->redundant_pic_cnt_present_flag);
-
-  if (!equal) return equal;
-
-  //Fidelity Range Extensions Stuff
-  //It is initialized to zero, so should be ok to check all the time.
-  equal &= (pps1->transform_8x8_mode_flag == pps2->transform_8x8_mode_flag);
-  equal &= (pps1->pic_scaling_matrix_present_flag == pps2->pic_scaling_matrix_present_flag);
-  if(pps1->pic_scaling_matrix_present_flag)
-  {
-    for(i = 0; i < (6 + ((unsigned)pps1->transform_8x8_mode_flag << 1)); i++)
-    {
-      equal &= (pps1->pic_scaling_list_present_flag[i] == pps2->pic_scaling_list_present_flag[i]);
-      if(pps1->pic_scaling_list_present_flag[i])
-      {
-        if(i < 6)
-        {
-          for (j = 0; j < 16; j++)
-            equal &= (pps1->ScalingList4x4[i][j] == pps2->ScalingList4x4[i][j]);
-        }
-        else
-        {
-          for (j = 0; j < 64; j++)
-            equal &= (pps1->ScalingList8x8[i-6][j] == pps2->ScalingList8x8[i-6][j]);
-        }
-      }
+        for (int i = 0; i < l.num_ref_frames_in_pic_order_cnt_cycle; ++i)
+            equal &= (l.offset_for_ref_frame[i] == r.offset_for_ref_frame[i]);
     }
-  }
-  equal &= (pps1->second_chroma_qp_index_offset == pps2->second_chroma_qp_index_offset);
 
-  return equal;
+    equal &= (l.max_num_ref_frames                   == r.max_num_ref_frames);
+    equal &= (l.gaps_in_frame_num_value_allowed_flag == r.gaps_in_frame_num_value_allowed_flag);
+    equal &= (l.pic_width_in_mbs_minus1              == r.pic_width_in_mbs_minus1);
+    equal &= (l.pic_height_in_map_units_minus1       == r.pic_height_in_map_units_minus1);
+    equal &= (l.frame_mbs_only_flag                  == r.frame_mbs_only_flag);
+    if (!equal)
+        return false;
+  
+    if (!l.frame_mbs_only_flag)
+        equal &= (l.mb_adaptive_frame_field_flag == r.mb_adaptive_frame_field_flag);
+
+    equal &= (l.direct_8x8_inference_flag == r.direct_8x8_inference_flag);
+    equal &= (l.frame_cropping_flag       == r.frame_cropping_flag);
+    if (!equal)
+        return false;
+
+    if (l.frame_cropping_flag) {
+        equal &= (l.frame_crop_left_offset   == r.frame_crop_left_offset);
+        equal &= (l.frame_crop_right_offset  == r.frame_crop_right_offset);
+        equal &= (l.frame_crop_top_offset    == r.frame_crop_top_offset);
+        equal &= (l.frame_crop_bottom_offset == r.frame_crop_bottom_offset);
+    }
+    equal &= (l.vui_parameters_present_flag == r.vui_parameters_present_flag);
+
+    return equal;
 }
 
-
-void PPSConsistencyCheck (pps_t *pps)
+bool operator==(const pps_t& l, const pps_t& r)
 {
-  printf ("Consistency checking a picture parset, to be implemented\n");
-//  if (pps->seq_parameter_set_id invalid then do something)
+    if (!l.Valid || !r.Valid)
+        return false;
+
+    bool equal = true;
+
+    equal &= (l.pic_parameter_set_id     == r.pic_parameter_set_id);
+    equal &= (l.seq_parameter_set_id     == r.seq_parameter_set_id);
+    equal &= (l.entropy_coding_mode_flag == r.entropy_coding_mode_flag);
+    equal &= (l.bottom_field_pic_order_in_frame_present_flag == r.bottom_field_pic_order_in_frame_present_flag);
+    equal &= (l.num_slice_groups_minus1  == r.num_slice_groups_minus1);
+
+    if (!equal)
+        return false;
+
+    if (l.num_slice_groups_minus1 > 0) {
+        equal &= (l.slice_group_map_type == r.slice_group_map_type);
+        if (!equal)
+            return false;
+
+        if (l.slice_group_map_type == 0) {
+            for (int i = 0; i <= l.num_slice_groups_minus1; ++i)
+                equal &= (l.run_length_minus1[i] == r.run_length_minus1[i]);
+        } else if (l.slice_group_map_type == 2) {
+            for (int i = 0; i < l.num_slice_groups_minus1; ++i) {
+                equal &= (l.top_left[i] == r.top_left[i]);
+                equal &= (l.bottom_right[i] == r.bottom_right[i]);
+            }
+        } else if (l.slice_group_map_type == 3 || l.slice_group_map_type == 4 || l.slice_group_map_type == 5) {
+            equal &= (l.slice_group_change_direction_flag == r.slice_group_change_direction_flag);
+            equal &= (l.slice_group_change_rate_minus1 == r.slice_group_change_rate_minus1);
+        } else if (l.slice_group_map_type == 6) {
+            equal &= (l.pic_size_in_map_units_minus1 == r.pic_size_in_map_units_minus1);
+            if (!equal)
+                return false;
+
+            for (int i = 0; i <= l.pic_size_in_map_units_minus1; ++i)
+                equal &= (l.slice_group_id[i] == r.slice_group_id[i]);
+        }
+    }
+
+    equal &= (l.num_ref_idx_l0_default_active_minus1 == r.num_ref_idx_l0_default_active_minus1);
+    equal &= (l.num_ref_idx_l1_default_active_minus1 == r.num_ref_idx_l1_default_active_minus1);
+    equal &= (l.weighted_pred_flag     == r.weighted_pred_flag);
+    equal &= (l.weighted_bipred_idc    == r.weighted_bipred_idc);
+    equal &= (l.pic_init_qp_minus26    == r.pic_init_qp_minus26);
+    equal &= (l.pic_init_qs_minus26    == r.pic_init_qs_minus26);
+    equal &= (l.chroma_qp_index_offset == r.chroma_qp_index_offset);
+    equal &= (l.deblocking_filter_control_present_flag == r.deblocking_filter_control_present_flag);
+    equal &= (l.constrained_intra_pred_flag == r.constrained_intra_pred_flag);
+    equal &= (l.redundant_pic_cnt_present_flag == r.redundant_pic_cnt_present_flag);
+    if (!equal)
+        return false;
+
+    //Fidelity Range Extensions Stuff
+    //It is initialized to zero, so should be ok to check all the time.
+    equal &= (l.transform_8x8_mode_flag == r.transform_8x8_mode_flag);
+    equal &= (l.pic_scaling_matrix_present_flag == r.pic_scaling_matrix_present_flag);
+    if (l.pic_scaling_matrix_present_flag) {
+        for (int i = 0; i < 6 + (l.transform_8x8_mode_flag << 1); ++i) {
+            equal &= (l.pic_scaling_list_present_flag[i] == r.pic_scaling_list_present_flag[i]);
+            if (l.pic_scaling_list_present_flag[i]) {
+                if (i < 6) {
+                    for (int j = 0; j < 16; ++j)
+                        equal &= (l.ScalingList4x4[i][j] == r.ScalingList4x4[i][j]);
+                } else {
+                    for (int j = 0; j < 64; ++j)
+                        equal &= (l.ScalingList8x8[i - 6][j] == r.ScalingList8x8[i - 6][j]);
+                }
+            }
+        }
+    }
+    equal &= (l.second_chroma_qp_index_offset == r.second_chroma_qp_index_offset);
+    return equal;
 }
 
-void SPSConsistencyCheck (sps_t *sps)
-{
-  printf ("Consistency checking a sequence parset, to be implemented\n");
-}
-
-#if (MVC_EXTENSION_ENABLE)
-void SubsetSPSConsistencyCheck (sub_sps_t *subset_sps)
-{
-  printf ("Consistency checking a subset sequence parset, to be implemented\n");
-}
-#endif
 
 void MakePPSavailable (VideoParameters *p_Vid, int id, pps_t *pps)
 {
@@ -1071,17 +1020,10 @@ void CleanUpPPS(VideoParameters *p_Vid)
 }
 
 
-void MakeSPSavailable (VideoParameters *p_Vid, int id, sps_t *sps)
-{
-  assert (sps->Valid);
-  memcpy (&p_Vid->SeqParSet[id], sps, sizeof (sps_t));
-}
-
-
 void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
 {  
-    data_partition_t *dp = new data_partition_t[1];
-    sps_t *sps = new sps_t;
+    data_partition_t* dp = new data_partition_t[1];
+    sps_t* sps = new sps_t;
 
     dp->init(nalu);
     seq_parameter_set_rbsp(dp, sps);
@@ -1092,16 +1034,14 @@ void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
     if (sps->Valid) {
         if (p_Vid->active_sps) {
             if (sps->seq_parameter_set_id == p_Vid->active_sps->seq_parameter_set_id) {
-                if (!sps_is_equal(sps, p_Vid->active_sps)) {
+                if (!(*sps == *(p_Vid->active_sps))) {
                     if (p_Vid->dec_picture)
-                        // this may only happen on slice loss
-                        exit_picture(p_Vid, &p_Vid->dec_picture);
+                        exit_picture(p_Vid);
                     p_Vid->active_sps = NULL;
                 }
             }
         }
-        // SPSConsistencyCheck (pps);
-        MakeSPSavailable (p_Vid, sps->seq_parameter_set_id, sps);
+        p_Vid->SeqParSet[sps->seq_parameter_set_id] = *sps;
 
 #if (MVC_EXTENSION_ENABLE)
         if (p_Vid->profile_idc < (int) sps->profile_idc)
@@ -1134,10 +1074,8 @@ void ProcessSubsetSPS(VideoParameters *p_Vid, nalu_t *nalu)
     } else if (subset_sps->num_views_minus1==1 && (subset_sps->view_id[0]!=0 || subset_sps->view_id[1]!=1))
         p_Vid->OpenOutputFiles(subset_sps->view_id[0], subset_sps->view_id[1]);
 
-    if (subset_sps->Valid) {
-        // SubsetSPSConsistencyCheck (subset_sps);
+    if (subset_sps->Valid)
         p_Vid->profile_idc = subset_sps->sps.profile_idc;
-    }
 
     delete []dp;
 }
@@ -1145,24 +1083,23 @@ void ProcessSubsetSPS(VideoParameters *p_Vid, nalu_t *nalu)
 
 void ProcessPPS(VideoParameters *p_Vid, nalu_t *nalu)
 {
-    data_partition_t *dp = new data_partition_t[1];
-    pps_t *pps = new pps_t;
+    data_partition_t* dp = new data_partition_t[1];
+    pps_t* pps = new pps_t;
 
     dp->init(nalu);
     pic_parameter_set_rbsp(p_Vid, dp, pps);
-    // PPSConsistencyCheck (pps);
+
     if (p_Vid->active_pps) {
         if (pps->pic_parameter_set_id == p_Vid->active_pps->pic_parameter_set_id) {
-            if (!pps_is_equal(pps, p_Vid->active_pps)) {
-                //copy to next PPS;
+            if (!(*pps == *(p_Vid->active_pps))) {
                 memcpy(p_Vid->pNextPPS, p_Vid->active_pps, sizeof (pps_t));
                 if (p_Vid->dec_picture)
-                    // this may only happen on slice loss
-                    exit_picture(p_Vid, &p_Vid->dec_picture);
-                p_Vid->active_pps = NULL;
+                    exit_picture(p_Vid);
+                p_Vid->active_pps = nullptr;
             }
         }
     }
+
     MakePPSavailable(p_Vid, pps->pic_parameter_set_id, pps);
     delete []dp;
     delete pps;
@@ -1274,27 +1211,6 @@ void reset_subset_sps(sub_sps_t *subset_sps)
   }
 }
 
-int GetBaseViewId(VideoParameters *p_Vid, sub_sps_t **subset_sps)
-{
-  sub_sps_t *curr_subset_sps;
-  int i, iBaseViewId=0; //-1;
-
-  *subset_sps = NULL;
-  curr_subset_sps = p_Vid->SubsetSeqParSet;
-  for(i=0; i<MAXSPS; i++)
-  {
-    if(curr_subset_sps->num_views_minus1>=0 && curr_subset_sps->sps.Valid) // && curr_subset_sps->sps.seq_parameter_set_id < MAXSPS)
-    {
-      iBaseViewId = curr_subset_sps->view_id[BASE_VIEW_IDX];
-      break;
-    }
-    curr_subset_sps++;
-  }
-
-  if(i<MAXSPS)
-    *subset_sps = curr_subset_sps;
-  return iBaseViewId;
-}
 #endif
 
 

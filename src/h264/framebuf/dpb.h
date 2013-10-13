@@ -4,8 +4,6 @@
 #include "global.h"
 #include "bitstream_cabac.h"
 
-#define MAX_NUM_SLICES 50
-
 #define MAX_LIST_SIZE 33
 
 //! Field Coding Types

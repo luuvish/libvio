@@ -25,7 +25,6 @@
 #include "slice.h"
 #include "macroblock.h"
 #include "transform.h"
-#include "image.h"
 
 #include "intra_prediction.h"
 

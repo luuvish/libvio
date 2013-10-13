@@ -68,16 +68,16 @@
 InputParameters cfgparams;
 
 //! Maps parameter name to its address, type etc.
-typedef struct {
-  const char *TokenName;    //!< name
-  void *Place;        //!< address
-  int Type;           //!< type:  0-int, 1-char[], 2-double
-  double Default;     //!< default value
-  int param_limits;   //!< 0: no limits, 1: both min and max, 2: only min (i.e. no negatives), 3: special case for QPs since min needs bitdepth_qp_scale
-  double min_limit;
-  double max_limit;
-  int    char_size;   //!< Dimension of type char[]
-} Mapping;
+struct Mapping {
+    const char* TokenName;    //!< name
+    void*       Place;        //!< address
+    int         Type;         //!< type:  0-int, 1-char[], 2-double
+    double      Default;      //!< default value
+    int         param_limits; //!< 0: no limits, 1: both min and max, 2: only min (i.e. no negatives), 3: special case for QPs since min needs bitdepth_qp_scale
+    double      min_limit;
+    double      max_limit;
+    int         char_size;    //!< Dimension of type char[]
+};
 
 // Mapping_Map Syntax:
 // {NAMEinConfigFile,  &cfgparams.VariableName, Type, InitialValue, LimitType, MinLimit, MaxLimit, CharSize}
@@ -85,25 +85,25 @@ typedef struct {
 // LimitType: {0:none, 1:both, 2:minimum, 3: QP based}
 // We could separate this based on types to make it more flexible and allow also defaults for text types.
 Mapping Map[] = {
-    {"InputFile",                &cfgparams.infile,                       1,   0.0,                       0,  0.0,              0.0,             FILE_NAME_SIZE, },
-    {"OutputFile",               &cfgparams.outfile,                      1,   0.0,                       0,  0.0,              0.0,             FILE_NAME_SIZE, },
-    {"RefFile",                  &cfgparams.reffile,                      1,   0.0,                       0,  0.0,              0.0,             FILE_NAME_SIZE, },
-    {"WriteUV",                  &cfgparams.write_uv,                     0,   1.0,                       1,  0.0,              1.0,                             },
-    {"FileFormat",               &cfgparams.FileFormat,                   0,   0.0,                       1,  0.0,              1.0,                             },
-    {"RefOffset",                &cfgparams.ref_offset,                   0,   0.0,                       1,  0.0,              256.0,                             },
-    {"POCScale",                 &cfgparams.poc_scale,                    0,   2.0,                       1,  1.0,              10.0,                            },
-    {"DisplayDecParams",         &cfgparams.bDisplayDecParams,            0,   1.0,                       1,  0.0,              1.0,                             },
-    {"ConcealMode",              &cfgparams.conceal_mode,                 0,   0.0,                       1,  0.0,              2.0,                             },
-    {"RefPOCGap",                &cfgparams.ref_poc_gap,                  0,   2.0,                       1,  0.0,              4.0,                             },
-    {"POCGap",                   &cfgparams.poc_gap,                      0,   2.0,                       1,  0.0,              4.0,                             },
-    {"Silent",                   &cfgparams.silent,                       0,   0.0,                       1,  0.0,              1.0,                             },
-    {"DecFrmNum",                &cfgparams.iDecFrmNum,                   0,   0.0,                       2,  0.0,              0.0,                             },
+    {"InputFile",        &cfgparams.infile,             1, 0.0, 0,   0.0,   0.0, FILE_NAME_SIZE},
+    {"OutputFile",       &cfgparams.outfile,            1, 0.0, 0,   0.0,   0.0, FILE_NAME_SIZE},
+    {"RefFile",          &cfgparams.reffile,            1, 0.0, 0,   0.0,   0.0, FILE_NAME_SIZE},
+    {"WriteUV",          &cfgparams.write_uv,           0, 1.0, 1,   0.0,   1.0,               },
+    {"FileFormat",       &cfgparams.FileFormat,         0, 0.0, 1,   0.0,   1.0,               },
+    {"RefOffset",        &cfgparams.ref_offset,         0, 0.0, 1,   0.0, 256.0,               },
+    {"POCScale",         &cfgparams.poc_scale,          0, 2.0, 1,   1.0,  10.0,               },
+    {"DisplayDecParams", &cfgparams.bDisplayDecParams,  0, 1.0, 1,   0.0,   1.0,               },
+    {"ConcealMode",      &cfgparams.conceal_mode,       0, 0.0, 1,   0.0,   2.0,               },
+    {"RefPOCGap",        &cfgparams.ref_poc_gap,        0, 2.0, 1,   0.0,   4.0,               },
+    {"POCGap",           &cfgparams.poc_gap,            0, 2.0, 1,   0.0,   4.0,               },
+    {"Silent",           &cfgparams.silent,             0, 0.0, 1,   0.0,   1.0,               },
+    {"DecFrmNum",        &cfgparams.iDecFrmNum,         0, 0.0, 2,   0.0,   0.0,               },
 #if (MVC_EXTENSION_ENABLE)
-    {"DecodeAllLayers",          &cfgparams.DecodeAllLayers,              0,   0.0,                       1,  0.0,              1.0,                             },
+    {"DecodeAllLayers",  &cfgparams.DecodeAllLayers,    0, 0.0, 1,   0.0,   1.0,               },
 #endif
-    {"DPBPLUS0",                 &cfgparams.dpb_plus[0],                  0,   1.0,                       1,  -16.0,            16.0,                             },
-    {"DPBPLUS1",                 &cfgparams.dpb_plus[1],                  0,   0.0,                       1,  -16.0,            16.0,                             },
-    {NULL,                       NULL,                                   -1,   0.0,                       0,  0.0,              0.0,                             },
+    {"DPBPLUS0",         &cfgparams.dpb_plus[0],        0, 1.0, 1, -16.0,  16.0,               },
+    {"DPBPLUS1",         &cfgparams.dpb_plus[1],        0, 0.0, 1, -16.0,  16.0,               },
+    {NULL,               NULL,                         -1, 0.0, 0,   0.0,   0.0,               }
 };
 
 /*!
@@ -513,7 +513,7 @@ static void PatchInp (InputParameters *p_Inp)
  *    command line parameters
  ***********************************************************************
  */
-void InputParameters::ParseCommand(int ac, char *av[])
+void InputParameters::ParseCommand(int ac, char* av[])
 {
   char *content = NULL;
   int CLcount;

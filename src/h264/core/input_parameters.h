@@ -34,7 +34,7 @@ struct InputParameters {
     int         bDisplayDecParams;
     int         dpb_plus[2];
 
-    void        ParseCommand(int ac, char *av[]);
+    void        ParseCommand(int ac, char* av[]);
 };
 
 

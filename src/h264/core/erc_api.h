@@ -158,7 +158,7 @@ extern void conceal_lost_frames (dpb_t *p_Dpb, struct slice_t *pSlice);
 
 extern int comp(const void *, const void *);
 
-void erc_picture(VideoParameters *p_Vid, storable_picture **dec_picture);
+void erc_picture(VideoParameters* p_Vid);
 void ercWriteMBMODEandMV(mb_t *currMB);
 
 

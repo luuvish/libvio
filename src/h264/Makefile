@@ -37,7 +37,7 @@ OPENMP?= 0
 DEPEND= dependencies
 
 BINDIR= ../../bin
-INCDIR= core parser decoder
+INCDIR= core parser decoder framebuf
 SRCDIR= ldecod/src
 OBJDIR= objects
 
@@ -92,11 +92,13 @@ SRC=    $(wildcard $(SRCDIR)/*.cpp)
 ADDSRC= $(wildcard $(ADDSRCDIR)/*.cpp)
 PARSER= $(wildcard parser/*.cpp)
 DECODER= $(wildcard decoder/*.cpp)
+FRAMEBUF= $(wildcard framebuf/*.cpp)
 CORE= $(wildcard core/*.cpp)
 OBJ=    $(SRC:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(ADDSRC:$(ADDSRCDIR)/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(PARSER:parser/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(DECODER:decoder/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
+OBJ+=   $(FRAMEBUF:framebuf/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
 OBJ+=   $(CORE:core/%.cpp=$(OBJDIR)/%.o$(SUFFIX))
 BIN=    $(BINDIR)/$(NAME)$(SUFFIX)
 
@@ -126,7 +128,7 @@ bin:    $(OBJ)
 depend:
 	@echo
 	@echo 'checking dependencies'
-	@$(SHELL) -ec '$(CC) $(FLAGS) -MM $(CFLAGS) $(INCDIR:%=-I%) $(SRC) $(ADDSRC) $(PARSER) $(DECODER) $(CORE) \
+	@$(SHELL) -ec '$(CC) $(FLAGS) -MM $(CFLAGS) $(INCDIR:%=-I%) $(SRC) $(ADDSRC) $(PARSER) $(DECODER) $(FRAMEBUF) $(CORE) \
          | sed '\''s@\(.*\)\.o[ :]@$(OBJDIR)/\1.o$(SUFFIX):@g'\'' \
          >$(DEPEND)'
 	@echo
@@ -144,6 +146,10 @@ $(OBJDIR)/%.o$(SUFFIX): parser/%.cpp
 	@$(CC) -c -o $@ $(FLAGS) $<
 
 $(OBJDIR)/%.o$(SUFFIX): decoder/%.cpp
+	@echo 'compiling object file "$@" ...'
+	@$(CC) -c -o $@ $(FLAGS) $<
+
+$(OBJDIR)/%.o$(SUFFIX): framebuf/%.cpp
 	@echo 'compiling object file "$@" ...'
 	@$(CC) -c -o $@ $(FLAGS) $<
 

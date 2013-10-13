@@ -9,13 +9,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include <fcntl.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-
 #include "defines.h"
-#include "ifunctions.h"
 
 #include "parset.h"
 #include "bitstream.h"
@@ -29,10 +23,9 @@ using vio::h264::mb_t;
 
 
 enum {
-    EOS = 1,    //!< End Of Sequence
-    SOP = 2,    //!< Start Of Picture
-    SOS = 3,     //!< Start Of slice_t
-    SOS_CONT = 4
+    EOS = 1, //!< End Of Sequence
+    SOP = 2, //!< Start Of Picture
+    SOS = 3, //!< Start Of slice_t
 };
 
 enum ColorPlane {
@@ -188,9 +181,6 @@ struct VideoParameters {
     concealment_node* concealment_head;
     concealment_node* concealment_end;
 
-    unsigned    pre_frame_num;           //!< store the frame_num in the last decoded slice. For detecting gap in frame_num.
-    int         non_conforming_stream;
-
     // for POC mode 1:
     int         PicOrderCnt;
 
@@ -204,12 +194,16 @@ struct VideoParameters {
     int         IDR_concealment_flag;
     int         conceal_slice_type;
 
+    bool        recovery_point;
+    uint32_t    recovery_frame_cnt;
     // random access point decoding
-    int         recovery_point;
-    int         recovery_point_found;
-    int         recovery_frame_cnt;
+    bool        recovery_flag;
+    bool        recovery_point_found;
     int         recovery_frame_num;
     int         recovery_poc;
+    bool        non_conforming_stream;
+
+    unsigned    pre_frame_num;           //!< store the frame_num in the last decoded slice. For detecting gap in frame_num.
 
     // Redundant slices. Should be moved to another structure and allocated only if extended profile
     unsigned    previous_frame_num; //!< frame number of previous slice
@@ -231,8 +225,6 @@ struct VideoParameters {
     int         erc_mvperMB;
     VideoParameters* erc_img;
 
-    int         recovery_flag;
-
     ImageData   tempData3;
     //control;
     int         last_dec_layer_id;
@@ -251,7 +243,16 @@ struct VideoParameters {
 extern void error(const char *text, int code);
 
 // dynamic mem allocation
-extern void free_layer_buffers( VideoParameters *p_Vid, int layer_id );
+extern void free_layer_buffers(VideoParameters *p_Vid, int layer_id);
+
+
+void init_picture(slice_t* currSlice);
+void init_picture_decoding(VideoParameters *p_Vid);
+void exit_picture(VideoParameters *p_Vid);
+
+#if (MVC_EXTENSION_ENABLE)
+extern int GetVOIdx(VideoParameters *p_Vid, int iViewId);
+#endif
 
 
 #endif

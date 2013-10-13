@@ -7,17 +7,19 @@
 #include "macroblock.h"
 #include "data_partition.h"
 #include "bitstream_cabac.h"
-#include "image.h"
 #include "memalloc.h"
 #include "dpb.h"
 #include "output.h"
 #include "parset.h"
 #include "sei.h"
 
-using vio::h264::mb_t;
-
 #include "erc_api.h"
 #include "output.h"
+
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 // Decoder definition. This should be the only global variable in the entire
 // software. Global variables should be avoided.
@@ -75,8 +77,10 @@ VideoParameters::VideoParameters()
     this->pNextPPS              = new pps_t;
     this->first_sps             = 1;
 
-    this->recovery_point        = 0;
-    this->recovery_point_found  = 0;
+    this->recovery_flag         = 0;
+
+    this->recovery_point        = false;
+    this->recovery_point_found  = false;
     this->recovery_poc          = 0x7fffffff; /* set to a max value */
 
     this->number                = 0;
@@ -92,8 +96,6 @@ VideoParameters::VideoParameters()
 
     this->MbToSliceGroupMap      = nullptr;
     this->MapUnitToSliceGroupMap = nullptr;
-
-    this->recovery_flag          = 0;
 
     init_tone_mapping_sei(this->seiToneMapping);
 
@@ -220,7 +222,16 @@ void DecoderParams::OpenDecoder(InputParameters *p_Inp)
 
 int DecoderParams::DecodeOneFrame()
 {
-    int iRet = this->decode_one_frame();
+    int iRet = this->decode_slice_headers();
+
+    //init_picture(p_Vid->ppSliceList[0]);
+    init_picture_decoding(this->p_Vid);
+
+    this->decode_slice_datas();
+
+    exit_picture(this->p_Vid);
+    this->p_Vid->previous_frame_num = this->p_Vid->ppSliceList[0]->frame_num;
+
     if (iRet == SOP)
         iRet = DEC_SUCCEED;
     else if (iRet == EOS)

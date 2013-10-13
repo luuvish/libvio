@@ -20,7 +20,9 @@ struct DecoderParams {
     void FinitDecoder();
     void CloseDecoder();
 
-    int  decode_one_frame();
+protected:
+    int  decode_slice_headers();
+    void decode_slice_datas();
 };
 
 
