@@ -21,7 +21,7 @@ void slice_t::update_pic_num()
 
     if (!shr.field_pic_flag) {
         for (int i = 0; i < dpb.ref_frames_in_buffer; ++i) {
-            frame_store* fs = dpb.fs_ref[i];
+            pic_t* fs = dpb.fs_ref[i];
             if (fs->is_used == 3) {
                 if (fs->frame->used_for_reference && !fs->frame->is_long_term) {
                     if (fs->FrameNum > shr.frame_num)
@@ -33,7 +33,7 @@ void slice_t::update_pic_num()
             }
         }
         for (int i = 0; i < dpb.ltref_frames_in_buffer; ++i) {
-            frame_store* fs = dpb.fs_ltref[i];
+            pic_t* fs = dpb.fs_ltref[i];
             if (fs->is_used == 3) {
                 if (fs->frame->is_long_term)
                     fs->frame->LongTermPicNum = fs->frame->LongTermFrameIdx;
@@ -44,7 +44,7 @@ void slice_t::update_pic_num()
         int add_bottom = !shr.bottom_field_flag ? 0 : 1;
 
         for (int i = 0; i < dpb.ref_frames_in_buffer; ++i) {
-            frame_store* fs = dpb.fs_ref[i];
+            pic_t* fs = dpb.fs_ref[i];
             if (fs->is_reference) {
                 if (fs->FrameNum > shr.frame_num)
                     fs->FrameNumWrap = fs->FrameNum - sps.MaxFrameNum;
@@ -57,7 +57,7 @@ void slice_t::update_pic_num()
             }
         }
         for (int i = 0; i < dpb.ltref_frames_in_buffer; ++i) {
-            frame_store* fs = dpb.fs_ltref[i];
+            pic_t* fs = dpb.fs_ltref[i];
             if (fs->is_long_term & 1)
                 fs->top_field->LongTermPicNum = 2 * fs->top_field->LongTermFrameIdx + add_top;
             if (fs->is_long_term & 2)
@@ -68,7 +68,7 @@ void slice_t::update_pic_num()
 
 
 
-static void gen_pic_list_from_frame_list(bool bottom_field_flag, frame_store **fs_list, int list_idx, storable_picture **list, char *list_size, int long_term)
+static void gen_pic_list_from_frame_list(bool bottom_field_flag, pic_t **fs_list, int list_idx, storable_picture **list, char *list_size, int long_term)
 {
     int top_idx = 0;
     int bot_idx = 0;
@@ -184,8 +184,8 @@ static void init_lists_p_slice(slice_t *currSlice)
         });
         currSlice->RefPicSize[0] = (char) list0idx;
     } else {
-        frame_store** fs_list0  = new frame_store*[p_Dpb->size];
-        frame_store** fs_listlt = new frame_store*[p_Dpb->size];
+        pic_t** fs_list0  = new pic_t*[p_Dpb->size];
+        pic_t** fs_listlt = new pic_t*[p_Dpb->size];
 
         int list0idx = 0;
         for (int i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
@@ -193,9 +193,9 @@ static void init_lists_p_slice(slice_t *currSlice)
                 fs_list0[list0idx++] = p_Dpb->fs_ref[i];
         }
 
-        std::qsort(fs_list0, list0idx, sizeof(frame_store*), [](const void* a, const void* b) {
-            int pic_num1 = (*(frame_store**)a)->FrameNumWrap;
-            int pic_num2 = (*(frame_store**)b)->FrameNumWrap;
+        std::qsort(fs_list0, list0idx, sizeof(pic_t*), [](const void* a, const void* b) {
+            int pic_num1 = (*(pic_t**)a)->FrameNumWrap;
+            int pic_num2 = (*(pic_t**)b)->FrameNumWrap;
             return (pic_num1 < pic_num2) ? 1 : (pic_num1 > pic_num2) ? -1 : 0;
         });
 
@@ -207,9 +207,9 @@ static void init_lists_p_slice(slice_t *currSlice)
         for (int i = 0; i < p_Dpb->ltref_frames_in_buffer; i++)
             fs_listlt[listltidx++]=p_Dpb->fs_ltref[i];
 
-        std::qsort(fs_listlt, listltidx, sizeof(frame_store*), [](const void* a, const void* b) {
-            int idx1 = (*(frame_store**)a)->LongTermFrameIdx;
-            int idx2 = (*(frame_store**)b)->LongTermFrameIdx;
+        std::qsort(fs_listlt, listltidx, sizeof(pic_t*), [](const void* a, const void* b) {
+            int idx1 = (*(pic_t**)a)->LongTermFrameIdx;
+            int idx2 = (*(pic_t**)b)->LongTermFrameIdx;
             return (idx1 < idx2) ? -1 : (idx1 > idx2) ? 1 : 0;
         });
 
@@ -304,9 +304,9 @@ static void init_lists_b_slice(slice_t *currSlice)
         });
         currSlice->RefPicSize[0] = currSlice->RefPicSize[1] = (char) list0idx;
     } else {
-        frame_store** fs_list0  = new frame_store*[p_Dpb->size];
-        frame_store** fs_list1  = new frame_store*[p_Dpb->size];
-        frame_store** fs_listlt = new frame_store*[p_Dpb->size];
+        pic_t** fs_list0  = new pic_t*[p_Dpb->size];
+        pic_t** fs_list1  = new pic_t*[p_Dpb->size];
+        pic_t** fs_listlt = new pic_t*[p_Dpb->size];
 
         currSlice->RefPicSize[0] = 0;
         currSlice->RefPicSize[1] = 1;
@@ -318,9 +318,9 @@ static void init_lists_b_slice(slice_t *currSlice)
                     fs_list0[list0idx++] = p_Dpb->fs_ref[i];
             }
         }
-        std::qsort(fs_list0, list0idx, sizeof(frame_store*), [](const void* a, const void* b) {
-            int poc1 = (*(frame_store**)a)->poc;
-            int poc2 = (*(frame_store**)b)->poc;
+        std::qsort(fs_list0, list0idx, sizeof(pic_t*), [](const void* a, const void* b) {
+            int poc1 = (*(pic_t**)a)->poc;
+            int poc2 = (*(pic_t**)b)->poc;
             return (poc1 < poc2) ? 1 : (poc1 > poc2) ? -1 : 0;
         });
 
@@ -331,9 +331,9 @@ static void init_lists_b_slice(slice_t *currSlice)
                     fs_list0[list0idx++] = p_Dpb->fs_ref[i];
             }
         }
-        std::qsort(&fs_list0[list0idx_1], list0idx-list0idx_1, sizeof(frame_store*), [](const void* a, const void* b) {
-            int poc1 = (*(frame_store**)a)->poc;
-            int poc2 = (*(frame_store**)b)->poc;
+        std::qsort(&fs_list0[list0idx_1], list0idx-list0idx_1, sizeof(pic_t*), [](const void* a, const void* b) {
+            int poc1 = (*(pic_t**)a)->poc;
+            int poc2 = (*(pic_t**)b)->poc;
             return (poc1 < poc2) ? -1 : (poc1 > poc2) ? 1 : 0;
         });
 
@@ -352,9 +352,9 @@ static void init_lists_b_slice(slice_t *currSlice)
         for (int i = 0; i < p_Dpb->ltref_frames_in_buffer; i++)
             fs_listlt[listltidx++] = p_Dpb->fs_ltref[i];
 
-        std::qsort(fs_listlt, listltidx, sizeof(frame_store*), [](const void* a, const void* b) {
-            int idx1 = (*(frame_store**)a)->LongTermFrameIdx;
-            int idx2 = (*(frame_store**)b)->LongTermFrameIdx;
+        std::qsort(fs_listlt, listltidx, sizeof(pic_t*), [](const void* a, const void* b) {
+            int idx1 = (*(pic_t**)a)->LongTermFrameIdx;
+            int idx2 = (*(pic_t**)b)->LongTermFrameIdx;
             return (idx1 < idx2) ? -1 : (idx1 > idx2) ? 1 : 0;
         });
 
@@ -409,7 +409,7 @@ static int is_view_id_in_ref_view_list(int view_id, int *ref_view_id, int num_re
 
 static void append_interview_list(
     dpb_t *p_Dpb, bool field_pic_flag, bool bottom_field_flag,
-    int list_idx, frame_store **list,
+    int list_idx, pic_t **list,
     int *listXsize, int currPOC, int curr_view_id, int anchor_pic_flag)
 {
     VideoParameters *p_Vid = p_Dpb->p_Vid;
@@ -418,7 +418,7 @@ static void append_interview_list(
     int poc = 0;
     int fld_idx;
     int num_ref_views, *ref_view_id;
-    frame_store *fs = p_Dpb->fs_ilref[0];
+    pic_t *fs = p_Dpb->fs_ilref[0];
 
     if (iVOIdx < 0)
         printf("Error: iVOIdx: %d is not less than 0\n", iVOIdx);
@@ -459,7 +459,7 @@ static void append_interview_list(
     }
 }
 
-static void gen_pic_list_from_frame_interview_list(bool bottom_field_flag, frame_store **fs_list, int list_idx, storable_picture **list, char *list_size)
+static void gen_pic_list_from_frame_interview_list(bool bottom_field_flag, pic_t **fs_list, int list_idx, storable_picture **list, char *list_size)
 {
     if (!bottom_field_flag) {
         for (int i = 0; i < list_idx; i++) {
@@ -532,17 +532,17 @@ static void init_lists_p_slice_mvc(slice_t *currSlice)
 
         currSlice->RefPicSize[0] = (char) list0idx;
     } else {
-        frame_store** fs_list0  = new frame_store*[p_Dpb->size];
-        frame_store** fs_listlt = new frame_store*[p_Dpb->size];
+        pic_t** fs_list0  = new pic_t*[p_Dpb->size];
+        pic_t** fs_listlt = new pic_t*[p_Dpb->size];
 
         for (i = 0; i < p_Dpb->ref_frames_in_buffer; i++) {
             if (p_Dpb->fs_ref[i]->is_reference)
                 fs_list0[list0idx++] = p_Dpb->fs_ref[i];
         }
 
-        std::qsort(fs_list0, list0idx, sizeof(frame_store*), [](const void *arg1, const void *arg2) {
-            int frame_num_wrap1 = (*(frame_store**)arg1)->FrameNumWrap;
-            int frame_num_wrap2 = (*(frame_store**)arg2)->FrameNumWrap;
+        std::qsort(fs_list0, list0idx, sizeof(pic_t*), [](const void *arg1, const void *arg2) {
+            int frame_num_wrap1 = (*(pic_t**)arg1)->FrameNumWrap;
+            int frame_num_wrap2 = (*(pic_t**)arg2)->FrameNumWrap;
             return (frame_num_wrap1 < frame_num_wrap2) ? 1 : (frame_num_wrap1 > frame_num_wrap2) ? -1 : 0;
         });
 
@@ -553,9 +553,9 @@ static void init_lists_p_slice_mvc(slice_t *currSlice)
         for (i = 0; i < p_Dpb->ltref_frames_in_buffer; i++)
             fs_listlt[listltidx++]=p_Dpb->fs_ltref[i];
 
-        std::qsort(fs_listlt, listltidx, sizeof(frame_store*), [](const void *arg1, const void *arg2) {
-            int long_term_frame_idx1 = (*(frame_store**)arg1)->LongTermFrameIdx;
-            int long_term_frame_idx2 = (*(frame_store**)arg2)->LongTermFrameIdx;
+        std::qsort(fs_listlt, listltidx, sizeof(pic_t*), [](const void *arg1, const void *arg2) {
+            int long_term_frame_idx1 = (*(pic_t**)arg1)->LongTermFrameIdx;
+            int long_term_frame_idx2 = (*(pic_t**)arg2)->LongTermFrameIdx;
             return (long_term_frame_idx1 < long_term_frame_idx2) ? -1 : (long_term_frame_idx1 > long_term_frame_idx2) ? 1 : 0;
         });
 
@@ -569,7 +569,7 @@ static void init_lists_p_slice_mvc(slice_t *currSlice)
 
     if (currSlice->svc_extension_flag == 0) {
         int curr_view_id = currSlice->layer_id;
-        currSlice->fs_listinterview0 = new frame_store*[p_Dpb->size];
+        currSlice->fs_listinterview0 = new pic_t*[p_Dpb->size];
         list0idx = currSlice->RefPicSize[0];
         if (!shr.field_pic_flag) {
             append_interview_list(p_Vid->p_Dpb_layer[1], false, false, 0, currSlice->fs_listinterview0, &currSlice->listinterviewidx0, currPOC, curr_view_id, anchor_pic_flag);
@@ -674,9 +674,9 @@ static void init_lists_b_slice_mvc(slice_t *currSlice)
         });
         currSlice->RefPicSize[0] = currSlice->RefPicSize[1] = (char) list0idx;
     } else {
-        frame_store **fs_list0  = new frame_store*[p_Dpb->size];
-        frame_store **fs_list1  = new frame_store*[p_Dpb->size];
-        frame_store **fs_listlt = new frame_store*[p_Dpb->size];
+        pic_t **fs_list0  = new pic_t*[p_Dpb->size];
+        pic_t **fs_list1  = new pic_t*[p_Dpb->size];
+        pic_t **fs_listlt = new pic_t*[p_Dpb->size];
 
         currSlice->RefPicSize[0] = 0;
         currSlice->RefPicSize[1] = 1;
@@ -687,9 +687,9 @@ static void init_lists_b_slice_mvc(slice_t *currSlice)
                     fs_list0[list0idx++] = p_Dpb->fs_ref[i];
             }
         }
-        std::qsort(fs_list0, list0idx, sizeof(frame_store*), [](const void *arg1, const void *arg2) {
-            int poc1 = (*(frame_store**)arg1)->poc;
-            int poc2 = (*(frame_store**)arg2)->poc;
+        std::qsort(fs_list0, list0idx, sizeof(pic_t*), [](const void *arg1, const void *arg2) {
+            int poc1 = (*(pic_t**)arg1)->poc;
+            int poc2 = (*(pic_t**)arg2)->poc;
             return (poc1 < poc2) ? 1 : (poc1 > poc2) ? -1 : 0;
         });
 
@@ -700,9 +700,9 @@ static void init_lists_b_slice_mvc(slice_t *currSlice)
                     fs_list0[list0idx++] = p_Dpb->fs_ref[i];
             }
         }
-        std::qsort(&fs_list0[list0idx_1], list0idx-list0idx_1, sizeof(frame_store*), [](const void *arg1, const void *arg2) {
-            int poc1 = (*(frame_store**)arg1)->poc;
-            int poc2 = (*(frame_store**)arg2)->poc;
+        std::qsort(&fs_list0[list0idx_1], list0idx-list0idx_1, sizeof(pic_t*), [](const void *arg1, const void *arg2) {
+            int poc1 = (*(pic_t**)arg1)->poc;
+            int poc2 = (*(pic_t**)arg2)->poc;
             return (poc1 < poc2) ? -1 : (poc1 > poc2) ? 1 : 0;
         });
 
@@ -720,9 +720,9 @@ static void init_lists_b_slice_mvc(slice_t *currSlice)
         for (i = 0; i < p_Dpb->ltref_frames_in_buffer; i++)
             fs_listlt[listltidx++] = p_Dpb->fs_ltref[i];
 
-        std::qsort(fs_listlt, listltidx, sizeof(frame_store*), [](const void *arg1, const void *arg2) {
-            int long_term_frame_idx1 = (*(frame_store**)arg1)->LongTermFrameIdx;
-            int long_term_frame_idx2 = (*(frame_store**)arg2)->LongTermFrameIdx;
+        std::qsort(fs_listlt, listltidx, sizeof(pic_t*), [](const void *arg1, const void *arg2) {
+            int long_term_frame_idx1 = (*(pic_t**)arg1)->LongTermFrameIdx;
+            int long_term_frame_idx2 = (*(pic_t**)arg2)->LongTermFrameIdx;
             return (long_term_frame_idx1 < long_term_frame_idx2) ? -1 : (long_term_frame_idx1 > long_term_frame_idx2) ? 1 : 0;
         });
 
@@ -753,8 +753,8 @@ static void init_lists_b_slice_mvc(slice_t *currSlice)
     if (currSlice->svc_extension_flag == 0) {
         int curr_view_id = currSlice->view_id;
         // B-slice_t
-        currSlice->fs_listinterview0 = new frame_store*[p_Dpb->size];
-        currSlice->fs_listinterview1 = new frame_store*[p_Dpb->size];
+        currSlice->fs_listinterview0 = new pic_t*[p_Dpb->size];
+        currSlice->fs_listinterview1 = new pic_t*[p_Dpb->size];
         list0idx = currSlice->RefPicSize[0];
 
         if (!shr.field_pic_flag) {
@@ -1052,7 +1052,7 @@ static int get_maxViewIdx(VideoParameters *p_Vid, int view_id, int anchor_pic_fl
 static storable_picture* get_inter_view_pic(VideoParameters *p_Vid, slice_t *currSlice, int targetViewID, int currPOC, int listidx)
 {
     unsigned int listinterview_size;
-    frame_store **fs_listinterview;
+    pic_t **fs_listinterview;
     shr_t& shr = currSlice->header;
 
     if (listidx == 0) {

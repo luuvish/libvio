@@ -69,7 +69,8 @@ struct DecodedPicList;
 struct SNRParameters;
 
 struct tone_mapping_struct_s;
-struct frame_store;
+struct picture_t;
+using pic_t = picture_t;
 struct sei_params;
 struct concealment_node;
 struct object_buffer;
@@ -134,7 +135,7 @@ struct VideoParameters {
     pps_t*      pNextPPS;
 
 
-    frame_store* out_buffer;
+    pic_t*      out_buffer;
 
 
     int32_t     prevPicOrderCntMsb;
@@ -206,7 +207,7 @@ struct VideoParameters {
     int         Is_primary_correct;          //!< if primary frame is correct, 0: incorrect
     int         Is_redundant_correct;        //!< if redundant frame is correct, 0:incorrect
 
-    frame_store* last_out_fs;
+    pic_t*      last_out_fs;
     int         pocs_in_dpb[100];
 
     storable_picture* dec_picture;

@@ -20,15 +20,16 @@ enum {
 };
 
 
-struct frame_store;
+struct picture_t;
+using pic_t = picture_t;
 
 struct decoded_picture_buffer_t {
     VideoParameters* p_Vid;
     InputParameters* p_Inp;
-    frame_store** fs;
-    frame_store** fs_ref;
-    frame_store** fs_ltref;
-    frame_store** fs_ilref; // inter-layer reference (for multi-layered codecs)
+    pic_t**     fs;
+    pic_t**     fs_ref;
+    pic_t**     fs_ltref;
+    pic_t**     fs_ilref; // inter-layer reference (for multi-layered codecs)
     unsigned    size;
     unsigned    used_size;
     unsigned    ref_frames_in_buffer;
@@ -42,7 +43,7 @@ struct decoded_picture_buffer_t {
     int         init_done;
     int         num_ref_frames;
 
-    frame_store* last_picture;
+    pic_t*      last_picture;
     unsigned    used_size_il;
     int         layer_id;
 

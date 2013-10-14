@@ -1,5 +1,5 @@
 
-#include "frame_buffer.h"
+#include "picture.h"
 #include "memalloc.h"
 
 
@@ -149,7 +149,7 @@ void storable_picture::clear_picture(VideoParameters* p_Vid)
 }
 
 
-frame_store::~frame_store()
+picture_t::~picture_t()
 {
     if (this->frame)
         delete this->frame;
@@ -159,7 +159,7 @@ frame_store::~frame_store()
         delete this->bottom_field;
 }
 
-void frame_store::unmark_for_reference()
+void picture_t::unmark_for_reference()
 {
     if ((this->is_used & 1) && this->top_field)
         this->top_field->used_for_reference = 0;
@@ -190,7 +190,7 @@ void frame_store::unmark_for_reference()
     }
 }
 
-void frame_store::unmark_for_long_term_reference()
+void picture_t::unmark_for_long_term_reference()
 {
     if ((this->is_used & 1) && this->top_field) {
         this->top_field->used_for_reference = 0;
@@ -215,7 +215,7 @@ void frame_store::unmark_for_long_term_reference()
     this->is_long_term = 0;
 }
 
-bool frame_store::is_short_term_reference()
+bool picture_t::is_short_term_reference()
 {
     if (this->is_used == 3) {
         storable_picture* pic = this->frame;
@@ -238,7 +238,7 @@ bool frame_store::is_short_term_reference()
     return false;
 }
 
-bool frame_store::is_long_term_reference()
+bool picture_t::is_long_term_reference()
 {
     if (this->is_used == 3) {
         storable_picture* pic = this->frame;
@@ -261,7 +261,7 @@ bool frame_store::is_long_term_reference()
     return false;
 }
 
-bool frame_store::is_used_for_reference()
+bool picture_t::is_used_for_reference()
 {
     if (this->is_reference)
         return true;
@@ -284,7 +284,7 @@ bool frame_store::is_used_for_reference()
     return false;
 }
 
-void frame_store::dpb_split_field(VideoParameters* p_Vid)
+void picture_t::dpb_split_field(VideoParameters* p_Vid)
 {
     int currentmb;
     int twosz16 = 2 * (this->frame->size_x >> 4);
@@ -449,7 +449,7 @@ void frame_store::dpb_split_field(VideoParameters* p_Vid)
     }
 }
 
-void frame_store::dpb_combine_field_yuv(VideoParameters* p_Vid)
+void picture_t::dpb_combine_field_yuv(VideoParameters* p_Vid)
 {
     if (!this->frame)
         this->frame = new storable_picture(p_Vid, FRAME,
@@ -496,7 +496,7 @@ void frame_store::dpb_combine_field_yuv(VideoParameters* p_Vid)
         pad_dec_picture(p_Vid, this->frame);
 }
 
-void frame_store::dpb_combine_field(VideoParameters* p_Vid)
+void picture_t::dpb_combine_field(VideoParameters* p_Vid)
 {
     this->dpb_combine_field_yuv(p_Vid);
 
@@ -538,7 +538,7 @@ void frame_store::dpb_combine_field(VideoParameters* p_Vid)
     }
 }
 
-void frame_store::insert_picture(VideoParameters* p_Vid, storable_picture* p)
+void picture_t::insert_picture(VideoParameters* p_Vid, storable_picture* p)
 {
     assert(p);
 

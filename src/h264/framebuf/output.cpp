@@ -2,7 +2,7 @@
 #include "input_parameters.h"
 #include "h264decoder.h"
 #include "dpb.h"
-#include "frame_buffer.h"
+#include "picture.h"
 #include "memalloc.h"
 #include "sei.h"
 #include "output.h"
@@ -223,7 +223,7 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
     }
 }
 
-static void write_unpaired_field(VideoParameters *p_Vid, frame_store* fs, int p_out)
+static void write_unpaired_field(VideoParameters *p_Vid, pic_t* fs, int p_out)
 {
     storable_picture *p;
     assert (fs->is_used < 3);
@@ -279,7 +279,7 @@ static void flush_direct_output(VideoParameters *p_Vid, int p_out)
 }
 
 
-void write_stored_frame(VideoParameters *p_Vid, frame_store *fs, int p_out)
+void write_stored_frame(VideoParameters *p_Vid, pic_t *fs, int p_out)
 {
     // make sure no direct output field is pending
     flush_direct_output(p_Vid, p_out);

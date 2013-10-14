@@ -84,7 +84,7 @@ static void init_mvc_picture(slice_t* currSlice)
     // find BL reconstructed picture
     if (!shr.field_pic_flag) {
         for (int i = 0; i < (int)p_Dpb->used_size; ++i) {
-            frame_store* fs = p_Dpb->fs[i];
+            pic_t* fs = p_Dpb->fs[i];
             if (fs->frame->slice.view_id == 0 && fs->frame->frame_poc == shr.PicOrderCnt) {
                 p_pic = fs->frame;
                 break;
@@ -92,7 +92,7 @@ static void init_mvc_picture(slice_t* currSlice)
         }
     } else if (!shr.bottom_field_flag) {
         for (int i = 0; i < (int)p_Dpb->used_size; ++i) {
-            frame_store* fs = p_Dpb->fs[i];
+            pic_t* fs = p_Dpb->fs[i];
             if (fs->top_field->slice.view_id == 0 && fs->top_field->top_poc == shr.TopFieldOrderCnt) {
                 p_pic = fs->top_field;
                 break;
@@ -100,7 +100,7 @@ static void init_mvc_picture(slice_t* currSlice)
         }
     } else {
         for (int i = 0; i < (int)p_Dpb->used_size; ++i) {
-            frame_store* fs = p_Dpb->fs[i];
+            pic_t* fs = p_Dpb->fs[i];
             if (fs->bottom_field->slice.view_id == 0 && fs->bottom_field->bottom_poc == shr.BottomFieldOrderCnt) {
                 p_pic = fs->bottom_field;
                 break;

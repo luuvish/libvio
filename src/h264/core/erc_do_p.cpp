@@ -1658,7 +1658,7 @@ void decoded_picture_buffer_t::sliding_window_poc_management(storable_picture* p
 void decoded_picture_buffer_t::write_lost_non_ref_pic(int poc, int p_out)
 {
     VideoParameters* p_Vid = this->p_Vid;
-    frame_store concealment_fs;
+    pic_t concealment_fs;
     if (poc > 0) {
         if (poc - this->last_output_poc > p_Vid->p_Inp->poc_gap) {
             concealment_fs.frame = p_Vid->concealment_head->picture;

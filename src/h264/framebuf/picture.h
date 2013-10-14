@@ -3,6 +3,7 @@
 
 
 #include <cstdint>
+#include <vector>
 #include "global.h"
 
 
@@ -152,8 +153,19 @@ struct storable_picture {
     ~storable_picture();
 };
 
+struct slice_header_t;
+struct macroblock_t;
 
-struct frame_store {
+struct picture_t {
+    sps_t*                       sps;
+    pps_t*                       pps;
+    std::vector<slice_header_t*> slice_headers;
+    std::vector<macroblock_t*>   mbs;
+    pic_motion_params**          mv_infos;
+    imgpel**                     pixels[3];
+
+    picture_t*  pic[2][3] = {{nullptr}};
+
     int         is_used;                //!< 0=empty; 1=top; 2=bottom; 3=both fields (or frame)
     int         is_reference;           //!< 0=not used for ref; 1=top used; 2=bottom used; 3=both fields (or frame) used
     int         is_long_term;           //!< 0=not used for ref; 1=top used; 2=bottom used; 3=both fields (or frame) used
@@ -183,8 +195,8 @@ struct frame_store {
 #endif
     int         layer_id;
 
-    frame_store() =default;
-    ~frame_store();
+    picture_t() =default;
+    ~picture_t();
 
     void        unmark_for_reference();
     void        unmark_for_long_term_reference();
@@ -201,5 +213,8 @@ protected:
     void        dpb_split_field  (VideoParameters* p_Vid);
     void        dpb_combine_field(VideoParameters* p_Vid);
 };
+
+using pic_t = picture_t;
+
 
 #endif // _FRAME_BUFFER_H_

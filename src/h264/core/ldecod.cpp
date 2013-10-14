@@ -44,7 +44,7 @@ void error(const char *text, int code)
 
 VideoParameters::VideoParameters()
 {
-    this->out_buffer = new frame_store {};
+    this->out_buffer = new pic_t {};
     this->old_slice  = new slice_backup_t {};
     this->snr        = new SNRParameters;
 

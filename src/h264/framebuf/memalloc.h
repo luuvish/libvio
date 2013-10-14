@@ -4,7 +4,7 @@
 
 #include "global.h"
 #include "dpb.h"
-#include "frame_buffer.h"
+#include "picture.h"
 
 extern int  get_mem2Dmp (pic_motion_params ***array2D, int dim0, int dim1);
 extern void free_mem2Dmp(pic_motion_params **array2D);

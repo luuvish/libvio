@@ -155,15 +155,15 @@ void decoded_picture_buffer_t::init(VideoParameters* p_Vid, int type)
     this->ref_frames_in_buffer   = 0;
     this->ltref_frames_in_buffer = 0;
 
-    this->fs       = new frame_store*[this->size];
-    this->fs_ref   = new frame_store*[this->size];
-    this->fs_ltref = new frame_store*[this->size];
+    this->fs       = new pic_t*[this->size];
+    this->fs_ref   = new pic_t*[this->size];
+    this->fs_ltref = new pic_t*[this->size];
 #if (MVC_EXTENSION_ENABLE)
-    this->fs_ilref = new frame_store*[1];
+    this->fs_ilref = new pic_t*[1];
 #endif
 
     for (int i = 0; i < this->size; i++) {
-        this->fs[i]       = new frame_store {};
+        this->fs[i]       = new pic_t {};
         this->fs_ref[i]   = nullptr;
         this->fs_ltref[i] = nullptr;
         this->fs[i]->layer_id = -1;
@@ -176,7 +176,7 @@ void decoded_picture_buffer_t::init(VideoParameters* p_Vid, int type)
 
 #if (MVC_EXTENSION_ENABLE)
     if (type == 2) {
-        this->fs_ilref[0] = new frame_store {};
+        this->fs_ilref[0] = new pic_t {};
         // These may need some cleanups
         this->fs_ilref[0]->view_id = -1;
         this->fs_ilref[0]->inter_view_flag[0] = this->fs_ilref[0]->inter_view_flag[1] = 0;
@@ -204,7 +204,7 @@ void decoded_picture_buffer_t::init(VideoParameters* p_Vid, int type)
     p_Vid->last_has_mmco_5 = 0;
     // picture error concealment
     if (p_Vid->conceal_mode != 0 && !p_Vid->last_out_fs)
-        p_Vid->last_out_fs = new frame_store {};
+        p_Vid->last_out_fs = new pic_t {};
 }
 
 void decoded_picture_buffer_t::free()
@@ -253,7 +253,7 @@ void decoded_picture_buffer_t::idr_memory_management(storable_picture* p)
         for (int i = 0; i < this->used_size; i++) {
             // reset all reference settings
             delete this->fs[i];
-            this->fs[i] = new frame_store {};
+            this->fs[i] = new pic_t {};
         }
         for (int i = 0; i < this->ref_frames_in_buffer; i++)
             this->fs_ref[i] = nullptr;
@@ -285,7 +285,7 @@ void decoded_picture_buffer_t::idr_memory_management(storable_picture* p)
 void decoded_picture_buffer_t::store_proc_picture(storable_picture* p)
 {
     VideoParameters* p_Vid = this->p_Vid;
-    frame_store* fs = this->fs_ilref[0];
+    pic_t* fs = this->fs_ilref[0];
     if (this->used_size_il > 0 && fs->is_used == 3) {
         if (fs->frame) {
             delete fs->frame;
@@ -312,7 +312,7 @@ void decoded_picture_buffer_t::store_proc_picture(storable_picture* p)
 
 void decoded_picture_buffer_t::remove_frame(int pos)
 {
-    frame_store* fs = this->fs[pos];
+    pic_t* fs = this->fs[pos];
 
     switch (fs->is_used) {
     case 3:
@@ -342,7 +342,7 @@ void decoded_picture_buffer_t::remove_frame(int pos)
     fs->is_orig_reference = 0;
 
     // move empty framestore to end of buffer
-    frame_store* tmp = this->fs[pos];
+    pic_t* tmp = this->fs[pos];
 
     for (int i = pos; i < this->used_size - 1; i++)
         this->fs[i] = this->fs[i + 1];
