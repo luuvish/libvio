@@ -113,7 +113,7 @@ void Decoder::deblock_filter(slice_t& slice)
     this->deblock->deblock(slice.p_Vid);
 }
 
-void Decoder::get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y, imgpel block[16][16],
+void Decoder::get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y, px_t block[16][16],
                              int shift_x,int maxold_x, int maxold_y, ColorPlane pl, mb_t* mb)
 {
     this->inter_prediction->get_block_luma(curr_ref, x_pos, y_pos, block_size_x, block_size_y, block,
@@ -159,14 +159,14 @@ void Decoder::mb_pred_ipcm(mb_t& mb, ColorPlane curr_plane)
 
     for (int i = 0; i < 16; ++i) {
         for (int j = 0; j < 16 ; ++j)
-            dec_picture->imgY[mb.mb.y * 16 + i][mb.mb.x * 16 + j] = (imgpel) this->transform->cof[0][i][j];
+            dec_picture->imgY[mb.mb.y * 16 + i][mb.mb.x * 16 + j] = (px_t) this->transform->cof[0][i][j];
     }
 
     if (sps.ChromaArrayType != 0) {
         for (int k = 0; k < 2; ++k) {
             for (int i = 0; i < sps.MbHeightC; ++i) {
                 for (int j = 0;j < sps.MbWidthC; ++j)
-                    dec_picture->imgUV[k][mb.mb.y * sps.MbHeightC + i][mb.mb.x * sps.MbWidthC + j] = (imgpel) this->transform->cof[k + 1][i][j];
+                    dec_picture->imgUV[k][mb.mb.y * sps.MbHeightC + i][mb.mb.x * sps.MbWidthC + j] = (px_t) this->transform->cof[k + 1][i][j];
             }
         }
     }

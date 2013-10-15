@@ -83,7 +83,7 @@ struct storable_picture {
     std::vector<slice_t*>        slice_headers;
     std::vector<macroblock_t*>   mbs;
     pic_motion_params**          mv_infos;
-    imgpel**                     pixels[3];
+    px_t**                     pixels[3];
 
     int         poc;
     int         top_poc;
@@ -122,8 +122,8 @@ struct storable_picture {
     int         iChromaStride;
     int         iChromaPadX;
     int         iChromaPadY;
-    imgpel**    imgY;
-    imgpel**    imgUV[2];
+    px_t**    imgY;
+    px_t**    imgUV[2];
 
     pic_motion_params** mv_info;
     pic_motion_params** JVmv_info[3];
@@ -142,7 +142,7 @@ struct storable_picture {
     int         seiHasTone_mapping;
     int         tone_mapping_model_id;
     int         tonemapped_bit_depth;  
-    imgpel*     tone_mapping_lut;                //!< tone mapping look up table
+    px_t*     tone_mapping_lut;                //!< tone mapping look up table
 
     bool        is_short_ref();
     bool        is_long_ref();
@@ -159,7 +159,7 @@ struct picture_t {
     //std::vector<slice_header_t*> slice_headers;
     //std::vector<macroblock_t*>   mbs;
     //pic_motion_params**          mv_infos;
-    //imgpel**                     pixels[3];
+    //px_t**                     pixels[3];
 
     //picture_t*  pic[2][3] = {{nullptr}};
 

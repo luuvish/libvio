@@ -65,21 +65,21 @@ static const uint8_t subblk_offset_y[3][8][4] = {
 
 // static function declarations
 static int concealByCopy(frame *recfr, int currMBNum, objectBuffer_t *object_list, int picSizeX);
-static int concealByTrial(frame *recfr, imgpel *predMB,
+static int concealByTrial(frame *recfr, px_t *predMB,
                           int currMBNum, objectBuffer_t *object_list, int predBlocks[],
                           int picSizeX, int picSizeY, char *yCondition);
-static int edgeDistortion (int predBlocks[], int currYBlockNum, imgpel *predMB,
-                           imgpel *recY, int picSizeX, int regionSize);
+static int edgeDistortion (int predBlocks[], int currYBlockNum, px_t *predMB,
+                           px_t *recY, int picSizeX, int regionSize);
 static void copyBetweenFrames (frame *recfr, int currYBlockNum, int picSizeX, int regionSize);
-static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, imgpel *predMB);
+static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, px_t *predMB);
 
 // picture error concealment
 static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
-                                    int x, int y, imgpel *predMB, int list, int mb);
-static void CopyImgData(imgpel **inputY, imgpel ***inputUV, imgpel **outputY, imgpel ***outputUV, 
+                                    int x, int y, px_t *predMB, int list, int mb);
+static void CopyImgData(px_t **inputY, px_t ***inputUV, px_t **outputY, px_t ***outputUV, 
                         int img_width, int img_height, int img_width_cr, int img_height_cr);
 
-static void copyPredMB (int currYBlockNum, imgpel *predMB, frame *recfr,
+static void copyPredMB (int currYBlockNum, px_t *predMB, frame *recfr,
                         int picSizeX, int regionSize);
 static void add_node   ( VideoParameters *p_Vid, struct concealment_node *ptr );
 static void delete_node( VideoParameters *p_Vid, struct concealment_node *ptr );
@@ -115,7 +115,7 @@ int ercConcealInterFrame(frame *recfr, objectBuffer_t *object_list,
   int lastColumn = 0, lastRow = 0, predBlocks[8];
   int lastCorruptedRow = -1, firstCorruptedRow = -1;
   int currRow = 0, row, column, columnInd, areaHeight = 0, i = 0;
-  imgpel *predMB;
+  px_t *predMB;
 
   /* if concealment is on */
   if ( errorVar && errorVar->concealment )
@@ -124,9 +124,9 @@ int ercConcealInterFrame(frame *recfr, objectBuffer_t *object_list,
     if ( errorVar->nOfCorruptedSegments )
     {
       if (chroma_format_idc != YUV400)
-        predMB = new imgpel[256 + sps->MbWidthC * sps->MbHeightC * 2];
+        predMB = new px_t[256 + sps->MbWidthC * sps->MbHeightC * 2];
       else
-        predMB = new imgpel[256];
+        predMB = new px_t[256];
 
       lastRow = (int) (picSizeY>>4);
       lastColumn = (int) (picSizeX>>4);
@@ -357,7 +357,7 @@ static void copyBetweenFrames (frame *recfr, int currYBlockNum, int picSizeX, in
  *      array for conditions of Y blocks from ercVariables_t
  ************************************************************************
  */
-static int concealByTrial(frame *recfr, imgpel *predMB,
+static int concealByTrial(frame *recfr, px_t *predMB,
                           int currMBNum, objectBuffer_t *object_list, int predBlocks[],
                           int picSizeX, int picSizeY, char *yCondition)
 {
@@ -573,13 +573,13 @@ static int concealByTrial(frame *recfr, imgpel *predMB,
 *      the Y,U,V planes are concatenated y = predMB, u = predMB+256, v = predMB+320
 ************************************************************************
 */
-static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, imgpel *predMB)
+static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, px_t *predMB)
 {
   int i=0, j=0, ii=0, jj=0,i1=0,j1=0,j4=0,i4=0;
   int uv;
   int vec1_x=0,vec1_y=0;
   int ioff,joff;
-  imgpel *pMB = predMB;
+  px_t *pMB = predMB;
   slice_t *currSlice;// = p_Vid->currentSlice;
   storable_picture *dec_picture = p_Vid->dec_picture;
   int ii0,jj0,ii1,jj1,if1,jf1,if0,jf0;
@@ -598,7 +598,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
   currSlice = currMB->p_Slice;
 
     // This should be allocated only once. 
-    imgpel tmp_block[16][16];
+    px_t tmp_block[16][16];
 
   /* Update coordinates of the current concealed macroblock */
   currMB->mb.x = (short) (x/16);
@@ -687,7 +687,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
               if0=f1_x-if1;
               jf0=f1_y-jf1;
 
-              currSlice->mb_pred[uv + 1][jj+joff][ii+ioff] = (imgpel) 
+              currSlice->mb_pred[uv + 1][jj+joff][ii+ioff] = (px_t) 
                 ((if0*jf0*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj0][ii0]+
                   if1*jf0*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj0][ii1]+
                   if0*jf1*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj1][ii0]+
@@ -728,7 +728,7 @@ static void buildPredRegionYUV(VideoParameters *p_Vid, int *mv, int x, int y, im
  *      can be 16 or 8 to tell the dimension of the region to copy
  ************************************************************************
  */
-static void copyPredMB (int currYBlockNum, imgpel *predMB, frame *recfr,
+static void copyPredMB (int currYBlockNum, px_t *predMB, frame *recfr,
                         int picSizeX, int regionSize)
 {
   VideoParameters *p_Vid = recfr->p_Vid;
@@ -797,11 +797,11 @@ static void copyPredMB (int currYBlockNum, imgpel *predMB, frame *recfr,
  *      can be 16 or 8 to tell the dimension of the region to copy
  ************************************************************************
  */
-static int edgeDistortion (int predBlocks[], int currYBlockNum, imgpel *predMB,
-                           imgpel *recY, int picSizeX, int regionSize)
+static int edgeDistortion (int predBlocks[], int currYBlockNum, px_t *predMB,
+                           px_t *recY, int picSizeX, int regionSize)
 {
   int i, j, distortion, numOfPredBlocks, threshold = ERC_BLOCK_OK;
-  imgpel *currBlock = NULL, *neighbor = NULL;
+  px_t *currBlock = NULL, *neighbor = NULL;
   int currBlockOffset = 0;
 
   currBlock = recY + (yPosYBlock(currYBlockNum,picSizeX)<<3)*picSizeX + (xPosYBlock(currYBlockNum,picSizeX)<<3);
@@ -881,7 +881,7 @@ static int edgeDistortion (int predBlocks[], int currYBlockNum, imgpel *predMB,
 *************************************************************************
 */
 static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
-                                    int x, int y, imgpel *predMB, int list, int current_mb_nr)
+                                    int x, int y, px_t *predMB, int list, int current_mb_nr)
 {
   int i=0,j=0,ii=0,jj=0,i1=0,j1=0,j4=0,i4=0;
   int uv;
@@ -889,7 +889,7 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
   int ioff,joff;
 
   storable_picture *dec_picture = p_Vid->dec_picture;
-  imgpel *pMB = predMB;
+  px_t *pMB = predMB;
 
   int ii0,jj0,ii1,jj1,if1,jf1,if0,jf0;
   int mv_mul;
@@ -905,7 +905,7 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
     sps_t *sps = currSlice->active_sps;
   int yuv = sps->chroma_format_idc - 1;
 
-    imgpel tmp_block[16][16];
+    px_t tmp_block[16][16];
 
   /* Update coordinates of the current concealed macroblock */
 
@@ -972,7 +972,7 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
           if0=f1_x-if1;
           jf0=f1_y-jf1;
 
-          currSlice->mb_pred[uv + 1][jj][ii]=(imgpel) ((if0*jf0*currSlice->RefPicList[list][ref_frame]->imgUV[uv][jj0][ii0]+
+          currSlice->mb_pred[uv + 1][jj][ii]=(px_t) ((if0*jf0*currSlice->RefPicList[list][ref_frame]->imgUV[uv][jj0][ii0]+
                                                         if1*jf0*currSlice->RefPicList[list][ref_frame]->imgUV[uv][jj0][ii1]+
                                                         if0*jf1*currSlice->RefPicList[list][ref_frame]->imgUV[uv][jj1][ii0]+
                                                         if1*jf1*currSlice->RefPicList[list][ref_frame]->imgUV[uv][jj1][ii1]+f4)/f3);
@@ -999,7 +999,7 @@ static void buildPredblockRegionYUV(VideoParameters *p_Vid, int *mv,
 ************************************************************************
 */
 
-static void CopyImgData(imgpel **inputY, imgpel ***inputUV, imgpel **outputY, imgpel ***outputUV, 
+static void CopyImgData(px_t **inputY, px_t ***inputUV, px_t **outputY, px_t ***outputUV, 
                         int img_width, int img_height, int img_width_cr, int img_height_cr)
 {
   int x, y;
@@ -1058,7 +1058,7 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
     int i = 0;
     int mv[3];
     int multiplier;
-    imgpel *predMB, *storeYUV;
+    px_t *predMB, *storeYUV;
     int j, y, x, mb_height, mb_width, ii = 0, jj = 0;
     int uv;
     int mm, nn;
@@ -1090,9 +1090,9 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
     // Conceals the missing frame by motion vector copy concealment
     if (p_Vid->conceal_mode == 2) {
         if (sps->chroma_format_idc != YUV400)
-            storeYUV = (imgpel *) malloc ((16 + sps->MbWidthC * sps->MbHeightC * 2 / 16) * sizeof (imgpel));
+            storeYUV = (px_t *) malloc ((16 + sps->MbWidthC * sps->MbHeightC * 2 / 16) * sizeof (px_t));
         else
-            storeYUV = (imgpel *) malloc (16  * sizeof (imgpel));
+            storeYUV = (px_t *) malloc (16  * sizeof (px_t));
 
         p_Vid->erc_img = p_Vid;
 

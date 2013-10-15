@@ -3,20 +3,20 @@
 #include "slice.h"
 
 
-static int init_top_bot_planes(imgpel **imgFrame, int dim0, imgpel ***imgTopField, imgpel ***imgBotField)
+static int init_top_bot_planes(px_t **imgFrame, int dim0, px_t ***imgTopField, px_t ***imgBotField)
 {
-    *imgTopField = new imgpel*[dim0 >> 1];
-    *imgBotField = new imgpel*[dim0 >> 1];
+    *imgTopField = new px_t*[dim0 >> 1];
+    *imgBotField = new px_t*[dim0 >> 1];
 
     for (int i = 0; i < (dim0 >> 1); i++) {
         (*imgTopField)[i] = imgFrame[2 * i    ];
         (*imgBotField)[i] = imgFrame[2 * i + 1];
     }
 
-    return dim0 * sizeof(imgpel*);
+    return dim0 * sizeof(px_t*);
 }
 
-static void free_top_bot_planes(imgpel **imgTopField, imgpel **imgBotField)
+static void free_top_bot_planes(px_t **imgTopField, px_t **imgBotField)
 {
     delete []imgTopField;
     delete []imgBotField;
@@ -47,11 +47,11 @@ static void init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *s
             get_mem2Dpel(&(p_ImgData->frm_data[1]), sps->FrameHeightInMbs * sps->MbHeightC, sps->PicWidthInMbs * sps->MbWidthC);
             get_mem2Dpel(&(p_ImgData->frm_data[2]), sps->FrameHeightInMbs * sps->MbHeightC, sps->PicWidthInMbs * sps->MbWidthC);
 
-            if (sizeof(imgpel) == sizeof(unsigned char)) {
+            if (sizeof(px_t) == sizeof(unsigned char)) {
                 for (int k = 1; k < 3; k++)
-                    memset(p_ImgData->frm_data[k][0], 128, sps->FrameHeightInMbs * sps->MbHeightC * sps->PicWidthInMbs * sps->MbWidthC * sizeof(imgpel));
+                    memset(p_ImgData->frm_data[k][0], 128, sps->FrameHeightInMbs * sps->MbHeightC * sps->PicWidthInMbs * sps->MbWidthC * sizeof(px_t));
             } else {
-                imgpel mean_val = (imgpel)sps->BitDepthC;
+                px_t mean_val = (px_t)sps->BitDepthC;
                 for (int k = 1; k < 3; k++) {
                     for (int j = 0; j < sps->FrameHeightInMbs * sps->MbHeightC; j++) {
                         for (int i = 0; i < sps->PicWidthInMbs * sps->MbWidthC; i++)
@@ -110,7 +110,7 @@ void free_img_data(VideoParameters *p_Vid, ImageData *p_ImgData)
     }
 }
 
-static void copy_img_data(imgpel *out_img, imgpel *in_img, int ostride, int istride, unsigned int size_y, unsigned int size_x)
+static void copy_img_data(px_t *out_img, px_t *in_img, int ostride, int istride, unsigned int size_y, unsigned int size_x)
 {
     for (int i = 0; i < size_y; i++) {
         memcpy(out_img, in_img, size_x);
@@ -126,7 +126,7 @@ static void process_picture_in_dpb_s(VideoParameters* p_Vid, storable_picture* p
     if (!p_Vid->tempData3.frm_data[0])
         init_img_data(p_Vid, &p_Vid->tempData3, p_Vid->active_sps);
 
-    imgpel*** d_img;
+    px_t*** d_img;
     if (p_pic->slice.structure == FRAME)
         d_img = p_img_out->frm_data;
     else { //If reference picture is a field, then frm_data will actually contain field data and therefore top/bottom stride is set accordingly.
@@ -137,12 +137,12 @@ static void process_picture_in_dpb_s(VideoParameters* p_Vid, storable_picture* p
     }
 
     for (int i = 0; i < p_pic->size_y; i++)
-        memcpy(d_img[0][i], p_pic->imgY[i], p_pic->size_x*sizeof(imgpel));
+        memcpy(d_img[0][i], p_pic->imgY[i], p_pic->size_x*sizeof(px_t));
     if (p_Vid->active_sps->chroma_format_idc != YUV400) {
         for (int i = 0; i < p_pic->size_y_cr; i++)
-            memcpy(d_img[1][i], p_pic->imgUV[0][i], p_pic->size_x_cr * sizeof(imgpel));
+            memcpy(d_img[1][i], p_pic->imgUV[0][i], p_pic->size_x_cr * sizeof(px_t));
         for (int i = 0; i < p_pic->size_y_cr; i++)
-            memcpy(d_img[2][i], p_pic->imgUV[1][i], p_pic->size_x_cr * sizeof(imgpel));
+            memcpy(d_img[2][i], p_pic->imgUV[1][i], p_pic->size_x_cr * sizeof(px_t));
     }
 }
 
@@ -153,7 +153,7 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
     int nplane;
     int *istride = NULL;
     int ostride[2];
-    imgpel ***img_in = NULL;
+    px_t ***img_in = NULL;
 
     sps_t *sps = p_Vid->active_sps;
     storable_picture *p_stored_pic = new storable_picture(p_Vid, (PictureStructure)p_Vid->structure,
@@ -212,14 +212,14 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
         img_in  = p_Vid->tempData3.bot_data;
     }
 
-    copy_img_data(&p_stored_pic->imgY[0][0], &img_in[0][0][0], ostride[0], istride[0], p_pic->size_y, p_pic->size_x * sizeof(imgpel)); 
+    copy_img_data(&p_stored_pic->imgY[0][0], &img_in[0][0][0], ostride[0], istride[0], p_pic->size_y, p_pic->size_x * sizeof(px_t)); 
 
     pad_buf(*p_stored_pic->imgY, p_stored_pic->size_x, p_stored_pic->size_y, p_stored_pic->iLumaStride, MCBUF_LUMA_PAD_X, MCBUF_LUMA_PAD_Y);
 
     if (p_Vid->active_sps->chroma_format_idc != YUV400) {    
-        copy_img_data(&p_stored_pic->imgUV[0][0][0], &img_in[1][0][0], ostride[1], istride[1], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(imgpel));
+        copy_img_data(&p_stored_pic->imgUV[0][0][0], &img_in[1][0][0], ostride[1], istride[1], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(px_t));
         pad_buf(*p_stored_pic->imgUV[0], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, iChromaPadX, iChromaPadY);
-        copy_img_data(&p_stored_pic->imgUV[1][0][0], &img_in[2][0][0], ostride[1], istride[2], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(imgpel));
+        copy_img_data(&p_stored_pic->imgUV[1][0][0], &img_in[2][0][0], ostride[1], istride[2], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(px_t));
         pad_buf(*p_stored_pic->imgUV[1], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, iChromaPadX, iChromaPadY);
     }
 

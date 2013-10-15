@@ -324,7 +324,7 @@ static const uint8_t TABLE_TC0[52][3] = {
 };
 
 
-void Deblock::filter_strong(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag)
+void Deblock::filter_strong(px_t *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag)
 {
 #define p(i) (pixQ[- (i + 1) * width])
 #define q(i) (pixQ[  (i    ) * width])
@@ -369,7 +369,7 @@ void Deblock::filter_strong(imgpel *pixQ, int width, int alpha, int beta, int bS
 #undef q
 }
 
-void Deblock::filter_normal(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int tc0, int BitDepth)
+void Deblock::filter_normal(px_t *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int tc0, int BitDepth)
 {
 #define p(i) (pixQ[- (i + 1) * width])
 #define q(i) (pixQ[  (i    ) * width])
@@ -421,7 +421,7 @@ void Deblock::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool ve
     sps_t& sps = *slice.active_sps;
     bool chromaStyleFilteringFlag = chromaEdgeFlag && (sps.ChromaArrayType != 3);
 
-    imgpel** Img = pl ? slice.dec_picture->imgUV[pl - 1] : slice.dec_picture->imgY;
+    px_t** Img = pl ? slice.dec_picture->imgUV[pl - 1] : slice.dec_picture->imgY;
     int width    = chromaEdgeFlag == 0 ? slice.dec_picture->iLumaStride : slice.dec_picture->iChromaStride;
     int nE       = chromaEdgeFlag == 0 ? 16 : (verticalEdgeFlag == 1 ? sps.MbHeightC : sps.MbWidthC);
     int BitDepth = chromaEdgeFlag == 0 ? sps.BitDepthY : sps.BitDepthC;
@@ -452,7 +452,7 @@ void Deblock::filter_edge(mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool ve
     int incQ = verticalEdgeFlag ? 1 : dy * width;
     int nxtQ = verticalEdgeFlag ? dy * width : 1;
 
-    imgpel* SrcPtrQ = verticalEdgeFlag ? &Img[yP][xP + edge] : &Img[yP + dy * edge - (edge % 2)][xP];
+    px_t* SrcPtrQ = verticalEdgeFlag ? &Img[yP][xP + edge] : &Img[yP + dy * edge - (edge % 2)][xP];
 
     bool mixed = verticalEdgeFlag && (!MbQ->mb_field_decoding_flag && MbP->mb_field_decoding_flag);
 
@@ -568,7 +568,7 @@ void Deblock::make_frame_picture_JV(VideoParameters *p_Vid)
     // This could be done with pointers and seems not necessary
     for (int uv = 0; uv < 2; uv++) {
         for (int line = 0; line < sps->FrameHeightInMbs * 16; line++) {
-            int nsize = sizeof(imgpel) * sps->PicWidthInMbs * 16;
+            int nsize = sizeof(px_t) * sps->PicWidthInMbs * 16;
             memcpy(p_Vid->dec_picture->imgUV[uv][line], p_Vid->dec_picture_JV[uv+1]->imgY[line], nsize);
         }
         if (p_Vid->dec_picture_JV[uv + 1]) {
@@ -578,18 +578,18 @@ void Deblock::make_frame_picture_JV(VideoParameters *p_Vid)
     }
 }
 
-static void update_mbaff_macroblock_data(imgpel **cur_img, imgpel (*temp)[16], int x0, int width, int height)
+static void update_mbaff_macroblock_data(px_t **cur_img, px_t (*temp)[16], int x0, int width, int height)
 {
-    imgpel (*temp_evn)[16] = temp;
-    imgpel (*temp_odd)[16] = temp + height; 
-    imgpel **temp_img = cur_img;
+    px_t (*temp_evn)[16] = temp;
+    px_t (*temp_odd)[16] = temp + height; 
+    px_t **temp_img = cur_img;
 
     for (int y = 0; y < 2 * height; ++y)
-        memcpy(*temp++, (*temp_img++ + x0), width * sizeof(imgpel));
+        memcpy(*temp++, (*temp_img++ + x0), width * sizeof(px_t));
 
     for (int y = 0; y < height; ++y) {
-        memcpy((*cur_img++ + x0), *temp_evn++, width * sizeof(imgpel));
-        memcpy((*cur_img++ + x0), *temp_odd++, width * sizeof(imgpel));
+        memcpy((*cur_img++ + x0), *temp_evn++, width * sizeof(px_t));
+        memcpy((*cur_img++ + x0), *temp_odd++, width * sizeof(px_t));
     }
 }
 
@@ -598,10 +598,10 @@ static void MbAffPostProc(storable_picture& pic)
     sps_t& sps = *pic.sps;
     slice_t& first_slice = *pic.slice_headers[0];
 
-    imgpel**  imgY  = pic.imgY;
-    imgpel*** imgUV = pic.imgUV;
+    px_t**  imgY  = pic.imgY;
+    px_t*** imgUV = pic.imgUV;
 
-    imgpel temp_buffer[32][16];
+    px_t temp_buffer[32][16];
 
     for (int mbAddr = 0; mbAddr < sps.PicWidthInMbs * sps.FrameHeightInMbs; mbAddr += 2) {
         if (pic.motion.mb_field_decoding_flag[mbAddr]) {

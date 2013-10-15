@@ -125,15 +125,15 @@ void storable_picture::clear()
 {
     for (int i = 0; i < this->size_y; i++) {
         for (int j = 0; j < this->size_x; j++)
-            this->imgY[i][j] = (imgpel) (1 << (this->sps->BitDepthY - 1));
+            this->imgY[i][j] = (px_t) (1 << (this->sps->BitDepthY - 1));
     }
     for (int i = 0; i < this->size_y_cr; i++) {
         for (int j = 0; j < this->size_x_cr; j++)
-            this->imgUV[0][i][j] = (imgpel) (1 << (this->sps->BitDepthC - 1));
+            this->imgUV[0][i][j] = (px_t) (1 << (this->sps->BitDepthC - 1));
     }
     for (int i = 0; i < this->size_y_cr; i++) {
         for (int j = 0; j < this->size_x_cr; j++)
-            this->imgUV[1][i][j] = (imgpel) (1 << (this->sps->BitDepthC - 1));
+            this->imgUV[1][i][j] = (px_t) (1 << (this->sps->BitDepthC - 1));
     }
 }
 
@@ -289,19 +289,19 @@ void picture_t::dpb_split_field(VideoParameters* p_Vid)
             frame->size_x, frame->size_y, frame->size_x_cr, frame->size_y_cr, 1);
 
         for (int i = 0; i < (frame->size_y >> 1); i++)
-            memcpy(fs_top->imgY[i], frame->imgY[i * 2], frame->size_x * sizeof(imgpel));
+            memcpy(fs_top->imgY[i], frame->imgY[i * 2], frame->size_x * sizeof(px_t));
 
         for (int i = 0; i < (frame->size_y_cr >> 1); i++) {
-            memcpy(fs_top->imgUV[0][i], frame->imgUV[0][i * 2], frame->size_x_cr * sizeof(imgpel));
-            memcpy(fs_top->imgUV[1][i], frame->imgUV[1][i * 2], frame->size_x_cr * sizeof(imgpel));
+            memcpy(fs_top->imgUV[0][i], frame->imgUV[0][i * 2], frame->size_x_cr * sizeof(px_t));
+            memcpy(fs_top->imgUV[1][i], frame->imgUV[1][i * 2], frame->size_x_cr * sizeof(px_t));
         }
 
         for (int i = 0; i < (frame->size_y >> 1); i++)
-            memcpy(fs_btm->imgY[i], frame->imgY[i * 2 + 1], frame->size_x * sizeof(imgpel));
+            memcpy(fs_btm->imgY[i], frame->imgY[i * 2 + 1], frame->size_x * sizeof(px_t));
 
         for (int i = 0; i < (frame->size_y_cr >> 1); i++) {
-            memcpy(fs_btm->imgUV[0][i], frame->imgUV[0][i * 2 + 1], frame->size_x_cr * sizeof(imgpel));
-            memcpy(fs_btm->imgUV[1][i], frame->imgUV[1][i * 2 + 1], frame->size_x_cr * sizeof(imgpel));
+            memcpy(fs_btm->imgUV[0][i], frame->imgUV[0][i * 2 + 1], frame->size_x_cr * sizeof(px_t));
+            memcpy(fs_btm->imgUV[1][i], frame->imgUV[1][i * 2 + 1], frame->size_x_cr * sizeof(px_t));
         }
 
         fs_top->sps = frame->sps;
@@ -451,14 +451,14 @@ void picture_t::dpb_combine_field_yuv(VideoParameters* p_Vid)
             this->top_field->size_x_cr, this->top_field->size_y_cr * 2, 1);
 
     for (int i = 0; i < this->top_field->size_y; i++) {
-        memcpy(this->frame->imgY[i*2],     this->top_field->imgY[i]   , this->top_field->size_x * sizeof(imgpel));     // top field
-        memcpy(this->frame->imgY[i*2 + 1], this->bottom_field->imgY[i], this->bottom_field->size_x * sizeof(imgpel)); // bottom field
+        memcpy(this->frame->imgY[i*2],     this->top_field->imgY[i]   , this->top_field->size_x * sizeof(px_t));     // top field
+        memcpy(this->frame->imgY[i*2 + 1], this->bottom_field->imgY[i], this->bottom_field->size_x * sizeof(px_t)); // bottom field
     }
 
     for (int j = 0; j < 2; j++) {
         for (int i = 0; i < this->top_field->size_y_cr; i++) {
-            memcpy(this->frame->imgUV[j][i*2],     this->top_field->imgUV[j][i],    this->top_field->size_x_cr*sizeof(imgpel));
-            memcpy(this->frame->imgUV[j][i*2 + 1], this->bottom_field->imgUV[j][i], this->bottom_field->size_x_cr*sizeof(imgpel));
+            memcpy(this->frame->imgUV[j][i*2],     this->top_field->imgUV[j][i],    this->top_field->size_x_cr*sizeof(px_t));
+            memcpy(this->frame->imgUV[j][i*2 + 1], this->bottom_field->imgUV[j][i], this->bottom_field->size_x_cr*sizeof(px_t));
         }
     }
 

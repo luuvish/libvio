@@ -2,7 +2,7 @@
 #include "erc_do.h"
 
 static void concealBlocks          ( VideoParameters *p_Vid, int lastColumn, int lastRow, int comp, frame *recfr, int picSizeX, char *condition );
-static void pixMeanInterpolateBlock( VideoParameters *p_Vid, imgpel *src[], imgpel *block, int blockSize, int frameWidth );
+static void pixMeanInterpolateBlock( VideoParameters *p_Vid, px_t *src[], px_t *block, int blockSize, int frameWidth );
 
 /*!
  ************************************************************************
@@ -74,10 +74,10 @@ int ercConcealIntraFrame( VideoParameters *p_Vid, frame *recfr, int picSizeX, in
  *      2 for Y, 1 for U/V components
  ************************************************************************
  */
-void ercPixConcealIMB(VideoParameters *p_Vid, imgpel *currFrame, int row, int column, int predBlocks[], int frameWidth, int mbWidthInBlocks)
+void ercPixConcealIMB(VideoParameters *p_Vid, px_t *currFrame, int row, int column, int predBlocks[], int frameWidth, int mbWidthInBlocks)
 {
-   imgpel *src[8]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
-   imgpel *currBlock = NULL;
+   px_t *src[8]={NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+   px_t *currBlock = NULL;
 
    // collect the reliable neighboring blocks
    if (predBlocks[0])
@@ -477,7 +477,7 @@ static void concealBlocks( VideoParameters *p_Vid, int lastColumn, int lastRow, 
  *      Width of the frame in pixels
  ************************************************************************
  */
-static void pixMeanInterpolateBlock( VideoParameters *p_Vid, imgpel *src[], imgpel *block, int blockSize, int frameWidth )
+static void pixMeanInterpolateBlock( VideoParameters *p_Vid, px_t *src[], px_t *block, int blockSize, int frameWidth )
 {
   sps_t *sps = p_Vid->active_sps;
   int row, column, k, tmp, srcCounter = 0, weight = 0, bmax = blockSize - 1;
@@ -519,9 +519,9 @@ static void pixMeanInterpolateBlock( VideoParameters *p_Vid, imgpel *src[], imgp
       }
 
       if ( srcCounter > 0 )
-        block[ k + column ] = (imgpel)(tmp/srcCounter);
+        block[ k + column ] = (px_t)(tmp/srcCounter);
       else
-        block[ k + column ] = (imgpel) (blockSize == 8 ? (1 << (sps->BitDepthC - 1)) : (1 << (sps->BitDepthY - 1)));
+        block[ k + column ] = (px_t) (blockSize == 8 ? (1 << (sps->BitDepthC - 1)) : (1 << (sps->BitDepthY - 1)));
     }
     k += frameWidth;
   }

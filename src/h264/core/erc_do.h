@@ -4,7 +4,7 @@
 
 #include "erc_api.h"
 
-void ercPixConcealIMB    (VideoParameters *p_Vid, imgpel *currFrame, int row, int column, int predBlocks[], int frameWidth, int mbWidthInBlocks);
+void ercPixConcealIMB    (VideoParameters *p_Vid, px_t *currFrame, int row, int column, int predBlocks[], int frameWidth, int mbWidthInBlocks);
 
 int ercCollect8PredBlocks( int predBlocks[], int currRow, int currColumn, char *condition,
                           int maxRow, int maxColumn, int step, byte fNoCornerNeigh );

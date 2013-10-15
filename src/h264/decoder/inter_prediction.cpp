@@ -56,7 +56,7 @@ void InterPrediction::init(slice_t& slice)
 }
 
 void InterPrediction::mc_prediction(
-    imgpel* mb_pred, imgpel block[16][16], int block_size_y, int block_size_x,
+    px_t* mb_pred, px_t block[16][16], int block_size_y, int block_size_x,
     mb_t* mb, ColorPlane pl, short l0_refframe, int pred_dir)
 {
     slice_t& slice = *mb->p_Slice;
@@ -84,7 +84,7 @@ void InterPrediction::mc_prediction(
         for (int i = 0; i < block_size_x; ++i) {
             if (weighted_pred_flag) {
                 int result = RSHIFT_RND((weight * block[j][i]), denom);
-                mb_pred[i] = (imgpel) clip1(color_clip, result + offset);
+                mb_pred[i] = (px_t) clip1(color_clip, result + offset);
             } else
                 mb_pred[i] = block[j][i];
         }
@@ -93,7 +93,7 @@ void InterPrediction::mc_prediction(
 }
 
 void InterPrediction::bi_prediction(
-    imgpel* mb_pred, imgpel block_l0[16][16], imgpel block_l1[16][16],
+    px_t* mb_pred, px_t block_l0[16][16], px_t block_l1[16][16],
     int block_size_y, int block_size_x, mb_t* mb, ColorPlane pl, short l0_refframe, short l1_refframe)
 {
     slice_t& slice = *mb->p_Slice;
@@ -154,9 +154,9 @@ void InterPrediction::bi_prediction(
         for (int i = 0; i < block_size_x; ++i) {
             if (pps.weighted_bipred_idc) {
                 int result = RSHIFT_RND((weight0 * block_l0[j][i] + weight1 * block_l1[j][i]), denom);
-                mb_pred[i] = (imgpel) clip1(color_clip, result + offset);
+                mb_pred[i] = (px_t) clip1(color_clip, result + offset);
             } else
-                mb_pred[i] = (imgpel) (((block_l0[j][i] + block_l1[j][i]) + 1) >> 1);
+                mb_pred[i] = (px_t) (((block_l0[j][i] + block_l1[j][i]) + 1) >> 1);
         }
         mb_pred += 16;
     }
@@ -164,7 +164,7 @@ void InterPrediction::bi_prediction(
 
 void InterPrediction::get_block_luma(
     storable_picture* curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
-    imgpel block[16][16], int shift_x, int maxold_x, int maxold_y, ColorPlane pl, mb_t* currMB)
+    px_t block[16][16], int shift_x, int maxold_x, int maxold_y, ColorPlane pl, mb_t* currMB)
 {
     slice_t& slice = *currMB->p_Slice;
     sps_t& sps = *slice.active_sps;
@@ -172,11 +172,11 @@ void InterPrediction::get_block_luma(
     int max_imgpel_value = (1 << (pl > 0 ? sps.BitDepthC : sps.BitDepthY)) - 1;
 
     if (curr_ref->no_ref) {
-        memset(block[0], max_imgpel_value, block_size_y * block_size_x * sizeof(imgpel));
+        memset(block[0], max_imgpel_value, block_size_y * block_size_x * sizeof(px_t));
         return;
     }
 
-    imgpel **cur_imgY = (sps.separate_colour_plane_flag && shr.colour_plane_id > PLANE_Y) ?
+    px_t **cur_imgY = (sps.separate_colour_plane_flag && shr.colour_plane_id > PLANE_Y) ?
                         curr_ref->imgUV[shr.colour_plane_id-1] : 
                         pl ? curr_ref->imgUV[pl - 1] : curr_ref->imgY;
     int dx = (x_pos & 3);
@@ -190,7 +190,7 @@ void InterPrediction::get_block_luma(
 
     if (dx == 0 && dy == 0) {
         for (int j = 0; j < block_size_y; ++j)
-            memcpy(&block[j][0], &cur_imgY[y_pos + j][x_pos], 16 * sizeof(imgpel));
+            memcpy(&block[j][0], &cur_imgY[y_pos + j][x_pos], 16 * sizeof(px_t));
     } else if (dx == 0 || dy == 0) {
         if (dy == 0)
             shift_x = 1;
@@ -202,18 +202,18 @@ void InterPrediction::get_block_luma(
 
         for (int j = 0; j < block_size_y; ++j) {
             for (int i = 0; i < block_size_x; ++i) {
-                imgpel p0 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 0];
-                imgpel p1 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 1];
-                imgpel p2 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 2];
-                imgpel p3 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 3];
-                imgpel p4 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 4];
-                imgpel p5 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 5];
+                px_t p0 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 0];
+                px_t p1 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 1];
+                px_t p2 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 2];
+                px_t p3 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 3];
+                px_t p4 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 4];
+                px_t p5 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 5];
                 int result = (p0 - 5 * p1 + 20 * p2 + 20 * p3 - 5 * p4 + p5);
-                block[j][i] = (imgpel) clip1(max_imgpel_value, (result + 16) >> 5);
+                block[j][i] = (px_t) clip1(max_imgpel_value, (result + 16) >> 5);
 
                 if (dx == 1 || dx == 3 || dy == 1 || dy == 3) {
-                    imgpel q0 = cur_imgY[blk_pos_y + j][blk_pos_x + i];
-                    block[j][i] = (imgpel) ((block[j][i] + q0 + 1) >> 1);
+                    px_t q0 = cur_imgY[blk_pos_y + j][blk_pos_x + i];
+                    block[j][i] = (px_t) ((block[j][i] + q0 + 1) >> 1);
                 }
             }
         }
@@ -230,12 +230,12 @@ void InterPrediction::get_block_luma(
 
         for (int j = 0; j < block_size_y + (dx == 2 ? 5 : 0); ++j) {
             for (int i = 0; i < block_size_x + (dy == 2 ? 5 : 0); ++i) {
-                imgpel p0 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 0];
-                imgpel p1 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 1];
-                imgpel p2 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 2];
-                imgpel p3 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 3];
-                imgpel p4 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 4];
-                imgpel p5 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 5];
+                px_t p0 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 0];
+                px_t p1 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 1];
+                px_t p2 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 2];
+                px_t p3 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 3];
+                px_t p4 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 4];
+                px_t p5 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 5];
                 int result = (p0 - 5 * p1 + 20 * p2 + 20 * p3 - 5 * p4 + p5);
 
                 tmp_res[j][i] = result;
@@ -251,11 +251,11 @@ void InterPrediction::get_block_luma(
                 int p4 = tmp_res[j + step_y * 4][i + step_x * 4];
                 int p5 = tmp_res[j + step_y * 5][i + step_x * 5];
                 int result = (p0 - 5 * p1 + 20 * p2 + 20 * p3 - 5 * p4 + p5);
-                block[j][i] = (imgpel) clip1(max_imgpel_value, (result + 512) >> 10);
+                block[j][i] = (px_t) clip1(max_imgpel_value, (result + 512) >> 10);
 
                 if (dx == 1 || dx == 3 || dy == 1 || dy == 3) {
-                    imgpel q0 = clip1(max_imgpel_value, (tmp_res[blk_pos_y + j][blk_pos_x + i] + 16) >> 5);
-                    block[j][i] = (imgpel) ((block[j][i] + q0 + 1) >> 1);
+                    px_t q0 = clip1(max_imgpel_value, (tmp_res[blk_pos_y + j][blk_pos_x + i] + 16) >> 5);
+                    block[j][i] = (px_t) ((block[j][i] + q0 + 1) >> 1);
                 }
             }
         }
@@ -267,29 +267,29 @@ void InterPrediction::get_block_luma(
 
         for (int j = 0; j < block_size_y; ++j) {
             for (int i = 0; i < block_size_x; ++i) {
-                imgpel p0 = cur_imgY[img_pos_y + j][img_pos_x + i + 0];
-                imgpel p1 = cur_imgY[img_pos_y + j][img_pos_x + i + 1];
-                imgpel p2 = cur_imgY[img_pos_y + j][img_pos_x + i + 2];
-                imgpel p3 = cur_imgY[img_pos_y + j][img_pos_x + i + 3];
-                imgpel p4 = cur_imgY[img_pos_y + j][img_pos_x + i + 4];
-                imgpel p5 = cur_imgY[img_pos_y + j][img_pos_x + i + 5];
+                px_t p0 = cur_imgY[img_pos_y + j][img_pos_x + i + 0];
+                px_t p1 = cur_imgY[img_pos_y + j][img_pos_x + i + 1];
+                px_t p2 = cur_imgY[img_pos_y + j][img_pos_x + i + 2];
+                px_t p3 = cur_imgY[img_pos_y + j][img_pos_x + i + 3];
+                px_t p4 = cur_imgY[img_pos_y + j][img_pos_x + i + 4];
+                px_t p5 = cur_imgY[img_pos_y + j][img_pos_x + i + 5];
                 int result = (p0 - 5 * p1 + 20 * p2 + 20 * p3 - 5 * p4 + p5);
-                block[j][i] = (imgpel) clip1(max_imgpel_value, (result + 16) >> 5);
+                block[j][i] = (px_t) clip1(max_imgpel_value, (result + 16) >> 5);
             }
         }
 
         for (int j = 0; j < block_size_y; ++j) {
             for (int i = 0; i < block_size_x; ++i) {
-                imgpel p0 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 0];
-                imgpel p1 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 1];
-                imgpel p2 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 2];
-                imgpel p3 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 3];
-                imgpel p4 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 4];
-                imgpel p5 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 5];
+                px_t p0 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 0];
+                px_t p1 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 1];
+                px_t p2 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 2];
+                px_t p3 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 3];
+                px_t p4 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 4];
+                px_t p5 = cur_imgY[blk_pos_y + j][blk_pos_x + i + shift_x * 5];
                 int result = (p0 - 5 * p1 + 20 * p2 + 20 * p3 - 5 * p4 + p5);
-                imgpel q0 = (imgpel) clip1(max_imgpel_value, (result + 16) >> 5);
+                px_t q0 = (px_t) clip1(max_imgpel_value, (result + 16) >> 5);
 
-                block[j][i] = (imgpel) ((block[j][i] + q0 + 1) >> 1);
+                block[j][i] = (px_t) ((block[j][i] + q0 + 1) >> 1);
             }
         }
     }
@@ -298,11 +298,11 @@ void InterPrediction::get_block_luma(
 void InterPrediction::get_block_chroma(
     storable_picture* curr_ref, int x_pos, int y_pos,
     int maxold_x, int maxold_y, int block_size_x, int block_size_y,
-    imgpel block1[16][16], imgpel block2[16][16], mb_t* mb)
+    px_t block1[16][16], px_t block2[16][16], mb_t* mb)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
-    imgpel no_ref_value = (imgpel)(1 << (sps->BitDepthC - 1));
+    px_t no_ref_value = (px_t)(1 << (sps->BitDepthC - 1));
 
     int shiftpel_x = sps->chroma_format_idc == YUV400 ? 0 :
                      sps->chroma_format_idc == YUV444 ? 2 : 3;
@@ -325,8 +325,8 @@ void InterPrediction::get_block_chroma(
     }
 
     if (curr_ref->no_ref) {
-        memset(block1, no_ref_value, block_size_y * block_size_x * sizeof(imgpel));
-        memset(block2, no_ref_value, block_size_y * block_size_x * sizeof(imgpel));
+        memset(block1, no_ref_value, block_size_y * block_size_x * sizeof(px_t));
+        memset(block2, no_ref_value, block_size_y * block_size_x * sizeof(px_t));
         return;
     }
 
@@ -341,8 +341,8 @@ void InterPrediction::get_block_chroma(
 
     if (dx == 0 && dy == 0) {
         for (int j = 0; j < block_size_y; ++j) {
-            memcpy(&block1[j][0], &curr_ref->imgUV[0][y_pos + j][x_pos], 16 * sizeof(imgpel));
-            memcpy(&block2[j][0], &curr_ref->imgUV[1][y_pos + j][x_pos], 16 * sizeof(imgpel));
+            memcpy(&block1[j][0], &curr_ref->imgUV[0][y_pos + j][x_pos], 16 * sizeof(px_t));
+            memcpy(&block2[j][0], &curr_ref->imgUV[1][y_pos + j][x_pos], 16 * sizeof(px_t));
         }
     } else {
         short dxcur = (short) (subpel_x + 1 - dx);
@@ -354,22 +354,22 @@ void InterPrediction::get_block_chroma(
 
         for (int j = 0; j < block_size_y; ++j) {
             for (int i = 0; i < block_size_x; ++i) {
-                imgpel p0 = curr_ref->imgUV[0][y_pos + j + 0][x_pos + i + 0];
-                imgpel p1 = curr_ref->imgUV[0][y_pos + j + 1][x_pos + i + 0];
-                imgpel p2 = curr_ref->imgUV[0][y_pos + j + 0][x_pos + i + 1];
-                imgpel p3 = curr_ref->imgUV[0][y_pos + j + 1][x_pos + i + 1];
+                px_t p0 = curr_ref->imgUV[0][y_pos + j + 0][x_pos + i + 0];
+                px_t p1 = curr_ref->imgUV[0][y_pos + j + 1][x_pos + i + 0];
+                px_t p2 = curr_ref->imgUV[0][y_pos + j + 0][x_pos + i + 1];
+                px_t p3 = curr_ref->imgUV[0][y_pos + j + 1][x_pos + i + 1];
                 int result = (w00 * p0 + w01 * p1 + w10 * p2 + w11 * p3);
-                block1[j][i] = (imgpel) RSHIFT_RND_SF(result, total_scale);
+                block1[j][i] = (px_t) RSHIFT_RND_SF(result, total_scale);
             }
         }
         for (int j = 0; j < block_size_y; ++j) {
             for (int i = 0; i < block_size_x; ++i) {
-                imgpel p0 = curr_ref->imgUV[1][y_pos + j + 0][x_pos + i + 0];
-                imgpel p1 = curr_ref->imgUV[1][y_pos + j + 1][x_pos + i + 0];
-                imgpel p2 = curr_ref->imgUV[1][y_pos + j + 0][x_pos + i + 1];
-                imgpel p3 = curr_ref->imgUV[1][y_pos + j + 1][x_pos + i + 1];
+                px_t p0 = curr_ref->imgUV[1][y_pos + j + 0][x_pos + i + 0];
+                px_t p1 = curr_ref->imgUV[1][y_pos + j + 1][x_pos + i + 0];
+                px_t p2 = curr_ref->imgUV[1][y_pos + j + 0][x_pos + i + 1];
+                px_t p3 = curr_ref->imgUV[1][y_pos + j + 1][x_pos + i + 1];
                 int result = (w00 * p0 + w01 * p1 + w10 * p2 + w11 * p3);
-                block2[j][i] = (imgpel) RSHIFT_RND_SF(result, total_scale);
+                block2[j][i] = (px_t) RSHIFT_RND_SF(result, total_scale);
             }
         }
     }
@@ -481,10 +481,10 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
     int shift_x  = dec_picture->iLumaStride;
     int maxold_x = dec_picture->size_x - 1;
     int maxold_y = (mb->mb_field_decoding_flag) ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y - 1;
-    imgpel tmp_block_l0[16][16];
-    imgpel tmp_block_l1[16][16];
-    imgpel tmp_block_l2[16][16];
-    imgpel tmp_block_l3[16][16];
+    px_t tmp_block_l0[16][16];
+    px_t tmp_block_l1[16][16];
+    px_t tmp_block_l2[16][16];
+    px_t tmp_block_l3[16][16];
 
     if (CheckVertMV(mb, vec1_y, block_size_y)) {
         get_block_luma(RefPicList0, vec1_x, vec1_y,

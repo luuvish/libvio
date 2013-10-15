@@ -58,7 +58,7 @@ public:
 
     // called in erc_do_p.cpp
     void        get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos,
-                               int block_size_x, int block_size_y, imgpel block[16][16],
+                               int block_size_x, int block_size_y, px_t block[16][16],
                                int shift_x, int maxold_x, int maxold_y, ColorPlane pl, mb_t* mb);
 
 protected:

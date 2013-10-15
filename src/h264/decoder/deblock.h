@@ -42,8 +42,8 @@ private:
     void strength_horizontal(mb_t* MbQ, int edge);
     void strength           (mb_t* mb);
 
-    void filter_strong(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag);
-    void filter_normal(imgpel *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int tc0, int BitDepth);
+    void filter_strong(px_t *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag);
+    void filter_normal(px_t *pixQ, int width, int alpha, int beta, int bS, bool chromaStyleFilteringFlag, int tc0, int BitDepth);
     void filter_edge  (mb_t* MbQ, bool chromaEdgeFlag, ColorPlane pl, bool verticalEdgeFlag, bool fieldModeInFrameFilteringFlag, int edge);
 
     void filter_vertical  (mb_t* MbQ);

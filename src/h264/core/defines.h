@@ -8,7 +8,7 @@
 #define MAX_VIEW_NUM              1024   
 
 typedef uint8_t  byte;
-typedef uint16_t imgpel;
+typedef uint16_t px_t;
 
 #define MAX_CODED_FRAME_SIZE   8000000         //!< bytes for one frame
 #define MCBUF_LUMA_PAD_X        32

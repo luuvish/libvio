@@ -917,26 +917,26 @@ void Transform::construction(mb_t* mb, ColorPlane pl, int ioff, int joff, int nW
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
     storable_picture* dec_picture = slice->dec_picture;
-    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
+    px_t** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
     int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
     int block8x8 = (joff / 8) * 2 + (ioff / 8);
 
     int (*mb_rres)[16] = this->mb_rres[pl];
-    imgpel** mb_pred = slice->mb_pred[pl];
-    imgpel (*mb_rec)[16] = this->mb_rec[pl];
+    px_t** mb_pred = slice->mb_pred[pl];
+    px_t (*mb_rec)[16] = this->mb_rec[pl];
 
     if (mb->CodedBlockPatternLuma & (1 << block8x8)) {
         for (int j = 0; j < nH; ++j) {
             for (int i = 0; i < nW; ++i)
-                mb_rec[joff + j][ioff + i] = (imgpel) clip1(max_pel_value_comp, mb_rres[joff + j][ioff + i] + mb_pred[joff + j][ioff + i]);
+                mb_rec[joff + j][ioff + i] = (px_t) clip1(max_pel_value_comp, mb_rres[joff + j][ioff + i] + mb_pred[joff + j][ioff + i]);
         }
     } else {
         for (int j = 0; j < nH; ++j)
-            memcpy(&mb_rec[joff + j][ioff], &mb_pred[joff + j][ioff], nW * sizeof(imgpel));
+            memcpy(&mb_rec[joff + j][ioff], &mb_pred[joff + j][ioff], nW * sizeof(px_t));
     }
 
     for (int j = 0; j < nH; ++j)
-        memcpy(&curr_img[mb->mb.y * 16 + joff + j][mb->mb.x * 16 + ioff], &mb_rec[joff + j][ioff], nW * sizeof (imgpel));
+        memcpy(&curr_img[mb->mb.y * 16 + joff + j][mb->mb.x * 16 + ioff], &mb_rec[joff + j][ioff], nW * sizeof (px_t));
 }
 
 void Transform::construction_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
@@ -944,20 +944,20 @@ void Transform::construction_16x16(mb_t* mb, ColorPlane pl, int ioff, int joff)
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
     storable_picture* dec_picture = slice->dec_picture;
-    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
+    px_t** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
     int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
 
     int (*mb_rres)[16] = this->mb_rres[pl];
-    imgpel **mb_pred = slice->mb_pred[pl];
-    imgpel (*mb_rec)[16] = this->mb_rec [pl];
+    px_t **mb_pred = slice->mb_pred[pl];
+    px_t (*mb_rec)[16] = this->mb_rec [pl];
 
     for (int j = 0; j < 16; j++) {
         for (int i = 0; i < 16; i++)
-            mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, mb_rres[j][i] + mb_pred[j][i]);
+            mb_rec[j][i] = (px_t) clip1(max_pel_value_comp, mb_rres[j][i] + mb_pred[j][i]);
     }
 
     for (int j = 0; j < 16; ++j)
-        memcpy(&curr_img[mb->mb.y * 16 + joff + j][mb->mb.x * 16 + ioff], &mb_rec[joff + j][ioff], 16 * sizeof (imgpel));
+        memcpy(&curr_img[mb->mb.y * 16 + joff + j][mb->mb.x * 16 + ioff], &mb_rec[joff + j][ioff], 16 * sizeof (px_t));
 }
 
 void Transform::construction_chroma(mb_t* mb, ColorPlane pl, int ioff, int joff)
@@ -965,23 +965,23 @@ void Transform::construction_chroma(mb_t* mb, ColorPlane pl, int ioff, int joff)
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
     storable_picture* dec_picture = slice->dec_picture;
-    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
+    px_t** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
     int max_pel_value_comp = (1 << (pl > 0 ? sps->BitDepthC : sps->BitDepthY)) - 1;
 
     int (*mb_rres)[16] = this->mb_rres[pl];
-    imgpel **mb_pred = slice->mb_pred[pl];
-    imgpel (*mb_rec)[16] = this->mb_rec [pl];
+    px_t **mb_pred = slice->mb_pred[pl];
+    px_t (*mb_rec)[16] = this->mb_rec [pl];
 
     for (int j = 0; j < sps->MbHeightC; j++) {
         for (int i = 0; i < sps->MbWidthC; i++)
-            mb_rec[j][i] = (imgpel) clip1(max_pel_value_comp, mb_rres[j][i] + mb_pred[j][i]);
+            mb_rec[j][i] = (px_t) clip1(max_pel_value_comp, mb_rres[j][i] + mb_pred[j][i]);
     }
 
     for (int joff = 0; joff < sps->MbHeightC; joff += 4) {
         for (int ioff = 0; ioff < sps->MbWidthC; ioff += 4)
             for (int j = 0; j < 4; ++j)
                 memcpy(&curr_img[mb->mb.y * sps->MbHeightC + joff + j][mb->mb.x * sps->MbWidthC + ioff],
-                       &mb_rec[joff + j][ioff], 4 * sizeof (imgpel));
+                       &mb_rec[joff + j][ioff], 4 * sizeof (px_t));
     }
 }
 
@@ -1055,7 +1055,7 @@ void Transform::inverse_transform_inter(mb_t* mb, ColorPlane pl)
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
     storable_picture* dec_picture = slice->dec_picture;
-    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
+    px_t** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
 
     if (mb->CodedBlockPatternLuma) {
         if (!mb->transform_size_8x8_flag) {
@@ -1071,7 +1071,7 @@ void Transform::inverse_transform_inter(mb_t* mb, ColorPlane pl)
         }
     } else {
         for (int j = 0; j < 16; ++j)
-            memcpy(&curr_img[mb->mb.y * 16 + j][mb->mb.x * 16], &slice->mb_pred[pl][j][0], 16 * sizeof (imgpel));
+            memcpy(&curr_img[mb->mb.y * 16 + j][mb->mb.x * 16], &slice->mb_pred[pl][j][0], 16 * sizeof (px_t));
     }
 
     if (mb->CodedBlockPatternLuma)
@@ -1081,14 +1081,14 @@ void Transform::inverse_transform_inter(mb_t* mb, ColorPlane pl)
         return;
 
     for (int uv = 0; uv < 2; ++uv) {
-        imgpel **curUV = &dec_picture->imgUV[uv][mb->mb.y * sps->MbHeightC]; 
-        imgpel **mb_pred = slice->mb_pred[uv + 1];
+        px_t **curUV = &dec_picture->imgUV[uv][mb->mb.y * sps->MbHeightC]; 
+        px_t **mb_pred = slice->mb_pred[uv + 1];
 
         if (mb->CodedBlockPatternChroma)
             this->inverse_transform_chroma(mb, (ColorPlane)(uv + 1));
         else {
             for (int j = 0; j < sps->MbHeightC; ++j)
-                memcpy(&curUV[j][mb->mb.x * sps->MbWidthC], &mb_pred[j][0], sps->MbWidthC * sizeof (imgpel));
+                memcpy(&curUV[j][mb->mb.x * sps->MbWidthC], &mb_pred[j][0], sps->MbWidthC * sizeof (px_t));
         }
     }
 
@@ -1142,7 +1142,7 @@ void Transform::itrans_sp(mb_t* mb, ColorPlane pl, int ioff, int joff)
 
     int    (*cof    )[16] = this->cof    [pl];
     int    (*mb_rres)[16] = this->mb_rres[pl];
-    imgpel (*mb_rec )[16] = this->mb_rec [pl];
+    px_t (*mb_rec )[16] = this->mb_rec [pl];
     int max_pel_value_comp = (1 << (pl > 0 ? sps.BitDepthC : sps.BitDepthY)) - 1;
 
     const int (*InvLevelScale4x4)  [4] = dequant_coef[QpY % 6];
@@ -1184,7 +1184,7 @@ void Transform::itrans_sp(mb_t* mb, ColorPlane pl, int ioff, int joff)
 
     for (int j = 0; j < 4; ++j) {
         for (int i = 0; i < 4; ++i)
-            mb_rec[joff + j][ioff + i] = (imgpel)clip1(max_pel_value_comp, mb_rres[joff + j][ioff + i]);
+            mb_rec[joff + j][ioff + i] = (px_t)clip1(max_pel_value_comp, mb_rres[joff + j][ioff + i]);
     }
 }
 
@@ -1194,7 +1194,7 @@ void Transform::itrans_sp_cr(mb_t* mb, ColorPlane pl)
     slice_t& slice = *mb->p_Slice;
     sps_t& sps = *slice.active_sps;
     shr_t& shr = slice.header;
-    imgpel** mb_pred = slice.mb_pred[pl];
+    px_t** mb_pred = slice.mb_pred[pl];
     int (*cof)[16] = this->cof[pl];
 
     int QpC = mb->QpC[pl - 1];
@@ -1271,7 +1271,7 @@ void Transform::inverse_transform_sp(mb_t* mb, ColorPlane pl)
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
     storable_picture* dec_picture = slice->dec_picture;
-    imgpel** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
+    px_t** curr_img = pl ? dec_picture->imgUV[pl - 1] : dec_picture->imgY;
 
     if (!mb->transform_size_8x8_flag) {
         for (int y = 0; y < 16; y += 4) {
@@ -1286,7 +1286,7 @@ void Transform::inverse_transform_sp(mb_t* mb, ColorPlane pl)
     }
 
     for (int j = 0; j < 16; ++j)
-        memcpy(&curr_img[mb->mb.y * 16 + j][mb->mb.x * 16], &this->mb_rec[pl][j][0], 16 * sizeof (imgpel));
+        memcpy(&curr_img[mb->mb.y * 16 + j][mb->mb.x * 16], &this->mb_rec[pl][j][0], 16 * sizeof (px_t));
 
     slice->parser.is_reset_coeff = false;
 

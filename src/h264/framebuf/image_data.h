@@ -4,9 +4,9 @@
 struct ImageData {
     int yuv_format;
 
-    imgpel** frm_data[3];
-    imgpel** top_data[3];
-    imgpel** bot_data[3];
+    px_t** frm_data[3];
+    px_t** top_data[3];
+    px_t** bot_data[3];
 
     int frm_stride[3];
     int top_stride[3];

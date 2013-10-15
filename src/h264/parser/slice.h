@@ -188,7 +188,7 @@ struct slice_t {
     int         dpB_NotPresent;    //!< non-zero, if data partition B is lost
     int         dpC_NotPresent;    //!< non-zero, if data partition C is lost
 
-    imgpel***   mb_pred; // IntraPrediction()
+    px_t***   mb_pred; // IntraPrediction()
 
     Neighbour   neighbour;
     Parser      parser;

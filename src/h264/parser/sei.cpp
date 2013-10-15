@@ -1,15 +1,11 @@
-#include <math.h>
-
 #include "global.h"
-#include "memalloc.h"
 #include "sei.h"
 #include "data_partition.h"
 #include "slice.h"
-#include "dpb.h"
 #include "parset.h"
 
 
-typedef enum {
+enum {
     SEI_BUFFERING_PERIOD = 0,
     SEI_PIC_TIMING,
     SEI_PAN_SCAN_RECT,
@@ -33,7 +29,7 @@ typedef enum {
     SEI_DEBLOCKING_FILTER_DISPLAY_PREFERENCE,
     SEI_STEREO_VIDEO_INFO,
     SEI_POST_FILTER_HINTS,
-    SEI_TONE_MAPPING,
+    SEI_TONE_MAPPING_INFO,
     SEI_SCALABILITY_INFO,
     SEI_SUB_PIC_SCALABLE_LAYER,
     SEI_NON_REQUIRED_LAYER_REP,
@@ -56,116 +52,381 @@ typedef enum {
     SEI_OPERATION_POINTS_NOT_PRESENT,
     SEI_BASE_VIEW_TEMPORAL_HRD,
     SEI_FRAME_PACKING_ARRANGEMENT,
+    SEI_MULTIVIEW_VIEW_POSITION,
+    SEI_DISPLAY_ORIENTATION,
+    SEI_MVCD_SCALABLE_NESTING,
+    SEI_MVCD_VIEW_SCALABILITY_INFO,
+    SEI_DEPTH_REPRESENTATION_INFO,
+    SEI_THREE_DIMENSIONAL_REFERENCE_DISPLAYS_INFO,
+    SEI_DEPTH_TIMING,
+    SEI_DEPTH_SAMPLING_INFO
+};
 
-    SEI_MAX_ELEMENTS  //!< number of maximum syntax elements
-} SEI_type;
+struct tone_mapping_t {
+    uint32_t tone_map_id;
+    bool     tone_map_cancel_flag;
+    uint32_t tone_map_repetition_period;
+    uint8_t  coded_data_bit_depth;
+    uint8_t  target_bit_depth;
+    uint32_t tone_map_model_id;
+    // variables for model 0
+    uint32_t min_value;
+    uint32_t max_value;
+    // variables for model 1
+    uint32_t sigmoid_midpoint;
+    uint32_t sigmoid_width;
+    // variables for model 2
+    uint32_t start_of_coded_interval[1<<MAX_SEI_BIT_DEPTH];
+    // variables for model 3
+    uint16_t num_pivots;
+    uint32_t coded_pivot_value[MAX_NUM_PIVOTS];
+    uint32_t target_pivot_value[MAX_NUM_PIVOTS];
+};
 
-//! Frame packing arrangement Information
-typedef struct {
-    unsigned int  frame_packing_arrangement_id;
-    bool          frame_packing_arrangement_cancel_flag;
-    unsigned char frame_packing_arrangement_type;
-    bool          quincunx_sampling_flag;
-    unsigned char content_interpretation_type;
-    bool          spatial_flipping_flag;
-    bool          frame0_flipped_flag;
-    bool          field_views_flag;
-    bool          current_frame_is_frame0_flag;
-    bool          frame0_self_contained_flag;
-    bool          frame1_self_contained_flag;
-    unsigned char frame0_grid_position_x;
-    unsigned char frame0_grid_position_y;
-    unsigned char frame1_grid_position_x;
-    unsigned char frame1_grid_position_y;
-    unsigned char frame_packing_arrangement_reserved_byte;
-    unsigned int  frame_packing_arrangement_repetition_period;
-    bool          frame_packing_arrangement_extension_flag;
-} frame_packing_arrangement_information_struct;
 
-/*!
-************************************************************************
-*  \brief
-*     Interpret the spare picture SEI message
-*  \param payload
-*     a pointer that point to the sei payload
-*  \param size
-*     the size of the sei message
-*  \param p_Vid
-*     the image pointer
-*
-************************************************************************
-*/
-void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
+void buffering_period(byte* payload, int size, VideoParameters* p_Vid)
 {
-    sps_t* sps = p_Vid->active_sps;
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
 
-    assert(payload);
-    assert(p_Vid);
+    uint8_t seq_parameter_set_id = buf->ue("SEI: seq_parameter_set_id");
+    sps_t& sps = p_Vid->SeqParSet[seq_parameter_set_id];
+    vui_t& vui = sps.vui_parameters;
+    hrd_t& nal = vui.nal_hrd_parameters;
+    hrd_t& vcl = vui.vcl_hrd_parameters;
+
+    if (sps.vui_parameters_present_flag) {
+        uint8_t initial_cpb_removal_delay_length;
+        uint8_t initial_cpb_removal_delay, initial_cpb_removal_delay_offset;
+        if (vui.nal_hrd_parameters_present_flag) {
+            initial_cpb_removal_delay_length = nal.initial_cpb_removal_delay_length_minus1 + 1;
+            for (int k = 0; k <= nal.cpb_cnt_minus1; ++k) {
+                initial_cpb_removal_delay        = buf->u(initial_cpb_removal_delay_length, "SEI: initial_cpb_removal_delay");
+                initial_cpb_removal_delay_offset = buf->u(initial_cpb_removal_delay_length, "SEI: initial_cpb_removal_delay_offset");
+            }
+        }
+        if (vui.vcl_hrd_parameters_present_flag) {
+            initial_cpb_removal_delay_length = vcl.initial_cpb_removal_delay_length_minus1 + 1;
+            for (int k = 0; k <= sps.vui_parameters.vcl_hrd_parameters.cpb_cnt_minus1; ++k) {
+                initial_cpb_removal_delay        = buf->u(initial_cpb_removal_delay_length, "SEI: initial_cpb_removal_delay");
+                initial_cpb_removal_delay_offset = buf->u(initial_cpb_removal_delay_length, "SEI: initial_cpb_removal_delay_offset");
+            }
+        }
+    }
+
+    free (buf);
+}
+
+void pic_timing(byte* payload, int size, VideoParameters* p_Vid)
+{
+    if (!p_Vid->active_sps) {
+        fprintf(stderr, "Warning: no active SPS, timing SEI cannot be parsed\n");
+        return;
+    }
 
     data_partition_t* buf = new data_partition_t;
     buf->bitstream_length = size;
     buf->streamBuffer = payload;
     buf->frame_bitoffset = 0;
 
-    uint32_t target_frame_num = buf->ue("SEI: target_frame_num");
-    uint32_t num_spare_pics = 1 + buf->ue("SEI: num_spare_pics_minus1");
+    sps_t& sps = *p_Vid->active_sps;
+    vui_t& vui = sps.vui_parameters;
+    hrd_t& nal = vui.nal_hrd_parameters;
+    hrd_t& vcl = vui.vcl_hrd_parameters;
 
-    uint8_t** map = new uint8_t*[num_spare_pics];
-
-    for (int i = 0; i < num_spare_pics; ++i) {
-        map[i] = new uint8_t[sps->PicWidthInMbs * sps->FrameHeightInMbs];
-
-        int CandidateSpareFrameNum, SpareFrameNum = 0;
-        if (i == 0) {
-            CandidateSpareFrameNum = target_frame_num - 1;
-            if (CandidateSpareFrameNum < 0)
-                CandidateSpareFrameNum = MAX_FN - 1;
-        } else
-            CandidateSpareFrameNum = SpareFrameNum;
-
-        uint32_t delta_spare_frame_num = buf->ue("SEI: delta_spare_frame_num");
-
-        SpareFrameNum = CandidateSpareFrameNum - delta_spare_frame_num;
-        if (SpareFrameNum < 0)
-            SpareFrameNum = MAX_FN + SpareFrameNum;
-
-        uint32_t ref_area_indicator = buf->ue("SEI: ref_area_indicator");
-
-        switch (ref_area_indicator) {
-        case 0:   // The whole frame can serve as spare picture
-            for (int y = 0; y < sps->FrameHeightInMbs; ++y) {
-                for (int x = 0; x < sps->PicWidthInMbs; ++x)
-                    map[i][y * sps->PicWidthInMbs + x] = 0;
+    bool CpbDpbDelaysPresentFlag = sps.vui_parameters_present_flag &&
+        (vui.nal_hrd_parameters_present_flag || vui.vcl_hrd_parameters_present_flag);
+    if (CpbDpbDelaysPresentFlag) {
+        uint8_t cpb_removal_len = 24;
+        uint8_t dpb_output_len  = 24;
+        if (sps.vui_parameters_present_flag) {
+            if (vui.nal_hrd_parameters_present_flag) {
+                cpb_removal_len = nal.cpb_removal_delay_length_minus1 + 1;
+                dpb_output_len  = nal.dpb_output_delay_length_minus1  + 1;
+            } else if (vui.vcl_hrd_parameters_present_flag) {
+                cpb_removal_len = vcl.cpb_removal_delay_length_minus1 + 1;
+                dpb_output_len  = vcl.dpb_output_delay_length_minus1  + 1;
             }
-            break;
-        case 1:   // The map is not compressed
-            for (int y = 0; y < sps->FrameHeightInMbs; ++y) {
-                for (int x = 0; x < sps->PicWidthInMbs; ++x)
-                    map[i][y * sps->PicWidthInMbs + x] = (byte) buf->u(1, "SEI: ref_mb_indicator");
+        }
+
+        uint8_t cpb_removal_delay, dpb_output_delay;
+        if (vui.nal_hrd_parameters_present_flag || vui.vcl_hrd_parameters_present_flag) {
+            cpb_removal_delay = buf->u(cpb_removal_len, "SEI: cpb_removal_delay");
+            dpb_output_delay  = buf->u(dpb_output_len,  "SEI: dpb_output_delay");
+        }
+    }
+
+    bool pic_struct_present_flag = sps.vui_parameters_present_flag ?
+                                   vui.pic_struct_present_flag : 0;
+    if (pic_struct_present_flag) {
+        static const uint8_t NumClockTS[16] = {1, 1, 1, 2, 2, 3, 3, 2, 3, 0, };
+        uint8_t pic_struct = buf->u(4, "SEI: pic_struct");
+
+        for (int i = 0; i < NumClockTS[pic_struct]; ++i) {
+            bool clock_timestamp_flag = buf->u(1, "SEI: clock_timestamp_flag");
+            if (clock_timestamp_flag) {
+                uint8_t ct_type, counting_type, n_frames;
+                bool    nuit_field_based_flag, full_timestamp_flag;
+                bool    discontinuity_flag, cnt_dropped_flag;
+                ct_type               = buf->u(2, "SEI: ct_type");
+                nuit_field_based_flag = buf->u(1, "SEI: nuit_field_based_flag");
+                counting_type         = buf->u(5, "SEI: counting_type");
+                full_timestamp_flag   = buf->u(1, "SEI: full_timestamp_flag");
+                discontinuity_flag    = buf->u(1, "SEI: discontinuity_flag");
+                cnt_dropped_flag      = buf->u(1, "SEI: cnt_dropped_flag");
+                n_frames              = buf->u(8, "SEI: nframes");
+
+                uint8_t seconds_value, minutes_value, hours_value;
+                if (full_timestamp_flag) {
+                    seconds_value = buf->u(6, "SEI: seconds_value");
+                    minutes_value = buf->u(6, "SEI: minutes_value");
+                    hours_value   = buf->u(5, "SEI: hours_value");
+                } else {
+                    bool seconds_flag = buf->u(1, "SEI: seconds_flag");
+                    if (seconds_flag) {
+                        seconds_value = buf->u(6, "SEI: seconds_value");
+                        bool minutes_flag = buf->u(1, "SEI: minutes_flag");
+                        if (minutes_flag) {
+                            minutes_value = buf->u(6, "SEI: minutes_value");
+                            bool hours_flag = buf->u(1, "SEI: hours_flag");
+                            if (hours_flag)
+                                hours_value = buf->u(5, "SEI: hours_value");
+                        }
+                    }
+                }
+
+                uint8_t time_offset_length;
+                int32_t time_offset;
+                time_offset_length =
+                    vui.vcl_hrd_parameters_present_flag ? vcl.time_offset_length :
+                    vui.nal_hrd_parameters_present_flag ? nal.time_offset_length : 24;
+                time_offset = time_offset_length > 0 ?
+                    buf->i(time_offset_length, "SEI: time_offset") : 0;
             }
-            break;
-        case 2:   // The map is compressed
-                  //!KS: could not check this function, description is unclear (as stated in Ed. Note)
-        {
+        }
+    }
+
+    free (buf);
+}
+
+void pan_scan_rect(byte* payload, int size, VideoParameters *p_Vid)
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint32_t pan_scan_rect_id;
+    pan_scan_rect_id = buf->ue("SEI: pan_scan_rect_id");
+
+    bool pan_scan_rect_cancel_flag = buf->u(1, "SEI: pan_scan_rect_cancel_flag");
+    if (!pan_scan_rect_cancel_flag) {
+        int32_t  pan_scan_rect_left_offset, pan_scan_rect_right_offset;
+        int32_t  pan_scan_rect_top_offset, pan_scan_rect_bottom_offset;
+        uint32_t pan_scan_rect_repetition_period;
+        uint32_t pan_scan_cnt_minus1 = buf->ue("SEI: pan_scan_cnt_minus1");
+        for (int i = 0; i <= pan_scan_cnt_minus1; ++i) {
+            pan_scan_rect_left_offset   = buf->se("SEI: pan_scan_rect_left_offset");
+            pan_scan_rect_right_offset  = buf->se("SEI: pan_scan_rect_right_offset");
+            pan_scan_rect_top_offset    = buf->se("SEI: pan_scan_rect_top_offset");
+            pan_scan_rect_bottom_offset = buf->se("SEI: pan_scan_rect_bottom_offset");
+        }
+        pan_scan_rect_repetition_period = buf->ue("SEI: pan_scan_rect_repetition_period");
+    }
+
+    free (buf);
+}
+
+void filler_payload( byte* payload, int payloadSize, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = payloadSize;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint8_t ff_byte;
+    for (int k = 0; k < payloadSize; ++k)
+        ff_byte = buf->f(8); // equal to 0xFF
+
+    free (buf);
+}
+
+void user_data_registered_itu_t_t35( byte* payload, int payloadSize, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = payloadSize;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint8_t itu_t_t35_country_code;
+    uint8_t itu_t_t35_country_code_extension_byte;
+    uint8_t itu_t_t35_payload_byte;
+    int i = 0;
+
+    itu_t_t35_country_code = buf->b(8);
+    if (itu_t_t35_country_code == 0xFF)
+        i = 1;
+    else {
+        itu_t_t35_country_code_extension_byte = buf->b(8);
+        i = 2;
+    }
+
+    do {
+        itu_t_t35_payload_byte = buf->b(8);
+        i++;
+    } while (i < payloadSize);
+
+    free (buf);
+}
+
+void user_data_unregistered( byte* payload, int payloadSize, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = payloadSize;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint8_t uuid_iso_iec_11578[16];
+    for (int i = 0; i < 16; ++i)
+        uuid_iso_iec_11578[i] = buf->u(8);
+
+    uint8_t user_data_payload_byte;
+    for (int i = 16; i < payloadSize; ++i)
+        user_data_payload_byte = buf->b(8);
+
+    free (buf);
+}
+
+void recovery_point( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint32_t recovery_frame_cnt;
+    bool     exact_match_flag, broken_link_flag;
+    uint8_t  changing_slice_group_idc;
+
+    recovery_frame_cnt       = buf->ue("SEI: recovery_frame_cnt");
+    exact_match_flag         = buf->u(1, "SEI: exact_match_flag");
+    broken_link_flag         = buf->u(1, "SEI: broken_link_flag");
+    changing_slice_group_idc = buf->u(2, "SEI: changing_slice_group_idc");
+
+    p_Vid->recovery_point     = true;
+    p_Vid->recovery_frame_cnt = recovery_frame_cnt;
+
+    free(buf);
+}
+
+void dec_ref_pic_marking_repetition( byte* payload, int size, VideoParameters *p_Vid, slice_t *pSlice )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    bool     original_idr_flag;
+    uint32_t original_frame_num;
+
+    original_idr_flag  = buf->u(1, "SEI: original_idr_flag");
+    original_frame_num = buf->ue("SEI: original_frame_num");
+
+    if (!p_Vid->active_sps->frame_mbs_only_flag) {
+        bool original_field_pic_flag = buf->u(1, "SEI: original_field_pic_flag");
+        bool original_bottom_field_flag;
+        if (original_field_pic_flag)
+            original_bottom_field_flag = buf->u(1, "SEI: original_bottom_field_flag");
+    }
+
+    shr_t& shr = pSlice->header;
+
+    // we need to save everything that is probably overwritten in dec_ref_pic_marking()
+    drpm_t* old_drpm = shr.dec_ref_pic_marking_buffer;
+    bool old_idr_flag                        = pSlice->idr_flag;
+    bool old_no_output_of_prior_pics_flag    = shr.no_output_of_prior_pics_flag;
+    bool old_long_term_reference_flag        = shr.long_term_reference_flag;
+    bool old_adaptive_ref_pic_buffering_flag = shr.adaptive_ref_pic_marking_mode_flag;
+
+    // set new initial values
+    pSlice->idr_flag = original_idr_flag;
+    shr.dec_ref_pic_marking_buffer = NULL;
+
+    dec_ref_pic_marking(p_Vid, buf, pSlice);
+
+    while (shr.dec_ref_pic_marking_buffer) {
+        drpm_t* tmp_drpm = shr.dec_ref_pic_marking_buffer;
+        shr.dec_ref_pic_marking_buffer = tmp_drpm->Next;
+        delete tmp_drpm;
+    }
+
+    // restore old values in p_Vid
+    shr.dec_ref_pic_marking_buffer = old_drpm;
+    pSlice->idr_flag = old_idr_flag;
+    shr.no_output_of_prior_pics_flag = old_no_output_of_prior_pics_flag;
+    p_Vid->no_output_of_prior_pics_flag = shr.no_output_of_prior_pics_flag;
+    shr.long_term_reference_flag = old_long_term_reference_flag;
+    shr.adaptive_ref_pic_marking_mode_flag = old_adaptive_ref_pic_buffering_flag;
+
+    free (buf);
+}
+
+void spare_pic( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    sps_t& sps = *p_Vid->active_sps;
+
+    uint32_t target_frame_num;
+    bool     spare_field_flag;
+    bool     target_bottom_field_flag;
+    target_frame_num         = buf->ue("SEI: target_frame_num");
+    spare_field_flag         = buf->u(1, "SEI: spare_field_flag");
+    target_bottom_field_flag = spare_field_flag ? buf->u(1, "SEI: target_bottom_field_flag") : 0;
+
+    uint32_t num_spare_pics_minus1    = buf->ue("SEI: num_spare_pics_minus1");
+    uint8_t** map = new uint8_t*[num_spare_pics_minus1 + 1];
+
+    for (int i = 0; i <= num_spare_pics_minus1; ++i) {
+        map[i] = new uint8_t[sps.PicSizeInMapUnits];
+
+        uint32_t delta_spare_frame_num;
+        bool     spare_bottom_field_flag;
+        delta_spare_frame_num = buf->ue("SEI: delta_spare_frame_num");
+        spare_bottom_field_flag = spare_field_flag ? buf->u(1, "SEI: spare_bottom_field_flag") : 0;
+
+        uint32_t spare_area_idc = buf->ue("SEI: ref_area_indicator");
+        if (spare_area_idc == 0) {
+            for (int j = 0; j < sps.PicSizeInMapUnits; ++j)
+                map[i][j] = 0;
+        } else if (spare_area_idc == 1) {
+            for (int j = 0; j < sps.PicSizeInMapUnits; ++j)
+                map[i][j] = buf->u(1, "SEI: spare_unit_flag");
+        } else if (spare_area_idc == 2) {
             int bit0 = 0;
             int bit1 = 1;
             int no_bit0 = -1;
 
-            int x = (sps->PicWidthInMbs    - 1) / 2;
-            int y = (sps->FrameHeightInMbs - 1) / 2;
+            int x = (sps.PicWidthInMbs    - 1) / 2;
+            int y = (sps.FrameHeightInMbs - 1) / 2;
             int left = x, right = x;
             int top = y, bottom = y;
             int directx = 0;
             int directy = 1;
 
-            for (int m = 0; m < sps->FrameHeightInMbs; ++m) {
-                for (int n = 0; n < sps->PicWidthInMbs; ++n) {
+            for (int m = 0; m < sps.FrameHeightInMbs; ++m) {
+                for (int n = 0; n < sps.PicWidthInMbs; ++n) {
                     if (no_bit0 < 0)
                         no_bit0 = buf->ue("SEI: zero_run_length");
                     if (no_bit0 > 0)
-                        map[i][y * sps->PicWidthInMbs + x] = (uint8_t)bit0;
+                        map[i][y * sps.PicWidthInMbs + x] = (uint8_t)bit0;
                     else
-                        map[i][y * sps->PicWidthInMbs + x] = (uint8_t)bit1;
+                        map[i][y * sps.PicWidthInMbs + x] = (uint8_t)bit1;
                     no_bit0--;
 
                     // go to the next mb:
@@ -186,7 +447,7 @@ void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
                     } else if (directx == 1 && directy == 0) {
                         if (x < right)
                             x++;
-                        else if (x == sps->PicWidthInMbs - 1) {
+                        else if (x == sps.PicWidthInMbs - 1) {
                             y = top - 1;
                             top--;
                             directx = -1;
@@ -214,7 +475,7 @@ void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
                     } else if (directx == 0 && directy == 1) {
                         if (y < bottom)
                             y++;
-                        else if (y == sps->FrameHeightInMbs - 1) {
+                        else if (y == sps.FrameHeightInMbs - 1) {
                             x = right + 1;
                             right++;
                             directx = 0;
@@ -228,1322 +489,555 @@ void interpret_spare_pic( byte* payload, int size, VideoParameters *p_Vid )
                     }
                 }
             }
-            break;
-        }
-        default:
-            printf("Wrong ref_area_indicator %d!\n", ref_area_indicator);
-            exit(0);
-            break;
         }
 
         delete []map[i];
     } // end of num_spare_pics
 
     delete []map;
-    delete buf;
+    free (buf);
 }
 
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Sub-sequence information SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_subsequence_info( byte* payload, int size, VideoParameters *p_Vid )
+void scene_info( byte* payload, int size, VideoParameters *p_Vid )
 {
-  data_partition_t* buf;
-  int sub_seq_layer_num, sub_seq_id, first_ref_pic_flag, leading_non_ref_pic_flag, last_pic_flag,
-    sub_seq_frame_num_flag, sub_seq_frame_num;
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
 
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  sub_seq_layer_num        = buf->ue("SEI: sub_seq_layer_num");
-  sub_seq_id               = buf->ue("SEI: sub_seq_id");
-  first_ref_pic_flag       = buf->u(1, "SEI: first_ref_pic_flag");
-  leading_non_ref_pic_flag = buf->u(1, "SEI: leading_non_ref_pic_flag");
-  last_pic_flag            = buf->u(1, "SEI: last_pic_flag");
-  sub_seq_frame_num_flag   = buf->u(1, "SEI: sub_seq_frame_num_flag");
-  if (sub_seq_frame_num_flag)
-  {
-    sub_seq_frame_num      = buf->ue("SEI: sub_seq_frame_num");
-  }
-
-  free(buf);
-}
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Sub-sequence layer characteristics SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_subsequence_layer_characteristics_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  data_partition_t* buf;
-  long num_sub_layers, accurate_statistics_flag, average_bit_rate, average_frame_rate;
-  int i;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  num_sub_layers = 1 + buf->ue("SEI: num_sub_layers_minus1");
-
-  for (i=0; i<num_sub_layers; i++)
-  {
-    accurate_statistics_flag = buf->u(1, "SEI: accurate_statistics_flag");
-    average_bit_rate         = buf->u(16, "SEI: average_bit_rate");
-    average_frame_rate       = buf->u(16, "SEI: average_frame_rate");
-  }
-  free (buf);
-}
-
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Sub-sequence characteristics SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_subsequence_characteristics_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  data_partition_t* buf;
-  int i;
-  int sub_seq_layer_num, sub_seq_id, duration_flag, average_rate_flag, accurate_statistics_flag;
-  unsigned long sub_seq_duration, average_bit_rate, average_frame_rate;
-  int num_referenced_subseqs, ref_sub_seq_layer_num, ref_sub_seq_id, ref_sub_seq_direction;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  sub_seq_layer_num = buf->ue("SEI: sub_seq_layer_num");
-  sub_seq_id        = buf->ue("SEI: sub_seq_id");
-  duration_flag     = buf->u(1, "SEI: duration_flag");
-
-  if ( duration_flag )
-  {
-    sub_seq_duration = buf->u(32, "SEI: duration_flag");
-  }
-
-  average_rate_flag = buf->u(1, "SEI: average_rate_flag");
-
-  if ( average_rate_flag )
-  {
-    accurate_statistics_flag = buf->u(1, "SEI: accurate_statistics_flag");
-    average_bit_rate         = buf->u(16, "SEI: average_bit_rate");
-    average_frame_rate       = buf->u(16, "SEI: average_frame_rate");
-  }
-
-  num_referenced_subseqs  = buf->ue("SEI: num_referenced_subseqs");
-
-  for (i=0; i<num_referenced_subseqs; i++)
-  {
-    ref_sub_seq_layer_num  = buf->ue("SEI: ref_sub_seq_layer_num");
-    ref_sub_seq_id         = buf->ue("SEI: ref_sub_seq_id");
-    ref_sub_seq_direction  = buf->u(1, "SEI: ref_sub_seq_direction");
-  }
-
-  free( buf );
-}
-
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Scene information SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_scene_information( byte* payload, int size, VideoParameters *p_Vid )
-{
-  data_partition_t* buf;
-  int scene_id, scene_transition_type, second_scene_id;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  scene_id              = buf->ue("SEI: scene_id");
-  scene_transition_type = buf->ue("SEI: scene_transition_type");
-  if ( scene_transition_type > 3 )
-  {
-    second_scene_id     = buf->ue("SEI: scene_transition_type");
-  }
-
-  free( buf );
-}
-
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Filler payload SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_filler_payload_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int payload_cnt = 0;
-
-  while (payload_cnt<size)
-  {
-    if (payload[payload_cnt] == 0xFF)
-    {
-       payload_cnt++;
+    bool scene_info_present_flag = buf->u(1, "SEI: scene_info_present_flag");
+    if (scene_info_present_flag) {
+        uint32_t scene_id;
+        uint32_t scene_transition_type;
+        uint32_t second_scene_id;
+        scene_id              = buf->ue("SEI: scene_id");
+        scene_transition_type = buf->ue("SEI: scene_transition_type");
+        if (scene_transition_type > 3)
+            second_scene_id = buf->ue("SEI: second_scene_id");
     }
-  }
+
+    free (buf);
 }
 
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the User data unregistered SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_user_data_unregistered_info( byte* payload, int size, VideoParameters *p_Vid )
+void sub_seq_info( byte* payload, int size, VideoParameters *p_Vid )
 {
-  int offset = 0;
-  byte payload_byte;
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
 
-  assert (size>=16);
+    uint32_t sub_seq_layer_num, sub_seq_id;
+    bool     first_ref_pic_flag, leading_non_ref_pic_flag;
+    bool     last_pic_flag, sub_seq_frame_num_flag;
+    uint32_t sub_seq_frame_num;
 
-  for (offset = 0; offset < 16; offset++)
-  {
-  }
+    sub_seq_layer_num        = buf->ue("SEI: sub_seq_layer_num");
+    sub_seq_id               = buf->ue("SEI: sub_seq_id");
+    first_ref_pic_flag       = buf->u(1, "SEI: first_ref_pic_flag");
+    leading_non_ref_pic_flag = buf->u(1, "SEI: leading_non_ref_pic_flag");
+    last_pic_flag            = buf->u(1, "SEI: last_pic_flag");
+    sub_seq_frame_num_flag   = buf->u(1, "SEI: sub_seq_frame_num_flag");
+    if (sub_seq_frame_num_flag)
+        sub_seq_frame_num    = buf->ue("SEI: sub_seq_frame_num");
 
-  while (offset < size)
-  {
-    payload_byte = payload[offset];
-    offset ++;
-  }
+    free (buf);
 }
 
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the User data registered by ITU-T T.35 SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_user_data_registered_itu_t_t35_info( byte* payload, int size, VideoParameters *p_Vid )
+void sub_seq_layer_characteristics( byte* payload, int size, VideoParameters *p_Vid )
 {
-  int offset = 0;
-  byte itu_t_t35_country_code, itu_t_t35_country_code_extension_byte, payload_byte;
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
 
-  itu_t_t35_country_code = payload[offset];
-  offset++;
-  if(itu_t_t35_country_code == 0xFF)
-  {
-    itu_t_t35_country_code_extension_byte = payload[offset];
-    offset++;
-  }
-  while (offset < size)
-  {
-    payload_byte = payload[offset];
-    offset ++;
-  }
-}
-
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Pan scan rectangle SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_pan_scan_rect_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int pan_scan_rect_cancel_flag;
-  int pan_scan_cnt_minus1, i;
-  int pan_scan_rect_repetition_period;
-  int pan_scan_rect_id, pan_scan_rect_left_offset, pan_scan_rect_right_offset;
-  int pan_scan_rect_top_offset, pan_scan_rect_bottom_offset;
-
-  data_partition_t* buf;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  pan_scan_rect_id = buf->ue("SEI: pan_scan_rect_id");
-
-  pan_scan_rect_cancel_flag = buf->u(1, "SEI: pan_scan_rect_cancel_flag");
-  if (!pan_scan_rect_cancel_flag) 
-  {
-    pan_scan_cnt_minus1 = buf->ue("SEI: pan_scan_cnt_minus1");
-    for (i = 0; i <= pan_scan_cnt_minus1; i++) 
-    {
-      pan_scan_rect_left_offset   = buf->se("SEI: pan_scan_rect_left_offset");
-      pan_scan_rect_right_offset  = buf->se("SEI: pan_scan_rect_right_offset");
-      pan_scan_rect_top_offset    = buf->se("SEI: pan_scan_rect_top_offset");
-      pan_scan_rect_bottom_offset = buf->se("SEI: pan_scan_rect_bottom_offset");
+    bool     accurate_statistics_flag;
+    uint16_t average_bit_rate;
+    uint16_t average_frame_rate;
+    uint32_t num_sub_seq_layers_minus1 = buf->ue("SEI: num_sub_layers_minus1");
+    for (int i = 0; i <= num_sub_seq_layers_minus1; ++i) {
+        accurate_statistics_flag = buf->u(1, "SEI: accurate_statistics_flag");
+        average_bit_rate         = buf->u(16, "SEI: average_bit_rate");
+        average_frame_rate       = buf->u(16, "SEI: average_frame_rate");
     }
-    pan_scan_rect_repetition_period = buf->ue("SEI: pan_scan_rect_repetition_period");
-  }
 
-  free (buf);
+    free (buf);
 }
 
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Random access point SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_recovery_point_info( byte* payload, int size, VideoParameters *p_Vid )
+void sub_seq_characteristics( byte* payload, int size, VideoParameters *p_Vid )
 {
-    int recovery_frame_cnt, exact_match_flag, broken_link_flag, changing_slice_group_idc;
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint32_t sub_seq_layer_num;
+    uint32_t sub_seq_id;
+    bool     duration_flag;
+    uint32_t sub_seq_duration;
+    sub_seq_layer_num = buf->ue("SEI: sub_seq_layer_num");
+    sub_seq_id        = buf->ue("SEI: sub_seq_id");
+    duration_flag     = buf->u(1, "SEI: duration_flag");
+    if (duration_flag)
+        sub_seq_duration = buf->u(32, "SEI: duration_flag");
+
+    bool     accurate_statistics_flag;
+    uint16_t average_bit_rate;
+    uint16_t average_frame_rate;
+    bool average_rate_flag = buf->u(1, "SEI: average_rate_flag");
+    if (average_rate_flag) {
+        accurate_statistics_flag = buf->u(1, "SEI: accurate_statistics_flag");
+        average_bit_rate         = buf->u(16, "SEI: average_bit_rate");
+        average_frame_rate       = buf->u(16, "SEI: average_frame_rate");
+    }
+
+    uint32_t ref_sub_seq_layer_num;
+    uint32_t ref_sub_seq_id;
+    bool     ref_sub_seq_direction;
+    uint32_t num_referenced_subseqs = buf->ue("SEI: num_referenced_subseqs");
+    for (int i = 0; i < num_referenced_subseqs; ++i) {
+        ref_sub_seq_layer_num  = buf->ue("SEI: ref_sub_seq_layer_num");
+        ref_sub_seq_id         = buf->ue("SEI: ref_sub_seq_id");
+        ref_sub_seq_direction  = buf->u(1, "SEI: ref_sub_seq_direction");
+    }
+
+    free (buf);
+}
+
+void full_frame_freeze( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint32_t full_frame_freeze_repetition_period;
+    full_frame_freeze_repetition_period = buf->ue("SEI: full_frame_freeze_repetition_period");
+
+    free (buf);
+}
+
+void full_frame_freeze_release( byte* payload, int size, VideoParameters *p_Vid )
+{
+}
+
+void full_frame_snapshot( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint32_t snapshot_id;
+    snapshot_id = buf->ue("SEI: snapshot_id");
+
+    free (buf);
+}
+
+void progressive_refinement_segment_start( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint32_t progressive_refinement_id;
+    uint32_t num_refinement_steps_minus1;
+    progressive_refinement_id   = buf->ue("SEI: progressive_refinement_id");
+    num_refinement_steps_minus1 = buf->ue("SEI: num_refinement_steps_minus1");
+
+    free (buf);
+}
+
+void progressive_refinement_segment_end( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint32_t progressive_refinement_id;
+    progressive_refinement_id = buf->ue("SEI: progressive_refinement_id");
+
+    free (buf);
+}
+
+void motion_constrained_slice_group_set( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint32_t num_slice_groups_minus1 = buf->ue("SEI: num_slice_groups_minus1");
+    if (num_slice_groups_minus1 > 0) {
+        int      sliceGroupSize = ceil(log2(num_slice_groups_minus1 + 1));
+        uint32_t slice_group_id;
+        for (int i = 0; i <= num_slice_groups_minus1; ++i)
+            slice_group_id = buf->u(sliceGroupSize, "SEI: slice_group_id");
+    }
+
+    bool     exact_match_flag, pan_scan_rect_flag;
+    uint32_t pan_scan_rect_id;
+    exact_match_flag   = buf->u(1, "SEI: exact_match_flag");
+    pan_scan_rect_flag = buf->u(1, "SEI: pan_scan_rect_flag");
+    if (pan_scan_rect_flag)
+        pan_scan_rect_id = buf->ue("SEI: pan_scan_rect_id");
+
+    free (buf);
+}
+
+void film_grain_characteristics( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    bool film_grain_characteristics_cancel_flag = buf->u(1, "SEI: film_grain_characteristics_cancel_flag");
+    if (!film_grain_characteristics_cancel_flag) {
+        uint8_t  film_grain_model_id;
+        bool     separate_colour_description_present_flag;
+        uint8_t  film_grain_bit_depth_luma_minus8;
+        uint8_t  film_grain_bit_depth_chroma_minus8;
+        bool     film_grain_full_range_flag;
+        uint8_t  film_grain_colour_primaries;
+        uint8_t  film_grain_transfer_characteristics;
+        uint8_t  film_grain_matrix_coefficients;
+        uint8_t  blending_mode_id;
+        uint8_t  log2_scale_factor;
+        bool     comp_model_present_flag[3];
+        uint8_t  num_intensity_intervals_minus1;
+        uint8_t  num_model_values_minus1;
+        uint8_t  intensity_interval_lower_bound;
+        uint8_t  intensity_interval_upper_bound;
+        int32_t  comp_model_value;
+        uint32_t film_grain_characteristics_repetition_period;
+
+        film_grain_model_id                      = buf->u(2, "SEI: model_id");
+        separate_colour_description_present_flag = buf->u(1, "SEI: separate_colour_description_present_flag");
+        if (separate_colour_description_present_flag) {
+            film_grain_bit_depth_luma_minus8     = buf->u(3, "SEI: film_grain_bit_depth_luma_minus8");
+            film_grain_bit_depth_chroma_minus8   = buf->u(3, "SEI: film_grain_bit_depth_chroma_minus8");
+            film_grain_full_range_flag           = buf->u(1, "SEI: film_grain_full_range_flag");
+            film_grain_colour_primaries          = buf->u(8, "SEI: film_grain_colour_primaries");
+            film_grain_transfer_characteristics  = buf->u(8, "SEI: film_grain_transfer_characteristics");
+            film_grain_matrix_coefficients       = buf->u(8, "SEI: film_grain_matrix_coefficients");
+        }
+        blending_mode_id  = buf->u(2, "SEI: blending_mode_id");
+        log2_scale_factor = buf->u(4, "SEI: log2_scale_factor");
+        for (int c = 0; c < 3; ++c)
+            comp_model_present_flag[c] = buf->u(1, "SEI: comp_model_present_flag");
+        for (int c = 0; c < 3; ++c) {
+            if (comp_model_present_flag[c]) {
+                num_intensity_intervals_minus1 = buf->u(8, "SEI: num_intensity_intervals_minus1");
+                num_model_values_minus1        = buf->u(3, "SEI: num_model_values_minus1");
+                for (int i = 0; i <= num_intensity_intervals_minus1; ++i) {
+                    intensity_interval_lower_bound = buf->u(8, "SEI: intensity_interval_lower_bound");
+                    intensity_interval_upper_bound = buf->u(8, "SEI: intensity_interval_upper_bound");
+                    for (int j = 0; j <= num_model_values_minus1; ++j)
+                        comp_model_value = buf->se("SEI: comp_model_value");
+                }
+            }
+        }
+        film_grain_characteristics_repetition_period = buf->ue("SEI: film_grain_characteristics_repetition_period");
+    }
+
+    free (buf);
+}
+
+void deblocking_filter_display_preference( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    bool     display_prior_to_deblocking_preferred_flag;
+    bool     dec_frame_buffering_constraint_flag;
+    uint32_t deblocking_display_preference_repetition_period;
+    bool deblocking_display_preference_cancel_flag = buf->u(1, "SEI: deblocking_display_preference_cancel_flag");
+    if (!deblocking_display_preference_cancel_flag) {
+        display_prior_to_deblocking_preferred_flag      = buf->u(1, "SEI: display_prior_to_deblocking_preferred_flag");
+        dec_frame_buffering_constraint_flag             = buf->u(1, "SEI: dec_frame_buffering_constraint_flag");
+        deblocking_display_preference_repetition_period = buf->ue("SEI: deblocking_display_preference_repetition_period");
+    }
+
+    free (buf);
+}
+
+void stereo_video_info( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    bool field_views_flags;
+    bool top_field_is_left_view_flag;
+    bool current_frame_is_left_view_flag;
+    bool next_frame_is_second_view_flag;
+    bool left_view_self_contained_flag;
+    bool right_view_self_contained_flag;
+
+    field_views_flags = buf->u(1, "SEI: field_views_flags");
+    if (field_views_flags)
+        top_field_is_left_view_flag     = buf->u(1, "SEI: top_field_is_left_view_flag");
+    else {
+        current_frame_is_left_view_flag = buf->u(1, "SEI: current_frame_is_left_view_flag");
+        next_frame_is_second_view_flag  = buf->u(1, "SEI: next_frame_is_second_view_flag");
+    }
+
+    left_view_self_contained_flag  = buf->u(1, "SEI: left_view_self_contained_flag");
+    right_view_self_contained_flag = buf->u(1, "SEI: right_view_self_contained_flag");
+
+    free (buf);
+}
+
+void post_filter_hints( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+
+    uint32_t filter_hint_size_y;
+    uint32_t filter_hint_size_x;
+    uint8_t  filter_hint_type;
+    int32_t  filter_hint;
+    bool     additional_extension_flag;
+
+    filter_hint_size_y = buf->ue("SEI: filter_hint_size_y");
+    filter_hint_size_x = buf->ue("SEI: filter_hint_size_x");
+    filter_hint_type   = buf->u(2, "SEI: filter_hint_type");
+    for (int colour_component = 0; colour_component < 3; ++colour_component) {
+        for (int cy = 0; cy < filter_hint_size_y; ++cy) {
+            for (int cx = 0; cx < filter_hint_size_x; ++cx)
+                filter_hint = buf->se("SEI: filter_hint");
+        }
+    }
+
+    additional_extension_flag = buf->u(1, "SEI: additional_extension_flag");
+
+    free (buf);
+}
+
+void tone_mapping_info( byte* payload, int size, VideoParameters *p_Vid )
+{
+    tone_mapping_t seiToneMappingTmp {};
+    int i = 0, max_coded_num, max_output_num;
 
     data_partition_t* buf = new data_partition_t;
     buf->bitstream_length = size;
     buf->streamBuffer = payload;
     buf->frame_bitoffset = 0;
 
-    recovery_frame_cnt       = buf->ue("SEI: recovery_frame_cnt");
-    exact_match_flag         = buf->u(1, "SEI: exact_match_flag");
-    broken_link_flag         = buf->u(1, "SEI: broken_link_flag");
-    changing_slice_group_idc = buf->u(2, "SEI: changing_slice_group_idc");
+    seiToneMappingTmp.tone_map_id          = buf->ue("SEI: tone_map_id");
+    seiToneMappingTmp.tone_map_cancel_flag = buf->u(1, "SEI: tone_map_cancel_flag");
 
-    p_Vid->recovery_point     = true;
-    p_Vid->recovery_frame_cnt = recovery_frame_cnt;
+    if (!seiToneMappingTmp.tone_map_cancel_flag)  {
+        seiToneMappingTmp.tone_map_repetition_period = buf->ue("SEI: tone_map_repetition_period");
+        seiToneMappingTmp.coded_data_bit_depth       = buf->u(8, "SEI: coded_data_bit_depth");
+        seiToneMappingTmp.target_bit_depth           = buf->u(8, "SEI: sei_bit_depth");
+        seiToneMappingTmp.tone_map_model_id          = buf->ue("SEI: model_id");
 
-    free(buf);
-}
+        max_coded_num  = 1 << seiToneMappingTmp.coded_data_bit_depth;
+        max_output_num = 1 << seiToneMappingTmp.target_bit_depth;
 
+        if (seiToneMappingTmp.tone_map_model_id == 0) { // linear mapping with clipping
+            seiToneMappingTmp.min_value = buf->u(32, "SEI: min_value");
+            seiToneMappingTmp.max_value = buf->u(32, "SEI: min_value");
+        } else if (seiToneMappingTmp.tone_map_model_id == 1) { // sigmoidal mapping
+            seiToneMappingTmp.sigmoid_midpoint = buf->u(32, "SEI: sigmoid_midpoint");
+            seiToneMappingTmp.sigmoid_width    = buf->u(32, "SEI: sigmoid_width");
+        } else if (seiToneMappingTmp.tone_map_model_id == 2) { // user defined table mapping
+            for (int i = 0; i < max_output_num; ++i)
+                seiToneMappingTmp.start_of_coded_interval[i] = buf->u((((seiToneMappingTmp.coded_data_bit_depth+7)>>3)<<3), "SEI: start_of_coded_interval");
+        } else if (seiToneMappingTmp.tone_map_model_id == 3) { // piece-wise linear mapping
+            seiToneMappingTmp.num_pivots = buf->u(16, "SEI: num_pivots");
+            seiToneMappingTmp.coded_pivot_value[0] = 0;
+            seiToneMappingTmp.target_pivot_value[0] = 0;
+            seiToneMappingTmp.coded_pivot_value[seiToneMappingTmp.num_pivots+1] = max_coded_num-1;
+            seiToneMappingTmp.target_pivot_value[seiToneMappingTmp.num_pivots+1] = max_output_num-1;
 
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Decoded Picture Buffer Management Repetition SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_dec_ref_pic_marking_repetition_info( byte* payload, int size, VideoParameters *p_Vid, slice_t *pSlice )
-{
-    shr_t& shr = pSlice->header;
-  int original_idr_flag, original_frame_num;
-  int original_field_pic_flag, original_bottom_field_flag;
+            for (int i = 1; i <= seiToneMappingTmp.num_pivots; ++i) {
+                seiToneMappingTmp.coded_pivot_value[i] = buf->u( (((seiToneMappingTmp.coded_data_bit_depth+7)>>3)<<3), "SEI: coded_pivot_value");
+                seiToneMappingTmp.target_pivot_value[i] = buf->u( (((seiToneMappingTmp.target_bit_depth+7)>>3)<<3), "SEI: sei_pivot_value");
+            }
+        }
 
-  drpm_t* tmp_drpm;
-  drpm_t* old_drpm;
-  int old_idr_flag, old_no_output_of_prior_pics_flag, old_long_term_reference_flag , old_adaptive_ref_pic_buffering_flag;
+        // Currently, only when the map_id == 0, the tone-mapping is actually applied.
+        if (seiToneMappingTmp.tone_map_id == 0) {
+            p_Vid->seiToneMapping->seiHasTone_mapping = 1;
+            p_Vid->seiToneMapping->tone_map_repetition_period = seiToneMappingTmp.tone_map_repetition_period;
+            p_Vid->seiToneMapping->coded_data_bit_depth = seiToneMappingTmp.coded_data_bit_depth;
+            p_Vid->seiToneMapping->sei_bit_depth = seiToneMappingTmp.target_bit_depth;
+            p_Vid->seiToneMapping->model_id = seiToneMappingTmp.tone_map_model_id;
+            p_Vid->seiToneMapping->count = 0;
 
-  data_partition_t* buf;
+            // generate the look up table of tone mapping
+            switch (seiToneMappingTmp.tone_map_model_id) {
+            case 0:            // linear mapping with clipping
+                for (int i = 0; i <= seiToneMappingTmp.min_value; ++i)
+                    p_Vid->seiToneMapping->lut[i] = 0;
 
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
+                for (int i = seiToneMappingTmp.min_value + 1; i < seiToneMappingTmp.max_value; ++i)
+                    p_Vid->seiToneMapping->lut[i] = (px_t) ((i-seiToneMappingTmp.min_value) * (max_output_num-1)/(seiToneMappingTmp.max_value- seiToneMappingTmp.min_value));
 
-  original_idr_flag     = buf->u(1, "SEI: original_idr_flag");
-  original_frame_num    = buf->ue("SEI: original_frame_num");
-
-  if ( !p_Vid->active_sps->frame_mbs_only_flag )
-  {
-    original_field_pic_flag = buf->u(1, "SEI: original_field_pic_flag");
-    if ( original_field_pic_flag )
-    {
-      original_bottom_field_flag = buf->u(1, "SEI: original_bottom_field_flag");
+                for (int i = seiToneMappingTmp.max_value; i < max_coded_num; ++i)
+                    p_Vid->seiToneMapping->lut[i] = (px_t) (max_output_num - 1);
+                break;
+            case 1: // sigmoid mapping
+                for (int i = 0; i < max_coded_num; ++i) {
+                    double tmp = 1.0 + exp( -6*(double)(i-seiToneMappingTmp.sigmoid_midpoint)/seiToneMappingTmp.sigmoid_width);
+                    p_Vid->seiToneMapping->lut[i] = (px_t)( (double)(max_output_num-1)/ tmp + 0.5);
+                }
+                break;
+            case 2: // user defined table
+                if (0 < max_output_num - 1) {
+                    for (int j = 0; j < max_output_num - 1; ++j) {
+                        for (int i = seiToneMappingTmp.start_of_coded_interval[j]; i<seiToneMappingTmp.start_of_coded_interval[j+1]; i++) 
+                            p_Vid->seiToneMapping->lut[i] = (px_t) j;
+                    }
+                    p_Vid->seiToneMapping->lut[i] = (px_t) (max_output_num - 1);
+                }
+                break;
+            case 3: // piecewise linear mapping
+                for (int j = 0; j < seiToneMappingTmp.num_pivots + 1; ++j) {
+                    double slope = (double)(seiToneMappingTmp.target_pivot_value[j+1] - seiToneMappingTmp.target_pivot_value[j])/(seiToneMappingTmp.coded_pivot_value[j+1]-seiToneMappingTmp.coded_pivot_value[j]);
+                    for (int i = seiToneMappingTmp.coded_pivot_value[j]; i <= seiToneMappingTmp.coded_pivot_value[j+1]; i++) 
+                        p_Vid->seiToneMapping->lut[i] = (px_t) (seiToneMappingTmp.target_pivot_value[j] + (int)(( (i - seiToneMappingTmp.coded_pivot_value[j]) * slope)));
+                }
+                break;
+            default:
+                break;
+            }
+        }
     }
-  }
-
-  // we need to save everything that is probably overwritten in dec_ref_pic_marking()
-  old_drpm = shr.dec_ref_pic_marking_buffer;
-  old_idr_flag = pSlice->idr_flag;
-
-  old_no_output_of_prior_pics_flag = shr.no_output_of_prior_pics_flag;
-  old_long_term_reference_flag = shr.long_term_reference_flag;
-  old_adaptive_ref_pic_buffering_flag = shr.adaptive_ref_pic_marking_mode_flag;
-
-  // set new initial values
-  pSlice->idr_flag = original_idr_flag;
-  shr.dec_ref_pic_marking_buffer = NULL;
-
-  dec_ref_pic_marking(p_Vid, buf, pSlice);
-
-    while (shr.dec_ref_pic_marking_buffer) {
-        tmp_drpm = shr.dec_ref_pic_marking_buffer;
-        shr.dec_ref_pic_marking_buffer=tmp_drpm->Next;
-        free (tmp_drpm);
-    }
-
-    // restore old values in p_Vid
-    shr.dec_ref_pic_marking_buffer = old_drpm;
-    pSlice->idr_flag = old_idr_flag;
-    shr.no_output_of_prior_pics_flag = old_no_output_of_prior_pics_flag;
-    p_Vid->no_output_of_prior_pics_flag = shr.no_output_of_prior_pics_flag;
-    shr.long_term_reference_flag = old_long_term_reference_flag;
-    shr.adaptive_ref_pic_marking_mode_flag = old_adaptive_ref_pic_buffering_flag;
 
     free (buf);
 }
 
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Full-frame freeze SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_full_frame_freeze_info( byte* payload, int size, VideoParameters *p_Vid )
+void frame_packing_arrangement( byte* payload, int size, VideoParameters *p_Vid )
 {
-  int full_frame_freeze_repetition_period;
-  data_partition_t* buf;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  full_frame_freeze_repetition_period  = buf->ue("SEI: full_frame_freeze_repetition_period");
-
-  free (buf);
-}
-
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Full-frame freeze release SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_full_frame_freeze_release_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-}
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Full-frame snapshot SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_full_frame_snapshot_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int snapshot_id;
-
-  data_partition_t* buf;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  snapshot_id = buf->ue("SEI: snapshot_id");
-
-  free (buf);
-}
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Progressive refinement segment start SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_progressive_refinement_start_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int progressive_refinement_id, num_refinement_steps_minus1;
-
-  data_partition_t* buf;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  progressive_refinement_id   = buf->ue("SEI: progressive_refinement_id");
-  num_refinement_steps_minus1 = buf->ue("SEI: num_refinement_steps_minus1");
-
-  free (buf);
-}
-
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Progressive refinement segment end SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_progressive_refinement_end_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int progressive_refinement_id;
-
-  data_partition_t* buf;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  progressive_refinement_id   = buf->ue("SEI: progressive_refinement_id");
-
-  free (buf);
-}
-
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Motion-constrained slice group set SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_motion_constrained_slice_group_set_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int num_slice_groups_minus1, slice_group_id, exact_match_flag, pan_scan_rect_flag, pan_scan_rect_id;
-  int i;
-  int sliceGroupSize;
-
-  data_partition_t* buf;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  num_slice_groups_minus1   = buf->ue("SEI: num_slice_groups_minus1");
-  sliceGroupSize = ceil(log2(num_slice_groups_minus1 + 1));
-
-  for (i=0; i<=num_slice_groups_minus1;i++)
-  {
-
-    slice_group_id   = buf->u(sliceGroupSize, "SEI: slice_group_id");
-  }
-
-  exact_match_flag   = buf->u(1, "SEI: exact_match_flag");
-  pan_scan_rect_flag = buf->u(1, "SEI: pan_scan_rect_flag");
-
-  if (pan_scan_rect_flag)
-  {
-    pan_scan_rect_id = buf->ue("SEI: pan_scan_rect_id");
-  }
-
-  free (buf);
-}
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the film grain characteristics SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_film_grain_characteristics_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int film_grain_characteristics_cancel_flag;
-  int model_id, separate_colour_description_present_flag;
-  int film_grain_bit_depth_luma_minus8, film_grain_bit_depth_chroma_minus8, film_grain_full_range_flag, film_grain_colour_primaries, film_grain_transfer_characteristics, film_grain_matrix_coefficients;
-  int blending_mode_id, log2_scale_factor, comp_model_present_flag[3];
-  int num_intensity_intervals_minus1, num_model_values_minus1;
-  int intensity_interval_lower_bound, intensity_interval_upper_bound;
-  int comp_model_value;
-  int film_grain_characteristics_repetition_period;
-
-  int c, i, j;
-
-  data_partition_t* buf;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  film_grain_characteristics_cancel_flag = buf->u(1, "SEI: film_grain_characteristics_cancel_flag");
-  if(!film_grain_characteristics_cancel_flag)
-  {
-
-    model_id                                    = buf->u(2, "SEI: model_id");
-    separate_colour_description_present_flag    = buf->u(1, "SEI: separate_colour_description_present_flag");
-    if (separate_colour_description_present_flag)
-    {
-      film_grain_bit_depth_luma_minus8          = buf->u(3, "SEI: film_grain_bit_depth_luma_minus8");
-      film_grain_bit_depth_chroma_minus8        = buf->u(3, "SEI: film_grain_bit_depth_chroma_minus8");
-      film_grain_full_range_flag                = buf->u(1, "SEI: film_grain_full_range_flag");
-      film_grain_colour_primaries               = buf->u(8, "SEI: film_grain_colour_primaries");
-      film_grain_transfer_characteristics       = buf->u(8, "SEI: film_grain_transfer_characteristics");
-      film_grain_matrix_coefficients            = buf->u(8, "SEI: film_grain_matrix_coefficients");
-    }
-    blending_mode_id                            = buf->u(2, "SEI: blending_mode_id");
-    log2_scale_factor                           = buf->u(4, "SEI: log2_scale_factor");
-    for (c = 0; c < 3; c ++)
-    {
-      comp_model_present_flag[c]                = buf->u(1, "SEI: comp_model_present_flag");
-    }
-    for (c = 0; c < 3; c ++)
-      if (comp_model_present_flag[c])
-      {
-        num_intensity_intervals_minus1          = buf->u(8, "SEI: num_intensity_intervals_minus1");
-        num_model_values_minus1                 = buf->u(3, "SEI: num_model_values_minus1");
-        for (i = 0; i <= num_intensity_intervals_minus1; i ++)
-        {
-          intensity_interval_lower_bound        = buf->u(8, "SEI: intensity_interval_lower_bound");
-          intensity_interval_upper_bound        = buf->u(8, "SEI: intensity_interval_upper_bound");
-          for (j = 0; j <= num_model_values_minus1; j++)
-          {
-            comp_model_value                    = buf->se("SEI: comp_model_value");
-          }
-        }
-      }
-    film_grain_characteristics_repetition_period = buf->ue("SEI: film_grain_characteristics_repetition_period");
-  }
-
-  free (buf);
-}
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the deblocking filter display preference SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_deblocking_filter_display_preference_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int deblocking_display_preference_cancel_flag;
-  int display_prior_to_deblocking_preferred_flag, dec_frame_buffering_constraint_flag, deblocking_display_preference_repetition_period;
-
-  data_partition_t* buf;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  deblocking_display_preference_cancel_flag             = buf->u(1, "SEI: deblocking_display_preference_cancel_flag");
-  if(!deblocking_display_preference_cancel_flag)
-  {
-    display_prior_to_deblocking_preferred_flag            = buf->u(1, "SEI: display_prior_to_deblocking_preferred_flag");
-    dec_frame_buffering_constraint_flag                   = buf->u(1, "SEI: dec_frame_buffering_constraint_flag");
-    deblocking_display_preference_repetition_period       = buf->ue("SEI: deblocking_display_preference_repetition_period");
-  }
-
-  free (buf);
-}
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the stereo video info SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_stereo_video_info_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int field_views_flags;
-  int top_field_is_left_view_flag, current_frame_is_left_view_flag, next_frame_is_second_view_flag;
-  int left_view_self_contained_flag;
-  int right_view_self_contained_flag;
-
-  data_partition_t* buf;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  field_views_flags = buf->u(1, "SEI: field_views_flags");
-  if (field_views_flags)
-  {
-    top_field_is_left_view_flag         = buf->u(1, "SEI: top_field_is_left_view_flag");
-  }
-  else
-  {
-    current_frame_is_left_view_flag     = buf->u(1, "SEI: current_frame_is_left_view_flag");
-    next_frame_is_second_view_flag      = buf->u(1, "SEI: next_frame_is_second_view_flag");
-  }
-
-  left_view_self_contained_flag         = buf->u(1, "SEI: left_view_self_contained_flag");
-  right_view_self_contained_flag        = buf->u(1, "SEI: right_view_self_contained_flag");
-
-  free (buf);
-}
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Reserved SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_reserved_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int offset = 0;
-  byte payload_byte;
-
-  while (offset < size)
-  {
-    payload_byte = payload[offset];
-    offset ++;
-  }
-}
-
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Buffering period SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_buffering_period_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  int seq_parameter_set_id, initial_cpb_removal_delay, initial_cpb_removal_delay_offset;
-  unsigned int k;
-
-  data_partition_t* buf;
-  sps_t *sps;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  seq_parameter_set_id   = buf->ue("SEI: seq_parameter_set_id");
-
-  sps = &p_Vid->SeqParSet[seq_parameter_set_id];
-
-  activate_sps(p_Vid, sps);
-
-  // Note: NalHrdBpPresentFlag and CpbDpbDelaysPresentFlag can also be set "by some means not specified in this Recommendation | International Standard"
-  if (sps->vui_parameters_present_flag)
-  {
-
-    if (sps->vui_parameters.nal_hrd_parameters_present_flag)
-    {
-      for (k=0; k<sps->vui_parameters.nal_hrd_parameters.cpb_cnt_minus1+1; k++)
-      {
-        initial_cpb_removal_delay        = buf->u(sps->vui_parameters.nal_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay");
-        initial_cpb_removal_delay_offset = buf->u(sps->vui_parameters.nal_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay_offset");
-
-      }
-    }
-
-    if (sps->vui_parameters.vcl_hrd_parameters_present_flag)
-    {
-      for (k=0; k<sps->vui_parameters.vcl_hrd_parameters.cpb_cnt_minus1+1; k++)
-      {
-        initial_cpb_removal_delay        = buf->u(sps->vui_parameters.vcl_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay");
-        initial_cpb_removal_delay_offset = buf->u(sps->vui_parameters.vcl_hrd_parameters.initial_cpb_removal_delay_length_minus1+1, "SEI: initial_cpb_removal_delay_offset");
-      }
-    }
-  }
-
-  free (buf);
-}
-
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Picture timing SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-void interpret_picture_timing_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  sps_t *active_sps = p_Vid->active_sps;
-
-  int cpb_removal_delay, dpb_output_delay, pic_struct_present_flag, pic_struct;
-  int clock_timestamp_flag;
-  int ct_type, nuit_field_based_flag, counting_type, full_timestamp_flag, discontinuity_flag, cnt_dropped_flag, nframes;
-  int seconds_value, minutes_value, hours_value, seconds_flag, minutes_flag, hours_flag, time_offset;
-  int NumClockTs = 0;
-  int i;
-
-  int cpb_removal_len = 24;
-  int dpb_output_len  = 24;
-
-  bool CpbDpbDelaysPresentFlag;
-
-  data_partition_t* buf;
-
-  if (NULL==active_sps)
-  {
-    fprintf (stderr, "Warning: no active SPS, timing SEI cannot be parsed\n");
-    return;
-  }
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  // CpbDpbDelaysPresentFlag can also be set "by some means not specified in this Recommendation | International Standard"
-  CpbDpbDelaysPresentFlag = active_sps->vui_parameters_present_flag &&
-      (active_sps->vui_parameters.nal_hrd_parameters_present_flag != 0 ||
-       active_sps->vui_parameters.vcl_hrd_parameters_present_flag != 0);
-
-  if (CpbDpbDelaysPresentFlag )
-  {
-    if (active_sps->vui_parameters_present_flag)
-    {
-      if (active_sps->vui_parameters.nal_hrd_parameters_present_flag)
-      {
-        cpb_removal_len = active_sps->vui_parameters.nal_hrd_parameters.cpb_removal_delay_length_minus1 + 1;
-        dpb_output_len  = active_sps->vui_parameters.nal_hrd_parameters.dpb_output_delay_length_minus1  + 1;
-      }
-      else if (active_sps->vui_parameters.vcl_hrd_parameters_present_flag)
-      {
-        cpb_removal_len = active_sps->vui_parameters.vcl_hrd_parameters.cpb_removal_delay_length_minus1 + 1;
-        dpb_output_len  = active_sps->vui_parameters.vcl_hrd_parameters.dpb_output_delay_length_minus1  + 1;
-      }
-    }
-
-    if ((active_sps->vui_parameters.nal_hrd_parameters_present_flag)||
-      (active_sps->vui_parameters.vcl_hrd_parameters_present_flag))
-    {
-      cpb_removal_delay = buf->u(cpb_removal_len, "SEI: cpb_removal_delay");
-      dpb_output_delay  = buf->u(dpb_output_len,  "SEI: dpb_output_delay");
-    }
-  }
-
-  if (!active_sps->vui_parameters_present_flag)
-  {
-    pic_struct_present_flag = 0;
-  }
-  else
-  {
-    pic_struct_present_flag  =  active_sps->vui_parameters.pic_struct_present_flag;
-  }
-
-  if (pic_struct_present_flag)
-  {
-    pic_struct = buf->u(4, "SEI: pic_struct");
-    switch (pic_struct)
-    {
-    case 0:
-    case 1:
-    case 2:
-      NumClockTs = 1;
-      break;
-    case 3:
-    case 4:
-    case 7:
-      NumClockTs = 2;
-      break;
-    case 5:
-    case 6:
-    case 8:
-      NumClockTs = 3;
-      break;
-    default:
-      error("reserved pic_struct used (can't determine NumClockTs)", 500);
-    }
-    for (i=0; i<NumClockTs; i++)
-    {
-      clock_timestamp_flag = buf->u(1, "SEI: clock_timestamp_flag");
-      if (clock_timestamp_flag)
-      {
-        ct_type               = buf->u(2, "SEI: ct_type");
-        nuit_field_based_flag = buf->u(1, "SEI: nuit_field_based_flag");
-        counting_type         = buf->u(5, "SEI: counting_type");
-        full_timestamp_flag   = buf->u(1, "SEI: full_timestamp_flag");
-        discontinuity_flag    = buf->u(1, "SEI: discontinuity_flag");
-        cnt_dropped_flag      = buf->u(1, "SEI: cnt_dropped_flag");
-        nframes               = buf->u(8, "SEI: nframes");
-
-        if (full_timestamp_flag)
-        {
-          seconds_value         = buf->u(6, "SEI: seconds_value");
-          minutes_value         = buf->u(6, "SEI: minutes_value");
-          hours_value           = buf->u(5, "SEI: hours_value");
-        }
-        else
-        {
-          seconds_flag          = buf->u(1, "SEI: seconds_flag");
-          if (seconds_flag)
-          {
-            seconds_value         = buf->u(6, "SEI: seconds_value");
-            minutes_flag          = buf->u(1, "SEI: minutes_flag");
-            if(minutes_flag)
-            {
-              minutes_value         = buf->u(6, "SEI: minutes_value");
-              hours_flag            = buf->u(1, "SEI: hours_flag");
-              if(hours_flag)
-              {
-                hours_value           = buf->u(5, "SEI: hours_value");
-              }
-            }
-          }
-        }
-        {
-          int time_offset_length;
-          if (active_sps->vui_parameters.vcl_hrd_parameters_present_flag)
-            time_offset_length = active_sps->vui_parameters.vcl_hrd_parameters.time_offset_length;
-          else if (active_sps->vui_parameters.nal_hrd_parameters_present_flag)
-            time_offset_length = active_sps->vui_parameters.nal_hrd_parameters.time_offset_length;
-          else
-            time_offset_length = 24;
-          if (time_offset_length)
-            time_offset = buf->i(time_offset_length, "SEI: time_offset");
-          else
-            time_offset = 0;
-        }
-      }
-    }
-  }
-
-  free (buf);
-}
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the Frame Packing Arrangement SEI message
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- ************************************************************************
- */
-void interpret_frame_packing_arrangement_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-  frame_packing_arrangement_information_struct seiFramePackingArrangement;
-  data_partition_t* buf;
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  seiFramePackingArrangement.frame_packing_arrangement_id = (unsigned int) buf->ue( "SEI: frame_packing_arrangement_id");
-  seiFramePackingArrangement.frame_packing_arrangement_cancel_flag = buf->u(1, "SEI: frame_packing_arrangement_cancel_flag");
-  if ( !seiFramePackingArrangement.frame_packing_arrangement_cancel_flag )
-  {
-    seiFramePackingArrangement.frame_packing_arrangement_type = (unsigned char) buf->u(7, "SEI: frame_packing_arrangement_type");
-    seiFramePackingArrangement.quincunx_sampling_flag         = buf->u(1, "SEI: quincunx_sampling_flag");
-    seiFramePackingArrangement.content_interpretation_type    = (unsigned char) buf->u(6, "SEI: content_interpretation_type");
-    seiFramePackingArrangement.spatial_flipping_flag          = buf->u(1, "SEI: spatial_flipping_flag");
-    seiFramePackingArrangement.frame0_flipped_flag            = buf->u(1, "SEI: frame0_flipped_flag");
-    seiFramePackingArrangement.field_views_flag               = buf->u(1, "SEI: field_views_flag");
-    seiFramePackingArrangement.current_frame_is_frame0_flag   = buf->u(1, "SEI: current_frame_is_frame0_flag");
-    seiFramePackingArrangement.frame0_self_contained_flag     = buf->u(1, "SEI: frame0_self_contained_flag");
-    seiFramePackingArrangement.frame1_self_contained_flag     = buf->u(1, "SEI: frame1_self_contained_flag");
-    if ( !seiFramePackingArrangement.quincunx_sampling_flag && seiFramePackingArrangement.frame_packing_arrangement_type != 5 )
-    {
-      seiFramePackingArrangement.frame0_grid_position_x = (unsigned char)buf->u(4, "SEI: frame0_grid_position_x");
-      seiFramePackingArrangement.frame0_grid_position_y = (unsigned char)buf->u(4, "SEI: frame0_grid_position_y");
-      seiFramePackingArrangement.frame1_grid_position_x = (unsigned char)buf->u(4, "SEI: frame1_grid_position_x");
-      seiFramePackingArrangement.frame1_grid_position_y = (unsigned char)buf->u(4, "SEI: frame1_grid_position_y");
-    }
-    seiFramePackingArrangement.frame_packing_arrangement_reserved_byte = (unsigned char) buf->u(8, "SEI: frame_packing_arrangement_reserved_byte");
-    seiFramePackingArrangement.frame_packing_arrangement_repetition_period = (unsigned int) buf->ue("SEI: frame_packing_arrangement_repetition_period");
-  }
-  seiFramePackingArrangement.frame_packing_arrangement_extension_flag = buf->u(1, "SEI: frame_packing_arrangement_extension_flag");
-
-  free (buf);
-}
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the HDR tone-mapping SEI message (JVT-T060)
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
-typedef struct
-{
-  unsigned int  tone_map_id;
-  unsigned char tone_map_cancel_flag;
-  unsigned int  tone_map_repetition_period;
-  unsigned char coded_data_bit_depth;
-  unsigned char sei_bit_depth;
-  unsigned int  model_id;
-  // variables for model 0
-  int  min_value;
-  int  max_value;
-  // variables for model 1
-  int  sigmoid_midpoint;
-  int  sigmoid_width;
-  // variables for model 2
-  int start_of_coded_interval[1<<MAX_SEI_BIT_DEPTH];
-  // variables for model 3
-  int num_pivots;
-  int coded_pivot_value[MAX_NUM_PIVOTS];
-  int sei_pivot_value[MAX_NUM_PIVOTS];
-} tone_mapping_struct_tmp;
-
-void interpret_tone_mapping( byte* payload, int size, VideoParameters *p_Vid )
-{
-  tone_mapping_struct_tmp seiToneMappingTmp;
-  data_partition_t* buf;
-  int i = 0, max_coded_num, max_output_num;
-
-  memset (&seiToneMappingTmp, 0, sizeof (tone_mapping_struct_tmp));
-
-  buf = new data_partition_t;
-  buf->bitstream_length = size;
-  buf->streamBuffer = payload;
-  buf->frame_bitoffset = 0;
-
-  seiToneMappingTmp.tone_map_id = buf->ue("SEI: tone_map_id");
-  seiToneMappingTmp.tone_map_cancel_flag = (unsigned char) buf->u(1, "SEI: tone_map_cancel_flag");
-
-  if (!seiToneMappingTmp.tone_map_cancel_flag) 
-  {
-    seiToneMappingTmp.tone_map_repetition_period  = buf->ue("SEI: tone_map_repetition_period");
-    seiToneMappingTmp.coded_data_bit_depth        = (unsigned char) buf->u(8, "SEI: coded_data_bit_depth");
-    seiToneMappingTmp.sei_bit_depth               = (unsigned char) buf->u(8, "SEI: sei_bit_depth");
-    seiToneMappingTmp.model_id                    = buf->ue("SEI: model_id");
-
-    max_coded_num  = 1<<seiToneMappingTmp.coded_data_bit_depth;
-    max_output_num = 1<<seiToneMappingTmp.sei_bit_depth;
-
-    if (seiToneMappingTmp.model_id == 0) 
-    { // linear mapping with clipping
-      seiToneMappingTmp.min_value   = buf->u(32, "SEI: min_value");
-      seiToneMappingTmp.max_value   = buf->u(32, "SEI: min_value");
-    }
-    else if (seiToneMappingTmp.model_id == 1) 
-    { // sigmoidal mapping
-      seiToneMappingTmp.sigmoid_midpoint = buf->u(32, "SEI: sigmoid_midpoint");
-      seiToneMappingTmp.sigmoid_width    = buf->u(32, "SEI: sigmoid_width");
-    }
-    else if (seiToneMappingTmp.model_id == 2) 
-    { // user defined table mapping
-      for (i=0; i<max_output_num; i++) 
-      {
-        seiToneMappingTmp.start_of_coded_interval[i] = buf->u((((seiToneMappingTmp.coded_data_bit_depth+7)>>3)<<3), "SEI: start_of_coded_interval");
-      }
-    }
-    else if (seiToneMappingTmp.model_id == 3) 
-    {  // piece-wise linear mapping
-      seiToneMappingTmp.num_pivots = buf->u(16, "SEI: num_pivots");
-      seiToneMappingTmp.coded_pivot_value[0] = 0;
-      seiToneMappingTmp.sei_pivot_value[0] = 0;
-      seiToneMappingTmp.coded_pivot_value[seiToneMappingTmp.num_pivots+1] = max_coded_num-1;
-      seiToneMappingTmp.sei_pivot_value[seiToneMappingTmp.num_pivots+1] = max_output_num-1;
-
-      for (i=1; i < seiToneMappingTmp.num_pivots+1; i++) 
-      {
-        seiToneMappingTmp.coded_pivot_value[i] = buf->u( (((seiToneMappingTmp.coded_data_bit_depth+7)>>3)<<3), "SEI: coded_pivot_value");
-        seiToneMappingTmp.sei_pivot_value[i] = buf->u( (((seiToneMappingTmp.sei_bit_depth+7)>>3)<<3), "SEI: sei_pivot_value");
-      }
-    }
-
-    // Currently, only when the map_id == 0, the tone-mapping is actually applied.
-    if (seiToneMappingTmp.tone_map_id== 0) 
-    {
-      int j;
-      p_Vid->seiToneMapping->seiHasTone_mapping = 1;
-      p_Vid->seiToneMapping->tone_map_repetition_period = seiToneMappingTmp.tone_map_repetition_period;
-      p_Vid->seiToneMapping->coded_data_bit_depth = seiToneMappingTmp.coded_data_bit_depth;
-      p_Vid->seiToneMapping->sei_bit_depth = seiToneMappingTmp.sei_bit_depth;
-      p_Vid->seiToneMapping->model_id = seiToneMappingTmp.model_id;
-      p_Vid->seiToneMapping->count = 0;
-
-      // generate the look up table of tone mapping
-      switch(seiToneMappingTmp.model_id)
-      {
-      case 0:            // linear mapping with clipping
-        for (i=0; i<=seiToneMappingTmp.min_value; i++)
-          p_Vid->seiToneMapping->lut[i] = 0;
-
-        for (i=seiToneMappingTmp.min_value+1; i < seiToneMappingTmp.max_value; i++)
-          p_Vid->seiToneMapping->lut[i] = (imgpel) ((i-seiToneMappingTmp.min_value) * (max_output_num-1)/(seiToneMappingTmp.max_value- seiToneMappingTmp.min_value));
-
-        for (i=seiToneMappingTmp.max_value; i<max_coded_num; i++)
-          p_Vid->seiToneMapping->lut[i] = (imgpel) (max_output_num - 1);
-        break;
-      case 1: // sigmoid mapping
-
-        for (i=0; i < max_coded_num; i++) 
-        {
-          double tmp = 1.0 + exp( -6*(double)(i-seiToneMappingTmp.sigmoid_midpoint)/seiToneMappingTmp.sigmoid_width);
-          p_Vid->seiToneMapping->lut[i] = (imgpel)( (double)(max_output_num-1)/ tmp + 0.5);
-        }
-        break;
-      case 2: // user defined table
-        if (0 < max_output_num-1)
-        {
-          for (j=0; j<max_output_num-1; j++) 
-          {
-            for (i=seiToneMappingTmp.start_of_coded_interval[j]; i<seiToneMappingTmp.start_of_coded_interval[j+1]; i++) 
-            {
-              p_Vid->seiToneMapping->lut[i] = (imgpel) j;
-            }
-          }
-          p_Vid->seiToneMapping->lut[i] = (imgpel) (max_output_num - 1);
-        }
-        break;
-      case 3: // piecewise linear mapping
-        for (j=0; j<seiToneMappingTmp.num_pivots+1; j++) 
-        {
-          double slope = (double)(seiToneMappingTmp.sei_pivot_value[j+1] - seiToneMappingTmp.sei_pivot_value[j])/(seiToneMappingTmp.coded_pivot_value[j+1]-seiToneMappingTmp.coded_pivot_value[j]);
-          for (i=seiToneMappingTmp.coded_pivot_value[j]; i <= seiToneMappingTmp.coded_pivot_value[j+1]; i++) 
-          {
-            p_Vid->seiToneMapping->lut[i] = (imgpel) (seiToneMappingTmp.sei_pivot_value[j] + (int)(( (i - seiToneMappingTmp.coded_pivot_value[j]) * slope)));
-          }
-        }
-        break;
-
-      default:
-        break;
-      } // end switch
-    }
-  } // end !tone_map_cancel_flag
-  free (buf);
-}
-
-// tone map using the look-up-table generated according to SEI tone mapping message
-void tone_map (imgpel** imgX, imgpel* lut, int size_x, int size_y)
-{
-  int i, j;
-
-  for(i=0;i<size_y;i++)
-  {
-    for(j=0;j<size_x;j++)
-    {
-      imgX[i][j] = (imgpel)lut[imgX[i][j]];
-    }
-  }
-}
-
-void init_tone_mapping_sei(ToneMappingSEI *seiToneMapping) 
-{
-  seiToneMapping->seiHasTone_mapping = 0;
-  seiToneMapping->count = 0;
-}
-
-void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping) 
-{
-
-  if(seiToneMapping->tone_map_repetition_period == 0)
-  {
-    seiToneMapping->seiHasTone_mapping = 0;
-    seiToneMapping->count = 0;
-  }
-  else if (seiToneMapping->tone_map_repetition_period>1)
-  {
-    seiToneMapping->count++;
-    if (seiToneMapping->count>=seiToneMapping->tone_map_repetition_period) 
-    {
-      seiToneMapping->seiHasTone_mapping = 0;
-      seiToneMapping->count = 0;
-    }
-  }
-}
-
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the post filter hints SEI message (JVT-U035)
- *  \param payload
- *     a pointer that point to the sei payload
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *    
- ************************************************************************
- */
-void interpret_post_filter_hints_info( byte* payload, int size, VideoParameters *p_Vid )
-{
-    data_partition_t* buf;
-
-    buf = new data_partition_t;
+    data_partition_t* buf = new data_partition_t;
     buf->bitstream_length = size;
     buf->streamBuffer = payload;
     buf->frame_bitoffset = 0;
 
-    uint32_t filter_hint_size_y = buf->ue("SEI: filter_hint_size_y"); // interpret post-filter hint SEI here
-    uint32_t filter_hint_size_x = buf->ue("SEI: filter_hint_size_x"); // interpret post-filter hint SEI here
-    uint32_t filter_hint_type   = buf->u(2, "SEI: filter_hint_type"); // interpret post-filter hint SEI here
-    int32_t* filter_hint[3];
-
-    for (int color_component = 0; color_component < 3; ++color_component) {
-        filter_hint[color_component] = new int[filter_hint_size_x * filter_hint_size_y];
-        for (int cy = 0; cy < filter_hint_size_y; ++cy) {
-            for (int cx = 0; cx < filter_hint_size_x; ++cx)
-                filter_hint[color_component][cy * filter_hint_size_x + cx] = buf->se("SEI: filter_hint"); // interpret post-filter hint SEI here
+    uint32_t frame_packing_arrangement_id;
+    bool     frame_packing_arrangement_cancel_flag;
+    uint8_t  frame_packing_arrangement_type;
+    bool     quincunx_sampling_flag;
+    uint8_t  content_interpretation_type;
+    bool     spatial_flipping_flag;
+    bool     frame0_flipped_flag;
+    bool     field_views_flag;
+    bool     current_frame_is_frame0_flag;
+    bool     frame0_self_contained_flag;
+    bool     frame1_self_contained_flag;
+    uint8_t  frame0_grid_position_x;
+    uint8_t  frame0_grid_position_y;
+    uint8_t  frame1_grid_position_x;
+    uint8_t  frame1_grid_position_y;
+    uint8_t  frame_packing_arrangement_reserved_byte;
+    uint32_t frame_packing_arrangement_repetition_period;
+    bool     frame_packing_arrangement_extension_flag;
+  
+    frame_packing_arrangement_id          = buf->ue( "SEI: frame_packing_arrangement_id");
+    frame_packing_arrangement_cancel_flag = buf->u(1, "SEI: frame_packing_arrangement_cancel_flag");
+    if (!frame_packing_arrangement_cancel_flag) {
+        frame_packing_arrangement_type = buf->u(7, "SEI: frame_packing_arrangement_type");
+        quincunx_sampling_flag         = buf->u(1, "SEI: quincunx_sampling_flag");
+        content_interpretation_type    = buf->u(6, "SEI: content_interpretation_type");
+        spatial_flipping_flag          = buf->u(1, "SEI: spatial_flipping_flag");
+        frame0_flipped_flag            = buf->u(1, "SEI: frame0_flipped_flag");
+        field_views_flag               = buf->u(1, "SEI: field_views_flag");
+        current_frame_is_frame0_flag   = buf->u(1, "SEI: current_frame_is_frame0_flag");
+        frame0_self_contained_flag     = buf->u(1, "SEI: frame0_self_contained_flag");
+        frame1_self_contained_flag     = buf->u(1, "SEI: frame1_self_contained_flag");
+        if (!quincunx_sampling_flag && frame_packing_arrangement_type != 5) {
+            frame0_grid_position_x = buf->u(4, "SEI: frame0_grid_position_x");
+            frame0_grid_position_y = buf->u(4, "SEI: frame0_grid_position_y");
+            frame1_grid_position_x = buf->u(4, "SEI: frame1_grid_position_x");
+            frame1_grid_position_y = buf->u(4, "SEI: frame1_grid_position_y");
         }
-        delete []filter_hint[color_component];
+        frame_packing_arrangement_reserved_byte     = buf->u(8, "SEI: frame_packing_arrangement_reserved_byte");
+        frame_packing_arrangement_repetition_period = buf->ue("SEI: frame_packing_arrangement_repetition_period");
+    }
+    frame_packing_arrangement_extension_flag = buf->u(1, "SEI: frame_packing_arrangement_extension_flag");
+
+    free (buf);
+}
+
+void display_orientation( byte* payload, int size, VideoParameters *p_Vid )
+{
+    data_partition_t* buf = new data_partition_t;
+    buf->bitstream_length = size;
+    buf->streamBuffer = payload;
+    buf->frame_bitoffset = 0;
+  
+    bool display_orientation_cancel_flag = buf->u(1, "SEI: display_orientation_cancel_flag");
+    if (!display_orientation_cancel_flag) {
+        bool     hor_flip, ver_flip;
+        uint16_t anticlockwise_rotation;
+        uint32_t display_orientation_repetition_period;
+        bool     display_orientation_extension_flag;
+        hor_flip                              = buf->u(1, "SEI: hor_flip");
+        ver_flip                              = buf->u(1, "SEI: ver_flip");
+        anticlockwise_rotation                = buf->u(16, "SEI: anticlockwise_rotation");
+        display_orientation_repetition_period = buf->ue("SEI: display_orientation_repetition_period");
+        display_orientation_extension_flag    = buf->u(1, "SEI: display_orientation_extension_flag");
     }
 
-    bool additional_extension_flag = buf->u(1, "SEI: additional_extension_flag"); // interpret post-filter hint SEI here
+    free (buf);
+}
 
-    filter_hint_type = 0;
-    additional_extension_flag = false;
+void reserved_sei_message( byte* payload, int size, VideoParameters *p_Vid )
+{
+    int offset = 0;
+    byte payload_byte;
 
-    delete buf;
+    while (offset < size) {
+        payload_byte = payload[offset];
+        offset ++;
+    }
 }
 
 
 
-/*!
- ************************************************************************
- *  \brief
- *     Interpret the SEI rbsp
- *  \param msg
- *     a pointer that point to the sei message.
- *  \param size
- *     the size of the sei message
- *  \param p_Vid
- *     the image pointer
- *
- ************************************************************************
- */
+
+
+
+// tone map using the look-up-table generated according to SEI tone mapping message
+void tone_map (px_t** imgX, px_t* lut, int size_x, int size_y)
+{
+    for (int i = 0; i < size_y; ++i) {
+        for (int j = 0; j < size_x; ++j)
+            imgX[i][j] = (px_t)lut[imgX[i][j]];
+    }
+}
+
+void init_tone_mapping_sei(ToneMappingSEI *seiToneMapping) 
+{
+    seiToneMapping->seiHasTone_mapping = 0;
+    seiToneMapping->count = 0;
+}
+
+void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping) 
+{
+    if (seiToneMapping->tone_map_repetition_period == 0) {
+        seiToneMapping->seiHasTone_mapping = 0;
+        seiToneMapping->count = 0;
+    } else if (seiToneMapping->tone_map_repetition_period > 1) {
+        seiToneMapping->count++;
+        if (seiToneMapping->count>=seiToneMapping->tone_map_repetition_period) {
+            seiToneMapping->seiHasTone_mapping = 0;
+            seiToneMapping->count = 0;
+        }
+    }
+}
+
+
 void parse_sei(byte *msg, int size, VideoParameters *p_Vid, slice_t *pSlice)
 {
     int payload_type = 0;
@@ -1570,84 +1064,119 @@ void parse_sei(byte *msg, int size, VideoParameters *p_Vid, slice_t *pSlice)
         payload_size += tmp_byte;   // this is the last byte
 
         switch (payload_type) {    // sei_payload( type, size );
-
         case SEI_BUFFERING_PERIOD:
-            interpret_buffering_period_info( msg+offset, payload_size, p_Vid );
+            buffering_period( msg+offset, payload_size, p_Vid );
             break;
         case SEI_PIC_TIMING:
-            interpret_picture_timing_info( msg+offset, payload_size, p_Vid );
+            pic_timing( msg+offset, payload_size, p_Vid );
             break;
         case SEI_PAN_SCAN_RECT:
-            interpret_pan_scan_rect_info( msg+offset, payload_size, p_Vid );
+            pan_scan_rect( msg+offset, payload_size, p_Vid );
             break;
         case SEI_FILLER_PAYLOAD:
-            interpret_filler_payload_info( msg+offset, payload_size, p_Vid );
+            filler_payload( msg+offset, payload_size, p_Vid );
             break;
         case SEI_USER_DATA_REGISTERED_ITU_T_T35:
-            interpret_user_data_registered_itu_t_t35_info( msg+offset, payload_size, p_Vid );
+            user_data_registered_itu_t_t35( msg+offset, payload_size, p_Vid );
             break;
         case SEI_USER_DATA_UNREGISTERED:
-            interpret_user_data_unregistered_info( msg+offset, payload_size, p_Vid );
+            user_data_unregistered( msg+offset, payload_size, p_Vid );
             break;
         case SEI_RECOVERY_POINT:
-            interpret_recovery_point_info( msg+offset, payload_size, p_Vid );
+            recovery_point( msg+offset, payload_size, p_Vid );
             break;
         case SEI_DEC_REF_PIC_MARKING_REPETITION:
-            interpret_dec_ref_pic_marking_repetition_info( msg+offset, payload_size, p_Vid, pSlice );
+            dec_ref_pic_marking_repetition( msg+offset, payload_size, p_Vid, pSlice );
             break;
         case SEI_SPARE_PIC:
-            interpret_spare_pic( msg+offset, payload_size, p_Vid );
+            spare_pic( msg+offset, payload_size, p_Vid );
             break;
         case SEI_SCENE_INFO:
-            interpret_scene_information( msg+offset, payload_size, p_Vid );
+            scene_info( msg+offset, payload_size, p_Vid );
             break;
         case SEI_SUB_SEQ_INFO:
-            interpret_subsequence_info( msg+offset, payload_size, p_Vid );
+            sub_seq_info( msg+offset, payload_size, p_Vid );
             break;
         case SEI_SUB_SEQ_LAYER_CHARACTERISTICS:
-            interpret_subsequence_layer_characteristics_info( msg+offset, payload_size, p_Vid );
+            sub_seq_layer_characteristics( msg+offset, payload_size, p_Vid );
             break;
         case SEI_SUB_SEQ_CHARACTERISTICS:
-            interpret_subsequence_characteristics_info( msg+offset, payload_size, p_Vid );
+            sub_seq_characteristics( msg+offset, payload_size, p_Vid );
             break;
         case SEI_FULL_FRAME_FREEZE:
-            interpret_full_frame_freeze_info( msg+offset, payload_size, p_Vid );
+            full_frame_freeze( msg+offset, payload_size, p_Vid );
             break;
         case SEI_FULL_FRAME_FREEZE_RELEASE:
-            interpret_full_frame_freeze_release_info( msg+offset, payload_size, p_Vid );
+            full_frame_freeze_release( msg+offset, payload_size, p_Vid );
             break;
         case SEI_FULL_FRAME_SNAPSHOT:
-            interpret_full_frame_snapshot_info( msg+offset, payload_size, p_Vid );
+            full_frame_snapshot( msg+offset, payload_size, p_Vid );
             break;
         case SEI_PROGRESSIVE_REFINEMENT_SEGMENT_START:
-            interpret_progressive_refinement_start_info( msg+offset, payload_size, p_Vid );
+            progressive_refinement_segment_start( msg+offset, payload_size, p_Vid );
             break;
         case SEI_PROGRESSIVE_REFINEMENT_SEGMENT_END:
-            interpret_progressive_refinement_end_info( msg+offset, payload_size, p_Vid );
+            progressive_refinement_segment_end( msg+offset, payload_size, p_Vid );
             break;
         case SEI_MOTION_CONSTRAINED_SLICE_GROUP_SET:
-            interpret_motion_constrained_slice_group_set_info( msg+offset, payload_size, p_Vid );
+            motion_constrained_slice_group_set( msg+offset, payload_size, p_Vid );
+            break;
         case SEI_FILM_GRAIN_CHARACTERISTICS:
-            interpret_film_grain_characteristics_info ( msg+offset, payload_size, p_Vid );
+            film_grain_characteristics( msg+offset, payload_size, p_Vid );
             break;
         case SEI_DEBLOCKING_FILTER_DISPLAY_PREFERENCE:
-            interpret_deblocking_filter_display_preference_info ( msg+offset, payload_size, p_Vid );
+            deblocking_filter_display_preference( msg+offset, payload_size, p_Vid );
             break;
         case SEI_STEREO_VIDEO_INFO:
-            interpret_stereo_video_info_info ( msg+offset, payload_size, p_Vid );
-            break;
-        case SEI_TONE_MAPPING:
-            interpret_tone_mapping( msg+offset, payload_size, p_Vid );
+            stereo_video_info( msg+offset, payload_size, p_Vid );
             break;
         case SEI_POST_FILTER_HINTS:
-            interpret_post_filter_hints_info ( msg+offset, payload_size, p_Vid );
+            post_filter_hints( msg+offset, payload_size, p_Vid );
+            break;
+        case SEI_TONE_MAPPING_INFO:
+            tone_mapping_info( msg+offset, payload_size, p_Vid );
+            break;
+        case SEI_SCALABILITY_INFO:
+        case SEI_SUB_PIC_SCALABLE_LAYER:
+        case SEI_NON_REQUIRED_LAYER_REP:
+        case SEI_PRIORITY_LAYER_INFO:
+        case SEI_LAYERS_NOT_PRESENT:
+        case SEI_LAYER_DEPENDENCY_CHANGE:
+        case SEI_SCALABLE_NESTING:
+        case SEI_BASE_LAYER_TEMPORAL_HRD:
+        case SEI_QUALITY_LAYER_INTEGRITY_CHECK:
+        case SEI_REDUNDANT_PIC_PROPERTY:
+        case SEI_TL0_DEP_REP_INDEX:
+        case SEI_TL_SWITCHING_POINT:
+        case SEI_PARALLEL_DECODING_INFO:
+        case SEI_MVC_SCALABLE_NESTING:
+        case SEI_VIEW_SCALABILITY_INFO:
+        case SEI_MULTIVIEW_SCENE_INFO:
+        case SEI_MULTIVIEW_ACQUISITION_INFO:
+        case SEI_NON_REQUIRED_VIEW_COMPONENT:
+        case SEI_VIEW_DEPENDENCY_CHANGE:
+        case SEI_OPERATION_POINTS_NOT_PRESENT:
+        case SEI_BASE_VIEW_TEMPORAL_HRD:
+            reserved_sei_message( msg+offset, payload_size, p_Vid );
             break;
         case SEI_FRAME_PACKING_ARRANGEMENT:
-            interpret_frame_packing_arrangement_info( msg+offset, payload_size, p_Vid );
+            frame_packing_arrangement( msg+offset, payload_size, p_Vid );
             break;
+        case SEI_MULTIVIEW_VIEW_POSITION:
+            reserved_sei_message( msg+offset, payload_size, p_Vid );
+            break;
+        case SEI_DISPLAY_ORIENTATION:
+            display_orientation(msg+offset, payload_size, p_Vid);
+            break;
+        case SEI_MVCD_SCALABLE_NESTING:
+        case SEI_MVCD_VIEW_SCALABILITY_INFO:
+        case SEI_DEPTH_REPRESENTATION_INFO:
+        case SEI_THREE_DIMENSIONAL_REFERENCE_DISPLAYS_INFO:
+        case SEI_DEPTH_TIMING:
+        case SEI_DEPTH_SAMPLING_INFO:
         default:
-            interpret_reserved_info( msg+offset, payload_size, p_Vid );
-            break;    
+            reserved_sei_message( msg+offset, payload_size, p_Vid );
+            break;
         }
         offset += payload_size;
 

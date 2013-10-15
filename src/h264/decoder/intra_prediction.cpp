@@ -32,12 +32,12 @@ namespace vio  {
 namespace h264 {
 
 
-static void neighbouring_samples_4x4(imgpel* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_4x4(px_t* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
 {
     slice_t* slice = mb->p_Slice;
     pps_t* pps = slice->active_pps;
 
-    imgpel** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
+    px_t** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
 
     nb_t nbA[4];
     for (int i = 0; i < 4; ++i) {
@@ -69,7 +69,7 @@ static void neighbouring_samples_4x4(imgpel* pred, bool* available, mb_t* mb, Co
 
 #define p(x,y) (pred[((y) + 1) * 9 + ((x) + 1)])
     if (available[3]) {
-        imgpel *pix = &img[nbD.y][nbD.x];
+        px_t *pix = &img[nbD.y][nbD.x];
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
@@ -77,7 +77,7 @@ static void neighbouring_samples_4x4(imgpel* pred, bool* available, mb_t* mb, Co
             p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
-        imgpel *pix = &img[nbB.y][nbB.x];
+        px_t *pix = &img[nbB.y][nbB.x];
         for (int x = 0; x < 4; ++x)
             p(x, -1) = pix[x];
         pix = &img[nbC.y][nbC.x - 4];
@@ -88,12 +88,12 @@ static void neighbouring_samples_4x4(imgpel* pred, bool* available, mb_t* mb, Co
 #undef p
 }
 
-static void neighbouring_samples_8x8(imgpel* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_8x8(px_t* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
 {
     slice_t* slice = mb->p_Slice;
     pps_t* pps = slice->active_pps;
 
-    imgpel** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
+    px_t** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
 
     nb_t nbA[8];
     for (int i = 0; i < 8; ++i) {
@@ -123,12 +123,12 @@ static void neighbouring_samples_8x8(imgpel* pred, bool* available, mb_t* mb, Co
         available[3] = nbD.mb    ? 1 : 0;
     }
 
-    imgpel predLF[17 * 17];
+    px_t predLF[17 * 17];
 
 #define plf(x,y) (pred[((y) + 1) * 17 + ((x) + 1)])
 #define p(x,y) (predLF[((y) + 1) * 17 + ((x) + 1)])
     if (available[3]) {
-        imgpel *pix = &img[nbD.y][nbD.x];
+        px_t *pix = &img[nbD.y][nbD.x];
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
@@ -136,7 +136,7 @@ static void neighbouring_samples_8x8(imgpel* pred, bool* available, mb_t* mb, Co
             p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
-        imgpel *pix = &img[nbB.y][nbB.x];
+        px_t *pix = &img[nbB.y][nbB.x];
         for (int x = 0; x < 8; ++x)
             p(x, -1) = pix[x];
         pix = &img[nbC.y][nbC.x - 8];
@@ -177,12 +177,12 @@ static void neighbouring_samples_8x8(imgpel* pred, bool* available, mb_t* mb, Co
 #undef plf
 }
 
-static void neighbouring_samples_16x16(imgpel* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_16x16(px_t* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
 {
     slice_t* slice = mb->p_Slice;
     pps_t* pps = slice->active_pps;
 
-    imgpel** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
+    px_t** img = pl ? slice->dec_picture->imgUV[pl - 1] : slice->dec_picture->imgY;
 
     nb_t nbA[16];
     for (int i = 0; i < 16; ++i) {
@@ -210,7 +210,7 @@ static void neighbouring_samples_16x16(imgpel* pred, bool* available, mb_t* mb, 
 
 #define p(x,y) (pred[((y) + 1) * 17 + ((x) + 1)])
     if (available[3]) {
-        imgpel *pix = &img[nbD.y][nbD.x];
+        px_t *pix = &img[nbD.y][nbD.x];
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
@@ -218,20 +218,20 @@ static void neighbouring_samples_16x16(imgpel* pred, bool* available, mb_t* mb, 
             p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
-        imgpel *pix = &img[nbB.y][nbB.x];
+        px_t *pix = &img[nbB.y][nbB.x];
         for (int x = 0; x < 16; ++x)
             p(x, -1) = pix[x];
     }
 #undef p
 }
 
-static void neighbouring_samples_chroma(imgpel* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
+static void neighbouring_samples_chroma(px_t* pred, bool* available, mb_t* mb, ColorPlane pl, int xO, int yO)
 {
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
     pps_t* pps = slice->active_pps;
 
-    imgpel** img = slice->dec_picture->imgUV[pl - 1];
+    px_t** img = slice->dec_picture->imgUV[pl - 1];
 
     nb_t nbA[16];
     for (int i = 0; i < sps->MbHeightC; ++i) {
@@ -261,7 +261,7 @@ static void neighbouring_samples_chroma(imgpel* pred, bool* available, mb_t* mb,
 
 #define p(x,y) (pred[((y) + 1) * 17 + ((x) + 1)])
     if (available[3]) {
-        imgpel *pix = &img[nbD.y][nbD.x];
+        px_t *pix = &img[nbD.y][nbD.x];
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
@@ -273,7 +273,7 @@ static void neighbouring_samples_chroma(imgpel* pred, bool* available, mb_t* mb,
             p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
-        imgpel *pix = &img[nbB.y][nbB.x];
+        px_t *pix = &img[nbB.y][nbB.x];
         for (int x = 0; x < sps->MbWidthC; ++x)
             p(x, -1) = pix[x];
     }
@@ -284,7 +284,7 @@ static void neighbouring_samples_chroma(imgpel* pred, bool* available, mb_t* mb,
 #define pred4x4L(x,y) (pred[(y) * 16 + (x)])
 #define p(x,y) (pix[((y) + 1) * 9 + ((x) + 1)])
 
-static void intra4x4_vert_pred_normal(imgpel *pred, imgpel *pix, bool *available)
+static void intra4x4_vert_pred_normal(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
@@ -293,7 +293,7 @@ static void intra4x4_vert_pred_normal(imgpel *pred, imgpel *pix, bool *available
     }
 }
 
-static void intra4x4_hor_pred_normal(imgpel *pred, imgpel *pix, bool *available)
+static void intra4x4_hor_pred_normal(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
@@ -302,7 +302,7 @@ static void intra4x4_hor_pred_normal(imgpel *pred, imgpel *pix, bool *available)
     }
 }
 
-static void intra4x4_dc_pred_normal(imgpel *pred, imgpel *pix, bool *available, int BitDepth)
+static void intra4x4_dc_pred_normal(px_t *pred, px_t *pix, bool *available, int BitDepth)
 {
     bool block_available_left = available[0];
     bool block_available_up   = available[1];
@@ -334,7 +334,7 @@ static void intra4x4_dc_pred_normal(imgpel *pred, imgpel *pix, bool *available, 
     }
 }
 
-static void intra4x4_diag_down_left_pred_normal(imgpel *pred, imgpel *pix, bool *available)
+static void intra4x4_diag_down_left_pred_normal(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
@@ -346,7 +346,7 @@ static void intra4x4_diag_down_left_pred_normal(imgpel *pred, imgpel *pix, bool 
     }
 }
 
-static void intra4x4_diag_down_right_pred_normal(imgpel *pred, imgpel *pix, bool *available)
+static void intra4x4_diag_down_right_pred_normal(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
@@ -360,7 +360,7 @@ static void intra4x4_diag_down_right_pred_normal(imgpel *pred, imgpel *pix, bool
     }
 }
 
-static void intra4x4_vert_right_pred_normal(imgpel *pred, imgpel *pix, bool *available)
+static void intra4x4_vert_right_pred_normal(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
@@ -377,7 +377,7 @@ static void intra4x4_vert_right_pred_normal(imgpel *pred, imgpel *pix, bool *ava
     }
 }
 
-static void intra4x4_hor_down_pred_normal(imgpel *pred, imgpel *pix, bool *available)
+static void intra4x4_hor_down_pred_normal(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
@@ -394,7 +394,7 @@ static void intra4x4_hor_down_pred_normal(imgpel *pred, imgpel *pix, bool *avail
     }
 }
 
-static void intra4x4_vert_left_pred_normal(imgpel *pred, imgpel *pix, bool *available)
+static void intra4x4_vert_left_pred_normal(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
@@ -406,7 +406,7 @@ static void intra4x4_vert_left_pred_normal(imgpel *pred, imgpel *pix, bool *avai
     }
 }
 
-static void intra4x4_hor_up_pred_normal(imgpel *pred, imgpel *pix, bool *available)
+static void intra4x4_hor_up_pred_normal(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 4; y++) {
         for (int x = 0; x < 4; x++) {
@@ -429,7 +429,7 @@ static void intra4x4_hor_up_pred_normal(imgpel *pred, imgpel *pix, bool *availab
 #define pred8x8L(x,y) (pred[(y) * 16 + (x)])
 #define plf(x,y) (pix[((y) + 1) * 17 + ((x) + 1)])
 
-static void intra8x8_vert_pred(imgpel *pred, imgpel *pix, bool *available)
+static void intra8x8_vert_pred(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
@@ -438,7 +438,7 @@ static void intra8x8_vert_pred(imgpel *pred, imgpel *pix, bool *available)
     }
 }
 
-static void intra8x8_hor_pred(imgpel *pred, imgpel *pix, bool *available)
+static void intra8x8_hor_pred(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
@@ -447,7 +447,7 @@ static void intra8x8_hor_pred(imgpel *pred, imgpel *pix, bool *available)
     }
 }
 
-static void intra8x8_dc_pred(imgpel *pred, imgpel *pix, bool *available, int BitDepth)
+static void intra8x8_dc_pred(px_t *pred, px_t *pix, bool *available, int BitDepth)
 {
     bool block_available_left = available[0];
     bool block_available_up   = available[1];
@@ -479,7 +479,7 @@ static void intra8x8_dc_pred(imgpel *pred, imgpel *pix, bool *available, int Bit
     }
 }
 
-static void intra8x8_diag_down_left_pred(imgpel *pred, imgpel *pix, bool *available)
+static void intra8x8_diag_down_left_pred(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
@@ -491,7 +491,7 @@ static void intra8x8_diag_down_left_pred(imgpel *pred, imgpel *pix, bool *availa
     }
 }
 
-static void intra8x8_diag_down_right_pred(imgpel *pred, imgpel *pix, bool *available)
+static void intra8x8_diag_down_right_pred(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
@@ -505,7 +505,7 @@ static void intra8x8_diag_down_right_pred(imgpel *pred, imgpel *pix, bool *avail
     }
 }
 
-static void intra8x8_vert_right_pred(imgpel *pred, imgpel *pix, bool *available)
+static void intra8x8_vert_right_pred(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
@@ -522,7 +522,7 @@ static void intra8x8_vert_right_pred(imgpel *pred, imgpel *pix, bool *available)
     }
 }
 
-static void intra8x8_hor_down_pred(imgpel *pred, imgpel *pix, bool *available)
+static void intra8x8_hor_down_pred(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
@@ -539,7 +539,7 @@ static void intra8x8_hor_down_pred(imgpel *pred, imgpel *pix, bool *available)
     }
 }
 
-static void intra8x8_vert_left_pred(imgpel *pred, imgpel *pix, bool *available)
+static void intra8x8_vert_left_pred(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
@@ -551,7 +551,7 @@ static void intra8x8_vert_left_pred(imgpel *pred, imgpel *pix, bool *available)
     }
 }
 
-static void intra8x8_hor_up_pred(imgpel *pred, imgpel *pix, bool *available)
+static void intra8x8_hor_up_pred(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
@@ -574,7 +574,7 @@ static void intra8x8_hor_up_pred(imgpel *pred, imgpel *pix, bool *available)
 #define predL(x,y) (pred[(y) * 16 + (x)])
 #define p(x,y) (pix[((y) + 1) * 17 + ((x) + 1)])
 
-static void intra16x16_vert_pred_normal(imgpel *pred, imgpel *pix, bool *available)
+static void intra16x16_vert_pred_normal(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 16; y++) {
         for (int x = 0; x < 16; x++) {
@@ -583,7 +583,7 @@ static void intra16x16_vert_pred_normal(imgpel *pred, imgpel *pix, bool *availab
     }
 }
 
-static void intra16x16_hor_pred_normal(imgpel *pred, imgpel *pix, bool *available)
+static void intra16x16_hor_pred_normal(px_t *pred, px_t *pix, bool *available)
 {
     for (int y = 0; y < 16; y++) {
         for (int x = 0; x < 16; x++) {
@@ -592,7 +592,7 @@ static void intra16x16_hor_pred_normal(imgpel *pred, imgpel *pix, bool *availabl
     }
 }
 
-static void intra16x16_dc_pred_normal(imgpel *pred, imgpel *pix, bool *available, int BitDepth)
+static void intra16x16_dc_pred_normal(px_t *pred, px_t *pix, bool *available, int BitDepth)
 {
     bool block_available_left = available[0];
     bool block_available_up   = available[1];
@@ -624,7 +624,7 @@ static void intra16x16_dc_pred_normal(imgpel *pred, imgpel *pix, bool *available
     }
 }
 
-static void intra16x16_plane_pred_normal(imgpel *pred, imgpel *pix, bool *available, int BitDepth)
+static void intra16x16_plane_pred_normal(px_t *pred, px_t *pix, bool *available, int BitDepth)
 {
     int H = 0;
     for (int x = 0; x < 8; x++) {
@@ -656,7 +656,7 @@ static void intra16x16_plane_pred_normal(imgpel *pred, imgpel *pix, bool *availa
 #define pcb(x,y) (pix[0][((y) + 1) * 17 + ((x) + 1)])
 #define pcr(x,y) (pix[1][((y) + 1) * 17 + ((x) + 1)])
 
-static void intra4x4_dc_pred_chroma(imgpel *pred[2], imgpel pix[2][17*17], bool *available, int xO, int yO, int BitDepth)
+static void intra4x4_dc_pred_chroma(px_t *pred[2], px_t pix[2][17*17], bool *available, int xO, int yO, int BitDepth)
 {
     bool block_available_left = available[0];
     bool block_available_up   = available[1];
@@ -696,7 +696,7 @@ static void intra4x4_dc_pred_chroma(imgpel *pred[2], imgpel pix[2][17*17], bool 
     }
 }
 
-static void intrapred_chroma_dc(imgpel *pred[2], imgpel pix[2][17*17], bool *available, int size[2], int BitDepth)
+static void intrapred_chroma_dc(px_t *pred[2], px_t pix[2][17*17], bool *available, int size[2], int BitDepth)
 {
     int ChromaArrayType = size[0] == 8 && size[1] == 8 ? 1
                         : size[0] == 16 && size[1] == 16 ? 3
@@ -722,7 +722,7 @@ static void intrapred_chroma_dc(imgpel *pred[2], imgpel pix[2][17*17], bool *ava
     }
 }
 
-static void intrapred_chroma_hor(imgpel *pred[2], imgpel pix[2][17*17], bool *available, int size[2])
+static void intrapred_chroma_hor(px_t *pred[2], px_t pix[2][17*17], bool *available, int size[2])
 {
     for (int y = 0; y < size[1]; y++) {
         for (int x = 0; x < size[0]; x++) {
@@ -732,7 +732,7 @@ static void intrapred_chroma_hor(imgpel *pred[2], imgpel pix[2][17*17], bool *av
     }
 }
 
-static void intrapred_chroma_ver(imgpel *pred[2], imgpel pix[2][17*17], bool *available, int size[2])
+static void intrapred_chroma_ver(px_t *pred[2], px_t pix[2][17*17], bool *available, int size[2])
 {
     for (int y = 0; y < size[1]; y++) {
         for (int x = 0; x < size[0]; x++) {
@@ -742,7 +742,7 @@ static void intrapred_chroma_ver(imgpel *pred[2], imgpel pix[2][17*17], bool *av
     }
 }
 
-static void intrapred_chroma_plane(imgpel *pred[2], imgpel pix[2][17*17], bool *available, int size[2], int BitDepth)
+static void intrapred_chroma_plane(px_t *pred[2], px_t pix[2][17*17], bool *available, int size[2], int BitDepth)
 {
     int ChromaArrayType = size[0] == 8 && size[1] == 8 ? 1
                         : size[0] == 16 && size[1] == 16 ? 3
@@ -790,8 +790,8 @@ void IntraPrediction::intra_pred_4x4(mb_t* mb, ColorPlane pl, int ioff, int joff
     slice_t* slice = mb->p_Slice;
     sps_t* sps = slice->active_sps;
     int BitDepth = sps->BitDepthY;
-    imgpel* pred = &slice->mb_pred[pl][joff][ioff];
-    imgpel pix[9 * 9];
+    px_t* pred = &slice->mb_pred[pl][joff][ioff];
+    px_t pix[9 * 9];
     bool available[4];
     neighbouring_samples_4x4(pix, available, mb, pl, ioff, joff);
 
@@ -875,8 +875,8 @@ void IntraPrediction::intra_pred_8x8(mb_t* mb, ColorPlane pl, int ioff, int joff
     sps_t* sps = slice->active_sps;
 
     int BitDepth = sps->BitDepthY;
-    imgpel* pred = &slice->mb_pred[pl][joff][ioff];
-    imgpel pix[17 * 17];
+    px_t* pred = &slice->mb_pred[pl][joff][ioff];
+    px_t pix[17 * 17];
     bool available[4];
     neighbouring_samples_8x8(pix, available, mb, pl, ioff, joff);
 
@@ -959,8 +959,8 @@ void IntraPrediction::intra_pred_16x16(mb_t* mb, ColorPlane pl, int ioff, int jo
     sps_t* sps = slice->active_sps;
 
     int BitDepth = sps->BitDepthY;
-    imgpel* pred = &slice->mb_pred[pl][0][0];
-    imgpel pix[17 * 17];
+    px_t* pred = &slice->mb_pred[pl][0][0];
+    px_t pix[17 * 17];
     bool available[4];
     neighbouring_samples_16x16(pix, available, mb, pl, 0, 0);
 
@@ -1006,9 +1006,9 @@ void IntraPrediction::intra_pred_chroma(mb_t* mb)
     sps_t* sps = slice->active_sps;
 
     int BitDepth = sps->BitDepthC;
-    imgpel* pred[2] = { &slice->mb_pred[1][0][0], &slice->mb_pred[2][0][0] };
+    px_t* pred[2] = { &slice->mb_pred[1][0][0], &slice->mb_pred[2][0][0] };
     int mb_size[2] = { sps->MbWidthC, sps->MbHeightC };
-    imgpel pix[2][17 * 17];
+    px_t pix[2][17 * 17];
     bool available[2][4];
     neighbouring_samples_chroma(pix[0], available[0], mb, PLANE_U, 0, 0);
     neighbouring_samples_chroma(pix[1], available[1], mb, PLANE_V, 0, 0);

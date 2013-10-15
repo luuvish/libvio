@@ -140,8 +140,8 @@ static void copy_dec_picture_JV(VideoParameters *p_Vid, storable_picture *dst, s
     dst->tonemapped_bit_depth  = src->tonemapped_bit_depth;
     if (src->tone_mapping_lut) {
         int coded_data_bit_max = (1 << p_Vid->seiToneMapping->coded_data_bit_depth);
-        dst->tone_mapping_lut = new imgpel[coded_data_bit_max];
-        memcpy(dst->tone_mapping_lut, src->tone_mapping_lut, sizeof(imgpel) * coded_data_bit_max);
+        dst->tone_mapping_lut = new px_t[coded_data_bit_max];
+        memcpy(dst->tone_mapping_lut, src->tone_mapping_lut, sizeof(px_t) * coded_data_bit_max);
     }
 }
 
@@ -286,8 +286,8 @@ void init_picture(slice_t* currSlice)
         dec_picture->seiHasTone_mapping    = 1;
         dec_picture->tone_mapping_model_id = p_Vid->seiToneMapping->model_id;
         dec_picture->tonemapped_bit_depth  = p_Vid->seiToneMapping->sei_bit_depth;
-        dec_picture->tone_mapping_lut      = new imgpel[coded_data_bit_max];
-        memcpy(dec_picture->tone_mapping_lut, p_Vid->seiToneMapping->lut, sizeof(imgpel) * coded_data_bit_max);
+        dec_picture->tone_mapping_lut      = new px_t[coded_data_bit_max];
+        memcpy(dec_picture->tone_mapping_lut, p_Vid->seiToneMapping->lut, sizeof(px_t) * coded_data_bit_max);
         update_tone_mapping_sei(p_Vid->seiToneMapping);
     } else
         dec_picture->seiHasTone_mapping = 0;
@@ -481,10 +481,10 @@ void init_picture_decoding(VideoParameters *p_Vid)
 }
 
 
-void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, int iPadY)
+void pad_buf(px_t *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, int iPadY)
 {
     int j;
-    imgpel *pLine0 = pImgBuf - iPadX, *pLine;
+    px_t *pLine0 = pImgBuf - iPadX, *pLine;
     int i;
     for (i = -iPadX; i < 0; i++)
         pImgBuf[i] = *pImgBuf;
@@ -492,7 +492,7 @@ void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, i
         pImgBuf[i+iWidth] = *(pImgBuf+iWidth-1);
 
     for (j = -iPadY; j < 0; j++)
-        memcpy(pLine0+j*iStride, pLine0, iStride*sizeof(imgpel));
+        memcpy(pLine0+j*iStride, pLine0, iStride*sizeof(px_t));
     for (j = 1; j < iHeight; j++) {
         pLine = pLine0 + j*iStride;
         for (i = 0; i < iPadX; i++)
@@ -503,7 +503,7 @@ void pad_buf(imgpel *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, i
     }
     pLine = pLine0 + (iHeight - 1) * iStride;
     for (j = iHeight; j < iHeight + iPadY; j++)
-        memcpy(pLine0+j*iStride,  pLine, iStride*sizeof(imgpel));
+        memcpy(pLine0+j*iStride,  pLine, iStride*sizeof(px_t));
 }
 
 void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture)

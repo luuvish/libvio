@@ -20,9 +20,9 @@
 typedef struct frame_s
 {
   VideoParameters *p_Vid;
-  imgpel *yptr;
-  imgpel *uptr;
-  imgpel *vptr;
+  px_t *yptr;
+  px_t *uptr;
+  px_t *vptr;
 } frame;
 
 //! region structure stores information about a region that is needed for concealment

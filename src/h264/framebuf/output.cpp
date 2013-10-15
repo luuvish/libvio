@@ -24,11 +24,11 @@ static int testEndian(void)
     return (*p == 0);
 }
 
-static void img2buf_byte(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride)
+static void img2buf_byte(px_t** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride)
 {
     int twidth  = size_x - crop_left - crop_right;
     int theight = size_y - crop_top - crop_bottom;
-    imgpel** img = &imgX[crop_top];
+    px_t** img = &imgX[crop_top];
     for (int i = 0; i < theight; i++) {
         memcpy(buf, *img++ + crop_left, twidth);
         buf += iOutStride;
@@ -36,16 +36,16 @@ static void img2buf_byte(imgpel** imgX, unsigned char* buf, int size_x, int size
 }
 
 // little endian
-static void img2buf_le(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride)
+static void img2buf_le(px_t** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride)
 {
-    if (sizeof (imgpel) < symbol_size_in_bytes) {
+    if (sizeof (px_t) < symbol_size_in_bytes) {
         int twidth  = size_x - crop_left - crop_right;
         int theight = size_y - crop_top - crop_bottom;
         for (int j = 0; j < theight; j++)
             memset(buf + j * iOutStride, 0, twidth * symbol_size_in_bytes);
     }
 
-    int size = min<int>(sizeof(imgpel), symbol_size_in_bytes);
+    int size = min<int>(sizeof(px_t), symbol_size_in_bytes);
 
     if (size != 1) {
         for (int i = crop_top; i < size_y - crop_bottom; i++) {
@@ -56,7 +56,7 @@ static void img2buf_le(imgpel** imgX, unsigned char* buf, int size_x, int size_y
     } else {
         for (int j = crop_top; j < size_y - crop_bottom; j++) {  
             uint8_t* pDst = buf + (j - crop_top) * iOutStride;
-            imgpel* cur_pixel = &imgX[j][crop_left];
+            px_t* cur_pixel = &imgX[j][crop_left];
             for (int i = crop_left; i < size_x - crop_right; i++)
                 *(pDst++) = (uint8_t)*(cur_pixel++);
         }
@@ -64,7 +64,7 @@ static void img2buf_le(imgpel** imgX, unsigned char* buf, int size_x, int size_y
 }
 
 // big endian
-static void img2buf_be(imgpel** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride)
+static void img2buf_be(px_t** imgX, unsigned char* buf, int size_x, int size_y, int symbol_size_in_bytes, int crop_left, int crop_right, int crop_top, int crop_bottom, int iOutStride)
 {
     switch (symbol_size_in_bytes) {
     case 1:
@@ -112,7 +112,7 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
     int symbol_size_in_bytes = (pic_unit_bitsize_on_disk + 7) >> 3;
 
     decltype(img2buf_le)* img2buf;
-    if (sizeof(char) == sizeof(imgpel)) {
+    if (sizeof(char) == sizeof(px_t)) {
         if (sizeof(char) == symbol_size_in_bytes)
             img2buf = img2buf_byte;
         else
@@ -202,7 +202,7 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
     } else if (p_Inp->write_uv) {
         get_mem2Dpel(&p->imgUV[0], size_y_l / 2, size_x_l / 2);
   
-        imgpel cr_val = (imgpel)(1 << (sps.BitDepthY - 1));
+        px_t cr_val = (px_t)(1 << (sps.BitDepthY - 1));
         for (int j = 0; j < size_y_l / 2; j++) {
             for (int i = 0; i < size_x_l / 2; i++)
                 p->imgUV[0][j][i] = cr_val;

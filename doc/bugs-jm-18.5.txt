@@ -42,3 +42,15 @@
 
 13. interpret_mb_mode_P()
     allrefzero flag는 macroblock 마다 세팅되므로 Macroblock structure에 저장되는 것이 맞다.
+
+14. interpret_spare_pic()
+    spare_field_flag, target_bottom_field_flag, spare_bottom_field_flag를 파싱하지 않음.
+
+15. interpret_scene_information()
+    scene_info_present_flag를 파싱하지 않음.
+
+16. InterpretSEIMessage()
+    interpret_motion_constrained_slice_group_set_info()를 실행한 후 break 문이 빠짐.
+
+17. interpret_tone_mapping()
+    tone_map_model_id = 4 인 경우가 빠짐.
