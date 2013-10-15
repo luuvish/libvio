@@ -175,15 +175,16 @@ static int parse_idr(slice_t *currSlice)
     if (shr.redundant_pic_cnt && p_Vid->Is_primary_correct == 0 && p_Vid->Is_redundant_correct)
         p_Vid->dec_picture->slice.slice_type = p_Vid->type;
 
-    if (!p_Vid->dec_picture || *(p_Vid->old_slice) != *currSlice) {
+    if (!p_Vid->dec_picture || *(p_Vid->dec_picture->slice_headers[0]) != *currSlice) {
         if (p_Vid->iSliceNumOfCurrPic == 0)
             init_picture(currSlice);
-    //if (*(p_Vid->old_slice) != *currSlice) {
         current_header = SOP;
         //check zero_byte if it is also the first NAL unit in the access unit
         p_Vid->bitstream.CheckZeroByteVCL(nalu);
-    } else
+    } else {
         current_header = SOS;
+        p_Vid->dec_picture->slice_headers.push_back(currSlice);
+    }
 
     p_Vid->recovery_point = false;
     return current_header;
@@ -227,15 +228,16 @@ static int parse_dpa(slice_t *currSlice)
 
     currSlice->decoder.assign_quant_params(*currSlice);
 
-    if (!p_Vid->dec_picture || *(p_Vid->old_slice) != *currSlice) {
+    if (!p_Vid->dec_picture || *(p_Vid->dec_picture->slice_headers[0]) != *currSlice) {
         if (p_Vid->iSliceNumOfCurrPic == 0)
             init_picture(currSlice);
-    //if (*(p_Vid->old_slice) != *currSlice) {
         current_header = SOP;
         //check zero_byte if it is also the first NAL unit in the access unit
         p_Vid->bitstream.CheckZeroByteVCL(nalu);
-    } else
+    } else {
         current_header = SOS;
+        p_Vid->dec_picture->slice_headers.push_back(currSlice);
+    }
 
     // Now I need to read the slice ID, which depends on the value of
     // redundant_pic_cnt_present_flag
@@ -429,7 +431,7 @@ int DecoderParams::decode_slice_headers()
     VideoParameters *p_Vid = this->p_Vid;
     int current_header = 0;
     slice_t *currSlice;
-    slice_t **ppSliceList = p_Vid->ppSliceList;
+    auto& ppSliceList = p_Vid->ppSliceList;
     //read one picture first;
     p_Vid->iSliceNumOfCurrPic = 0;
     p_Vid->num_dec_mb = 0;
@@ -458,9 +460,8 @@ int DecoderParams::decode_slice_headers()
 
     while (current_header != SOP && current_header != EOS) {
         //no pending slices;
-        assert(p_Vid->iSliceNumOfCurrPic < p_Vid->iNumOfSlicesAllocated);
-        if (!ppSliceList[p_Vid->iSliceNumOfCurrPic])
-            ppSliceList[p_Vid->iSliceNumOfCurrPic] = new slice_t;
+        while (p_Vid->iSliceNumOfCurrPic >= ppSliceList.size())
+            ppSliceList.push_back(new slice_t);
         currSlice = ppSliceList[p_Vid->iSliceNumOfCurrPic];
         currSlice->p_Vid = p_Vid;
         currSlice->p_Dpb = p_Vid->p_Dpb_layer[0]; //set default value;
@@ -481,25 +482,13 @@ int DecoderParams::decode_slice_headers()
         if ((current_header == SOS) || (current_header == SOP && p_Vid->iSliceNumOfCurrPic == 0)) {
             currSlice->current_slice_nr = (short) p_Vid->iSliceNumOfCurrPic;
             if (p_Vid->iSliceNumOfCurrPic > 0) {
-                shr.PicOrderCnt         = (*ppSliceList)->header.PicOrderCnt;
-                shr.TopFieldOrderCnt    = (*ppSliceList)->header.TopFieldOrderCnt;
-                shr.BottomFieldOrderCnt = (*ppSliceList)->header.BottomFieldOrderCnt;  
+                shr.PicOrderCnt         = ppSliceList[0]->header.PicOrderCnt;
+                shr.TopFieldOrderCnt    = ppSliceList[0]->header.TopFieldOrderCnt;
+                shr.BottomFieldOrderCnt = ppSliceList[0]->header.BottomFieldOrderCnt;  
             }
             p_Vid->iSliceNumOfCurrPic++;
-            if (p_Vid->iSliceNumOfCurrPic >= p_Vid->iNumOfSlicesAllocated) {
-                slice_t **tmpSliceList = (slice_t **)realloc(p_Vid->ppSliceList, (p_Vid->iNumOfSlicesAllocated+MAX_NUM_DECSLICES)*sizeof(slice_t*));
-                if (!tmpSliceList) {
-                    tmpSliceList = (slice_t **)calloc((p_Vid->iNumOfSlicesAllocated+MAX_NUM_DECSLICES), sizeof(slice_t*));
-                    memcpy(tmpSliceList, p_Vid->ppSliceList, p_Vid->iSliceNumOfCurrPic*sizeof(slice_t*));
-                    //free;
-                    free(p_Vid->ppSliceList);
-                    ppSliceList = p_Vid->ppSliceList = tmpSliceList;
-                } else {
-                    ppSliceList = p_Vid->ppSliceList = tmpSliceList;
-                    memset(p_Vid->ppSliceList+p_Vid->iSliceNumOfCurrPic, 0, sizeof(slice_t*)*MAX_NUM_DECSLICES);
-                }
-                p_Vid->iNumOfSlicesAllocated += MAX_NUM_DECSLICES;
-            }
+            while (p_Vid->iSliceNumOfCurrPic >= ppSliceList.size())
+                ppSliceList.push_back(new slice_t);
             current_header = SOS;       
         }
         if (current_header == SOP && p_Vid->iSliceNumOfCurrPic > 0) {
@@ -509,8 +498,6 @@ int DecoderParams::decode_slice_headers()
             ppSliceList[p_Vid->iSliceNumOfCurrPic] = p_Vid->pNextSlice;
             p_Vid->pNextSlice = currSlice; 
         }
-
-        *(p_Vid->old_slice) = *currSlice;
     }
     
     return current_header;

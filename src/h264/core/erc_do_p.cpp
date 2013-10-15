@@ -1068,15 +1068,12 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
 
     int current_mb_nr = 0;
 
-    dst->PicSizeInMbs  = src->PicSizeInMbs;
+    dst->sps = src->sps;
+    dst->pps = src->pps;
+    dst->slice_headers = src->slice_headers;
 
     dst->slice.slice_type = src->slice.slice_type = p_Vid->conceal_slice_type;
-
     dst->slice.idr_flag = 0; //since we do not want to clears the ref list
-
-    dst->slice.no_output_of_prior_pics_flag    = src->slice.no_output_of_prior_pics_flag;
-    dst->slice.long_term_reference_flag        = src->slice.long_term_reference_flag;
-    dst->slice.adaptive_ref_pic_buffering_flag = src->slice.adaptive_ref_pic_buffering_flag = 0;
 
     dec_picture = src;
 
@@ -1084,8 +1081,6 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
     if (p_Vid->conceal_mode == 1) {
         // We need these initializations for using deblocking filter for frame copy
         // concealment as well.
-        dst->PicWidthInMbs = src->PicWidthInMbs;
-        dst->PicSizeInMbs = src->PicSizeInMbs;
 
         CopyImgData(src->imgY, src->imgUV, dst->imgY, dst->imgUV,
                     sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
@@ -1101,8 +1096,6 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
 
         p_Vid->erc_img = p_Vid;
 
-        dst->PicWidthInMbs = src->PicWidthInMbs;
-        dst->PicSizeInMbs = src->PicSizeInMbs;
         mb_width = sps->PicWidthInMbs;
         mb_height = sps->FrameHeightInMbs;
         scale = (p_Vid->conceal_slice_type == B_slice) ? 2 : 1;
@@ -1231,15 +1224,12 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
         sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
         sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
 
-    picture->slice.coded_frame = 1;
     picture->PicNum = UnusedShortTermFrameNum;
     picture->frame_num = UnusedShortTermFrameNum;
     picture->non_existing = 0;
     picture->is_output = 0;
     picture->used_for_reference = 1;
     picture->concealed_pic = 1;
-
-    picture->slice.adaptive_ref_pic_buffering_flag = 0;
 
     pSlice->header.frame_num = UnusedShortTermFrameNum;
 
@@ -1251,7 +1241,6 @@ void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
 
     copy_prev_pic_to_concealed_pic(picture, p_Dpb);
 
-    //if (UnusedShortTermFrameNum == 0)
     if(p_Vid->IDR_concealment_flag == 1)
     {
       picture->slice.slice_type = I_slice;

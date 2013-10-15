@@ -116,26 +116,23 @@ static void init_mvc_picture(slice_t* currSlice)
 
 static void copy_dec_picture_JV(VideoParameters *p_Vid, storable_picture *dst, storable_picture *src)
 {
-    dst->top_poc                         = src->top_poc;
-    dst->bottom_poc                      = src->bottom_poc;
-    dst->frame_poc                       = src->frame_poc;
+    dst->sps = src->sps;
+    dst->pps = src->pps;
+    dst->slice_headers = src->slice_headers;
 
-    dst->poc                             = src->poc;
-    dst->used_for_reference              = src->used_for_reference;
+    dst->top_poc            = src->top_poc;
+    dst->bottom_poc         = src->bottom_poc;
+    dst->frame_poc          = src->frame_poc;
 
-    dst->PicWidthInMbs                   = src->PicWidthInMbs;
-    dst->PicNum                          = src->PicNum;
-    dst->frame_num                       = src->frame_num;
-    dst->recovery_frame                  = src->recovery_frame;
+    dst->poc                = src->poc;
+    dst->used_for_reference = src->used_for_reference;
 
-    dst->slice.coded_frame                     = src->slice.coded_frame;
-    dst->slice.slice_type                      = src->slice.slice_type;
-    dst->slice.idr_flag                        = src->slice.idr_flag;
-    dst->slice.mb_aff_frame_flag               = src->slice.mb_aff_frame_flag;
-    dst->slice.no_output_of_prior_pics_flag    = src->slice.no_output_of_prior_pics_flag;
-    dst->slice.long_term_reference_flag        = src->slice.long_term_reference_flag;
-    dst->slice.adaptive_ref_pic_buffering_flag = src->slice.adaptive_ref_pic_buffering_flag;
-    dst->slice.dec_ref_pic_marking_buffer      = src->slice.dec_ref_pic_marking_buffer;
+    dst->PicNum             = src->PicNum;
+    dst->frame_num          = src->frame_num;
+    dst->recovery_frame     = src->recovery_frame;
+
+    dst->slice.slice_type   = src->slice.slice_type;
+    dst->slice.idr_flag     = src->slice.idr_flag;
 
     // store the necessary tone mapping sei into storable_picture structure
     dst->seiHasTone_mapping    = src->seiHasTone_mapping;
@@ -220,6 +217,10 @@ void init_picture(slice_t* currSlice)
     storable_picture* dec_picture = p_Vid->dec_picture = new storable_picture(p_Vid, shr.structure,
         sps.PicWidthInMbs * 16, sps.FrameHeightInMbs * 16,
         sps.PicWidthInMbs * sps.MbWidthC, sps.FrameHeightInMbs * sps.MbHeightC, 1);
+    dec_picture->sps = currSlice->active_sps;
+    dec_picture->pps = currSlice->active_pps;
+    dec_picture->slice_headers.push_back(currSlice);
+
     dec_picture->top_poc     = shr.TopFieldOrderCnt;
     dec_picture->bottom_poc  = shr.BottomFieldOrderCnt;
     dec_picture->frame_poc   = shr.PicOrderCnt;
@@ -270,23 +271,14 @@ void init_picture(slice_t* currSlice)
             reset_mbs(currMB++);
     }
 
-    dec_picture->used_for_reference              = currSlice->nal_ref_idc != 0;
+    dec_picture->used_for_reference = currSlice->nal_ref_idc != 0;
 
-    dec_picture->slice.coded_frame                     = !shr.field_pic_flag;
-    dec_picture->slice.idr_flag                        = currSlice->idr_flag;
-    dec_picture->slice.slice_type                      = p_Vid->type;
-    dec_picture->slice.no_output_of_prior_pics_flag    = shr.no_output_of_prior_pics_flag;
-    dec_picture->slice.long_term_reference_flag        = shr.long_term_reference_flag;
-    dec_picture->slice.adaptive_ref_pic_buffering_flag = shr.adaptive_ref_pic_marking_mode_flag;
-    dec_picture->slice.dec_ref_pic_marking_buffer      = shr.dec_ref_pic_marking_buffer;
-    dec_picture->slice.mb_aff_frame_flag               = shr.MbaffFrameFlag;
-    shr.dec_ref_pic_marking_buffer        = NULL;
+    dec_picture->slice.idr_flag     = currSlice->idr_flag;
+    dec_picture->slice.slice_type   = p_Vid->type;
 
-    dec_picture->PicWidthInMbs                   = sps.PicWidthInMbs;
-
-    dec_picture->PicNum                          = shr.frame_num;
-    dec_picture->frame_num                       = shr.frame_num;
-    dec_picture->recovery_frame                  = (unsigned int) ((int) shr.frame_num == p_Vid->recovery_frame_num);
+    dec_picture->PicNum             = shr.frame_num;
+    dec_picture->frame_num          = shr.frame_num;
+    dec_picture->recovery_frame     = (unsigned int) ((int) shr.frame_num == p_Vid->recovery_frame_num);
 
     // store the necessary tone mapping sei into storable_picture structure
     if (p_Vid->seiToneMapping->seiHasTone_mapping) {
@@ -306,12 +298,18 @@ void init_picture(slice_t* currSlice)
             p_Vid, (PictureStructure) shr.structure,
             sps.PicWidthInMbs * 16, sps.FrameHeightInMbs * 16,
             sps.PicWidthInMbs * sps.MbWidthC, sps.FrameHeightInMbs * sps.MbHeightC, 1);
+        p_Vid->dec_picture_JV[1]->sps = currSlice->active_sps;
+        p_Vid->dec_picture_JV[1]->pps = currSlice->active_pps;
+        p_Vid->dec_picture_JV[1]->slice_headers.push_back(currSlice);
         copy_dec_picture_JV( p_Vid, p_Vid->dec_picture_JV[1], p_Vid->dec_picture_JV[0] );
         p_Vid->dec_picture_JV[2] = new storable_picture(
             p_Vid, (PictureStructure) shr.structure,
             sps.PicWidthInMbs * 16, sps.FrameHeightInMbs * 16,
             sps.PicWidthInMbs * sps.MbWidthC, sps.FrameHeightInMbs * sps.MbHeightC, 1);
         copy_dec_picture_JV( p_Vid, p_Vid->dec_picture_JV[2], p_Vid->dec_picture_JV[0] );
+        p_Vid->dec_picture_JV[2]->sps = currSlice->active_sps;
+        p_Vid->dec_picture_JV[2]->pps = currSlice->active_pps;
+        p_Vid->dec_picture_JV[2]->slice_headers.push_back(currSlice);
     }
 }
 
@@ -651,15 +649,11 @@ void DecoderParams::decode_slice_datas()
 
     p_Vid->num_dec_mb = 0;
 
-    for (int iSliceNo = 0; iSliceNo < p_Vid->iSliceNumOfCurrPic; ++iSliceNo) {
-        slice_t& slice = *p_Vid->ppSliceList[iSliceNo];
+    for (slice_t* slice : p_Vid->dec_picture->slice_headers) {
+        slice->init();
+        slice->decode();
 
-        assert(slice.current_slice_nr == iSliceNo);
-
-        slice.init();
-        slice.decode();
-
-        p_Vid->num_dec_mb  += slice.num_dec_mb;
-        p_Vid->erc_mvperMB += slice.erc_mvperMB;
+        p_Vid->num_dec_mb  += slice->num_dec_mb;
+        p_Vid->erc_mvperMB += slice->erc_mvperMB;
     }
 }

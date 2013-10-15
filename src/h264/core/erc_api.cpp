@@ -371,12 +371,11 @@ void erc_picture(VideoParameters *p_Vid)
     int ercSegment = 0;
 
     //! mark the start of the first segment
-    if (!dec_picture->slice.mb_aff_frame_flag) {
+    if (!dec_picture->slice_headers[0]->header.MbaffFrameFlag) {
         int i;
         ercStartSegment(0, ercSegment, 0 , p_Vid->erc_errorVar);
         //! generate the segments according to the macroblock map
-        for (i = 1; i < (int) dec_picture->PicSizeInMbs; ++i) {
-        //for (i = 1; i < sps->PicWidthInMbs * sps->FrameHeightInMbs; ++i) {
+        for (i = 1; i < (int) dec_picture->slice_headers[0]->header.PicSizeInMbs; ++i) {
             if (p_Vid->mb_data[i].ei_flag != p_Vid->mb_data[i-1].ei_flag) {
                 ercStopSegment(i-1, ercSegment, 0, p_Vid->erc_errorVar); //! stop current segment
 
@@ -392,16 +391,14 @@ void erc_picture(VideoParameters *p_Vid)
             }
         }
         //! mark end of the last segment
-        ercStopSegment(dec_picture->PicSizeInMbs-1, ercSegment, 0, p_Vid->erc_errorVar);
-        //ercStopSegment(sps->PicWidthInMbs * sps->FrameHeightInMbs - 1, ercSegment, 0, p_Vid->erc_errorVar);
+        ercStopSegment(dec_picture->slice_headers[0]->header.PicSizeInMbs-1, ercSegment, 0, p_Vid->erc_errorVar);
         if (p_Vid->mb_data[i-1].ei_flag)
             ercMarkCurrSegmentLost(dec_picture->size_x, p_Vid->erc_errorVar);
         else
             ercMarkCurrSegmentOK(dec_picture->size_x, p_Vid->erc_errorVar);
 
         //! call the right error concealment function depending on the frame type.
-        p_Vid->erc_mvperMB /= dec_picture->PicSizeInMbs;
-        //p_Vid->erc_mvperMB /= sps->PicWidthInMbs * sps->FrameHeightInMbs;
+        p_Vid->erc_mvperMB /= dec_picture->slice_headers[0]->header.PicSizeInMbs;
 
         p_Vid->erc_img = p_Vid;
 

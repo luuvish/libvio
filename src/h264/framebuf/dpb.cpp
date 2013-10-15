@@ -248,7 +248,7 @@ void decoded_picture_buffer_t::free()
 
 void decoded_picture_buffer_t::idr_memory_management(storable_picture* p)
 {
-    if (p->slice.no_output_of_prior_pics_flag) {
+    if (p->slice_headers[0]->header.no_output_of_prior_pics_flag) {
         // free all stored pictures
         for (int i = 0; i < this->used_size; i++) {
             // reset all reference settings
@@ -268,7 +268,7 @@ void decoded_picture_buffer_t::idr_memory_management(storable_picture* p)
     this->update_ltref_list();
     this->last_output_poc = INT_MIN;
 
-    if (p->slice.long_term_reference_flag) {
+    if (p->slice_headers[0]->header.long_term_reference_flag) {
         this->max_long_term_pic_idx = 0;
         p->is_long_term             = 1;
         p->LongTermFrameIdx         = 0;
@@ -741,10 +741,10 @@ void decoded_picture_buffer_t::adaptive_memory_management(storable_picture* p)
     p_Vid->last_has_mmco_5 = 0;
 
     assert(!p->slice.idr_flag);
-    assert(p->slice.adaptive_ref_pic_buffering_flag);
+    assert(p->slice_headers[0]->header.adaptive_ref_pic_marking_mode_flag);
 
-    while (p->slice.dec_ref_pic_marking_buffer) {
-        tmp_drpm = p->slice.dec_ref_pic_marking_buffer;
+    while (p->slice_headers[0]->header.dec_ref_pic_marking_buffer) {
+        tmp_drpm = p->slice_headers[0]->header.dec_ref_pic_marking_buffer;
         switch (tmp_drpm->memory_management_control_operation) {
         case 0:
             if (tmp_drpm->Next != NULL)
@@ -779,7 +779,7 @@ void decoded_picture_buffer_t::adaptive_memory_management(storable_picture* p)
         default:
             error("invalid memory_management_control_operation in buffer", 500);
         }
-        p->slice.dec_ref_pic_marking_buffer = tmp_drpm->Next;
+        p->slice_headers[0]->header.dec_ref_pic_marking_buffer = tmp_drpm->Next;
         delete tmp_drpm;
     }
     if (p_Vid->last_has_mmco_5) {
@@ -846,7 +846,8 @@ void decoded_picture_buffer_t::store_picture(storable_picture* p)
         memset(p_Vid->pocs_in_dpb, 0, sizeof(int)*100);
     } else {
         // adaptive memory management
-        if (p->used_for_reference && p->slice.adaptive_ref_pic_buffering_flag)
+        if (p->used_for_reference &&
+            (!p->slice_headers.empty() && p->slice_headers[0]->header.adaptive_ref_pic_marking_mode_flag))
             this->adaptive_memory_management(p);
     }
 
@@ -872,7 +873,8 @@ void decoded_picture_buffer_t::store_picture(storable_picture* p)
     // this is a frame or a field which has no stored complementary field
 
     // sliding window, if necessary
-    if (!p->slice.idr_flag && p->used_for_reference && !p->slice.adaptive_ref_pic_buffering_flag)
+    if (!p->slice.idr_flag && p->used_for_reference &&
+        (p->slice_headers.empty() || !p->slice_headers[0]->header.adaptive_ref_pic_marking_mode_flag))
         this->sliding_window_memory_management(p);
 
     // picture error concealment
@@ -964,15 +966,13 @@ void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
         storable_picture* picture = new storable_picture(p_Vid, FRAME,
             sps.PicWidthInMbs * 16, sps.FrameHeightInMbs * 16,
             sps.PicWidthInMbs * sps.MbWidthC, sps.FrameHeightInMbs * sps.MbHeightC, 1);
-        picture->slice.coded_frame                     = 1;
-        picture->slice.adaptive_ref_pic_buffering_flag = 0;
-        picture->PicNum                                = UnusedShortTermFrameNum;
-        picture->frame_num                             = UnusedShortTermFrameNum;
-        picture->non_existing                          = 1;
-        picture->is_output                             = 1;
-        picture->used_for_reference                    = 1;
+        picture->PicNum             = UnusedShortTermFrameNum;
+        picture->frame_num          = UnusedShortTermFrameNum;
+        picture->non_existing       = 1;
+        picture->is_output          = 1;
+        picture->used_for_reference = 1;
 #if (MVC_EXTENSION_ENABLE)
-        picture->slice.view_id                         = slice.view_id;
+        picture->slice.view_id      = slice.view_id;
 #endif
 
         shr.frame_num = UnusedShortTermFrameNum;

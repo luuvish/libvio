@@ -3,6 +3,7 @@
 
 
 #include <cstdint>
+#include <vector>
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -56,7 +57,6 @@ extern char errortext[ET_SIZE]; //!< buffer for error message for exit with erro
 struct pic_motion_params_old;
 struct pic_motion_params;
 
-struct slice_backup_t;
 struct slice_t;
 struct macroblock_t;
 
@@ -108,7 +108,6 @@ struct VideoParameters {
 
 
 
-    slice_backup_t* old_slice;
     SNRParameters*  snr;
 
     decoded_picture_buffer_t* p_Dpb_layer[MAX_NUM_DPB_LAYERS];
@@ -119,9 +118,8 @@ struct VideoParameters {
 
     tone_mapping_struct_s *seiToneMapping;
 
-    int         iNumOfSlicesAllocated;
     int         iSliceNumOfCurrPic;
-    slice_t**   ppSliceList;
+    std::vector<slice_t*> ppSliceList;
     slice_t*    pNextSlice;
     int         newframe;
 

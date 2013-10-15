@@ -634,7 +634,6 @@ void interpret_dec_ref_pic_marking_repetition_info( byte* payload, int size, Vid
   old_adaptive_ref_pic_buffering_flag = shr.adaptive_ref_pic_marking_mode_flag;
 
   // set new initial values
-  //p_Vid->idr_flag = original_idr_flag;
   pSlice->idr_flag = original_idr_flag;
   shr.dec_ref_pic_marking_buffer = NULL;
 

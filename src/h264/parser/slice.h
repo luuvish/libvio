@@ -52,30 +52,6 @@ struct decoded_reference_picture_marking_t {
 
 struct VideoParameters;
 
-struct slice_backup_t {
-    bool        idr_flag;
-    int         nal_ref_idc;
-
-    uint8_t     pic_parameter_set_id;
-    uint32_t    frame_num;
-    bool        field_pic_flag;
-    bool        bottom_field_flag;
-    uint16_t    idr_pic_id;
-    uint32_t    pic_order_cnt_lsb;
-    int32_t     delta_pic_order_cnt_bottom;
-    int32_t     delta_pic_order_cnt[2];
-
-#if (MVC_EXTENSION_ENABLE)
-    int         view_id;
-    int         inter_view_flag;
-    int         anchor_pic_flag;
-#endif
-    int         layer_id;
-
-    slice_backup_t& operator =  (const slice_t& slice);
-    bool            operator != (const slice_t& slice);
-};
-
 struct slice_header_t {
     uint32_t    first_mb_in_slice;                                    // ue(v)
     uint8_t     slice_type;                                           // ue(v)
@@ -246,6 +222,8 @@ struct slice_t {
 
     void        init();
     void        decode();
+
+    bool        operator!=(const slice_t& slice);
 };
 
 

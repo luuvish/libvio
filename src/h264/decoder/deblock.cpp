@@ -583,39 +583,37 @@ static void update_mbaff_macroblock_data(imgpel **cur_img, imgpel (*temp)[16], i
     imgpel (*temp_evn)[16] = temp;
     imgpel (*temp_odd)[16] = temp + height; 
     imgpel **temp_img = cur_img;
-    int y;
 
-    for (y = 0; y < 2 * height; ++y)
+    for (int y = 0; y < 2 * height; ++y)
         memcpy(*temp++, (*temp_img++ + x0), width * sizeof(imgpel));
 
-    for (y = 0; y < height; ++y) {
+    for (int y = 0; y < height; ++y) {
         memcpy((*cur_img++ + x0), *temp_evn++, width * sizeof(imgpel));
         memcpy((*cur_img++ + x0), *temp_odd++, width * sizeof(imgpel));
     }
 }
 
-static void MbAffPostProc(VideoParameters *p_Vid)
+static void MbAffPostProc(storable_picture& pic)
 {
-    slice_t* slice = p_Vid->ppSliceList[0];
-    sps_t* sps = p_Vid->active_sps;
+    sps_t& sps = *pic.sps;
+    slice_t& first_slice = *pic.slice_headers[0];
 
-    storable_picture* dec_picture = p_Vid->dec_picture;
-    imgpel**  imgY  = dec_picture->imgY;
-    imgpel*** imgUV = dec_picture->imgUV;
+    imgpel**  imgY  = pic.imgY;
+    imgpel*** imgUV = pic.imgUV;
 
     imgpel temp_buffer[32][16];
 
-    for (int mbAddr = 0; mbAddr < sps->PicWidthInMbs * sps->FrameHeightInMbs; mbAddr += 2) {
-        if (dec_picture->motion.mb_field_decoding_flag[mbAddr]) {
-            loc_t loc = slice->neighbour.get_location(slice, false, mbAddr);
+    for (int mbAddr = 0; mbAddr < sps.PicWidthInMbs * sps.FrameHeightInMbs; mbAddr += 2) {
+        if (pic.motion.mb_field_decoding_flag[mbAddr]) {
+            loc_t loc = first_slice.neighbour.get_location(&first_slice, false, mbAddr);
             update_mbaff_macroblock_data(imgY + loc.y, temp_buffer, loc.x, 16, 16);
 
-            if (sps->chroma_format_idc != YUV400) {
-                loc.x = (short) ((loc.x * sps->MbWidthC ) >> 4);
-                loc.y = (short) ((loc.y * sps->MbHeightC) >> 4);
+            if (sps.chroma_format_idc != YUV400) {
+                loc.x = (short) ((loc.x * sps.MbWidthC ) >> 4);
+                loc.y = (short) ((loc.y * sps.MbHeightC) >> 4);
 
-                update_mbaff_macroblock_data(imgUV[0] + loc.y, temp_buffer, loc.x, sps->MbWidthC, sps->MbHeightC);
-                update_mbaff_macroblock_data(imgUV[1] + loc.y, temp_buffer, loc.x, sps->MbWidthC, sps->MbHeightC);
+                update_mbaff_macroblock_data(imgUV[0] + loc.y, temp_buffer, loc.x, sps.MbWidthC, sps.MbHeightC);
+                update_mbaff_macroblock_data(imgUV[1] + loc.y, temp_buffer, loc.x, sps.MbWidthC, sps.MbHeightC);
             }
         }
     }
@@ -623,36 +621,37 @@ static void MbAffPostProc(VideoParameters *p_Vid)
 
 void Deblock::deblock(VideoParameters *p_Vid)
 {
-    storable_picture* p = p_Vid->dec_picture;
-    if (p->slice.mb_aff_frame_flag)
-        MbAffPostProc(p_Vid);
+    storable_picture& pic = *p_Vid->dec_picture;
+    sps_t& sps = *pic.sps;
+    slice_t& first_slice = *pic.slice_headers[0];
+
+    if (first_slice.header.MbaffFrameFlag)
+        MbAffPostProc(pic);
 
     int iDeblockMode = 1;
-    //init mb_data;
-    for (int j = 0; j < p_Vid->iSliceNumOfCurrPic; j++) {
-        if (p_Vid->ppSliceList[j]->header.disable_deblocking_filter_idc != 1)
+    for (auto slice : pic.slice_headers) {
+        if (slice->header.disable_deblocking_filter_idc != 1)
             iDeblockMode = 0;
 #if (MVC_EXTENSION_ENABLE)
-        assert(p_Vid->ppSliceList[j]->view_id == p_Vid->ppSliceList[0]->view_id);
+        assert(slice->view_id == first_slice.view_id);
 #endif
     }
 
-    if (!iDeblockMode && (0x03 & (1 << p->used_for_reference))) {
-        //deblocking for frame or field
-        if (p_Vid->active_sps->separate_colour_plane_flag) {
-            int colour_plane_id = p_Vid->ppSliceList[0]->header.colour_plane_id;
+    if (!iDeblockMode && (0x03 & (1 << pic.used_for_reference))) {
+        if (sps.separate_colour_plane_flag) {
+            int colour_plane_id = first_slice.header.colour_plane_id;
             for (int nplane = 0; nplane < 3; ++nplane) {
-                p_Vid->ppSliceList[0]->header.colour_plane_id = nplane;
+                first_slice.header.colour_plane_id = nplane;
                 p_Vid->mb_data     = p_Vid->mb_data_JV    [nplane];
                 p_Vid->dec_picture = p_Vid->dec_picture_JV[nplane];
                 this->deblock_pic(p_Vid);
             }
-            p_Vid->ppSliceList[0]->header.colour_plane_id = colour_plane_id;
+            first_slice.header.colour_plane_id = colour_plane_id;
         } else
             this->deblock_pic(p_Vid);
     }
 
-    if (p_Vid->active_sps->separate_colour_plane_flag)
+    if (sps.separate_colour_plane_flag)
         this->make_frame_picture_JV(p_Vid);
 }
 

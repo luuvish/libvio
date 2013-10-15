@@ -12,15 +12,12 @@ static inline int RSD(int x)
 storable_picture::storable_picture(VideoParameters *p_Vid, PictureStructure structure,
                                    int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output)
 {
-    sps_t *sps = p_Vid->active_sps;  
+    sps_t* sps = p_Vid->active_sps;  
 
     if (structure != FRAME) {
         size_y    /= 2;
         size_y_cr /= 2;
     }
-
-    this->PicWidthInMbs = size_x;
-    this->PicSizeInMbs = (size_x * size_y) / 256;
 
     this->iChromaPadX = sps->chroma_format_idc == YUV444 ? MCBUF_LUMA_PAD_X : MCBUF_CHROMA_PAD_X;
     this->iChromaPadY = sps->chroma_format_idc == YUV444 ? MCBUF_LUMA_PAD_Y :
@@ -44,7 +41,7 @@ storable_picture::storable_picture(VideoParameters *p_Vid, PictureStructure stru
         }
     }
 
-    this->separate_colour_plane_flag = sps->separate_colour_plane_flag;
+    this->sps = sps;
 
     this->top_poc = this->bottom_poc = this->poc = 0;
     this->PicNum             = 0;
@@ -73,15 +70,9 @@ storable_picture::storable_picture(VideoParameters *p_Vid, PictureStructure stru
     this->bottom_field = p_Vid->no_reference_picture;
     this->frame        = p_Vid->no_reference_picture;
 
-    this->slice.structure                       = structure;
-    this->slice.iCodingType                     = 0;
-    this->slice.idr_flag                        = 0;
-    this->slice.coded_frame                     = 0;
-    this->slice.mb_aff_frame_flag               = 0;
-    this->slice.no_output_of_prior_pics_flag    = 0;
-    this->slice.long_term_reference_flag        = 0;
-    this->slice.adaptive_ref_pic_buffering_flag = 0;
-    this->slice.dec_ref_pic_marking_buffer      = nullptr;
+    this->slice.structure   = structure;
+    this->slice.iCodingType = 0;
+    this->slice.idr_flag    = 0;
 
     this->seiHasTone_mapping = 0;
 }
@@ -94,7 +85,7 @@ storable_picture::~storable_picture()
     }
     delete []this->motion.mb_field_decoding_flag;
 
-    if (this->separate_colour_plane_flag) {
+    if (this->sps->separate_colour_plane_flag) {
         for (int nplane = 0; nplane < 3; nplane++) {
             if (this->JVmv_info[nplane]) {
                 free_mem2Dmp(this->JVmv_info[nplane]);
@@ -130,21 +121,19 @@ bool storable_picture::is_long_ref()
     return this->used_for_reference && this->is_long_term;
 }
 
-void storable_picture::clear_picture(VideoParameters* p_Vid)
+void storable_picture::clear()
 {
-    sps_t *sps = p_Vid->active_sps;
-
     for (int i = 0; i < this->size_y; i++) {
         for (int j = 0; j < this->size_x; j++)
-            this->imgY[i][j] = (imgpel) (1 << (sps->BitDepthY - 1));
+            this->imgY[i][j] = (imgpel) (1 << (this->sps->BitDepthY - 1));
     }
     for (int i = 0; i < this->size_y_cr; i++) {
         for (int j = 0; j < this->size_x_cr; j++)
-            this->imgUV[0][i][j] = (imgpel) (1 << (sps->BitDepthC - 1));
+            this->imgUV[0][i][j] = (imgpel) (1 << (this->sps->BitDepthC - 1));
     }
     for (int i = 0; i < this->size_y_cr; i++) {
         for (int j = 0; j < this->size_x_cr; j++)
-            this->imgUV[1][i][j] = (imgpel) (1 << (sps->BitDepthC - 1));
+            this->imgUV[1][i][j] = (imgpel) (1 << (this->sps->BitDepthC - 1));
     }
 }
 
@@ -315,6 +304,13 @@ void picture_t::dpb_split_field(VideoParameters* p_Vid)
             memcpy(fs_btm->imgUV[1][i], frame->imgUV[1][i * 2 + 1], frame->size_x_cr * sizeof(imgpel));
         }
 
+        fs_top->sps = frame->sps;
+        fs_top->pps = frame->pps;
+        fs_top->slice_headers = frame->slice_headers;
+        fs_btm->sps = frame->sps;
+        fs_btm->pps = frame->pps;
+        fs_btm->slice_headers = frame->slice_headers;
+
         fs_top->poc = frame->top_poc;
         fs_btm->poc = frame->bottom_poc;
 
@@ -332,8 +328,6 @@ void picture_t::dpb_split_field(VideoParameters* p_Vid)
         this->LongTermFrameIdx = fs_top->LongTermFrameIdx = fs_btm->LongTermFrameIdx = frame->LongTermFrameIdx;
 
         fs_top->slice.iCodingType = fs_btm->slice.iCodingType = frame->slice.iCodingType;
-        fs_top->slice.coded_frame = fs_btm->slice.coded_frame = 1;
-        fs_top->slice.mb_aff_frame_flag = fs_btm->slice.mb_aff_frame_flag = frame->slice.mb_aff_frame_flag;
 
         frame->top_field     = fs_top;
         frame->bottom_field  = fs_btm;
@@ -364,7 +358,7 @@ void picture_t::dpb_split_field(VideoParameters* p_Vid)
     }
 
     if (!p_Vid->active_sps->frame_mbs_only_flag) {
-        if (frame->slice.mb_aff_frame_flag) {
+        if (frame->slice_headers[0]->header.MbaffFrameFlag) {
             pic_motion_params_old* frm_motion = &frame->motion;
             for (int j = 0 ; j < (frame->size_y >> 3); j++) {
                 int jj = (j >> 2)*8 + (j & 0x03);
@@ -373,7 +367,7 @@ void picture_t::dpb_split_field(VideoParameters* p_Vid)
                 for (int i = 0; i < (frame->size_x >> 2); i++) {
                     int idiv = (i >> 2);
 
-                    currentmb = twosz16*(jdiv >> 1)+ (idiv)*2 + (jdiv & 0x01);
+                    currentmb = twosz16 * (jdiv >> 1) + idiv * 2 + (jdiv & 0x01);
                     // Assign field mvs attached to MB-Frame buffer to the proper buffer
                     if (frm_motion->mb_field_decoding_flag[currentmb]) {
                         auto RefPicList0 = p_Vid->ppSliceList[frame->mv_info[jj4][i].slice_no]->RefPicList[LIST_0];
@@ -423,7 +417,7 @@ void picture_t::dpb_split_field(VideoParameters* p_Vid)
 
                 currentmb = twosz16 * (jdiv >> 1)+ (idiv)*2 + (jdiv & 0x01);
 
-                if (!frame->slice.mb_aff_frame_flag || !frame->motion.mb_field_decoding_flag[currentmb]) {
+                if (!frame->slice_headers[0]->header.MbaffFrameFlag || !frame->motion.mb_field_decoding_flag[currentmb]) {
                     fs_top->mv_info[j][i].mv[LIST_0] = fs_btm->mv_info[j][i].mv[LIST_0] = frame->mv_info[jj][ii].mv[LIST_0];
                     fs_top->mv_info[j][i].mv[LIST_1] = fs_btm->mv_info[j][i].mv[LIST_1] = frame->mv_info[jj][ii].mv[LIST_1];
 
@@ -484,8 +478,6 @@ void picture_t::dpb_combine_field_yuv(VideoParameters* p_Vid)
     this->frame->top_field    = this->top_field;
     this->frame->bottom_field = this->bottom_field;
     this->frame->frame        = this->frame;
-
-    this->frame->slice.coded_frame = 0;
 
     this->top_field->frame           = this->bottom_field->frame = this->frame;
     this->top_field->top_field       = this->top_field;

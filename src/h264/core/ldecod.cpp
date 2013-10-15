@@ -45,7 +45,6 @@ void error(const char *text, int code)
 VideoParameters::VideoParameters()
 {
     this->out_buffer = new pic_t {};
-    this->old_slice  = new slice_backup_t {};
     this->snr        = new SNRParameters;
 
     // Allocate new dpb buffer
@@ -66,10 +65,7 @@ VideoParameters::VideoParameters()
 
     this->seiToneMapping = new ToneMappingSEI;
 
-    this->ppSliceList = new slice_t*[MAX_NUM_DECSLICES];
-
-    this->iNumOfSlicesAllocated = MAX_NUM_DECSLICES;
-    this->pNextSlice            = nullptr;
+    this->pNextSlice            = new slice_t;
     this->nalu                  = new nalu_t(MAX_CODED_FRAME_SIZE);
     this->pDecOuputPic.pY       = nullptr;
     this->pDecOuputPic.pU       = nullptr;
@@ -91,20 +87,19 @@ VideoParameters::VideoParameters()
     this->snr->frame_ctr        = 0;
     this->snr->tot_time         = 0;
 
-    this->dec_picture            = nullptr;
+    this->dec_picture           = nullptr;
 
     init_tone_mapping_sei(this->seiToneMapping);
 
-    this->newframe               = 0;
-    this->previous_frame_num     = 0;
+    this->newframe              = 0;
+    this->previous_frame_num    = 0;
 
-    this->last_dec_layer_id      = -1;
+    this->last_dec_layer_id     = -1;
 }
 
 VideoParameters::~VideoParameters()
 {
     delete this->out_buffer;
-    delete this->old_slice;
     delete this->snr;
 
     // Free new dpb layers
@@ -116,13 +111,8 @@ VideoParameters::~VideoParameters()
 
     delete this->seiToneMapping;
 
-    if (this->ppSliceList) {
-        for (int i = 0; i < this->iNumOfSlicesAllocated; i++) {
-            if (this->ppSliceList[i])
-                delete this->ppSliceList[i];
-        }
-        delete []this->ppSliceList;
-    }
+    for (slice_t* slice : this->ppSliceList)
+        delete slice;
 
     if (this->pNextSlice)
         delete this->pNextSlice;

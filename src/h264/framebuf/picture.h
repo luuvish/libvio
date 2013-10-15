@@ -73,9 +73,18 @@ struct pic_motion_params {
 struct decoded_reference_picture_marking_t;
 using drpm_t = decoded_reference_picture_marking_t;
 
+struct slice_header_t;
+struct macroblock_t;
 
-//! definition a picture (field or frame)
+
 struct storable_picture {
+    sps_t*                       sps;
+    pps_t*                       pps;
+    std::vector<slice_t*>        slice_headers;
+    std::vector<macroblock_t*>   mbs;
+    pic_motion_params**          mv_infos;
+    imgpel**                     pixels[3];
+
     int         poc;
     int         top_poc;
     int         bottom_poc;
@@ -92,7 +101,6 @@ struct storable_picture {
     int         is_output;
     int         no_ref;
     int         non_existing;
-    int         separate_colour_plane_flag;
 
     struct {
         int         layer_id;
@@ -106,17 +114,9 @@ struct storable_picture {
         int         iCodingType;
         int         idr_flag;
         int         slice_type;
-        int         coded_frame;
-        int         mb_aff_frame_flag;
-        int         no_output_of_prior_pics_flag;
-        int         long_term_reference_flag;
-        int         adaptive_ref_pic_buffering_flag;
-        drpm_t*     dec_ref_pic_marking_buffer;
     } slice;
 
     int         size_x, size_y, size_x_cr, size_y_cr;
-    unsigned    PicWidthInMbs;
-    unsigned    PicSizeInMbs;
 
     int         iLumaStride;
     int         iChromaStride;
@@ -147,24 +147,21 @@ struct storable_picture {
     bool        is_short_ref();
     bool        is_long_ref();
 
-    void        clear_picture(VideoParameters* p_Vid);
+    void        clear();
 
     storable_picture(VideoParameters *p_Vid, PictureStructure type, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output);
     ~storable_picture();
 };
 
-struct slice_header_t;
-struct macroblock_t;
-
 struct picture_t {
-    sps_t*                       sps;
-    pps_t*                       pps;
-    std::vector<slice_header_t*> slice_headers;
-    std::vector<macroblock_t*>   mbs;
-    pic_motion_params**          mv_infos;
-    imgpel**                     pixels[3];
+    //sps_t*                       sps;
+    //pps_t*                       pps;
+    //std::vector<slice_header_t*> slice_headers;
+    //std::vector<macroblock_t*>   mbs;
+    //pic_motion_params**          mv_infos;
+    //imgpel**                     pixels[3];
 
-    picture_t*  pic[2][3] = {{nullptr}};
+    //picture_t*  pic[2][3] = {{nullptr}};
 
     int         is_used;                //!< 0=empty; 1=top; 2=bottom; 3=both fields (or frame)
     int         is_reference;           //!< 0=not used for ref; 1=top used; 2=bottom used; 3=both fields (or frame) used

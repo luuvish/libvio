@@ -234,7 +234,7 @@ static void write_unpaired_field(VideoParameters *p_Vid, pic_t* fs, int p_out)
         p = fs->top_field;
         fs->bottom_field = new storable_picture(p_Vid, BOTTOM_FIELD,
             p->size_x, p->size_y * 2, p->size_x_cr, p->size_y_cr * 2, 1);
-        fs->bottom_field->clear_picture(p_Vid);
+        fs->bottom_field->clear();
         fs->dpb_combine_field_yuv(p_Vid);
 #if (MVC_EXTENSION_ENABLE)
         fs->frame->slice.view_id = fs->view_id;
@@ -248,7 +248,7 @@ static void write_unpaired_field(VideoParameters *p_Vid, pic_t* fs, int p_out)
         p = fs->bottom_field;
         fs->top_field = new storable_picture(p_Vid, TOP_FIELD,
             p->size_x, p->size_y * 2, p->size_x_cr, p->size_y_cr * 2, 1);
-        fs->top_field->clear_picture(p_Vid);
+        fs->top_field->clear();
         fs->dpb_combine_field_yuv(p_Vid);
 #if (MVC_EXTENSION_ENABLE)
         fs->frame->slice.view_id = fs->view_id;

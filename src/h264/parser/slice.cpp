@@ -5,44 +5,7 @@
 #include "memalloc.h"
 
 
-slice_backup_t& slice_backup_t::operator=(const slice_t& slice)
-{
-    const sps_t& sps = *slice.active_sps;
-    const shr_t& shr = slice.header;
-
-    this->pic_parameter_set_id = shr.pic_parameter_set_id;
-    this->frame_num            = shr.frame_num;
-    this->field_pic_flag       = shr.field_pic_flag;
-
-    if (shr.field_pic_flag)
-        this->bottom_field_flag = shr.bottom_field_flag;
-
-    this->nal_ref_idc = slice.nal_ref_idc;
-    this->idr_flag    = slice.idr_flag;
-
-    if (slice.idr_flag)
-        this->idr_pic_id = shr.idr_pic_id;
-
-    if (sps.pic_order_cnt_type == 0) {
-        this->pic_order_cnt_lsb          = shr.pic_order_cnt_lsb;
-        this->delta_pic_order_cnt_bottom = shr.delta_pic_order_cnt_bottom;
-    }
-    if (sps.pic_order_cnt_type == 1) {
-        this->delta_pic_order_cnt[0] = shr.delta_pic_order_cnt[0];
-        this->delta_pic_order_cnt[1] = shr.delta_pic_order_cnt[1];
-    }
-
-#if (MVC_EXTENSION_ENABLE)
-    this->view_id         = slice.view_id;
-    this->inter_view_flag = slice.inter_view_flag; 
-    this->anchor_pic_flag = slice.anchor_pic_flag;
-#endif
-    this->layer_id        = slice.layer_id;
-
-    return *this;
-}
-
-bool slice_backup_t::operator!=(const slice_t& slice)
+bool slice_t::operator!=(const slice_t& slice)
 {
     const sps_t& sps = *slice.active_sps;
     const pps_t& pps = *slice.active_pps;
@@ -50,29 +13,29 @@ bool slice_backup_t::operator!=(const slice_t& slice)
 
     bool result = false;
 
-    result |= this->pic_parameter_set_id != shr.pic_parameter_set_id;
-    result |= this->frame_num            != shr.frame_num;
-    result |= this->field_pic_flag       != shr.field_pic_flag;
+    result |= this->header.pic_parameter_set_id != shr.pic_parameter_set_id;
+    result |= this->header.frame_num            != shr.frame_num;
+    result |= this->header.field_pic_flag       != shr.field_pic_flag;
 
-    if (shr.field_pic_flag && this->field_pic_flag)
-        result |= this->bottom_field_flag != shr.bottom_field_flag;
+    if (shr.field_pic_flag && this->header.field_pic_flag)
+        result |= this->header.bottom_field_flag != shr.bottom_field_flag;
 
     result |= this->nal_ref_idc != slice.nal_ref_idc && (this->nal_ref_idc == 0 || slice.nal_ref_idc == 0);
     result |= this->idr_flag    != slice.idr_flag;
 
     if (slice.idr_flag && this->idr_flag)
-        result |= this->idr_pic_id != shr.idr_pic_id;
+        result |= this->header.idr_pic_id != shr.idr_pic_id;
 
     if (sps.pic_order_cnt_type == 0) {
-        result |= this->pic_order_cnt_lsb != shr.pic_order_cnt_lsb;
+        result |= this->header.pic_order_cnt_lsb != shr.pic_order_cnt_lsb;
         if (pps.bottom_field_pic_order_in_frame_present_flag && !shr.field_pic_flag)
-            result |= this->delta_pic_order_cnt_bottom != shr.delta_pic_order_cnt_bottom;
+            result |= this->header.delta_pic_order_cnt_bottom != shr.delta_pic_order_cnt_bottom;
     }
     if (sps.pic_order_cnt_type == 1) {
         if (!sps.delta_pic_order_always_zero_flag) {
-            result |= this->delta_pic_order_cnt[0] != shr.delta_pic_order_cnt[0];
+            result |= this->header.delta_pic_order_cnt[0] != shr.delta_pic_order_cnt[0];
             if (pps.bottom_field_pic_order_in_frame_present_flag && !shr.field_pic_flag)
-                result |= this->delta_pic_order_cnt[1] != shr.delta_pic_order_cnt[1];
+                result |= this->header.delta_pic_order_cnt[1] != shr.delta_pic_order_cnt[1];
         }
     }
 

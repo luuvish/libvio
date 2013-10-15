@@ -169,6 +169,10 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
         iChromaPadY = MCBUF_LUMA_PAD_Y;
     }
 
+    p_stored_pic->sps = p_pic->sps;
+    p_stored_pic->pps = p_pic->pps;
+    p_stored_pic->slice_headers = p_pic->slice_headers;
+
     p_stored_pic->PicNum                          = p_pic->PicNum;
     p_stored_pic->frame_num                       = p_pic->frame_num;
     p_stored_pic->LongTermFrameIdx                = p_pic->LongTermFrameIdx;
@@ -189,15 +193,8 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
     p_stored_pic->frame_num                       = p_pic->frame_num;
 
     p_stored_pic->slice.structure                       = p_pic->slice.structure;
-    p_stored_pic->slice.coded_frame                     = 1;
     p_stored_pic->slice.slice_type                      = p_pic->slice.slice_type;
     p_stored_pic->slice.idr_flag                        = p_pic->slice.idr_flag;
-    p_stored_pic->slice.mb_aff_frame_flag               = p_pic->slice.mb_aff_frame_flag;
-    p_stored_pic->slice.no_output_of_prior_pics_flag    = p_pic->slice.no_output_of_prior_pics_flag;
-    p_stored_pic->slice.long_term_reference_flag        = 0;
-    p_stored_pic->slice.adaptive_ref_pic_buffering_flag = 0;
-    p_stored_pic->slice.dec_ref_pic_marking_buffer      = NULL;
-    p_stored_pic->PicWidthInMbs                   = p_pic->PicWidthInMbs;
     p_stored_pic->recovery_frame                  = p_pic->recovery_frame;
 
     // store BL reconstruction
