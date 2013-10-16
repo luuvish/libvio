@@ -29,31 +29,27 @@ namespace vio  {
 namespace h264 {
 
 
-struct nalu_t;
+struct nal_unit_t;
 struct annex_b_t;
 
 struct bitstream_t {
     enum class type { ANNEX_B, RTP };
 
-    type        FileFormat; //!< File format of the Input file, PAR_OF_ANNEXB or PAR_OF_RTP
+    type        FileFormat;
     int         BitStreamFile;
     annex_b_t*  annex_b;
-    int         LastAccessUnitExists;
-    int         NALUCount;
 
     void        open (const char* name, type format, uint32_t max_size);
     void        close();
     void        reset();
 
-    int         read_next_nalu     (nalu_t* nalu);
-    void        CheckZeroByteNonVCL(nalu_t* nalu);
-    void        CheckZeroByteVCL   (nalu_t* nalu);
+    bitstream_t& operator>>(nal_unit_t& nal);
 };
 
 
 void open_rtp         (const char* fn, int* p_BitStreamFile);
 void close_rtp        (int* p_BitStreamFile);
-int  get_nalu_from_rtp(nalu_t* nalu, int BitStreamFile);
+int  get_nalu_from_rtp(nal_unit_t& nal, int BitStreamFile);
 
 
 }

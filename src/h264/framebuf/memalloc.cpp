@@ -4,8 +4,7 @@
 
 void no_mem_exit(const char *where)
 {
-   snprintf(errortext, ET_SIZE, "Could not allocate memory: %s",where);
-   error (errortext, 100);
+    error(100, "Could not allocate memory: %s", where);
 }
 
 
@@ -55,7 +54,7 @@ void free_mem2Dmp(pic_motion_params** array2D)
         if (*array2D)
             mem_free(*array2D);
         else
-            error("free_mem2Dmp: trying to free unused memory", 100);
+            error(100, "free_mem2Dmp: trying to free unused memory");
         mem_free(array2D);
     }
 }
@@ -129,7 +128,7 @@ void free_mem2Dpel(px_t** array2D)
         if (*array2D)
             mem_free(*array2D);
         else
-            error("free_mem2Dpel: trying to free unused memory", 100);
+            error(100, "free_mem2Dpel: trying to free unused memory");
         mem_free(array2D);
     }
 }
@@ -140,7 +139,7 @@ void free_mem2Dpel_pad(px_t** array2D, int iPadY, int iPadX)
         if (*array2D)
             mem_free(array2D[-iPadY] - iPadX);
         else
-            error("free_mem2Dpel_pad: trying to free unused memory", 100);
+            error(100, "free_mem2Dpel_pad: trying to free unused memory");
         mem_free(&array2D[-iPadY]);
     }
 }

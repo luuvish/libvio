@@ -967,17 +967,17 @@ void IntraPrediction::intra_pred_16x16(mb_t* mb, ColorPlane pl, int ioff, int jo
     switch (mb->Intra16x16PredMode) {
     case Intra_16x16_Vertical:
         if (!available[1])
-            error ("invalid 16x16 intra pred Mode VERT_PRED_16",500);
+            error(500, "invalid 16x16 intra pred Mode VERT_PRED_16");
         break;
     case Intra_16x16_Horizontal:
         if (!available[0])
-            error ("invalid 16x16 intra pred Mode HOR_PRED_16",500);
+            error(500, "invalid 16x16 intra pred Mode HOR_PRED_16");
         break;
     case Intra_16x16_DC:
         break;
     case Intra_16x16_Plane:
         if (!available[3])
-            error ("invalid 16x16 intra pred Mode PLANE_16",500);
+            error(500, "invalid 16x16 intra pred Mode PLANE_16");
         break;
     default:
         printf("illegal 16x16 intra prediction mode input: %d\n", mb->Intra16x16PredMode);
@@ -1018,18 +1018,18 @@ void IntraPrediction::intra_pred_chroma(mb_t* mb)
         break;
     case Intra_Chroma_Horizontal: 
         if (!available[0][0])
-            error("unexpected HOR_PRED_8 chroma intra prediction mode",-1);
+            error(-1, "unexpected HOR_PRED_8 chroma intra prediction mode");
         break;
     case Intra_Chroma_Vertical: 
         if (!available[0][1])
-            error("unexpected VERT_PRED_8 chroma intra prediction mode",-1);
+            error(-1, "unexpected VERT_PRED_8 chroma intra prediction mode");
         break;
     case Intra_Chroma_Plane: 
         if (!available[0][3])
-            error("unexpected PLANE_8 chroma intra prediction mode",-1);
+            error(-1, "unexpected PLANE_8 chroma intra prediction mode");
         break;
     default:
-        error("illegal chroma intra prediction mode", 600);
+        error(600, "illegal chroma intra prediction mode");
     }
 
     switch (mb->intra_chroma_pred_mode) {

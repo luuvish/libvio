@@ -560,7 +560,7 @@ static void get_max_dec_frame_buf_size(sps_t *sps)
         size = 70778880;
         break;
     default:
-        error("undefined level", 500);
+        error(500, "undefined level");
         break;
     }
 
@@ -779,7 +779,7 @@ static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_
         no_mem_exit ("AllocSPS: SPS");
 
     assert(s != NULL);
-    assert(s->streamBuffer != 0);
+    assert(s->rbsp_byte != 0);
 
   seq_parameter_set_rbsp(s, sps);
   get_max_dec_frame_buf_size(sps);
@@ -1020,12 +1020,11 @@ void CleanUpPPS(VideoParameters *p_Vid)
 }
 
 
-void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
+void ProcessSPS(VideoParameters *p_Vid, nal_unit_t *nalu)
 {  
-    data_partition_t* dp = new data_partition_t[1];
+    data_partition_t* dp = new data_partition_t { *nalu };
     sps_t* sps = new sps_t;
 
-    dp->init(nalu);
     seq_parameter_set_rbsp(dp, sps);
 #if (MVC_EXTENSION_ENABLE)
     get_max_dec_frame_buf_size(sps);
@@ -1049,18 +1048,17 @@ void ProcessSPS(VideoParameters *p_Vid, nalu_t *nalu)
             p_Vid->profile_idc = sps->profile_idc;
     }
 
-    delete []dp;
+    delete dp;
     delete sps;
 }
 
 #if (MVC_EXTENSION_ENABLE)
-void ProcessSubsetSPS(VideoParameters *p_Vid, nalu_t *nalu)
+void ProcessSubsetSPS(VideoParameters *p_Vid, nal_unit_t *nalu)
 {
-    data_partition_t *dp = new data_partition_t[1];
+    data_partition_t *dp = new data_partition_t { *nalu };
     sub_sps_t *subset_sps;
     int curr_seq_set_id;
 
-    dp->init(nalu);
     subset_seq_parameter_set_rbsp(p_Vid, dp, &curr_seq_set_id);
 
     subset_sps = p_Vid->SubsetSeqParSet + curr_seq_set_id;
@@ -1077,16 +1075,15 @@ void ProcessSubsetSPS(VideoParameters *p_Vid, nalu_t *nalu)
     if (subset_sps->Valid)
         p_Vid->profile_idc = subset_sps->sps.profile_idc;
 
-    delete []dp;
+    delete dp;
 }
 #endif
 
-void ProcessPPS(VideoParameters *p_Vid, nalu_t *nalu)
+void ProcessPPS(VideoParameters *p_Vid, nal_unit_t *nalu)
 {
-    data_partition_t* dp = new data_partition_t[1];
+    data_partition_t* dp = new data_partition_t { *nalu };
     pps_t* pps = new pps_t;
 
-    dp->init(nalu);
     pic_parameter_set_rbsp(p_Vid, dp, pps);
 
     if (p_Vid->active_pps) {
@@ -1101,7 +1098,7 @@ void ProcessPPS(VideoParameters *p_Vid, nalu_t *nalu)
     }
 
     MakePPSavailable(p_Vid, pps->pic_parameter_set_id, pps);
-    delete []dp;
+    delete dp;
     delete pps;
 }
 

@@ -87,8 +87,8 @@ struct tone_mapping_t {
 void buffering_period(byte* payload, int size, VideoParameters* p_Vid)
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint8_t seq_parameter_set_id = buf->ue("SEI: seq_parameter_set_id");
@@ -127,8 +127,8 @@ void pic_timing(byte* payload, int size, VideoParameters* p_Vid)
     }
 
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     sps_t& sps = *p_Vid->active_sps;
@@ -214,8 +214,8 @@ void pic_timing(byte* payload, int size, VideoParameters* p_Vid)
 void pan_scan_rect(byte* payload, int size, VideoParameters *p_Vid)
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t pan_scan_rect_id;
@@ -242,8 +242,8 @@ void pan_scan_rect(byte* payload, int size, VideoParameters *p_Vid)
 void filler_payload( byte* payload, int payloadSize, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = payloadSize;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = payloadSize;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint8_t ff_byte;
@@ -256,8 +256,8 @@ void filler_payload( byte* payload, int payloadSize, VideoParameters *p_Vid )
 void user_data_registered_itu_t_t35( byte* payload, int payloadSize, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = payloadSize;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = payloadSize;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint8_t itu_t_t35_country_code;
@@ -284,8 +284,8 @@ void user_data_registered_itu_t_t35( byte* payload, int payloadSize, VideoParame
 void user_data_unregistered( byte* payload, int payloadSize, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = payloadSize;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = payloadSize;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint8_t uuid_iso_iec_11578[16];
@@ -302,8 +302,8 @@ void user_data_unregistered( byte* payload, int payloadSize, VideoParameters *p_
 void recovery_point( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t recovery_frame_cnt;
@@ -324,8 +324,8 @@ void recovery_point( byte* payload, int size, VideoParameters *p_Vid )
 void dec_ref_pic_marking_repetition( byte* payload, int size, VideoParameters *p_Vid, slice_t *pSlice )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     bool     original_idr_flag;
@@ -376,8 +376,8 @@ void dec_ref_pic_marking_repetition( byte* payload, int size, VideoParameters *p
 void spare_pic( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     sps_t& sps = *p_Vid->active_sps;
@@ -501,8 +501,8 @@ void spare_pic( byte* payload, int size, VideoParameters *p_Vid )
 void scene_info( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     bool scene_info_present_flag = buf->u(1, "SEI: scene_info_present_flag");
@@ -522,8 +522,8 @@ void scene_info( byte* payload, int size, VideoParameters *p_Vid )
 void sub_seq_info( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t sub_seq_layer_num, sub_seq_id;
@@ -546,8 +546,8 @@ void sub_seq_info( byte* payload, int size, VideoParameters *p_Vid )
 void sub_seq_layer_characteristics( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     bool     accurate_statistics_flag;
@@ -566,8 +566,8 @@ void sub_seq_layer_characteristics( byte* payload, int size, VideoParameters *p_
 void sub_seq_characteristics( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t sub_seq_layer_num;
@@ -606,8 +606,8 @@ void sub_seq_characteristics( byte* payload, int size, VideoParameters *p_Vid )
 void full_frame_freeze( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t full_frame_freeze_repetition_period;
@@ -623,8 +623,8 @@ void full_frame_freeze_release( byte* payload, int size, VideoParameters *p_Vid 
 void full_frame_snapshot( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t snapshot_id;
@@ -636,8 +636,8 @@ void full_frame_snapshot( byte* payload, int size, VideoParameters *p_Vid )
 void progressive_refinement_segment_start( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t progressive_refinement_id;
@@ -651,8 +651,8 @@ void progressive_refinement_segment_start( byte* payload, int size, VideoParamet
 void progressive_refinement_segment_end( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t progressive_refinement_id;
@@ -664,8 +664,8 @@ void progressive_refinement_segment_end( byte* payload, int size, VideoParameter
 void motion_constrained_slice_group_set( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t num_slice_groups_minus1 = buf->ue("SEI: num_slice_groups_minus1");
@@ -689,8 +689,8 @@ void motion_constrained_slice_group_set( byte* payload, int size, VideoParameter
 void film_grain_characteristics( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     bool film_grain_characteristics_cancel_flag = buf->u(1, "SEI: film_grain_characteristics_cancel_flag");
@@ -748,8 +748,8 @@ void film_grain_characteristics( byte* payload, int size, VideoParameters *p_Vid
 void deblocking_filter_display_preference( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     bool     display_prior_to_deblocking_preferred_flag;
@@ -768,8 +768,8 @@ void deblocking_filter_display_preference( byte* payload, int size, VideoParamet
 void stereo_video_info( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     bool field_views_flags;
@@ -796,8 +796,8 @@ void stereo_video_info( byte* payload, int size, VideoParameters *p_Vid )
 void post_filter_hints( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t filter_hint_size_y;
@@ -827,8 +827,8 @@ void tone_mapping_info( byte* payload, int size, VideoParameters *p_Vid )
     int i = 0, max_coded_num, max_output_num;
 
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     seiToneMappingTmp.tone_map_id          = buf->ue("SEI: tone_map_id");
@@ -920,8 +920,8 @@ void tone_mapping_info( byte* payload, int size, VideoParameters *p_Vid )
 void frame_packing_arrangement( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
 
     uint32_t frame_packing_arrangement_id;
@@ -972,8 +972,8 @@ void frame_packing_arrangement( byte* payload, int size, VideoParameters *p_Vid 
 void display_orientation( byte* payload, int size, VideoParameters *p_Vid )
 {
     data_partition_t* buf = new data_partition_t;
-    buf->bitstream_length = size;
-    buf->streamBuffer = payload;
+    buf->num_bytes_in_rbsp = size;
+    buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
   
     bool display_orientation_cancel_flag = buf->u(1, "SEI: display_orientation_cancel_flag");

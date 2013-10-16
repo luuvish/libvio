@@ -126,13 +126,11 @@ static char *GetConfigFileContent (const char *Filename)
 
   if (NULL == (f = fopen (Filename, "r")))
   {
-      snprintf (errortext, ET_SIZE, "Cannot open configuration file %s.", Filename);
       return NULL;
   }
 
   if (0 != fseek (f, 0, SEEK_END))
   {
-    snprintf (errortext, ET_SIZE, "Cannot fseek in configuration file %s.", Filename);
     return NULL;
   }
 
@@ -140,12 +138,10 @@ static char *GetConfigFileContent (const char *Filename)
 
   if (FileSize < 0 || FileSize > 150000)
   {
-    snprintf (errortext, ET_SIZE, "\nUnreasonable Filesize %ld reported by ftell for configuration file %s.", FileSize, Filename);
     return NULL;
   }
   if (0 != fseek (f, 0, SEEK_SET))
   {
-    snprintf (errortext, ET_SIZE, "Cannot fseek in configuration file %s.", Filename);
     return NULL;
   }
 
@@ -278,16 +274,13 @@ static void ParseContent (InputParameters *p_Inp, Mapping *Map, char *buf, int b
   {
     if (0 > (MapIdx = ParameterNameToMapIndex (Map, items[i])))
     {
-      //snprintf (errortext, ET_SIZE, " Parsing error in config file: Parameter Name '%s' not recognized.", items[i]);
-      //error (errortext, 300);
       printf ("\n\tParsing error in config file: Parameter Name '%s' not recognized.", items[i]);
       i -= 2 ;
       continue;
     }
     if (strcasecmp ("=", items[i+1]))
     {
-      snprintf (errortext, ET_SIZE, " Parsing error in config file: '=' expected as the second token in each line.");
-      error (errortext, 300);
+      error(300, " Parsing error in config file: '=' expected as the second token in each line.");
     }
 
     // Now interpret the Value, context sensitive...
@@ -297,8 +290,7 @@ static void ParseContent (InputParameters *p_Inp, Mapping *Map, char *buf, int b
     case 0:           // Numerical
       if (1 != sscanf (items[i+2], "%d", &IntContent))
       {
-        snprintf (errortext, ET_SIZE, " Parsing error: Expected numerical value for Parameter of %s, found '%s'.", items[i], items[i+2]);
-        error (errortext, 300);
+        error(300, " Parsing error: Expected numerical value for Parameter of %s, found '%s'.", items[i], items[i+2]);
       }
       * (int *) (Map[MapIdx].Place) = IntContent;
       printf (".");
@@ -313,14 +305,13 @@ static void ParseContent (InputParameters *p_Inp, Mapping *Map, char *buf, int b
     case 2:           // Numerical double
       if (1 != sscanf (items[i+2], "%lf", &DoubleContent))
       {
-        snprintf (errortext, ET_SIZE, " Parsing error: Expected numerical value for Parameter of %s, found '%s'.", items[i], items[i+2]);
-        error (errortext, 300);
+        error(300, " Parsing error: Expected numerical value for Parameter of %s, found '%s'.", items[i], items[i+2]);
       }
       * (double *) (Map[MapIdx].Place) = DoubleContent;
       printf (".");
       break;
     default:
-      error ((char *)"Unknown value type in the map definition of input_parameters.h",-1);
+      error(-1, "Unknown value type in the map definition of input_parameters.h");
     }
   }
   *p_Inp = cfgparams;
@@ -369,8 +360,7 @@ static int TestParams(Mapping *Map, int bitdepth_qp_scale[3])
       {
         if ( * (int *) (Map[i].Place) < (int) Map[i].min_limit || * (int *) (Map[i].Place) > (int) Map[i].max_limit )
         {
-          snprintf(errortext, ET_SIZE, "Error in input parameter %s. Check configuration file. Value should be in [%d, %d] range.", Map[i].TokenName, (int) Map[i].min_limit,(int)Map[i].max_limit );
-          error (errortext, 400);
+          error(400, "Error in input parameter %s. Check configuration file. Value should be in [%d, %d] range.", Map[i].TokenName, (int) Map[i].min_limit,(int)Map[i].max_limit );
         }
 
       }
@@ -378,8 +368,7 @@ static int TestParams(Mapping *Map, int bitdepth_qp_scale[3])
       {
         if ( * (double *) (Map[i].Place) < Map[i].min_limit || * (double *) (Map[i].Place) > Map[i].max_limit )
         {
-          snprintf(errortext, ET_SIZE, "Error in input parameter %s. Check configuration file. Value should be in [%.2f, %.2f] range.", Map[i].TokenName,Map[i].min_limit ,Map[i].max_limit );
-          error (errortext, 400);
+          error(400, "Error in input parameter %s. Check configuration file. Value should be in [%.2f, %.2f] range.", Map[i].TokenName,Map[i].min_limit ,Map[i].max_limit );
         }
       }
     }
@@ -389,16 +378,14 @@ static int TestParams(Mapping *Map, int bitdepth_qp_scale[3])
       {
         if ( * (int *) (Map[i].Place) < (int) Map[i].min_limit )
         {
-          snprintf(errortext, ET_SIZE, "Error in input parameter %s. Check configuration file. Value should not be smaller than %d.", Map[i].TokenName, (int) Map[i].min_limit);
-          error (errortext, 400);
+          error(400, "Error in input parameter %s. Check configuration file. Value should not be smaller than %d.", Map[i].TokenName, (int) Map[i].min_limit);
         }
       }
       else if (Map[i].Type == 2)
       {
         if ( * (double *) (Map[i].Place) < Map[i].min_limit )
         {
-          snprintf(errortext, ET_SIZE, "Error in input parameter %s. Check configuration file. Value should not be smaller than %2.f.", Map[i].TokenName,Map[i].min_limit);
-          error (errortext, 400);
+          error(400, "Error in input parameter %s. Check configuration file. Value should not be smaller than %2.f.", Map[i].TokenName,Map[i].min_limit);
         }
       }
     }
@@ -413,8 +400,7 @@ static int TestParams(Mapping *Map, int bitdepth_qp_scale[3])
         
         if (( cur_qp < min_qp ) || ( cur_qp > max_qp ))
         {
-          snprintf(errortext, ET_SIZE, "Error in input parameter %s. Check configuration file. Value should be in [%d, %d] range.", Map[i].TokenName, min_qp, max_qp );
-          error (errortext, 400);
+          error(400, "Error in input parameter %s. Check configuration file. Value should be in [%d, %d] range.", Map[i].TokenName, min_qp, max_qp );
         }
       }
     }
@@ -581,8 +567,7 @@ void InputParameters::ParseCommand(int ac, char* av[])
     } 
     else
     {
-      snprintf (errortext, ET_SIZE, "Error in command line, ac %d, around string '%s', missing -f or -p parameters?", CLcount, av[CLcount]);
-      error (errortext, 300);
+      error(300, "Error in command line, ac %d, around string '%s', missing -f or -p parameters?", CLcount, av[CLcount]);
     }
   }
   printf ("\n");

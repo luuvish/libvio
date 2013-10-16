@@ -102,7 +102,7 @@ bool macroblock_t::close(slice_t& slice)
     slice.parser.current_mb_nr = slice.p_Vid->ppSliceList[0]->FmoGetNextMBNr(slice.parser.current_mb_nr);
 
     if (pps.entropy_coding_mode_flag)
-        startcode_follows = eos_bit && slice.parser.partArr[0].de_cabac.decode_terminate();
+        startcode_follows = eos_bit && slice.parser.cabac[0].decode_terminate();
     else
         startcode_follows = !slice.parser.partArr[0].more_rbsp_data();
 

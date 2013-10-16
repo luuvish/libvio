@@ -153,8 +153,7 @@ void VideoParameters::report()
     FILE *p_log;
     if ((p_log = fopen(string,"r")) == 0) {
         if ((p_log = fopen(string,"a")) == 0) {
-            snprintf(errortext, ET_SIZE, "Error open file %s for appending",string);
-            error(errortext, 500);
+            error(500, "Error open file %s for appending", string);
         } else {
             fprintf(p_log, " --------------------------------------------------------------------------------------------------------------------\n");
             fprintf(p_log, "|  Decoder statistics. This file is made first time, later runs are appended                                        |\n");

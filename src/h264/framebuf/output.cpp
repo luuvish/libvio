@@ -97,7 +97,7 @@ static void img2buf_be(px_t** imgX, unsigned char* buf, int size_x, int size_y, 
         }
         break;
     default:
-        error("writing only to formats of 8, 16 or 32 bit allowed on big endian architecture", 500);
+        error(500, "writing only to formats of 8, 16 or 32 bit allowed on big endian architecture");
         break;
     }  
 }
@@ -178,26 +178,26 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
         img2buf(p->imgUV[1], buf, size_x_c, size_y_c, symbol_size_in_bytes,
                 crop_left_c, crop_right_c, crop_top_c, crop_bottom_c, iLumaSizeX * symbol_size_in_bytes);
         if (iChromaSize != write(p_out, buf, iChromaSize))
-            error("write_out_picture: error writing to RGB file", 500);
+            error(500, "write_out_picture: error writing to RGB file");
         delete []buf;
     }
 
     img2buf(p->imgY, p_Vid->pDecOuputPic.pY, size_x_l, size_y_l, symbol_size_in_bytes,
             crop_left_l, crop_right_l, crop_top_l, crop_bottom_l, iLumaSizeX * symbol_size_in_bytes);
     if (iLumaSize != write(p_out, p_Vid->pDecOuputPic.pY, iLumaSize))
-        error("write_out_picture: error writing to YUV file", 500);
+        error(500, "write_out_picture: error writing to YUV file");
 
     if (sps.chroma_format_idc != YUV400) {
         img2buf(p->imgUV[0], p_Vid->pDecOuputPic.pU, size_x_c, size_y_c, symbol_size_in_bytes,
                 crop_left_c, crop_right_c, crop_top_c, crop_bottom_c, iChromaSizeX * symbol_size_in_bytes);
         if (iChromaSize != write(p_out, p_Vid->pDecOuputPic.pU, iChromaSize))
-            error("write_out_picture: error writing to YUV file", 500);
+            error(500, "write_out_picture: error writing to YUV file");
 
         if (!rgb_output) {
             img2buf(p->imgUV[1], p_Vid->pDecOuputPic.pV, size_x_c, size_y_c, symbol_size_in_bytes,
                     crop_left_c, crop_right_c, crop_top_c, crop_bottom_c, iChromaSizeX * symbol_size_in_bytes);
             if (iChromaSize != write(p_out, p_Vid->pDecOuputPic.pV, iChromaSize))
-                error("write_out_picture: error writing to YUV file", 500);
+                error(500, "write_out_picture: error writing to YUV file");
         }
     } else if (p_Inp->write_uv) {
         get_mem2Dpel(&p->imgUV[0], size_y_l / 2, size_x_l / 2);
@@ -213,9 +213,9 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
         img2buf(p->imgUV[0], buf, size_x_l/2, size_y_l/2, symbol_size_in_bytes,
                 crop_left_l/2, crop_right_l/2, crop_top_l/2, crop_bottom_l/2, iLumaSizeX * symbol_size_in_bytes / 2);
         if (iLumaSize / 4 != write(p_out, buf, iLumaSize / 4))
-            error("write_out_picture: error writing to YUV file", 500);
+            error(500, "write_out_picture: error writing to YUV file");
         if (iLumaSize / 4 != write(p_out, buf, iLumaSize / 4))
-            error("write_out_picture: error writing to YUV file", 500);
+            error(500, "write_out_picture: error writing to YUV file");
         delete []buf;
 
         free_mem2Dpel(p->imgUV[0]);

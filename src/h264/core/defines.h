@@ -10,7 +10,6 @@
 typedef uint8_t  byte;
 typedef uint16_t px_t;
 
-#define MAX_CODED_FRAME_SIZE   8000000         //!< bytes for one frame
 #define MCBUF_LUMA_PAD_X        32
 #define MCBUF_LUMA_PAD_Y        12
 #define MCBUF_CHROMA_PAD_X      16

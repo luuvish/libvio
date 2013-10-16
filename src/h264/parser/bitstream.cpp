@@ -36,16 +36,15 @@ namespace h264 {
 
 
 struct annex_b_t {
-    static const int IOBUFFERSIZE = 512 * 1024;
+    static const int MAX_IOBUF_SIZE = 512 * 1024;
 
-    int32_t     BitStreamFile;
-    uint8_t*    iobuffer;
-    uint8_t*    iobufferread;
-    int32_t     bytesinbuffer;
+    int         BitStreamFile;
     bool        is_eof;
-    int32_t     iIOBufferSize;
+    size_t      iobuf_size;
+    uint8_t*    iobuf_data;
+    size_t      rdbuf_size;
+    uint8_t*    rdbuf_data;
 
-    int32_t     IsFirstByteStreamNALU;
     int32_t     nextstartcodebytes;
     uint8_t*    Buf;  
 
@@ -56,7 +55,8 @@ struct annex_b_t {
     void        close();
     void        reset();
 
-    uint32_t    get_nalu(nalu_t* nalu);
+    annex_b_t& operator>>(nal_unit_t& nal);
+    uint32_t    get_nalu(nal_unit_t& nal);
 
     inline uint32_t getChunk();
     inline uint8_t  getfbyte();
@@ -77,16 +77,14 @@ annex_b_t::~annex_b_t()
 
 void annex_b_t::open(const char* fn)
 {
-    if (this->iobuffer)
-        error("open_annex_b: tried to open Annex B file twice", 500);
-    if ((this->BitStreamFile = ::open(fn, O_RDONLY)) == -1) {
-        snprintf(errortext, ET_SIZE, "Cannot open Annex B ByteStream file '%s'", fn);
-        error(errortext, 500);
-    }
+    if (this->iobuf_data)
+        error(500, "open_annex_b: tried to open Annex B file twice");
+    if ((this->BitStreamFile = ::open(fn, O_RDONLY)) == -1)
+        error(500, "Cannot open Annex B ByteStream file '%s'", fn);
 
-    this->iIOBufferSize = annex_b_t::IOBUFFERSIZE * sizeof(uint8_t);
-    this->iobuffer = new uint8_t[this->iIOBufferSize];
     this->is_eof = false;
+    this->iobuf_size = annex_b_t::MAX_IOBUF_SIZE * sizeof(uint8_t);
+    this->iobuf_data = new uint8_t[this->iobuf_size];
     this->getChunk();
 }
 
@@ -96,91 +94,79 @@ void annex_b_t::close()
         ::close(this->BitStreamFile);
         this->BitStreamFile = -1;
     }
-    delete this->iobuffer;
-    this->iobuffer = NULL;
+    delete this->iobuf_data;
+    this->iobuf_data = NULL;
 }
 
 void annex_b_t::reset()
 {
-    this->is_eof        = false;
-    this->bytesinbuffer = 0;
-    this->iobufferread  = this->iobuffer;
+    this->is_eof     = false;
+    this->rdbuf_size = 0;
+    this->rdbuf_data = this->iobuf_data;
 }
 
 
-uint32_t annex_b_t::get_nalu(nalu_t* nalu)
+annex_b_t& annex_b_t::operator>>(nal_unit_t& nal)
 {
-    bool info2 = false, info3 = false;
-    bool StartCodeFound = false;
-    int  LeadingZero8BitsCount = 0;
+    this->get_nalu(nal);
+    return *this;
+}
+
+uint32_t annex_b_t::get_nalu(nal_unit_t& nal)
+{
     uint32_t pos = 0;
     uint8_t* pBuf = this->Buf;
+    //uint8_t* pBuf = nal.buf;
 
     if (this->nextstartcodebytes != 0) {
-        for (int i = 0; i < this->nextstartcodebytes - 1; i++) {
-            (*pBuf++) = 0;
+        for (int i = 0; i < this->nextstartcodebytes - 1; ++i) {
+            *pBuf++ = 0;
             pos++;
         }
-        (*pBuf++) = 1;
+        *pBuf++ = 1;
         pos++;
     } else {
         while (!this->is_eof) {
             pos++;
-            if ((*(pBuf++) = this->getfbyte()) != 0)
+            if ((*pBuf++ = this->getfbyte()) != 0)
                 break;
         }
     }
 
     if (this->is_eof) {
-        if (pos == 0)
-            return 0;
-        else {
-            printf( "get_annex_b_NALU can't read start code\n");
-            return -1;
-        }
+        nal.num_bytes_in_nal_unit = pos == 0 ? 0 : -1;
+        return nal.num_bytes_in_nal_unit;
     }
 
     if (*(pBuf - 1) != 1 || pos < 3) {
-        printf("get_annex_b_NALU: no Start Code at the beginning of the NALU, return -1\n");
-        return -1;
+        nal.num_bytes_in_nal_unit = -1;
+        return nal.num_bytes_in_nal_unit;
     }
 
-    if (pos == 3)
-        nalu->startcodeprefix_len = 3;
-    else {
-        LeadingZero8BitsCount = pos - 4;
-        nalu->startcodeprefix_len = 4;
-    }
+    int LeadingZero8BitsCount = pos;
+    bool info2 = false, info3 = false;
 
-    //the 1st byte stream NAL unit can has leading_zero_8bits, but subsequent ones are not
-    //allowed to contain it since these zeros(if any) are considered trailing_zero_8bits
-    //of the previous byte stream NAL unit.
-    if (!this->IsFirstByteStreamNALU && LeadingZero8BitsCount > 0) {
-        printf("get_annex_b_NALU: The leading_zero_8bits syntax can only be present in the first byte stream NAL unit, return -1\n");
-        return -1;
-    }
+    //pBuf = nal.buf;
 
-    LeadingZero8BitsCount = pos;
-    this->IsFirstByteStreamNALU = 0;
-
+    bool StartCodeFound = false;
     while (!StartCodeFound) {
         if (this->is_eof) {
             pBuf -= 2;
-            while (*(pBuf--) == 0)
+            while (*pBuf-- == 0)
                 pos--;
 
-            nalu->len = (pos - 1) - LeadingZero8BitsCount;
-            memcpy(nalu->buf, this->Buf + LeadingZero8BitsCount, nalu->len);
-            nalu->forbidden_bit = (*(nalu->buf) >> 7) & 1;
-            nalu->nal_ref_idc   = (*(nalu->buf) >> 5) & 3;
-            nalu->nal_unit_type = (NaluType) ((*(nalu->buf)) & 0x1f);
+            nal.num_bytes_in_nal_unit = (pos - 1) - LeadingZero8BitsCount;
+            memcpy(nal.rbsp_byte, this->Buf + LeadingZero8BitsCount, nal.num_bytes_in_nal_unit);
+            nal.forbidden_zero_bit = (nal.rbsp_byte[0] >> 7) & 1;
+            nal.nal_ref_idc        = (nal.rbsp_byte[0] >> 5) & 3;
+            nal.nal_unit_type      = (nal.rbsp_byte[0] & 0x1f);
             this->nextstartcodebytes = 0;
 
             return pos - 1;
         }
 
         pos++;
-        *(pBuf++) = this->getfbyte();    
+        *pBuf++ = this->getfbyte();    
         info3 = this->FindStartCode(pBuf - 4, 3);
         if (!info3) {
             info2 = this->FindStartCode(pBuf - 3, 2);
@@ -193,7 +179,7 @@ uint32_t annex_b_t::get_nalu(nalu_t* nalu)
     // have.  Hence, go back in the file
     if (info3) { //if the detected start code is 00 00 01, trailing_zero_8bits is sure not to be present
         pBuf -= 5;
-        while (*(pBuf--) == 0)
+        while (*pBuf-- == 0)
             pos--;
         this->nextstartcodebytes = 4;
     } else if (info2)
@@ -211,12 +197,12 @@ uint32_t annex_b_t::get_nalu(nalu_t* nalu)
     // start code, and (pos) - LeadingZero8BitsCount
     // is the size of the NALU.
 
-    nalu->len = pos - LeadingZero8BitsCount;
-    memcpy(nalu->buf, this->Buf + LeadingZero8BitsCount, nalu->len);
-    nalu->forbidden_bit = (*(nalu->buf) >> 7) & 1;
-    nalu->nal_ref_idc   = (*(nalu->buf) >> 5) & 3;
-    nalu->nal_unit_type = (NaluType) ((*(nalu->buf)) & 0x1f);
-    nalu->lost_packets  = 0;
+    nal.num_bytes_in_nal_unit = pos - LeadingZero8BitsCount;
+    memcpy(nal.rbsp_byte, this->Buf + LeadingZero8BitsCount, nal.num_bytes_in_nal_unit);
+    nal.forbidden_zero_bit = (nal.rbsp_byte[0] >> 7) & 1;
+    nal.nal_ref_idc        = (nal.rbsp_byte[0] >> 5) & 3;
+    nal.nal_unit_type      = (nal.rbsp_byte[0] & 0x1f);
+    nal.lost_packets       = 0;
 
     return pos;
 }
@@ -224,47 +210,41 @@ uint32_t annex_b_t::get_nalu(nalu_t* nalu)
 
 inline uint32_t annex_b_t::getChunk()
 {
-    uint32_t readbytes = ::read(this->BitStreamFile, this->iobuffer, this->iIOBufferSize);
-    if (0 == readbytes) {
+    size_t reads = ::read(this->BitStreamFile, this->iobuf_data, this->iobuf_size);
+    if (0 == reads) {
         this->is_eof = true;
         return 0;
     }
 
-    this->bytesinbuffer = readbytes;
-    this->iobufferread = this->iobuffer;
-    return readbytes;
+    this->rdbuf_size = reads;
+    this->rdbuf_data = this->iobuf_data;
+    return reads;
 }
 
 inline uint8_t annex_b_t::getfbyte()
 {
-    if (0 == this->bytesinbuffer) {
+    if (0 == this->rdbuf_size) {
         if (0 == this->getChunk())
             return 0;
     }
 
-    this->bytesinbuffer--;
-    return *this->iobufferread++;
+    --(this->rdbuf_size);
+    return *this->rdbuf_data++;
 }
 
 inline bool annex_b_t::FindStartCode(uint8_t* Buf, uint32_t zeros_in_startcode)
 {
-    for (int i = 0; i < zeros_in_startcode; i++) {
-        if (*(Buf++) != 0)
+    for (int i = 0; i < zeros_in_startcode; ++i) {
+        if (*Buf++ != 0)
             return false;
     }
-
-    if (*Buf != 1)
-        return false;
-
-    return true;
+    return *Buf == 1;
 }
 
 
 void bitstream_t::open(const char* name, type format, uint32_t max_size)
 {
-    this->FileFormat           = format;
-    this->LastAccessUnitExists = 0;
-    this->NALUCount            = 0;
+    this->FileFormat = format;
 
     switch (format) {
     case type::RTP:
@@ -299,142 +279,74 @@ void bitstream_t::reset()
 }
 
 
-static int EBSPtoRBSP(byte *streamBuffer, int end_bytepos, int begin_bytepos)
+static int NALUtoRBSP(nal_unit_t& nal)
 {
-    //Start code and Emulation Prevention need this to be defined in identical manner at encoder and decoder
-    #define ZEROBYTES_SHORTSTARTCODE 2 //indicates the number of zero bytes in the short start-code prefix
+    if (nal.num_bytes_in_nal_unit < 1)
+        return nal.num_bytes_in_rbsp = nal.num_bytes_in_nal_unit;
 
-    int i, j, count;
-    count = 0;
+    int count = 0;
+    int j = 1;
 
-    if (end_bytepos < begin_bytepos)
-        return end_bytepos;
-
-    j = begin_bytepos;
-
-    for (i = begin_bytepos; i < end_bytepos; ++i) {
+    for (int i = 1; i < nal.num_bytes_in_nal_unit; ++i) {
         //starting from begin_bytepos to avoid header information
         //in NAL unit, 0x000000, 0x000001 or 0x000002 shall not occur at any byte-aligned position
-        if (count == ZEROBYTES_SHORTSTARTCODE && streamBuffer[i] < 0x03) 
-            return -1;
-        if (count == ZEROBYTES_SHORTSTARTCODE && streamBuffer[i] == 0x03) {
+        if (count == 2 && nal.rbsp_byte[i] < 0x03) 
+            return nal.num_bytes_in_rbsp = -1;
+        if (count == 2 && nal.rbsp_byte[i] == 0x03) {
             //check the 4th byte after 0x000003, except when cabac_zero_word is used, in which case the last three bytes of this NAL unit must be 0x000003
-            if ((i < end_bytepos - 1) && (streamBuffer[i+1] > 0x03))
-                return -1;
+            if (i < nal.num_bytes_in_nal_unit - 1 && nal.rbsp_byte[i + 1] > 0x03)
+                return nal.num_bytes_in_rbsp = -1;
             //if cabac_zero_word is used, the final byte of this NAL unit(0x03) is discarded, and the last two bytes of RBSP must be 0x0000
-            if (i == end_bytepos - 1)
-                return j;
+            if (i == nal.num_bytes_in_nal_unit - 1)
+                return nal.num_bytes_in_rbsp = j;
 
             ++i;
             count = 0;
         }
-        streamBuffer[j] = streamBuffer[i];
-        if (streamBuffer[i] == 0x00)
+        nal.rbsp_byte[j] = nal.rbsp_byte[i];
+        if (nal.rbsp_byte[i] == 0x00)
             ++count;
         else
             count = 0;
         ++j;
     }
 
-    return j;
+    return nal.num_bytes_in_rbsp = j;
 }
 
-static int NALUtoRBSP(nalu_t *nalu)
-{
-    assert(nalu != NULL);
-
-    nalu->len = EBSPtoRBSP(nalu->buf, nalu->len, 1);
-
-    return nalu->len;
-}
-
-int bitstream_t::read_next_nalu(nalu_t* nalu)
+bitstream_t& bitstream_t::operator>>(nal_unit_t& nal)
 {
     int ret;
 
     switch (this->FileFormat) {
     case type::RTP:
-        ret = get_nalu_from_rtp(nalu, this->BitStreamFile);
+        ret = get_nalu_from_rtp(nal, this->BitStreamFile);
         break;   
     case type::ANNEX_B:
     default:
-        ret = this->annex_b->get_nalu(nalu);
+        ret = this->annex_b->get_nalu(nal);
         break;
     }
 
     if (ret < 0) {
-        snprintf(errortext, ET_SIZE, "Error while getting the NALU in file format %s, exit\n",
-                 this->FileFormat == type::ANNEX_B ? "Annex B" : "RTP");
-        error(errortext, 601);
+        error(601, "Error while getting the NALU in file format %s, exit\n",
+                   this->FileFormat == type::ANNEX_B ? "Annex B" : "RTP");
     }
-    if (ret == 0)
-        return 0;
+    if (ret == 0) {
+        nal.num_bytes_in_rbsp = 0;
+        return *this;
+    }
 
-    //In some cases, zero_byte shall be present. If current NALU is a VCL NALU, we can't tell
-    //whether it is the first VCL NALU at this point, so only non-VCL NAL unit is checked here.
-    this->CheckZeroByteNonVCL(nalu);
-
-    ret = NALUtoRBSP(nalu);
+    ret = NALUtoRBSP(nal);
 
     if (ret < 0)
-        error("Invalid startcode emulation prevention found.", 602);
+        error(602, "Invalid startcode emulation prevention found.");
 
     // Got a NALU
-    if (nalu->forbidden_bit)
-        error("Found NALU with forbidden_bit set, bit error?", 603);
+    if (nal.forbidden_zero_bit)
+        error(603, "Found NALU with forbidden_zero_bit set, bit error?");
 
-    return nalu->len;
-}
-
-void bitstream_t::CheckZeroByteNonVCL(nalu_t* nalu)
-{
-    int CheckZeroByte = 0;
-
-    //This function deals only with non-VCL NAL units
-    if (nalu->nal_unit_type >= 1 && nalu->nal_unit_type <= 5)
-        return;
-
-    //for SPS and PPS, zero_byte shall exist
-    if (nalu->nal_unit_type == NALU_TYPE_SPS || nalu->nal_unit_type == NALU_TYPE_PPS)
-        CheckZeroByte = 1;
-    //check the possibility of the current NALU to be the start of a new access unit, according to 7.4.1.2.3
-    if (nalu->nal_unit_type == NALU_TYPE_AUD || nalu->nal_unit_type == NALU_TYPE_SPS ||
-        nalu->nal_unit_type == NALU_TYPE_PPS || nalu->nal_unit_type == NALU_TYPE_SEI ||
-        (nalu->nal_unit_type >= 13 && nalu->nal_unit_type <= 18)) {
-        if (this->LastAccessUnitExists) {
-            this->LastAccessUnitExists = 0; //deliver the last access unit to decoder
-            this->NALUCount = 0;
-        }
-    }
-    this->NALUCount++;
-    //for the first NAL unit in an access unit, zero_byte shall exists
-    if (this->NALUCount == 1)
-        CheckZeroByte = 1;
-    if (CheckZeroByte && nalu->startcodeprefix_len == 3)
-        printf("Warning: zero_byte shall exist\n");
-        //because it is not a very serious problem, we do not exit here
-}
-
-void bitstream_t::CheckZeroByteVCL(nalu_t* nalu)
-{
-    int CheckZeroByte = 0;
-
-    //This function deals only with VCL NAL units
-    if (!(nalu->nal_unit_type >= NALU_TYPE_SLICE &&
-          nalu->nal_unit_type <= NALU_TYPE_IDR))
-        return;
-
-    if (this->LastAccessUnitExists)
-        this->NALUCount = 0;
-    this->NALUCount++;
-    //the first VCL NAL unit that is the first NAL unit after last VCL NAL unit indicates
-    //the start of a new access unit and hence the first NAL unit of the new access unit.           (sounds like a tongue twister :-)
-    if (this->NALUCount == 1)
-        CheckZeroByte = 1;
-    this->LastAccessUnitExists = 1;
-    if (CheckZeroByte && nalu->startcodeprefix_len == 3)
-        printf("warning: zero_byte shall exist\n");
-        //because it is not a very serious problem, we do not exit here
+    return *this;
 }
 
 

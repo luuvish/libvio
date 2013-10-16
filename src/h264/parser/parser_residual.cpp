@@ -317,7 +317,7 @@ void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startId
 {
     shr_t& shr = slice.header;
 
-    data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    cabac_engine_t& cabac = slice.parser.cabac[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int context;
     if (!chroma) {
@@ -343,7 +343,7 @@ void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startId
         cabac_context_t* ctx = slice.parser.mot_ctx.bcbp_contexts + type2ctx_bcbp[context];
         int ctxIdxInc = coded_block_flag_ctxIdxInc(mb, pl, chroma, ac, blkIdx);
 
-        coded_block_flag = dp->de_cabac.decode_decision(ctx + ctxIdxInc);
+        coded_block_flag = cabac.decode_decision(ctx + ctxIdxInc);
     }
     if (coded_block_flag)
         update_coded_block_flag(&mb, pl, chroma, ac, blkIdx);
@@ -364,10 +364,10 @@ void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startId
 
     ii = 0;
     while (ii < numCoeff - 1) {
-        bool significant_coeff_flag = dp->de_cabac.decode_decision(map_ctx + pos2ctx_Map[ii]);
+        bool significant_coeff_flag = cabac.decode_decision(map_ctx + pos2ctx_Map[ii]);
         *(coeff++) = significant_coeff_flag;
         if (significant_coeff_flag) {
-            bool last_significant_coeff_flag = dp->de_cabac.decode_decision(last_ctx + pos2ctx_Last[ii]);
+            bool last_significant_coeff_flag = cabac.decode_decision(last_ctx + pos2ctx_Last[ii]);
             if (last_significant_coeff_flag)
                 numCoeff = ii + 1;
         }
@@ -391,8 +391,8 @@ void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startId
                 (numDecodAbsLevelGt1 != 0 ? 0 : min(4, 1 + numDecodAbsLevelEq1)),
                 5 + min(4 - (ctxBlockCat == CHROMA_DC ? 1 : 0), numDecodAbsLevelGt1)
             };
-            int32_t coeff_abs_level_minus1 = unary_exp_golomb_level_decode(&dp->de_cabac, one_ctx, ctxIdxIncs);
-            bool    coeff_sign_flag = dp->de_cabac.decode_bypass();
+            int32_t coeff_abs_level_minus1 = unary_exp_golomb_level_decode(&cabac, one_ctx, ctxIdxIncs);
+            bool    coeff_sign_flag = cabac.decode_bypass();
             int32_t coeffLevel = (coeff_abs_level_minus1 + 1) * (1 - 2 * coeff_sign_flag);
 
             *coeff = coeffLevel;

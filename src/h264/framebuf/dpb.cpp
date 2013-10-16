@@ -28,7 +28,7 @@ static inline int is_FREXT_profile(unsigned int profile_idc)
 void decoded_picture_buffer_t::get_smallest_poc(int* poc, int* pos)
 {
     if (this->used_size < 1)
-        error("Cannot determine smallest POC, DPB empty.", 150);
+        error(150, "Cannot determine smallest POC, DPB empty.");
 
     *pos = -1;
     *poc = INT_MAX;
@@ -102,7 +102,7 @@ int getDpbSize(VideoParameters* p_Vid, sps_t* active_sps)
         size = 70778880;
         break;
     default:
-        error("undefined level", 500);
+        error(500, "undefined level");
         break;
     }
 
@@ -118,7 +118,7 @@ int getDpbSize(VideoParameters* p_Vid, sps_t* active_sps)
     if (active_sps->vui_parameters_present_flag && active_sps->vui_parameters.bitstream_restriction_flag) {
         int size_vui;
         if ((int)active_sps->vui_parameters.max_dec_frame_buffering > size)
-            error("max_dec_frame_buffering larger than MaxDpbSize", 500);
+            error(500, "max_dec_frame_buffering larger than MaxDpbSize");
         size_vui = max<int>(1, active_sps->vui_parameters.max_dec_frame_buffering);
 #ifdef _DEBUG
         if (size_vui < size)
@@ -147,7 +147,7 @@ void decoded_picture_buffer_t::init(VideoParameters* p_Vid, int type)
 #else
     if (this->size < sps.max_num_ref_frames)
 #endif
-        error ("DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n", 1000);
+        error(1000, "DPB size at specified level is smaller than the specified number of reference frames. This is not allowed.\n");
 
     this->used_size    = 0;
     this->last_picture = nullptr;
@@ -334,7 +334,7 @@ void decoded_picture_buffer_t::remove_frame(int pos)
     case 0:
         break;
     default:
-        error("invalid frame store type", 500);
+        error(500, "invalid frame store type");
     }
     fs->is_used           = 0;
     fs->is_long_term      = 0;
@@ -356,7 +356,7 @@ bool decoded_picture_buffer_t::output_one_frame()
     VideoParameters* p_Vid = this->p_Vid;
     //diagnostics
     if (this->used_size < 1)
-        error("Cannot output frame, DPB empty.",150);
+        error(150, "Cannot output frame, DPB empty.");
 
     // find smallest POC
     int poc, pos;
@@ -387,7 +387,7 @@ bool decoded_picture_buffer_t::output_one_frame()
     // picture error concealment
     if (p_Vid->conceal_mode == 0) {
         if (this->last_output_poc >= poc)
-            error("output POC must be in ascending order", 150);
+            error(150, "output POC must be in ascending order");
     }
 
     this->last_output_poc = poc;
@@ -456,7 +456,7 @@ void decoded_picture_buffer_t::update_ltref_list()
 void decoded_picture_buffer_t::check_num_ref()
 {
     if (this->ltref_frames_in_buffer + this->ref_frames_in_buffer > max(1, this->num_ref_frames))
-        error("Max. number of reference frames exceeded. Invalid stream.", 500);
+        error(500, "Max. number of reference frames exceeded. Invalid stream.");
 }
 
 void decoded_picture_buffer_t::mm_unmark_short_term_for_reference(storable_picture* p, int difference_of_pic_nums_minus1)
@@ -690,7 +690,7 @@ void decoded_picture_buffer_t::mm_assign_long_term_frame_idx(storable_picture* p
             }
         }
         if (structure == FRAME)
-            error("field for long term marking not found", 200);
+            error(200, "field for long term marking not found");
 
         this->unmark_long_term_field_for_reference_by_frame_idx(structure, long_term_frame_idx, 0, 0, picNumX);
     }
@@ -748,7 +748,7 @@ void decoded_picture_buffer_t::adaptive_memory_management(storable_picture* p)
         switch (tmp_drpm->memory_management_control_operation) {
         case 0:
             if (tmp_drpm->Next != NULL)
-                error("memory_management_control_operation = 0 not last operation in buffer", 500);
+                error(500, "memory_management_control_operation = 0 not last operation in buffer");
             break;
         case 1:
             this->mm_unmark_short_term_for_reference(p, tmp_drpm->difference_of_pic_nums_minus1);
@@ -777,7 +777,7 @@ void decoded_picture_buffer_t::adaptive_memory_management(storable_picture* p)
             this->check_num_ref();
             break;
         default:
-            error("invalid memory_management_control_operation in buffer", 500);
+            error(500, "invalid memory_management_control_operation in buffer");
         }
         p->slice_headers[0]->header.dec_ref_pic_marking_buffer = tmp_drpm->Next;
         delete tmp_drpm;
@@ -919,7 +919,7 @@ void decoded_picture_buffer_t::store_picture(storable_picture* p)
     if (p->used_for_reference && !p->is_long_term) {
         for (i = 0; i < this->ref_frames_in_buffer; i++) {
             if (this->fs_ref[i]->FrameNum == p->frame_num)
-                error("duplicate frame_num in short-term reference picture buffer", 500);
+                error(500, "duplicate frame_num in short-term reference picture buffer");
         }
     }
     // store at end of buffer

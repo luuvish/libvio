@@ -193,7 +193,7 @@ void init_picture(slice_t* currSlice)
             } else
 #endif
                 /* Advanced Error Concealment would be called here to combat unintentional loss of pictures. */
-                error("An unintentional loss of pictures occurs! Exit\n", 100);
+                error(100, "An unintentional loss of pictures occurs! Exit\n");
         }
         if (p_Vid->conceal_mode == 0)
             fill_frame_num_gap(p_Vid, currSlice);
@@ -452,7 +452,7 @@ void init_picture_decoding(VideoParameters *p_Vid)
     shr_t& shr = pSlice->header;
 
     if (p_Vid->iSliceNumOfCurrPic >= MAX_NUM_SLICES)
-        error ("Maximum number of supported slices exceeded. \nPlease recompile with increased value for MAX_NUM_SLICES", 200);
+        error(200, "Maximum number of supported slices exceeded. \nPlease recompile with increased value for MAX_NUM_SLICES");
 
     if (p_Vid->pNextPPS->Valid && p_Vid->pNextPPS->pic_parameter_set_id == shr.pic_parameter_set_id) {
         pps_t tmpPPS;
@@ -584,7 +584,7 @@ void slice_t::init()
 
     this->parser.current_mb_nr = shr.first_mb_in_slice * (1 + shr.MbaffFrameFlag);
     if (this->active_pps->entropy_coding_mode_flag)
-        this->parser.partArr[0].de_cabac.init(&this->parser.partArr[0]);
+        this->parser.cabac[0].init(&this->parser.partArr[0]);
 
     this->num_dec_mb = 0;
 

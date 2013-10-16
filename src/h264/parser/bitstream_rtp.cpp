@@ -1,101 +1,9 @@
-
-/*!
- ************************************************************************
- * \file  rtp.c
- *
- * \brief
- *    Network Adaptation layer for RTP packets
- *
- * \author
- *    Main contributors (see contributors.h for copyright, address and affiliation details)
- *    - Stephan Wenger   <stewe@cs.tu-berlin.de>
- ************************************************************************
- */
-
-
-/*!
-
-  A quick guide to the basics of the RTP decoder implementation
-
-  This module contains the RTP packetization, de-packetization, and the
-  handling of Parameter Sets, see VCEG-N52 and accompanying documents.
-  Note: Compound packets are not yet implemented!
-
-  The interface between every NAL (including the RTP NAL) and the VCL is
-  based on Slices.  The slice data structure on which the VCL is working
-  is defined in the type slice_t (in defines.h).  This type contains the
-  various fields of the slice header and a partition array, which itself
-  contains the data partitions the slice consists of.  When data
-  partitioning is not used, then the whole slice bit string is stored
-  in partition #0.  When individual partitions are missing, this is
-  indicated by the size of the bit strings in the partition array.
-  A complete missing slice (e.g. if a Full slice_t packet was lost) is
-  indicated in a similar way.
-
-  part of the slice structure is the error indication (ei-flag).  The
-  Ei-flag is set in such cases in which at least one partition of a slice
-  is damaged or missing.When data partitioning is used, it can happen that
-  one partition does not contain any symbols but the ei_flag is cleared,
-  which indicates the intentional missing of symbols of that partition.
-  A typical example for this behaviour is the Intra slice_t, which does not
-  have symnbols in its type C partition.
-
-  The VCL requests new data to work on through the call of readSliceRTP().
-  This function calls the main state machine of this module in ReadRTPpaacket().
-
-  ReadRTPpacket assumes, when called, that in an error free environment
-  a complete slice, consisting of one Full slice_t RTP packet, or three Partition
-  packets of types A, B, C with consecutive sequence numbers, can be read.
-  It first interprets any trailing SUPP and Parameter Update (Header) packets.
-  Then it reads one video data packet.  Two cases have to be distinguished:
-
-  1. Type A, or Full slice_t packet
-  In this case, the PictureID and the macroblock mumbers are used to
-  identify the potential loss of a slice.  A slice is lost, when the
-  StartMB of the newly read slice header is not equal to the current
-  state of the decoder
-    1.1 Loss detected
-      In this case the last packet is unread (fseek back), and a dummy slice
-      containing the missing macroblocks is conveyed to the VCL.  At the next
-      call of the NAL, the same packet is read again, but this time no packet
-      loss is detected by the above algorithm,
-    1.2. No loss
-      In this case it is checked whether a Full slice_t packet or a type A data
-      partition was read
-        1.2.1 Full slice_t
-          The Full slice_t packet is conveyed to the NAL
-        1.2.2 Type A Partition
-          The function RTPReadDataPartitionedSlice() is called, which collects
-          the remaining type B, C partitions and handles them appropriately.
-
-  Paraneter Update Packets (aka Header packets) are in an SDP-like syntax
-  and are interpreted by a simple parser in the function
-  RTPInterpretParameterSetPacket()
-
-  Each slice_t header contaions the information on which parameter set to be used.
-  The function RTPSetImgInp() copies the information of the relevant parameter
-  set in the VCL's global variables p_Vid-> and p_Inp->  IMPORTANT: any changes
-  in the semantics of the p_Vid-> and p_Inp-> structure members must be represented
-  in this function as well!
-
-  A note to the stream-buffer data structure: The stream buffer always contains
-  only the contents of the partition in question, and not the slice/partition
-  header.  Decoding has to start at bitoffset 0 (CAVLC) or bytreoffset 0 (CABAC).
-
-  The remaining functions should be self-explanatory.
-
-*/
-
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
-#if defined(WIN32) || defined(WIN64)
-#include <Winsock2.h>
-#else
 #include <netinet/in.h>
-#endif
 
 #include "memalloc.h"
 #include "bitstream.h"
@@ -112,7 +20,7 @@ namespace h264 {
 #define H264SSRC 0x12345678               //!< SSRC, chosen to simplify debugging */
 #define RTP_TR_TIMESTAMP_MULT 1000        //!< should be something like 27 Mhz / 29.97 Hz */
 
-typedef struct {
+struct RTPpacket_t {
     uint32_t v;          //!< Version, 2 bits, MUST be 0x2
     uint32_t p;          //!< Padding bit, Padding MUST NOT be used
     uint32_t x;          //!< Extension, MUST be zero
@@ -128,35 +36,18 @@ typedef struct {
     uint32_t paylen;     //!< length of payload in bytes
     uint8_t* packet;     //!< complete packet including header and payload
     uint32_t packlen;    //!< length of packet, typically paylen+12
-} RTPpacket_t;
+};
 
-int  DecomposeRTPpacket(RTPpacket_t *p);
-void DumpRTPHeader(RTPpacket_t *p);
-int  RTPReadPacket(RTPpacket_t *p, int bitstream);
+int  DecomposeRTPpacket(RTPpacket_t* p);
+void DumpRTPHeader(RTPpacket_t* p);
+int  RTPReadPacket(RTPpacket_t* p, int bitstream);
 
-/*!
- ************************************************************************
- * \brief
- *    Opens the bit stream file named fn
- * \return
- *    none
- ************************************************************************
- */
 
 void open_rtp(const char *fn, int *p_BitStreamFile)
 {
-    if (((*p_BitStreamFile) = open(fn, O_RDONLY)) == -1) {
-        snprintf(errortext, ET_SIZE, "Cannot open RTP file '%s'", fn);
-        error(errortext, 500);
-    }
+    if (((*p_BitStreamFile) = open(fn, O_RDONLY)) == -1)
+        error(500, "Cannot open RTP file '%s'", fn);
 }
-
-/*!
- ************************************************************************
- * \brief
- *    Closes the bit stream file
- ************************************************************************
- */
 
 void close_rtp(int *p_BitStreamFile)
 {
@@ -166,36 +57,18 @@ void close_rtp(int *p_BitStreamFile)
     }
 }
 
-/*!
- ************************************************************************
- * \brief
- *    Fills nalu->buf and nalu->len with the payload of an RTP packet.
- *    Other fields in nalu-> remain uninitialized (will be taken care of
- *    by NALUtoRBSP.
- *
- * \return
- *     4 in case of ok (for compatibility with get_annex_b_NALU)
- *     0 if there is nothing any more to read (EOF)
- *    -1 in case of any error
- *
- ************************************************************************
- */
-
-int get_nalu_from_rtp(nalu_t *nalu, int BitStreamFile)
+int get_nalu_from_rtp(nal_unit_t& nal, int BitStreamFile)
 {
     static uint16_t first_call = 1;  //!< triggers sequence number initialization on first call
     static uint16_t old_seq = 0;     //!< store the last RTP sequence number for loss detection
 
-    RTPpacket_t *p;
-    int ret;
-
-    p = new RTPpacket_t;
+    RTPpacket_t* p = new RTPpacket_t;
     p->packet  = new uint8_t[MAXRTPPACKETSIZE];
     p->payload = new uint8_t[MAXRTPPACKETSIZE];
 
-    ret = RTPReadPacket(p, BitStreamFile);
-    nalu->forbidden_bit = 1;
-    nalu->len = 0;
+    int ret = RTPReadPacket(p, BitStreamFile);
+    nal.forbidden_zero_bit = 1;
+    nal.num_bytes_in_nal_unit = 0;
 
     if (ret > 0) { // we got a packet ( -1=error, 0=end of file )
         if (first_call) {
@@ -203,17 +76,17 @@ int get_nalu_from_rtp(nalu_t *nalu, int BitStreamFile)
             old_seq = (uint16_t)(p->seq - 1);
         }
 
-        nalu->lost_packets = (uint16_t)(p->seq - (old_seq + 1));
+        nal.lost_packets = (uint16_t)(p->seq - (old_seq + 1));
         old_seq = p->seq;
 
-        assert(p->paylen < nalu->max_size);
+        assert(p->paylen < nal.max_size);
 
-        nalu->len = p->paylen;
-        memcpy(nalu->buf, p->payload, p->paylen);
-        nalu->forbidden_bit = (nalu->buf[0] >> 7) & 1;
-        nalu->nal_ref_idc   = (nalu->buf[0] >> 5) & 3;
-        nalu->nal_unit_type = (NaluType)(nalu->buf[0] & 0x1f);
-        if (nalu->lost_packets)
+        nal.num_bytes_in_nal_unit = p->paylen;
+        memcpy(nal.rbsp_byte, p->payload, p->paylen);
+        nal.forbidden_zero_bit = (nal.rbsp_byte[0] >> 7) & 1;
+        nal.nal_ref_idc        = (nal.rbsp_byte[0] >> 5) & 3;
+        nal.nal_unit_type      = (nal.rbsp_byte[0] & 0x1f);
+        if (nal.lost_packets)
             printf("Warning: RTP sequence number discontinuity detected\n");
     }
 
@@ -221,41 +94,13 @@ int get_nalu_from_rtp(nalu_t *nalu, int BitStreamFile)
     delete []p->payload;
     delete []p->packet;
     delete p;
-  
-    if (ret > 0)
-        // length of packet
-        return nalu->len;
-    else
-        // error code
-        return ret;
+
+    if (ret < 0)
+        nal.num_bytes_in_nal_unit = -1;
+    return nal.num_bytes_in_nal_unit;
 }
 
-/*!
- *****************************************************************************
- *
- * \brief
- *    DecomposeRTPpacket interprets the RTP packet and writes the various
- *    structure members of the RTPpacket_t structure
- *
- * \return
- *    0 in case of success
- *    negative error code in case of failure
- *
- * \param p
- *    Caller is responsible to allocate enough memory for the generated payload
- *    in parameter->payload. Typically a malloc of paclen-12 bytes is sufficient
- *
- * \par Side effects
- *    none
- *
- * \date
- *    30 Spetember 2001
- *
- * \author
- *    Stephan Wenger   stewe@cs.tu-berlin.de
- *****************************************************************************/
-
-int DecomposeRTPpacket(RTPpacket_t *p)
+int DecomposeRTPpacket(RTPpacket_t* p)
 {
     // consistency check
     assert(p->packlen < 65536 - 28);  // IP, UDP headers
@@ -292,32 +137,9 @@ int DecomposeRTPpacket(RTPpacket_t *p)
     return 0;
 }
 
-/*!
- *****************************************************************************
- *
- * \brief
- *    DumpRTPHeader is a debug tool that dumps a human-readable interpretation
- *    of the RTP header
- *
- * \return
- *    n.a.
- * \param p
- *    the RTP packet to be dumped, after DecompositeRTPpacket()
- *
- * \par Side effects
- *    Debug output to stdout
- *
- * \date
- *    30 Spetember 2001
- *
- * \author
- *    Stephan Wenger   stewe@cs.tu-berlin.de
- *****************************************************************************/
-
-void DumpRTPHeader(RTPpacket_t *p)
+void DumpRTPHeader(RTPpacket_t* p)
 {
-    int i;
-    for (i = 0; i < 30; i++)
+    for (int i = 0; i < 30; i++)
         printf("%02x ", p->packet[i]);
     printf("Version (V): %d\n", (int)p->v);
     printf("Padding (P): %d\n", (int)p->p);
@@ -330,35 +152,7 @@ void DumpRTPHeader(RTPpacket_t *p)
     printf("SSRC: %d\n", (int)p->ssrc);
 }
 
-/*!
- *****************************************************************************
- *
- * \brief
- *    RTPReadPacket reads one packet from file
- *
- * \return
- *    0: EOF
- *    negative: error
- *    positive: size of RTP packet in bytes
- *
- * \param p
- *    packet data structure, with memory for p->packet allocated
- *
- * \param bitstream
- *    target file
- *
- * \par Side effects:
- *   - File pointer in bits moved
- *   - p->xxx filled by reading and Decomposepacket()
- *
- * \date
- *    04 November, 2001
- *
- * \author
- *    Stephan Wenger, stewe@cs.tu-berlin.de
- *****************************************************************************/
-
-int RTPReadPacket(RTPpacket_t *p, int bitstream)
+int RTPReadPacket(RTPpacket_t* p, int bitstream)
 {
     int64_t Filepos;
     int     intime;

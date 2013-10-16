@@ -3,14 +3,14 @@
 
 
 namespace vio { namespace h264 {
-struct nalu_t;
+struct nal_unit_t;
 struct data_partition_t;
 }}
 struct VideoParameters;
 struct slice_t;
 
 
-using vio::h264::nalu_t;
+using vio::h264::nal_unit_t;
 using vio::h264::data_partition_t;
 
 
@@ -370,8 +370,8 @@ void prefix_nal_unit_svc();
 
 void MakePPSavailable (VideoParameters* p_Vid, int id, pps_t *pps);
 
-void ProcessSPS (VideoParameters* p_Vid, nalu_t *nalu);
-void ProcessPPS (VideoParameters* p_Vid, nalu_t *nalu);
+void ProcessSPS (VideoParameters* p_Vid, nal_unit_t *nalu);
+void ProcessPPS (VideoParameters* p_Vid, nal_unit_t *nalu);
 
 void CleanUpPPS(VideoParameters* p_Vid);
 
@@ -381,7 +381,7 @@ void activate_pps (VideoParameters* p_Vid, pps_t *pps);
 void UseParameterSet (struct slice_t *currSlice);
 
 #if (MVC_EXTENSION_ENABLE)
-void ProcessSubsetSPS (VideoParameters* p_Vid, nalu_t *nalu);
+void ProcessSubsetSPS (VideoParameters* p_Vid, nal_unit_t *nalu);
 void init_subset_sps_list(sub_sps_t *subset_sps_list, int iSize);
 void reset_subset_sps(sub_sps_t *subset_sps);
 #endif

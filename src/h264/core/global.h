@@ -49,11 +49,6 @@ enum PictureStructure {
 };
 
 
-
-#define ET_SIZE 300      //!< size of error text buffer
-extern char errortext[ET_SIZE]; //!< buffer for error message for exit with error()
-
-
 struct pic_motion_params_old;
 struct pic_motion_params;
 
@@ -123,7 +118,7 @@ struct VideoParameters {
     slice_t*    pNextSlice;
     int         newframe;
 
-    nalu_t*     nalu;
+    nal_unit_t*     nalu;
 
     struct {
         uint8_t* pY;
@@ -234,7 +229,7 @@ struct VideoParameters {
     void report();
 };
 
-extern void error(const char *text, int code);
+extern void error(int code, const char* format, ...);
 
 // dynamic mem allocation
 extern void free_layer_buffers(VideoParameters *p_Vid, int layer_id);

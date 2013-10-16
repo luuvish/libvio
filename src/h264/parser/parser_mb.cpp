@@ -474,7 +474,7 @@ void Parser::Macroblock::parse_i_pcm()
         }
 
         if (pps.entropy_coding_mode_flag)
-            dp->de_cabac.init(dp);
+            slice.parser.cabac[slice.parser.dp_mode ? 1 : 0].init(dp);
     }
 }
 

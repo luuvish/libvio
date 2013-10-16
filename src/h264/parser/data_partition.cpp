@@ -210,25 +210,11 @@ uint32_t cabac_engine_t::fl(cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t m
 }
 
 
-data_partition_t::data_partition_t()
-{
-    this->streamBuffer = new uint8_t[MAX_CODED_FRAME_SIZE];
-    if (!this->streamBuffer) {
-        snprintf(errortext, ET_SIZE, "AllocPartition: Memory allocation for streamBuffer failed");
-        error(errortext, 100);
-    }
-}
 
-data_partition_t::~data_partition_t()
-{
-    assert(this->streamBuffer != NULL);
-    delete this->streamBuffer;
-}
-
-static int RBSPtoSODB(uint8_t* streamBuffer, int last_byte_pos)
+static int RBSPtoSODB(uint8_t* rbsp_byte, int last_byte_pos)
 {
     int bitoffset = 0;
-    int ctr_bit   = streamBuffer[last_byte_pos - 1] & (1 << bitoffset);
+    int ctr_bit   = rbsp_byte[last_byte_pos - 1] & (1 << bitoffset);
 
     while (ctr_bit == 0) {
         ++bitoffset;
@@ -239,25 +225,38 @@ static int RBSPtoSODB(uint8_t* streamBuffer, int last_byte_pos)
             --last_byte_pos;
             bitoffset = 0;
         }
-        ctr_bit = streamBuffer[last_byte_pos - 1] & (1 << bitoffset);
+        ctr_bit = rbsp_byte[last_byte_pos - 1] & (1 << bitoffset);
     }
 
     return last_byte_pos;
 }
 
-void data_partition_t::init(nalu_t* nalu)
+data_partition_t::data_partition_t(uint32_t size) :
+    nal_unit_t { size }
 {
-    memcpy(this->streamBuffer, &nalu->buf[1], nalu->len - 1);
-    this->bitstream_length = RBSPtoSODB(this->streamBuffer, nalu->len - 1);
+}
+
+data_partition_t::data_partition_t(const nal_unit_t& nal) :
+    nal_unit_t { nal.max_size }
+{
+    memcpy(this->rbsp_byte, &nal.rbsp_byte[1], nal.num_bytes_in_rbsp - 1);
+    this->num_bytes_in_rbsp = RBSPtoSODB(this->rbsp_byte, nal.num_bytes_in_rbsp - 1);
     this->frame_bitoffset = 0;
 }
 
+data_partition_t& data_partition_t::operator=(const nal_unit_t& nal)
+{
+    memcpy(this->rbsp_byte, &nal.rbsp_byte[1], nal.num_bytes_in_rbsp - 1);
+    this->num_bytes_in_rbsp = RBSPtoSODB(this->rbsp_byte, nal.num_bytes_in_rbsp - 1);
+    this->frame_bitoffset = 0;
+    return *this;
+}
 
 bool data_partition_t::more_rbsp_data(void)
 {
-    uint8_t* buffer       = this->streamBuffer;
+    uint8_t* buffer       = this->rbsp_byte;
     int      totbitoffset = this->frame_bitoffset;
-    int      bytecount    = this->bitstream_length;
+    int      bytecount    = this->num_bytes_in_rbsp;
 
     int      byteoffset   = totbitoffset >> 3;
 
@@ -279,9 +278,9 @@ bool data_partition_t::more_rbsp_data(void)
 
 uint32_t data_partition_t::next_bits(uint8_t n)
 {
-    uint8_t* buffer       = this->streamBuffer;
+    uint8_t* buffer       = this->rbsp_byte;
     int      totbitoffset = this->frame_bitoffset;
-    int      bitcount     = (this->bitstream_length << 3) + 7;
+    int      bitcount     = (this->num_bytes_in_rbsp << 3) + 7;
 
     if (totbitoffset + n > bitcount) 
         return 0;

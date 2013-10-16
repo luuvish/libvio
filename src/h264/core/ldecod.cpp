@@ -21,15 +21,21 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+#include <stdarg.h>
+
 // Decoder definition. This should be the only global variable in the entire
 // software. Global variables should be avoided.
 DecoderParams  *p_Dec;
-char errortext[ET_SIZE];
 
 
-void error(const char *text, int code)
+//void error(const char *text, int code)
+void error(int code, const char* format, ...)
 {
-    fprintf(stderr, "%s\n", text);
+    va_list vl;
+    va_start(vl, format);
+
+    vfprintf(stderr, format, vl);
+
     if (p_Dec) {
         p_Dec->p_Vid->p_Dpb_layer[0]->flush();
 #if (MVC_EXTENSION_ENABLE)
@@ -66,7 +72,7 @@ VideoParameters::VideoParameters()
     this->seiToneMapping = new ToneMappingSEI;
 
     this->pNextSlice            = new slice_t;
-    this->nalu                  = new nalu_t(MAX_CODED_FRAME_SIZE);
+    this->nalu                  = new nal_unit_t();
     this->pDecOuputPic.pY       = nullptr;
     this->pDecOuputPic.pU       = nullptr;
     this->pDecOuputPic.pV       = nullptr;
@@ -140,9 +146,7 @@ void VideoParameters::OpenOutputFiles(int view0_id, int view1_id)
                 this->p_out_mvc[0] = -1;
             }
             if ((this->p_out_mvc[0] = open(out_ViewFileName[0], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
-                snprintf(errortext, ET_SIZE, "Error open file %s ", out_ViewFileName[0]);
-                fprintf(stderr, "%s\n", errortext);
-                exit(500);
+                error(500, "Error open file %s ", out_ViewFileName[0]);
             }
       
             if (this->p_out_mvc[1] >= 0) {
@@ -150,9 +154,7 @@ void VideoParameters::OpenOutputFiles(int view0_id, int view1_id)
                 this->p_out_mvc[1] = -1;
             }
             if ((this->p_out_mvc[1] = open(out_ViewFileName[1], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
-                snprintf(errortext, ET_SIZE, "Error open file %s ", out_ViewFileName[1]);
-                fprintf(stderr, "%s\n", errortext);
-                exit(500);
+                error(500, "Error open file %s ", out_ViewFileName[1]);
             }
         }
     }
@@ -180,8 +182,7 @@ void DecoderParams::OpenDecoder(InputParameters *p_Inp)
     else { //Normal AVC      
         if (strcasecmp(p_Inp->outfile, "\"\"") != 0 && strlen(p_Inp->outfile) > 0) {
             if ((this->p_Vid->p_out_mvc[0] = open(p_Inp->outfile, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1) {
-                snprintf(errortext, ET_SIZE, "Error open file %s ", p_Inp->outfile);
-                error(errortext, 500);
+                error(500, "Error open file %s ", p_Inp->outfile);
             }
         }
         this->p_Vid->p_out = this->p_Vid->p_out_mvc[0];

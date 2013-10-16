@@ -42,7 +42,7 @@ Parser::SyntaxElement::SyntaxElement(mb_t& _mb) :
     mb { _mb },
     ctxidx { _mb },
     cavlc { _mb.p_Slice->parser.partArr[0] },
-    cabac { _mb.p_Slice->parser.partArr[0].de_cabac },
+    cabac { _mb.p_Slice->parser.cabac[0] },
     contexts { _mb.p_Slice->parser.mot_ctx }
 {
 }

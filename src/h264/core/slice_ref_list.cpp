@@ -951,7 +951,7 @@ static void reorder_ref_pic_list(slice_t *currSlice, int cur_list)
 
     for (int i = 0; modification_of_pic_nums_idc[i] != 3; i++) {
         if (modification_of_pic_nums_idc[i] > 3)
-            error ("Invalid modification_of_pic_nums_idc command", 500);
+            error(500, "Invalid modification_of_pic_nums_idc command");
 
         if (modification_of_pic_nums_idc[i] < 2) {
             if (modification_of_pic_nums_idc[i] == 0) {
@@ -997,7 +997,7 @@ static void reorder_lists(slice_t *currSlice)
             if (p_Vid->non_conforming_stream)
                 printf("RefPicList0[ %d ] is equal to 'no reference picture'\n", shr.num_ref_idx_l0_active_minus1);
             else
-                error("RefPicList0[ num_ref_idx_l0_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
+                error(500, "RefPicList0[ num_ref_idx_l0_active_minus1 ] is equal to 'no reference picture', invalid bitstream");
         }
         // that's a definition
         currSlice->RefPicSize[0] = (char) shr.num_ref_idx_l0_active_minus1 + 1;
@@ -1010,7 +1010,7 @@ static void reorder_lists(slice_t *currSlice)
             if (p_Vid->non_conforming_stream)
                 printf("RefPicList1[ %d ] is equal to 'no reference picture'\n", shr.num_ref_idx_l1_active_minus1);
             else
-                error("RefPicList1[ num_ref_idx_l1_active_minus1 ] is equal to 'no reference picture', invalid bitstream",500);
+                error(500, "RefPicList1[ num_ref_idx_l1_active_minus1 ] is equal to 'no reference picture', invalid bitstream");
         }
         // that's a definition
         currSlice->RefPicSize[1] = (char) shr.num_ref_idx_l1_active_minus1 + 1;
@@ -1131,7 +1131,7 @@ static void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, int **anc
 
     for (int i = 0; modification_of_pic_nums_idc[i] != 3; i++) {
         if (modification_of_pic_nums_idc[i] > 5)
-            error("Invalid modification_of_pic_nums_idc command", 500);
+            error(500, "Invalid modification_of_pic_nums_idc command");
 
         if (modification_of_pic_nums_idc[i] < 2) {
             if (modification_of_pic_nums_idc[i] == 0) {
@@ -1195,7 +1195,7 @@ static void reorder_lists_mvc(slice_t* currSlice, int currPOC)
             if (p_Vid->non_conforming_stream)
                 printf("RefPicList0[ %d ] is equal to 'no reference picture'\n", shr.num_ref_idx_l0_active_minus1);
             else
-                error("RefPicList0[ num_ref_idx_l0_active_minus1 ] in MVC layer is equal to 'no reference picture', invalid bitstream", 500);
+                error(500, "RefPicList0[ num_ref_idx_l0_active_minus1 ] in MVC layer is equal to 'no reference picture', invalid bitstream");
         }
         // that's a definition
         currSlice->RefPicSize[0] = (char)shr.num_ref_idx_l0_active_minus1 + 1;
@@ -1211,7 +1211,7 @@ static void reorder_lists_mvc(slice_t* currSlice, int currPOC)
             if (p_Vid->non_conforming_stream)
                 printf("RefPicList1[ %d ] is equal to 'no reference picture'\n", shr.num_ref_idx_l1_active_minus1);
             else
-                error("RefPicList1[ num_ref_idx_l1_active_minus1 ] is equal to 'no reference picture', invalid bitstream", 500);
+                error(500, "RefPicList1[ num_ref_idx_l1_active_minus1 ] is equal to 'no reference picture', invalid bitstream");
         }
         // that's a definition
         currSlice->RefPicSize[1] = (char)shr.num_ref_idx_l1_active_minus1 + 1;

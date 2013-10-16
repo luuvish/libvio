@@ -279,7 +279,7 @@ static int MapColToList0(mb_t& mb, pic_motion_params* colocated)
         }
     }
     if (INVALIDINDEX == mapped_idx)
-        error("temporal direct error: colocated block has ref that is unavailable",-1111);
+        error(-1111, "temporal direct error: colocated block has ref that is unavailable");
 
     return mapped_idx;
 }

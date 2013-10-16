@@ -55,6 +55,7 @@ public:
     int         dp_mode;
 
     data_partition_t partArr[3];
+    cabac_engine_t   cabac[3];
     cabac_contexts_t mot_ctx;
 
     int         mb_skip_run;
