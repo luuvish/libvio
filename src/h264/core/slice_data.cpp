@@ -7,7 +7,7 @@
 #include "data_partition.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
-#include "parset.h"
+#include "sets.h"
 
 #include "sei.h"
 #include "output.h"
@@ -455,12 +455,9 @@ void init_picture_decoding(VideoParameters *p_Vid)
         error(200, "Maximum number of supported slices exceeded. \nPlease recompile with increased value for MAX_NUM_SLICES");
 
     if (p_Vid->pNextPPS->Valid && p_Vid->pNextPPS->pic_parameter_set_id == shr.pic_parameter_set_id) {
-        pps_t tmpPPS;
-        memcpy(&tmpPPS, &p_Vid->PicParSet[shr.pic_parameter_set_id], sizeof (pps_t));
-        (p_Vid->PicParSet[shr.pic_parameter_set_id]).slice_group_id = NULL;
-        MakePPSavailable(p_Vid, p_Vid->pNextPPS->pic_parameter_set_id, p_Vid->pNextPPS);
-        memcpy(p_Vid->pNextPPS, &tmpPPS, sizeof (pps_t));
-        tmpPPS.slice_group_id = NULL;
+        pps_t tmpPPS = p_Vid->PicParSet[shr.pic_parameter_set_id];
+        p_Vid->PicParSet[p_Vid->pNextPPS->pic_parameter_set_id] = *(p_Vid->pNextPPS);
+        *(p_Vid->pNextPPS) = tmpPPS;
     }
 
     UseParameterSet(pSlice);

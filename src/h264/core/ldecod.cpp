@@ -10,7 +10,7 @@
 #include "memalloc.h"
 #include "dpb.h"
 #include "output.h"
-#include "parset.h"
+#include "sets.h"
 #include "sei.h"
 
 #include "erc_api.h"
@@ -203,7 +203,6 @@ void DecoderParams::OpenDecoder(InputParameters *p_Inp)
 
     this->p_Vid->active_sps = NULL;
     this->p_Vid->active_subset_sps = NULL;
-    init_subset_sps_list(this->p_Vid->SubsetSeqParSet, MAX_NUM_SPS);
 }
 
 
@@ -298,12 +297,6 @@ void DecoderParams::CloseDecoder()
 
 #if (DISABLE_ERC == 0)
     ercClose(this->p_Vid, this->p_Vid->erc_errorVar);
-#endif
-
-    CleanUpPPS(this->p_Vid);
-#if (MVC_EXTENSION_ENABLE)
-    for (int i = 0; i < MAX_NUM_SPS; i++)
-        reset_subset_sps(this->p_Vid->SubsetSeqParSet+i);
 #endif
 
     for (int i = 0; i < MAX_NUM_DPB_LAYERS; i++)

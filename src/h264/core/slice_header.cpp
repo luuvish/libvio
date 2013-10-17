@@ -7,7 +7,7 @@
 #include "data_partition.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
-#include "parset.h"
+#include "sets.h"
 
 #include "sei.h"
 #include "output.h"
@@ -375,7 +375,27 @@ process_nalu:
             break;
 
         case nal_unit_t::NALU_TYPE_PPS:
-            ProcessPPS(p_Vid, &nal);
+            {
+                data_partition_t* dp = new data_partition_t { nal };
+                pps_t* pps = new pps_t;
+
+                dp->pic_parameter_set_rbsp(p_Vid, *pps);
+
+                if (p_Vid->active_pps) {
+                    if (pps->pic_parameter_set_id == p_Vid->active_pps->pic_parameter_set_id) {
+                        if (!(*pps == *(p_Vid->active_pps))) {
+                            memcpy(p_Vid->pNextPPS, p_Vid->active_pps, sizeof (pps_t));
+                            if (p_Vid->dec_picture)
+                                exit_picture(p_Vid);
+                            p_Vid->active_pps = nullptr;
+                        }
+                    }
+                }
+                p_Vid->PicParSet[pps->pic_parameter_set_id] = *pps;
+
+                delete dp;
+                delete pps;
+            }
             break;
 
         case nal_unit_t::NALU_TYPE_SPS:
@@ -396,10 +416,7 @@ process_nalu:
                         }
                     }
                     p_Vid->SeqParSet[sps->seq_parameter_set_id] = *sps;
-
-            #if (MVC_EXTENSION_ENABLE)
                     if (p_Vid->profile_idc < (int) sps->profile_idc)
-            #endif
                         p_Vid->profile_idc = sps->profile_idc;
                 }
 
@@ -440,12 +457,38 @@ process_nalu:
             break;
 
         case nal_unit_t::NALU_TYPE_SUB_SPS:
-            if (p_Inp->DecodeAllLayers == 1)
-                ProcessSubsetSPS(p_Vid, &nal);
-            else {
-                if (!p_Inp->silent)
-                    printf ("Found Subsequence SPS NALU. Ignoring.\n");
-            }
+            if (p_Inp->DecodeAllLayers == 1) {
+                data_partition_t* dp = new data_partition_t { nal };
+                sub_sps_t* sub_sps = new sub_sps_t;
+
+                dp->subset_seq_parameter_set_rbsp(*sub_sps);
+
+                if (sub_sps->Valid) {
+                    sub_sps_t& sub_new = p_Vid->SubsetSeqParSet[sub_sps->sps.seq_parameter_set_id];
+                    if (sub_new.Valid) {
+                        if (memcmp(&sub_new.sps, &sub_sps->sps, sizeof(sps_t) - sizeof(int)))
+                            assert(0);
+                    }
+
+                    sub_new = *sub_sps;
+
+                    if (sub_new.sps_mvc.num_views_minus1 > 1) {
+                        printf("Warning: num_views:%d is greater than 2, only decode baselayer!\n",
+                                sub_new.sps_mvc.num_views_minus1 + 1);
+                        sub_new.Valid = 0;
+                        p_Vid->p_Inp->DecodeAllLayers = 0;
+                    } else if (sub_new.sps_mvc.num_views_minus1 == 1 &&
+                        (sub_new.sps_mvc.views[0].view_id != 0 || sub_new.sps_mvc.views[1].view_id != 1))
+                        p_Vid->OpenOutputFiles(sub_new.sps_mvc.views[0].view_id, sub_new.sps_mvc.views[1].view_id);
+
+                    if (sub_new.Valid)
+                        p_Vid->profile_idc = sub_new.sps.profile_idc;
+                }
+
+                delete sub_sps;
+                delete dp;
+            } else if (!p_Inp->silent)
+                printf ("Found Subsequence SPS NALU. Ignoring.\n");
             break;
 
         case nal_unit_t::NALU_TYPE_SLC_EXT:
@@ -476,7 +519,7 @@ int DecoderParams::decode_slice_headers()
 
     if (p_Vid->newframe) {
         if (p_Vid->pNextPPS->Valid) {
-            MakePPSavailable(p_Vid, p_Vid->pNextPPS->pic_parameter_set_id, p_Vid->pNextPPS);
+            p_Vid->PicParSet[p_Vid->pNextPPS->pic_parameter_set_id] = *(p_Vid->pNextPPS);
             p_Vid->pNextPPS->Valid = 0;
         }
 

@@ -1,16 +1,543 @@
+/*
+ * =============================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * =============================================================================
+ *
+ *  File      : interpret_sets.cpp
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * =============================================================================
+ */
 
+#include <cassert>
 #include "global.h"
-#include "input_parameters.h"
-#include "slice.h"
+#include "defines.h"
+#include "sets.h"
 #include "data_partition.h"
-#include "bitstream_cabac.h"
-#include "bitstream.h"
-#include "parset.h"
-#include "memalloc.h"
-#include "dpb.h"
-#include "erc_api.h"
-#include "macroblock.h"
 
+
+// Table A-1 Level limits
+
+static const int MaxDpbMbs[15] = {
+    396, 900, 2376, 2376, 4752, 8100, 8100, 18000, 20480,
+    32768, 32768, 34816, 110400, 184320, 184320
+};
+
+// 7.3.2.1 Sequence parameter set data syntax
+
+void data_partition_t::seq_parameter_set_rbsp(sps_t& sps)
+{
+    this->seq_parameter_set_data(sps);
+    this->rbsp_trailing_bits();
+}
+
+// 7.3.2.1.1 Sequence parameter set data syntax
+
+void data_partition_t::seq_parameter_set_data(sps_t& sps)
+{
+    #define MAX_NUM_REF_FRAMES_IN_POC_CYCLE 256
+
+    uint8_t reserved_zero_2bits;
+
+    sps.profile_idc          = this->u(8, "SPS: profile_idc");
+    sps.constraint_set0_flag = this->u(1, "SPS: constrained_set0_flag");
+    sps.constraint_set1_flag = this->u(1, "SPS: constrained_set1_flag");
+    sps.constraint_set2_flag = this->u(1, "SPS: constrained_set2_flag");
+    sps.constraint_set3_flag = this->u(1, "SPS: constrained_set3_flag");
+    sps.constraint_set4_flag = this->u(1, "SPS: constrained_set4_flag");
+    sps.constraint_set5_flag = this->u(1, "SPS: constrained_set5_flag");
+    reserved_zero_2bits      = this->u(2, "SPS: reserved_zero_2bits");
+
+    if ((sps.profile_idc != BASELINE       ) &&
+        (sps.profile_idc != MAIN           ) &&
+        (sps.profile_idc != EXTENDED       ) &&
+        (sps.profile_idc != FREXT_HP       ) &&
+        (sps.profile_idc != FREXT_Hi10P    ) &&
+        (sps.profile_idc != FREXT_Hi422    ) &&
+        (sps.profile_idc != FREXT_Hi444    ) &&
+        (sps.profile_idc != FREXT_CAVLC444 )
+        && (sps.profile_idc != MVC_HIGH)
+        && (sps.profile_idc != STEREO_HIGH)) {
+        printf("Invalid Profile IDC (%d) encountered. \n", sps.profile_idc);
+        return;
+    }
+
+    sps.level_idc            = this->u(8, "SPS: level_idc");
+    sps.seq_parameter_set_id = this->ue("SPS: seq_parameter_set_id");
+
+    assert(sps.seq_parameter_set_id < MAX_NUM_SPS);
+
+    sps.chroma_format_idc                    = CHROMA_FORMAT_420;
+    sps.separate_colour_plane_flag           = 0;
+    sps.bit_depth_luma_minus8                = 0;
+    sps.bit_depth_chroma_minus8              = 0;
+    sps.qpprime_y_zero_transform_bypass_flag = 0;
+    sps.seq_scaling_matrix_present_flag      = 0;
+    if (sps.profile_idc == FREXT_HP    || sps.profile_idc == FREXT_Hi10P ||
+        sps.profile_idc == FREXT_Hi422 || sps.profile_idc == FREXT_Hi444 ||
+        sps.profile_idc == FREXT_CAVLC444 || sps.profile_idc == MVC_HIGH ||
+        sps.profile_idc == STEREO_HIGH) {
+
+        sps.chroma_format_idc                    = this->ue("SPS: chroma_format_idc");
+        if (sps.chroma_format_idc == CHROMA_FORMAT_444)
+            sps.separate_colour_plane_flag       = this->u(1, "SPS: separate_colour_plane_flag");
+        sps.bit_depth_luma_minus8                = this->ue("SPS: bit_depth_luma_minus8");
+        sps.bit_depth_chroma_minus8              = this->ue("SPS: bit_depth_chroma_minus8");
+        sps.qpprime_y_zero_transform_bypass_flag = this->u(1, "SPS: lossless_qpprime_y_zero_flag");
+        sps.seq_scaling_matrix_present_flag      = this->u(1, "SPS: seq_scaling_matrix_present_flag");
+        if (sps.seq_scaling_matrix_present_flag) {
+            for (int i = 0; i < (sps.chroma_format_idc != CHROMA_FORMAT_444 ? 8 : 12); ++i) {
+                sps.seq_scaling_list_present_flag[i] = this->u(1, "SPS: seq_scaling_list_present_flag");
+                if (sps.seq_scaling_list_present_flag[i]) {
+                    if (i < 6)
+                        this->scaling_list(sps.ScalingList4x4[i], 16,
+                                           sps.UseDefaultScalingMatrix4x4Flag[i]);
+                    else
+                        this->scaling_list(sps.ScalingList8x8[i - 6], 64,
+                                           sps.UseDefaultScalingMatrix8x8Flag[i - 6]);
+                }
+            }
+        }
+    }
+
+    assert(sps.profile_idc != 183 || sps.chroma_format_idc == CHROMA_FORMAT_400);
+    assert(sps.chroma_format_idc <= CHROMA_FORMAT_444);
+
+    sps.ChromaArrayType = !sps.separate_colour_plane_flag ? sps.chroma_format_idc : 0;
+    sps.SubWidthC  = sps.ChromaArrayType != 0 && sps.ChromaArrayType < 3 ? 2 : 1;
+    sps.SubHeightC = sps.ChromaArrayType != 0 && sps.ChromaArrayType < 2 ? 2 : 1;
+    sps.MbWidthC   = sps.ChromaArrayType == 0 ? 0 : 16 / sps.SubWidthC;
+    sps.MbHeightC  = sps.ChromaArrayType == 0 ? 0 : 16 / sps.SubHeightC;
+
+    assert(sps.bit_depth_luma_minus8   <= 6);
+    assert(sps.bit_depth_chroma_minus8 <= 6);
+
+    sps.BitDepthY   = 8 + sps.bit_depth_luma_minus8;
+    sps.QpBdOffsetY = 6 * sps.bit_depth_luma_minus8;
+    sps.BitDepthC   = 8 + sps.bit_depth_chroma_minus8;
+    sps.QpBdOffsetC = 6 * sps.bit_depth_chroma_minus8;
+    sps.RawMbBits   = 256 * sps.BitDepthY + 2 * sps.MbWidthC * sps.MbHeightC * sps.BitDepthC;
+
+    sps.log2_max_frame_num_minus4 = this->ue("SPS: log2_max_frame_num_minus4");
+
+    assert(sps.log2_max_frame_num_minus4 <= 12);
+    sps.MaxFrameNum = 1 << (sps.log2_max_frame_num_minus4 + 4);
+
+    sps.pic_order_cnt_type = this->ue("SPS: pic_order_cnt_type");
+
+    assert(sps.pic_order_cnt_type <= 2);
+
+    if (sps.pic_order_cnt_type == 0) {
+        sps.log2_max_pic_order_cnt_lsb_minus4 = this->ue("SPS: log2_max_pic_order_cnt_lsb_minus4");
+
+        assert(sps.log2_max_pic_order_cnt_lsb_minus4 <= 12);
+        sps.MaxPicOrderCntLsb = 1 << (sps.log2_max_pic_order_cnt_lsb_minus4 + 4);
+    } else if (sps.pic_order_cnt_type == 1) {
+        sps.delta_pic_order_always_zero_flag      = this->u(1, "SPS: delta_pic_order_always_zero_flag");
+        sps.offset_for_non_ref_pic                = this->se("SPS: offset_for_non_ref_pic");
+        sps.offset_for_top_to_bottom_field        = this->se("SPS: offset_for_top_to_bottom_field");
+        sps.num_ref_frames_in_pic_order_cnt_cycle = this->ue("SPS: num_ref_frames_in_pic_order_cnt_cycle");
+
+        if (sps.num_ref_frames_in_pic_order_cnt_cycle > 0)
+            sps.offset_for_ref_frame = sps_t::int32_v(sps.num_ref_frames_in_pic_order_cnt_cycle);
+
+        for (int i = 0; i < sps.num_ref_frames_in_pic_order_cnt_cycle; ++i)
+            sps.offset_for_ref_frame[i] = this->se("SPS: offset_for_ref_frame[i]");
+
+        sps.ExpectedDeltaPerPicOrderCntCycle = 0;
+        for (int i = 0; i < sps.num_ref_frames_in_pic_order_cnt_cycle; ++i)
+            sps.ExpectedDeltaPerPicOrderCntCycle += sps.offset_for_ref_frame[i];
+    }
+
+    sps.max_num_ref_frames = this->ue("SPS: num_ref_frames");
+
+    sps.gaps_in_frame_num_value_allowed_flag = this->u(1, "SPS: gaps_in_frame_num_value_allowed_flag");
+
+    sps.pic_width_in_mbs_minus1        = this->ue("SPS: pic_width_in_mbs_minus1");
+    sps.pic_height_in_map_units_minus1 = this->ue("SPS: pic_height_in_map_units_minus1");
+
+    sps.PicWidthInMbs       = sps.pic_width_in_mbs_minus1 + 1;
+    sps.PicWidthInSamplesL  = sps.PicWidthInMbs * 16;
+    sps.PicWidthInSamplesC  = sps.PicWidthInMbs * sps.MbWidthC;
+    sps.PicHeightInMapUnits = sps.pic_height_in_map_units_minus1 + 1;
+    sps.PicSizeInMapUnits   = sps.PicWidthInMbs * sps.PicHeightInMapUnits;
+
+    sps.frame_mbs_only_flag = this->u(1, "SPS: frame_mbs_only_flag");
+
+    sps.FrameHeightInMbs = (2 - sps.frame_mbs_only_flag) * sps.PicHeightInMapUnits;
+
+    sps.mb_adaptive_frame_field_flag = 0;
+    if (!sps.frame_mbs_only_flag)
+        sps.mb_adaptive_frame_field_flag = this->u(1, "SPS: mb_adaptive_frame_field_flag");
+
+    sps.direct_8x8_inference_flag = this->u(1, "SPS: direct_8x8_inference_flag");
+
+    assert(sps.frame_mbs_only_flag || sps.direct_8x8_inference_flag);
+
+    sps.frame_cropping_flag = this->u(1, "SPS: frame_cropping_flag");
+    if (sps.frame_cropping_flag) {
+        sps.frame_crop_left_offset   = this->ue("SPS: frame_crop_left_offset");
+        sps.frame_crop_right_offset  = this->ue("SPS: frame_crop_right_offset");
+        sps.frame_crop_top_offset    = this->ue("SPS: frame_crop_top_offset");
+        sps.frame_crop_bottom_offset = this->ue("SPS: frame_crop_bottom_offset");
+
+        sps.CropUnitX = sps.SubWidthC;
+        sps.CropUnitY = sps.SubHeightC * (2 - sps.frame_mbs_only_flag);
+
+        assert(sps.frame_crop_left_offset <=
+               (sps.PicWidthInSamplesL / sps.CropUnitX) - (sps.frame_crop_right_offset + 1));
+        assert(sps.frame_crop_top_offset <=
+               (16 * sps.FrameHeightInMbs / sps.CropUnitY) - (sps.frame_crop_bottom_offset + 1));
+    }
+
+    sps.vui_parameters_present_flag = this->u(1, "SPS: vui_parameters_present_flag");
+    sps.vui_parameters.matrix_coefficients = 2;
+    if (sps.vui_parameters_present_flag)
+        this->vui_parameters(sps.vui_parameters);
+
+    if (sps.vui_parameters_present_flag) {
+        if (!(sps.BitDepthC == sps.BitDepthY && sps.chroma_format_idc == 3))
+            assert(sps.vui_parameters.matrix_coefficients != 0);
+        if (!(sps.BitDepthC == sps.BitDepthY ||
+             (sps.BitDepthC == sps.BitDepthY + 1 && sps.chroma_format_idc == 3)))
+            assert(sps.vui_parameters.matrix_coefficients != 8);
+        if (sps.chroma_format_idc != 1)
+            assert(!sps.vui_parameters.chroma_loc_info_present_flag);
+    }
+
+    int level_idc;
+    bool level_1b = (sps.profile_idc == 66 || sps.profile_idc == 77 || sps.profile_idc == 88) &&
+                    (sps.level_idc == 11 && sps.constraint_set3_flag);
+    level_idc = level_1b ? 10 : sps.level_idc;
+    level_idc = 3 * (level_idc / 10) + (level_idc % 10) - 3;
+    level_idc = level_idc < 0 ? 0 : level_idc;
+    assert(level_idc <= 14);
+
+    sps.MaxDpbFrames =
+        min<int>(MaxDpbMbs[level_idc] / (sps.PicWidthInMbs * sps.FrameHeightInMbs), 16);
+
+    if (!sps.vui_parameters_present_flag || !sps.vui_parameters.bitstream_restriction_flag) {
+        sps.vui_parameters.max_num_reorder_frames =
+            (sps.profile_idc == 44 || sps.profile_idc == 86 || sps.profile_idc == 100 ||
+             sps.profile_idc == 110 || sps.profile_idc == 122 || sps.profile_idc == 244) &&
+            sps.constraint_set3_flag ? 0 : sps.MaxDpbFrames;
+        sps.vui_parameters.max_dec_frame_buffering =
+            (sps.profile_idc == 44 || sps.profile_idc == 86 || sps.profile_idc == 100 ||
+             sps.profile_idc == 110 || sps.profile_idc == 122 || sps.profile_idc == 244) &&
+            sps.constraint_set3_flag ? 0 : sps.MaxDpbFrames;
+    }
+
+    assert(sps.vui_parameters.max_num_reorder_frames <= sps.MaxDpbFrames);
+    assert(sps.vui_parameters.max_dec_frame_buffering <= sps.MaxDpbFrames);
+    assert(sps.max_num_ref_frames <= sps.MaxDpbFrames);
+
+    sps.Valid = true;
+}
+
+static const uint8_t ZZ_SCAN_4x4[16] = {
+     0,  1,  4,  8,  5,  2,  3,  6,
+     9, 12, 13, 10,  7, 11, 14, 15
+};
+
+static const uint8_t ZZ_SCAN_8x8[64] = {
+     0,  1,  8, 16,  9,  2,  3, 10,
+    17, 24, 32, 25, 18, 11,  4,  5,
+    12, 19, 26, 33, 40, 48, 41, 34,
+    27, 20, 13,  6,  7, 14, 21, 28,
+    35, 42, 49, 56, 57, 50, 43, 36,
+    29, 22, 15, 23, 30, 37, 44, 51,
+    58, 59, 52, 45, 38, 31, 39, 46,
+    53, 60, 61, 54, 47, 55, 62, 63
+};
+
+// 7.3.2.1.1.1 Scaling list syntax
+
+void data_partition_t::scaling_list(int* scalingList, int sizeOfScalingList, bool& useDefaultScalingMatrixFlag)
+{
+    int lastScale = 8;
+    int nextScale = 8;
+
+    for (int j = 0; j < sizeOfScalingList; j++) {
+        int scanj = (sizeOfScalingList == 16) ? ZZ_SCAN_4x4[j] : ZZ_SCAN_8x8[j];
+        if (nextScale != 0) {
+            int8_t delta_scale = this->se("   : delta_sl");
+            nextScale = (lastScale + delta_scale + 256) % 256;
+            useDefaultScalingMatrixFlag = (scanj == 0 && nextScale == 0);
+        }
+        scalingList[scanj] = (nextScale == 0) ? lastScale : nextScale;
+        lastScale = scalingList[scanj];
+    }
+}
+
+// 7.3.2.1.2 Sequence parameter set extension RBSP syntax
+
+void data_partition_t::seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext)
+{
+    sps_ext.seq_parameter_set_id = this->ue("SPS_EXT: seq_parameter_set_id");
+    sps_ext.aux_format_idc       = this->ue("SPS_EXT: aux_format_idc");
+
+    assert(sps_ext.seq_parameter_set_id < MAX_NUM_SPS);
+    assert(sps_ext.aux_format_idc <= 3);
+
+    if (sps_ext.aux_format_idc != 0) {
+        sps_ext.bit_depth_aux_minus8 = this->ue("SPS_EXT: bit_depth_aux_minus8");
+
+        assert(sps_ext.bit_depth_aux_minus8 <= 4);
+
+        uint8_t bit_depth_aux = sps_ext.bit_depth_aux_minus8 + 9;
+
+        sps_ext.alpha_incr_flag         = this->u(1, "SPS_EXT: alpha_incr_flag");
+        sps_ext.alpha_opaque_value      = this->u(bit_depth_aux, "SPS_EXT: alpha_opaque_value");
+        sps_ext.alpha_transparent_value = this->u(bit_depth_aux, "SPS_EXT: alpha_transparent_value");
+    }
+    sps_ext.additional_extension_flag = this->u(1, "SPS_EXT: additional_extension_flag");
+
+    this->rbsp_trailing_bits();
+}
+
+// 7.3.2.1.3 Subset sequence parameter set RBSP syntax
+
+void data_partition_t::subset_seq_parameter_set_rbsp(sub_sps_t& sub_sps)
+{
+    this->seq_parameter_set_data(sub_sps.sps);
+
+    if (sub_sps.sps.profile_idc == 83 || sub_sps.sps.profile_idc == 86) {
+        this->seq_parameter_set_svc_extension(sub_sps.sps_svc);
+        sub_sps.svc_vui_parameters_present_flag = this->u(1, "svc_vui_parameters_present_flag");
+        if (sub_sps.svc_vui_parameters_present_flag)
+            this->svc_vui_parameters_extension(sub_sps.svc_vui_parameters);
+    } else if (sub_sps.sps.profile_idc == 118 || sub_sps.sps.profile_idc == 128) {
+        sub_sps.bit_equal_to_one = this->u(1, "bit_equal_to_one");
+        assert(sub_sps.bit_equal_to_one == 1);
+        this->seq_parameter_set_mvc_extension(sub_sps.sps_mvc);
+        sub_sps.mvc_vui_parameters_present_flag = this->u(1, "mvc_vui_parameters_present_flag");
+        if (sub_sps.mvc_vui_parameters_present_flag)
+            this->mvc_vui_parameters_extension(sub_sps.mvc_vui_parameters);
+    } else if (sub_sps.sps.profile_idc == 138) {
+        sub_sps.bit_equal_to_one = this->u(1, "bit_equal_to_one");
+        assert(sub_sps.bit_equal_to_one == 1);
+        this->seq_parameter_set_mvcd_extension(sub_sps.sps_mvcd);
+    }
+
+    bool additional_extension2_flag = this->u(1, "additional_extension2_flag");
+    if (additional_extension2_flag) {
+        bool additional_extension2_data_flag;
+        while (this->more_rbsp_data())
+            additional_extension2_data_flag = this->u(1, "additional_extension2_flag");
+    }
+
+    this->rbsp_trailing_bits();
+
+    sub_sps.Valid = sub_sps.sps.Valid;
+}
+
+// 7.3.2.2 Picture parameter set RBSP syntax
+
+void data_partition_t::pic_parameter_set_rbsp(VideoParameters* p_Vid, pps_t& pps)
+{
+    pps.pic_parameter_set_id                         = this->ue("PPS: pic_parameter_set_id");
+    pps.seq_parameter_set_id                         = this->ue("PPS: seq_parameter_set_id");
+    pps.entropy_coding_mode_flag                     = this->u(1, "PPS: entropy_coding_mode_flag");
+    pps.bottom_field_pic_order_in_frame_present_flag = this->u(1, "PPS: bottom_field_pic_order_in_frame_present_flag");
+
+    assert(pps.seq_parameter_set_id < MAX_NUM_SPS);
+
+    const sps_t& sps = p_Vid->SeqParSet[pps.seq_parameter_set_id];
+
+    if (!sps.Valid) {
+        pps.Valid = false;
+        return;
+    }
+
+    pps.num_slice_groups_minus1 = this->ue("PPS: num_slice_groups_minus1");
+    assert(pps.num_slice_groups_minus1 < MAX_NUM_SLICE_GROUPS);
+    if (pps.num_slice_groups_minus1 > 0) {
+        pps.slice_group_map_type = this->ue("PPS: slice_group_map_type");
+
+        assert(pps.slice_group_map_type <= 6);
+        assert((pps.num_slice_groups_minus1 == 1) ||
+               (pps.slice_group_map_type != 3 && pps.slice_group_map_type != 4 && pps.slice_group_map_type != 5));
+
+        if (pps.slice_group_map_type == 0) {
+            pps.slice_groups = pps_t::slice_group_v(pps.num_slice_groups_minus1 + 1);
+            for (int iGroup = 0; iGroup <= pps.num_slice_groups_minus1; ++iGroup) {
+                auto& slice_group = pps.slice_groups[iGroup];
+                slice_group.run_length_minus1 = this->ue("PPS: run_length_minus1 [i]");
+
+                assert(slice_group.run_length_minus1 < sps.PicSizeInMapUnits);
+            }
+        } else if (pps.slice_group_map_type == 2) {
+            pps.slice_groups = pps_t::slice_group_v(pps.num_slice_groups_minus1 + 1);
+            for (int iGroup = 0; iGroup < pps.num_slice_groups_minus1; ++iGroup) {
+                auto& slice_group = pps.slice_groups[iGroup];
+                slice_group.top_left     = this->ue("PPS: top_left [i]");
+                slice_group.bottom_right = this->ue("PPS: bottom_right [i]");
+
+                assert(slice_group.top_left <= slice_group.bottom_right);
+                assert(slice_group.bottom_right < sps.PicSizeInMapUnits);
+                assert(slice_group.top_left % sps.PicWidthInMbs <= slice_group.bottom_right % sps.PicWidthInMbs);
+            }
+        } else if (pps.slice_group_map_type == 3 ||
+                   pps.slice_group_map_type == 4 ||
+                   pps.slice_group_map_type == 5) {
+            pps.slice_group_change_direction_flag = this->u(1, "PPS: slice_group_change_direction_flag");
+            pps.slice_group_change_rate_minus1    = this->ue("PPS: slice_group_change_rate_minus1");
+
+            assert(pps.slice_group_change_rate_minus1 < sps.PicSizeInMapUnits);
+
+            pps.SliceGroupChangeRate = pps.slice_group_change_rate_minus1 + 1;
+        } else if (pps.slice_group_map_type == 6) {
+            pps.pic_size_in_map_units_minus1 = this->ue("PPS: pic_size_in_map_units_minus1");
+
+            assert(pps.pic_size_in_map_units_minus1 < sps.PicSizeInMapUnits);
+
+            pps.slice_group_id = pps_t::uint8_v(pps.pic_size_in_map_units_minus1 + 1);
+            int bitsSliceGroupId = ceil(log2(pps.num_slice_groups_minus1 + 1));
+            for (int i = 0; i <= pps.pic_size_in_map_units_minus1; ++i) {
+                pps.slice_group_id[i] = this->u(bitsSliceGroupId, "slice_group_id[i]");
+
+                assert(pps.slice_group_id[i] <= pps.num_slice_groups_minus1);
+            }
+        }
+    }
+
+    pps.num_ref_idx_l0_default_active_minus1 = this->ue("PPS: num_ref_idx_l0_default_active_minus1");
+    pps.num_ref_idx_l1_default_active_minus1 = this->ue("PPS: num_ref_idx_l1_default_active_minus1");
+
+    assert(pps.num_ref_idx_l0_default_active_minus1 < MAX_NUM_REF_IDX);
+    assert(pps.num_ref_idx_l1_default_active_minus1 < MAX_NUM_REF_IDX);
+
+    pps.weighted_pred_flag  = this->u(1, "PPS: weighted_pred_flag");
+    pps.weighted_bipred_idc = this->u(2, "PPS: weighted_bipred_idc");
+
+    assert(pps.weighted_bipred_idc <= 2);
+
+    pps.pic_init_qp_minus26    = this->se("PPS: pic_init_qp_minus26");
+    pps.pic_init_qs_minus26    = this->se("PPS: pic_init_qs_minus26");
+    pps.chroma_qp_index_offset = this->se("PPS: chroma_qp_index_offset");
+
+    assert(pps.pic_init_qp_minus26 >= -(26 + sps.QpBdOffsetY) && pps.pic_init_qp_minus26 <= 25);
+    assert(pps.pic_init_qs_minus26 >= -26 && pps.pic_init_qs_minus26 <= 25);
+    assert(pps.chroma_qp_index_offset >= -12 && pps.chroma_qp_index_offset <= 12);
+
+    pps.deblocking_filter_control_present_flag = this->u(1, "PPS: deblocking_filter_control_present_flag");
+    pps.constrained_intra_pred_flag            = this->u(1, "PPS: constrained_intra_pred_flag");
+    pps.redundant_pic_cnt_present_flag         = this->u(1, "PPS: redundant_pic_cnt_present_flag");
+
+    pps.transform_8x8_mode_flag         = 0;
+    pps.pic_scaling_matrix_present_flag = 0;
+    pps.second_chroma_qp_index_offset   = pps.chroma_qp_index_offset;
+    if (this->more_rbsp_data()) {
+        pps.transform_8x8_mode_flag         = this->u(1, "PPS: transform_8x8_mode_flag");
+        pps.pic_scaling_matrix_present_flag = this->u(1, "PPS: pic_scaling_matrix_present_flag");
+        if (pps.pic_scaling_matrix_present_flag) {
+            for (int i = 0; i < 6 + ((sps.chroma_format_idc != CHROMA_FORMAT_444) ? 2 : 6) * pps.transform_8x8_mode_flag; ++i) {
+                pps.pic_scaling_list_present_flag[i] = this->u(1, "PPS: pic_scaling_list_present_flag");
+                if (pps.pic_scaling_list_present_flag[i]) {
+                    if (i < 6)
+                        this->scaling_list(pps.ScalingList4x4[i], 16,
+                                           pps.UseDefaultScalingMatrix4x4Flag[i]);
+                    else
+                        this->scaling_list(pps.ScalingList8x8[i - 6], 64,
+                                           pps.UseDefaultScalingMatrix8x8Flag[i - 6]);
+                }
+            }
+        }
+        pps.second_chroma_qp_index_offset = this->se("PPS: second_chroma_qp_index_offset");
+    }
+    assert(pps.second_chroma_qp_index_offset >= -12 && pps.second_chroma_qp_index_offset <= 12);
+
+    this->rbsp_trailing_bits();
+
+    pps.Valid = true;
+}
+
+// 7.3.2.3 Supplemental enhancement information RBSP syntax
+
+void data_partition_t::sei_rbsp(void)
+{
+    do {
+        this->sei_message();
+    } while (this->more_rbsp_data());
+
+    this->rbsp_trailing_bits();
+}
+
+// 7.3.2.3.1 Supplemental enhancement information message syntax
+
+void data_partition_t::sei_message()
+{
+
+}
+
+// 7.3.2.4 Access unit delimiter RBSP syntax
+
+void data_partition_t::access_unit_delimiter_rbsp(void)
+{
+    uint8_t primary_pic_type;
+    primary_pic_type = this->u(3);
+
+    this->rbsp_trailing_bits();
+}
+
+// 7.3.2.5 End of sequence RBSP syntax
+
+void data_partition_t::end_of_seq_rbsp(void)
+{
+}
+
+// 7.3.2.6 End of stream RBSP syntax
+
+void data_partition_t::end_of_stream_rbsp(void)
+{
+}
+
+// 7.3.2.7 Filler data RBSP syntax
+
+void data_partition_t::filler_data_rbsp(void)
+{
+    uint8_t ff_byte;
+    while (this->next_bits(8) == 0xFF)
+        ff_byte = this->f(8);
+
+    this->rbsp_trailing_bits();
+}
+
+// 7.3.2.10 RBSP slice trailing bits syntax
+
+void data_partition_t::rbsp_slice_trailing_bits(void)
+{
+    this->rbsp_trailing_bits();
+
+//    if (slice.entropy_coding_mode_flag) {
+//        while (this->more_rbsp_trailing_data())
+//            cabac_zero_word = this->f(16);
+//    }
+}
+
+// 7.3.2.11 RBSP trailing bits syntax
+
+void data_partition_t::rbsp_trailing_bits(void)
+{
+    bool rbsp_stop_one_bit;
+    bool rbsp_alignment_zero_bit;
+
+    rbsp_stop_one_bit = this->f(1);
+    while (!this->byte_aligned())
+        rbsp_alignment_zero_bit = this->f(1);
+}
 
 
 // E.1.1 VUI parameter syntax
@@ -130,7 +657,7 @@ void data_partition_t::hrd_parameters(hrd_t& hrd)
     //     BitRate[SchedSelIdx] = cpbBrVcl(Nal)Factor * MaxBR
     //     CpbSize[SchedSelIdx] = cpbBrVcl(Nal)Factor * MaxCPB
 
-    hrd.cpbs = std::vector<hrd_t::cpb_t>(hrd.cpb_cnt_minus1 + 1);
+    hrd.cpbs = hrd_t::cpb_v(hrd.cpb_cnt_minus1 + 1);
     for (int SchedSelIdx = 0; SchedSelIdx <= hrd.cpb_cnt_minus1; ++SchedSelIdx) {
         hrd_t::cpb_t& cpb = hrd.cpbs[SchedSelIdx];
         cpb.bit_rate_value_minus1 = this->ue("VUI: bit_rate_value_minus1");
@@ -149,282 +676,6 @@ void data_partition_t::hrd_parameters(hrd_t& hrd)
     hrd.dpb_output_delay_length_minus1          = this->u(5, "VUI: dpb_output_delay_length_minus1");
     hrd.time_offset_length                      = this->u(5, "VUI: time_offset_length");
 }
-
-
-// Table A-1 Level limits
-
-static const int MaxDpbMbs[15] = {
-    396, 900, 2376, 2376, 4752, 8100, 8100, 18000, 20480,
-    32768, 32768, 34816, 110400, 184320, 184320
-};
-
-// 7.3.2.1 Sequence parameter set data syntax
-
-void data_partition_t::seq_parameter_set_rbsp(sps_t& sps)
-{
-    this->seq_parameter_set_data(sps);
-    this->rbsp_trailing_bits();
-}
-
-void data_partition_t::seq_parameter_set_data(sps_t& sps)
-{
-    uint8_t reserved_zero_2bits;
-
-    sps.profile_idc          = this->u(8, "SPS: profile_idc");
-    sps.constraint_set0_flag = this->u(1, "SPS: constrained_set0_flag");
-    sps.constraint_set1_flag = this->u(1, "SPS: constrained_set1_flag");
-    sps.constraint_set2_flag = this->u(1, "SPS: constrained_set2_flag");
-    sps.constraint_set3_flag = this->u(1, "SPS: constrained_set3_flag");
-    sps.constraint_set4_flag = this->u(1, "SPS: constrained_set4_flag");
-    sps.constraint_set5_flag = this->u(1, "SPS: constrained_set5_flag");
-    reserved_zero_2bits      = this->u(2, "SPS: reserved_zero_2bits");
-
-    if ((sps.profile_idc != BASELINE       ) &&
-        (sps.profile_idc != MAIN           ) &&
-        (sps.profile_idc != EXTENDED       ) &&
-        (sps.profile_idc != FREXT_HP       ) &&
-        (sps.profile_idc != FREXT_Hi10P    ) &&
-        (sps.profile_idc != FREXT_Hi422    ) &&
-        (sps.profile_idc != FREXT_Hi444    ) &&
-        (sps.profile_idc != FREXT_CAVLC444 )
-        && (sps.profile_idc != MVC_HIGH)
-        && (sps.profile_idc != STEREO_HIGH)) {
-        printf("Invalid Profile IDC (%d) encountered. \n", sps.profile_idc);
-        return;
-    }
-
-    sps.level_idc            = this->u(8, "SPS: level_idc");
-    sps.seq_parameter_set_id = this->ue("SPS: seq_parameter_set_id");
-
-    assert(sps.seq_parameter_set_id < MAX_NUM_SPS);
-
-    sps.chroma_format_idc                    = CHROMA_FORMAT_420;
-    sps.separate_colour_plane_flag           = 0;
-    sps.bit_depth_luma_minus8                = 0;
-    sps.bit_depth_chroma_minus8              = 0;
-    sps.qpprime_y_zero_transform_bypass_flag = 0;
-    sps.seq_scaling_matrix_present_flag      = 0;
-    if (sps.profile_idc == FREXT_HP    || sps.profile_idc == FREXT_Hi10P ||
-        sps.profile_idc == FREXT_Hi422 || sps.profile_idc == FREXT_Hi444 ||
-        sps.profile_idc == FREXT_CAVLC444 || sps.profile_idc == MVC_HIGH ||
-        sps.profile_idc == STEREO_HIGH) {
-
-        sps.chroma_format_idc                    = this->ue("SPS: chroma_format_idc");
-        if (sps.chroma_format_idc == CHROMA_FORMAT_444)
-            sps.separate_colour_plane_flag       = this->u(1, "SPS: separate_colour_plane_flag");
-        sps.bit_depth_luma_minus8                = this->ue("SPS: bit_depth_luma_minus8");
-        sps.bit_depth_chroma_minus8              = this->ue("SPS: bit_depth_chroma_minus8");
-        sps.qpprime_y_zero_transform_bypass_flag = this->u(1, "SPS: lossless_qpprime_y_zero_flag");
-        sps.seq_scaling_matrix_present_flag      = this->u(1, "SPS: seq_scaling_matrix_present_flag");
-        if (sps.seq_scaling_matrix_present_flag) {
-            for (int i = 0; i < (sps.chroma_format_idc != CHROMA_FORMAT_444 ? 8 : 12); ++i) {
-                sps.seq_scaling_list_present_flag[i] = this->u(1, "SPS: seq_scaling_list_present_flag");
-                if (sps.seq_scaling_list_present_flag[i]) {
-                    if (i < 6)
-                        this->scaling_list(sps.ScalingList4x4[i], 16,
-                                           &sps.UseDefaultScalingMatrix4x4Flag[i]);
-                    else
-                        this->scaling_list(sps.ScalingList8x8[i - 6], 64,
-                                           &sps.UseDefaultScalingMatrix8x8Flag[i - 6]);
-                }
-            }
-        }
-    }
-
-    assert(sps.profile_idc != 183 || sps.chroma_format_idc == CHROMA_FORMAT_400);
-    assert(sps.chroma_format_idc <= CHROMA_FORMAT_444);
-
-    sps.ChromaArrayType = !sps.separate_colour_plane_flag ? sps.chroma_format_idc : 0;
-    sps.SubWidthC  = sps.ChromaArrayType != 0 && sps.ChromaArrayType < 3 ? 2 : 1;
-    sps.SubHeightC = sps.ChromaArrayType != 0 && sps.ChromaArrayType < 2 ? 2 : 1;
-    sps.MbWidthC   = sps.ChromaArrayType == 0 ? 0 : 16 / sps.SubWidthC;
-    sps.MbHeightC  = sps.ChromaArrayType == 0 ? 0 : 16 / sps.SubHeightC;
-
-    assert(sps.bit_depth_luma_minus8   <= 6);
-    assert(sps.bit_depth_chroma_minus8 <= 6);
-
-    sps.BitDepthY   = 8 + sps.bit_depth_luma_minus8;
-    sps.QpBdOffsetY = 6 * sps.bit_depth_luma_minus8;
-    sps.BitDepthC   = 8 + sps.bit_depth_chroma_minus8;
-    sps.QpBdOffsetC = 6 * sps.bit_depth_chroma_minus8;
-    sps.RawMbBits   = 256 * sps.BitDepthY + 2 * sps.MbWidthC * sps.MbHeightC * sps.BitDepthC;
-
-    sps.log2_max_frame_num_minus4 = this->ue("SPS: log2_max_frame_num_minus4");
-
-    assert(sps.log2_max_frame_num_minus4 <= 12);
-    sps.MaxFrameNum = 1 << (sps.log2_max_frame_num_minus4 + 4);
-
-    sps.pic_order_cnt_type = this->ue("SPS: pic_order_cnt_type");
-
-    assert(sps.pic_order_cnt_type <= 2);
-
-    if (sps.pic_order_cnt_type == 0) {
-        sps.log2_max_pic_order_cnt_lsb_minus4 = this->ue("SPS: log2_max_pic_order_cnt_lsb_minus4");
-
-        assert(sps.log2_max_pic_order_cnt_lsb_minus4 <= 12);
-        sps.MaxPicOrderCntLsb = 1 << (sps.log2_max_pic_order_cnt_lsb_minus4 + 4);
-    } else if (sps.pic_order_cnt_type == 1) {
-        sps.delta_pic_order_always_zero_flag      = this->u(1, "SPS: delta_pic_order_always_zero_flag");
-        sps.offset_for_non_ref_pic                = this->se("SPS: offset_for_non_ref_pic");
-        sps.offset_for_top_to_bottom_field        = this->se("SPS: offset_for_top_to_bottom_field");
-        sps.num_ref_frames_in_pic_order_cnt_cycle = this->ue("SPS: num_ref_frames_in_pic_order_cnt_cycle");
-
-        for (int i = 0; i < sps.num_ref_frames_in_pic_order_cnt_cycle; ++i)
-            sps.offset_for_ref_frame[i] = this->se("SPS: offset_for_ref_frame[i]");
-
-        sps.ExpectedDeltaPerPicOrderCntCycle = 0;
-        for (int i = 0; i < sps.num_ref_frames_in_pic_order_cnt_cycle; ++i)
-            sps.ExpectedDeltaPerPicOrderCntCycle += sps.offset_for_ref_frame[i];
-    }
-
-    sps.max_num_ref_frames = this->ue("SPS: num_ref_frames");
-
-    sps.gaps_in_frame_num_value_allowed_flag = this->u(1, "SPS: gaps_in_frame_num_value_allowed_flag");
-
-    sps.pic_width_in_mbs_minus1        = this->ue("SPS: pic_width_in_mbs_minus1");
-    sps.pic_height_in_map_units_minus1 = this->ue("SPS: pic_height_in_map_units_minus1");
-
-    sps.PicWidthInMbs       = sps.pic_width_in_mbs_minus1 + 1;
-    sps.PicWidthInSamplesL  = sps.PicWidthInMbs * 16;
-    sps.PicWidthInSamplesC  = sps.PicWidthInMbs * sps.MbWidthC;
-    sps.PicHeightInMapUnits = sps.pic_height_in_map_units_minus1 + 1;
-    sps.PicSizeInMapUnits   = sps.PicWidthInMbs * sps.PicHeightInMapUnits;
-
-    sps.frame_mbs_only_flag = this->u(1, "SPS: frame_mbs_only_flag");
-
-    sps.FrameHeightInMbs = (2 - sps.frame_mbs_only_flag) * sps.PicHeightInMapUnits;
-
-    sps.mb_adaptive_frame_field_flag = 0;
-    if (!sps.frame_mbs_only_flag)
-        sps.mb_adaptive_frame_field_flag = this->u(1, "SPS: mb_adaptive_frame_field_flag");
-
-    sps.direct_8x8_inference_flag = this->u(1, "SPS: direct_8x8_inference_flag");
-
-    assert(sps.frame_mbs_only_flag || sps.direct_8x8_inference_flag);
-
-    sps.frame_cropping_flag = this->u(1, "SPS: frame_cropping_flag");
-    if (sps.frame_cropping_flag) {
-        sps.frame_crop_left_offset   = this->ue("SPS: frame_crop_left_offset");
-        sps.frame_crop_right_offset  = this->ue("SPS: frame_crop_right_offset");
-        sps.frame_crop_top_offset    = this->ue("SPS: frame_crop_top_offset");
-        sps.frame_crop_bottom_offset = this->ue("SPS: frame_crop_bottom_offset");
-
-        sps.CropUnitX = sps.SubWidthC;
-        sps.CropUnitY = sps.SubHeightC * (2 - sps.frame_mbs_only_flag);
-
-        assert(sps.frame_crop_left_offset <=
-               (sps.PicWidthInSamplesL / sps.CropUnitX) - (sps.frame_crop_right_offset + 1));
-        assert(sps.frame_crop_top_offset <=
-               (16 * sps.FrameHeightInMbs / sps.CropUnitY) - (sps.frame_crop_bottom_offset + 1));
-    }
-
-    sps.vui_parameters_present_flag = this->u(1, "SPS: vui_parameters_present_flag");
-    sps.vui_parameters.matrix_coefficients = 2;
-    if (sps.vui_parameters_present_flag)
-        this->vui_parameters(sps.vui_parameters);
-
-    if (sps.vui_parameters_present_flag) {
-        if (!(sps.BitDepthC == sps.BitDepthY && sps.chroma_format_idc == 3))
-            assert(sps.vui_parameters.matrix_coefficients != 0);
-        if (!(sps.BitDepthC == sps.BitDepthY ||
-             (sps.BitDepthC == sps.BitDepthY + 1 && sps.chroma_format_idc == 3)))
-            assert(sps.vui_parameters.matrix_coefficients != 8);
-        if (sps.chroma_format_idc != 1)
-            assert(!sps.vui_parameters.chroma_loc_info_present_flag);
-    }
-
-    int level_idc;
-    bool level_1b = (sps.profile_idc == 66 || sps.profile_idc == 77 || sps.profile_idc == 88) &&
-                    (sps.level_idc == 11 && sps.constraint_set3_flag);
-    level_idc = level_1b ? 10 : sps.level_idc;
-    level_idc = 3 * (level_idc / 10) + (level_idc % 10) - 3;
-    level_idc = level_idc < 0 ? 0 : level_idc;
-    assert(level_idc <= 14);
-
-    sps.MaxDpbFrames =
-        min<int>(MaxDpbMbs[level_idc] / (sps.PicWidthInMbs * sps.FrameHeightInMbs), 16);
-
-    if (!sps.vui_parameters_present_flag || !sps.vui_parameters.bitstream_restriction_flag) {
-        sps.vui_parameters.max_num_reorder_frames =
-            (sps.profile_idc == 44 || sps.profile_idc == 86 || sps.profile_idc == 100 ||
-             sps.profile_idc == 110 || sps.profile_idc == 122 || sps.profile_idc == 244) &&
-            sps.constraint_set3_flag ? 0 : sps.MaxDpbFrames;
-        sps.vui_parameters.max_dec_frame_buffering =
-            (sps.profile_idc == 44 || sps.profile_idc == 86 || sps.profile_idc == 100 ||
-             sps.profile_idc == 110 || sps.profile_idc == 122 || sps.profile_idc == 244) &&
-            sps.constraint_set3_flag ? 0 : sps.MaxDpbFrames;
-    }
-
-    assert(sps.vui_parameters.max_num_reorder_frames <= sps.MaxDpbFrames);
-    assert(sps.vui_parameters.max_dec_frame_buffering <= sps.MaxDpbFrames);
-    assert(sps.max_num_ref_frames <= sps.MaxDpbFrames);
-
-    sps.Valid = true;
-}
-
-static const uint8_t ZZ_SCAN_4x4[16] = {
-     0,  1,  4,  8,  5,  2,  3,  6,
-     9, 12, 13, 10,  7, 11, 14, 15
-};
-
-static const uint8_t ZZ_SCAN_8x8[64] = {
-     0,  1,  8, 16,  9,  2,  3, 10,
-    17, 24, 32, 25, 18, 11,  4,  5,
-    12, 19, 26, 33, 40, 48, 41, 34,
-    27, 20, 13,  6,  7, 14, 21, 28,
-    35, 42, 49, 56, 57, 50, 43, 36,
-    29, 22, 15, 23, 30, 37, 44, 51,
-    58, 59, 52, 45, 38, 31, 39, 46,
-    53, 60, 61, 54, 47, 55, 62, 63
-};
-
-// 7.3.2.1.1.1 Scaling list syntax
-
-void data_partition_t::scaling_list(int* scalingList, int sizeOfScalingList, bool* useDefaultScalingMatrixFlag)
-{
-    int lastScale = 8;
-    int nextScale = 8;
-
-    for (int j = 0; j < sizeOfScalingList; j++) {
-        int scanj = (sizeOfScalingList == 16) ? ZZ_SCAN_4x4[j] : ZZ_SCAN_8x8[j];
-        if (nextScale != 0) {
-            int8_t delta_scale = this->se("   : delta_sl");
-            nextScale = (lastScale + delta_scale + 256) % 256;
-            *useDefaultScalingMatrixFlag = (scanj == 0 && nextScale == 0);
-        }
-        scalingList[scanj] = (nextScale == 0) ? lastScale : nextScale;
-        lastScale = scalingList[scanj];
-    }
-}
-
-// 7.3.2.1.2 Sequence parameter set extension RBSP syntax
-
-void data_partition_t::seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext)
-{
-    sps_ext.seq_parameter_set_id = this->ue("SPS_EXT: seq_parameter_set_id");
-    sps_ext.aux_format_idc       = this->ue("SPS_EXT: aux_format_idc");
-
-    assert(sps_ext.seq_parameter_set_id < MAX_NUM_SPS);
-    assert(sps_ext.aux_format_idc <= 3);
-
-    if (sps_ext.aux_format_idc != 0) {
-        sps_ext.bit_depth_aux_minus8 = this->ue("SPS_EXT: bit_depth_aux_minus8");
-
-        assert(sps_ext.bit_depth_aux_minus8 <= 4);
-
-        uint8_t bit_depth_aux = sps_ext.bit_depth_aux_minus8 + 9;
-
-        sps_ext.alpha_incr_flag         = this->u(1, "SPS_EXT: alpha_incr_flag");
-        sps_ext.alpha_opaque_value      = this->u(bit_depth_aux, "SPS_EXT: alpha_opaque_value");
-        sps_ext.alpha_transparent_value = this->u(bit_depth_aux, "SPS_EXT: alpha_transparent_value");
-    }
-    sps_ext.additional_extension_flag = this->u(1, "SPS_EXT: additional_extension_flag");
-
-    this->rbsp_trailing_bits();
-}
-
-
-#if (MVC_EXTENSION_ENABLE)
 
 // G.7.3.1.4 Sequence parameter set SVC extension syntax
 
@@ -453,7 +704,7 @@ void data_partition_t::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
 
     sps_mvc.num_views_minus1 = this->ue("num_views_minus1");
     assert(sps_mvc.num_views_minus1 < MAX_NUM_SPS_MVC_VIEWS);
-    sps_mvc.views = std::vector<sps_mvc_t::view_t>(sps_mvc.num_views_minus1 + 1);
+    sps_mvc.views = sps_mvc_t::view_v(sps_mvc.num_views_minus1 + 1);
 
     for (int i = 0; i <= sps_mvc.num_views_minus1; ++i) {
         sps_mvc.views[i].view_id = this->ue("view_id");
@@ -466,7 +717,7 @@ void data_partition_t::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
         view.num_anchor_refs_l0 = this->ue("num_anchor_refs_l0");
         assert(view.num_anchor_refs_l0 <= min<int>(15, sps_mvc.num_views_minus1));
         if (view.num_anchor_refs_l0 > 0) {
-            view.anchor_ref_l0 = std::vector<uint16_t>(view.num_anchor_refs_l0);
+            view.anchor_ref_l0 = sps_mvc_t::uint16_v(view.num_anchor_refs_l0);
             for (int j = 0; j < view.num_anchor_refs_l0; ++j) {
                 view.anchor_ref_l0[j] = this->ue("anchor_ref_l0");
                 assert(view.anchor_ref_l0[j] < MAX_NUM_SPS_MVC_VIEWS);
@@ -476,7 +727,7 @@ void data_partition_t::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
         view.num_anchor_refs_l1 = this->ue("num_anchor_refs_l1");
         assert(view.num_anchor_refs_l1 <= min<int>(15, sps_mvc.num_views_minus1));
         if (view.num_anchor_refs_l1 > 0) {
-            view.anchor_ref_l1 = std::vector<uint16_t>(view.num_anchor_refs_l1);
+            view.anchor_ref_l1 = sps_mvc_t::uint16_v(view.num_anchor_refs_l1);
             for (int j = 0; j < view.num_anchor_refs_l1; ++j) {
                 view.anchor_ref_l1[j] = this->ue("anchor_ref_l1");
                 assert(view.anchor_ref_l1[j] < MAX_NUM_SPS_MVC_VIEWS);
@@ -490,7 +741,7 @@ void data_partition_t::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
         view.num_non_anchor_refs_l0 = this->ue("num_non_anchor_refs_l0");
         assert(view.num_non_anchor_refs_l0 <= min<int>(15, sps_mvc.num_views_minus1));
         if (view.num_non_anchor_refs_l0 > 0) {
-            view.non_anchor_ref_l0 = std::vector<uint16_t>(view.num_non_anchor_refs_l0);
+            view.non_anchor_ref_l0 = sps_mvc_t::uint16_v(view.num_non_anchor_refs_l0);
             for (int j = 0; j < view.num_non_anchor_refs_l0; ++j) {
                 view.non_anchor_ref_l0[j] = this->ue("non_anchor_ref_l0");
                 assert(view.non_anchor_ref_l0[j] < MAX_NUM_SPS_MVC_VIEWS);
@@ -500,7 +751,7 @@ void data_partition_t::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
         view.num_non_anchor_refs_l1 = this->ue("num_non_anchor_refs_l1");
         assert(view.num_non_anchor_refs_l1 <= min<int>(15, sps_mvc.num_views_minus1));
         if (view.num_non_anchor_refs_l1 > 0) {
-            view.non_anchor_ref_l1 = std::vector<uint16_t>(view.num_non_anchor_refs_l1);
+            view.non_anchor_ref_l1 = sps_mvc_t::uint16_v(view.num_non_anchor_refs_l1);
             for (int j = 0; j < view.num_non_anchor_refs_l1; ++j) {
                 view.non_anchor_ref_l1[j] = this->ue("non_anchor_ref_l1");
                 assert(view.non_anchor_ref_l1[j] < MAX_NUM_SPS_MVC_VIEWS);
@@ -511,15 +762,15 @@ void data_partition_t::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
     sps_mvc.num_level_values_signalled_minus1 = this->ue("num_level_values_signalled_minus1");
     assert(sps_mvc.num_level_values_signalled_minus1 < MAX_NUM_SPS_MVC_LEVEL_VALUES_SIGNALLED);
     sps_mvc.level_values_signalled =
-        std::vector<sps_mvc_t::level_value_t>(sps_mvc.num_level_values_signalled_minus1 + 1);
+        sps_mvc_t::level_value_v(sps_mvc.num_level_values_signalled_minus1 + 1);
 
     for (int i = 0; i <= sps_mvc.num_level_values_signalled_minus1; ++i) {
         sps_mvc_t::level_value_t& level_value = sps_mvc.level_values_signalled[i];
         level_value.level_idc                 = this->u(8, "level_idc");
         level_value.num_applicable_ops_minus1 = this->ue("num_applicable_ops_minus1");
         assert(level_value.num_applicable_ops_minus1 < MAX_NUM_SPS_MVC_APPLICABLE_OPS);
-        level_value.applicable_ops = std::vector<sps_mvc_t::level_value_t::applicable_op_t>
-                                                (level_value.num_applicable_ops_minus1 + 1);
+        level_value.applicable_ops =
+            sps_mvc_t::level_value_t::applicable_op_v(level_value.num_applicable_ops_minus1 + 1);
 
         for (int j = 0; j <= level_value.num_applicable_ops_minus1; ++j) {
             sps_mvc_t::level_value_t::applicable_op_t& applicable_op = level_value.applicable_ops[j];
@@ -527,7 +778,7 @@ void data_partition_t::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
             applicable_op.applicable_op_num_target_views_minus1 = this->ue("applicable_op_num_target_views_minus1");
             assert(applicable_op.applicable_op_num_target_views_minus1 < MAX_NUM_SPS_MVC_APPLICABLE_OP_TARGET_VIEW);
             applicable_op.applicable_op_target_view_id =
-                std::vector<uint16_t>(applicable_op.applicable_op_num_target_views_minus1 + 1);
+                sps_mvc_t::uint16_v(applicable_op.applicable_op_num_target_views_minus1 + 1);
             for (int k = 0; k <= applicable_op.applicable_op_num_target_views_minus1; ++k) {
                 applicable_op.applicable_op_target_view_id[k] = this->ue("applicable_op_target_view_id");
                 assert(applicable_op.applicable_op_target_view_id[k] < MAX_NUM_SPS_MVC_APPLICABLE_OP_TARGET_VIEW);
@@ -547,15 +798,15 @@ void data_partition_t::mvc_vui_parameters_extension(mvc_vui_t& mvc_vui)
 
     mvc_vui.vui_mvc_num_ops_minus1 = this->ue("vui_mvc_num_ops_minus1");
     assert(mvc_vui.vui_mvc_num_ops_minus1 < MAX_NUM_MVC_VUI_OPS);
-    mvc_vui.vui_mvc_ops = std::vector<mvc_vui_t::op_t>(mvc_vui.vui_mvc_num_ops_minus1 + 1);
+    mvc_vui.vui_mvc_ops = mvc_vui_t::vui_mvc_op_v(mvc_vui.vui_mvc_num_ops_minus1 + 1);
 
     for (int i = 0; i <= mvc_vui.vui_mvc_num_ops_minus1; ++i) {
-        mvc_vui_t::op_t& vui_mvc_op = mvc_vui.vui_mvc_ops[i];
+        mvc_vui_t::vui_mvc_op_t& vui_mvc_op = mvc_vui.vui_mvc_ops[i];
 
         vui_mvc_op.vui_mvc_temporal_id = this->u(3, "vui_mvc_temporal_id");
         vui_mvc_op.vui_mvc_num_target_output_views_minus1 = this->ue("vui_mvc_num_target_output_views_minus1");
         assert(vui_mvc_op.vui_mvc_num_target_output_views_minus1 < MAX_NUM_MVC_VUI_VIEWS);
-        vui_mvc_op.vui_mvc_view_id = std::vector<uint16_t>(vui_mvc_op.vui_mvc_num_target_output_views_minus1 + 1);
+        vui_mvc_op.vui_mvc_view_id = mvc_vui_t::uint16_v(vui_mvc_op.vui_mvc_num_target_output_views_minus1 + 1);
 
         for (int j = 0; j <= vui_mvc_op.vui_mvc_num_target_output_views_minus1; ++j) {
             vui_mvc_op.vui_mvc_view_id[j] = this->ue("vui_mvc_view_id");
@@ -588,232 +839,6 @@ void data_partition_t::seq_parameter_set_mvcd_extension(sps_mvcd_t& sps_mvcd)
 {
     //to be implemented for Annex I;
 }
-
-// 7.3.2.1.3 Subset sequence parameter set RBSP syntax
-
-static void subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, int *curr_seq_set_id)
-{
-    sps_t* sps = new sps_t;
-
-    s->seq_parameter_set_rbsp(*sps);
-
-    *curr_seq_set_id = sps->seq_parameter_set_id;
-    sub_sps_t* subset_sps = p_Vid->SubsetSeqParSet + sps->seq_parameter_set_id;
-    if (subset_sps->Valid) {
-        if (memcmp(&subset_sps->sps, sps, sizeof (sps_t)-sizeof(int)))
-            assert(0);
-        reset_subset_sps(subset_sps);
-    }
-    memcpy(&subset_sps->sps, sps, sizeof (sps_t));
-
-    subset_sps->Valid = false;
-
-    if (subset_sps->sps.profile_idc == 83 || subset_sps->sps.profile_idc == 86) {
-        s->seq_parameter_set_svc_extension(subset_sps->sps_svc);
-        subset_sps->svc_vui_parameters_present_flag = s->u(1, "svc_vui_parameters_present_flag");
-        if (subset_sps->svc_vui_parameters_present_flag)
-            s->svc_vui_parameters_extension(subset_sps->svc_vui_parameters);
-    } else if (subset_sps->sps.profile_idc == 118 || subset_sps->sps.profile_idc == 128) {
-        subset_sps->bit_equal_to_one = s->u(1, "bit_equal_to_one");
-        assert(subset_sps->bit_equal_to_one == 1);
-        s->seq_parameter_set_mvc_extension(subset_sps->sps_mvc);
-        subset_sps->mvc_vui_parameters_present_flag = s->u(1, "mvc_vui_parameters_present_flag");
-        if (subset_sps->mvc_vui_parameters_present_flag)
-            s->mvc_vui_parameters_extension(subset_sps->mvc_vui_parameters);
-    } else if (subset_sps->sps.profile_idc == 138) {
-        subset_sps->bit_equal_to_one = s->u(1, "bit_equal_to_one");
-        assert(subset_sps->bit_equal_to_one == 1);
-        s->seq_parameter_set_mvcd_extension(subset_sps->sps_mvcd);
-    }
-
-    bool additional_extension2_flag = s->u(1, "additional_extension2_flag");
-    if (additional_extension2_flag) {
-        bool additional_extension2_data_flag;
-        while (s->more_rbsp_data())
-            additional_extension2_data_flag = s->u(1, "additional_extension2_flag");
-    }
-
-    if (subset_sps->sps.Valid)
-        subset_sps->Valid = true;
-
-    delete sps;
-}
-
-void ProcessSubsetSPS(VideoParameters *p_Vid, nal_unit_t *nalu)
-{
-    data_partition_t *dp = new data_partition_t { *nalu };
-    int curr_seq_set_id;
-
-    subset_seq_parameter_set_rbsp(p_Vid, dp, &curr_seq_set_id);
-
-    sub_sps_t* subset_sps = p_Vid->SubsetSeqParSet + curr_seq_set_id;
-    //get_max_dec_frame_buf_size(&(subset_sps->sps));
-    //check capability;
-    if (subset_sps->sps_mvc.num_views_minus1 > 1) {
-        printf("Warning: num_views:%d is greater than 2, only decode baselayer!\n",
-                subset_sps->sps_mvc.num_views_minus1 + 1);
-        subset_sps->Valid = 0;
-        subset_sps->sps.Valid = 0;
-        p_Vid->p_Inp->DecodeAllLayers = 0;
-    } else if (subset_sps->sps_mvc.num_views_minus1 == 1 &&
-        (subset_sps->sps_mvc.views[0].view_id != 0 || subset_sps->sps_mvc.views[1].view_id != 1))
-        p_Vid->OpenOutputFiles(subset_sps->sps_mvc.views[0].view_id, subset_sps->sps_mvc.views[1].view_id);
-
-    if (subset_sps->Valid)
-        p_Vid->profile_idc = subset_sps->sps.profile_idc;
-
-    delete dp;
-}
-
-#endif
-
-
-
-// 7.3.2.2 Picture parameter set RBSP syntax
-
-void pic_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, pps_t *pps)
-{
-    int iGroup;
-    int i;
-    int chroma_format_idc;
-
-    pps->pic_parameter_set_id                         = s->ue("PPS: pic_parameter_set_id");
-    pps->seq_parameter_set_id                         = s->ue("PPS: seq_parameter_set_id");
-    pps->entropy_coding_mode_flag                     = s->u(1, "PPS: entropy_coding_mode_flag");
-    pps->bottom_field_pic_order_in_frame_present_flag = s->u(1, "PPS: bottom_field_pic_order_in_frame_present_flag");
-
-    assert(pps->pic_parameter_set_id >= 0 && pps->pic_parameter_set_id <= 255);
-    assert(pps->seq_parameter_set_id >= 0 && pps->seq_parameter_set_id <= 31);
-
-    chroma_format_idc = p_Vid->SeqParSet[pps->seq_parameter_set_id].chroma_format_idc;
-
-    pps->num_slice_groups_minus1                = s->ue("PPS: num_slice_groups_minus1");
-    if (pps->num_slice_groups_minus1 > 0) {
-        pps->slice_group_map_type               = s->ue("PPS: slice_group_map_type");
-        if (pps->slice_group_map_type == 0) {
-            for (iGroup = 0; iGroup <= pps->num_slice_groups_minus1; iGroup++)
-                pps->run_length_minus1[iGroup]                 = s->ue("PPS: run_length_minus1 [i]");
-        } else if (pps->slice_group_map_type == 2) {
-            for (iGroup = 0; iGroup < pps->num_slice_groups_minus1; iGroup++) {
-                pps->top_left    [iGroup]                      = s->ue("PPS: top_left [i]");
-                pps->bottom_right[iGroup]                      = s->ue("PPS: bottom_right [i]");
-            }
-        } else if (pps->slice_group_map_type == 3 ||
-                   pps->slice_group_map_type == 4 ||
-                   pps->slice_group_map_type == 5) {
-            pps->slice_group_change_direction_flag     = s->u(1, "PPS: slice_group_change_direction_flag");
-            pps->slice_group_change_rate_minus1        = s->ue("PPS: slice_group_change_rate_minus1");
-        } else if (pps->slice_group_map_type == 6) {
-            const int bitsSliceGroupId[8] = { 1, 1, 2, 2, 3, 3, 3, 3 };
-            pps->pic_size_in_map_units_minus1      = s->ue("PPS: pic_size_in_map_units_minus1");
-            pps->slice_group_id = new uint8_t[pps->pic_size_in_map_units_minus1 + 1];
-            for (i = 0; i <= pps->pic_size_in_map_units_minus1; i++)
-                pps->slice_group_id[i] = (byte) s->u(bitsSliceGroupId[pps->num_slice_groups_minus1], "slice_group_id[i]");
-        }
-    }
-
-    assert(pps->num_slice_groups_minus1 >= 0 && pps->num_slice_groups_minus1 <= 7);
-    assert(pps->slice_group_map_type >= 0 && pps->slice_group_map_type <= 6);
-    if (pps->num_slice_groups_minus1 != 1)
-        assert(pps->slice_group_map_type != 3 && pps->slice_group_map_type != 4 && pps->slice_group_map_type != 5);
-    // assert(pps->run_length_minus1[i] <= PicSizeInMapUnits - 1);
-    // assert(pps->top_left[i] <= pps->bottom_right[i] && pps->bottom_right[i] < PicSizeInMapUnits);
-    // assert(pps->top_left[i] % PicWidthInMbs <= pps->bottom_right[i] % PicWidthInMbs);
-
-    // assert(pps->slice_group_change_rate_minus1 >= 0 &&
-    //        pps->slice_group_change_rate_minus1 <= PicSizeInMapUnits - 1);
-    pps->SliceGroupChangeRate = pps->slice_group_change_rate_minus1 + 1;
-    //assert(pps->pic_size_in_map_units_minus1 == PicSizeInMapUnits - 1);
-    //assert(pps->slice_group_id[i] >= 0 && pps->slice_group_id[i] <= pps->num_slice_groups_minus1);
-
-    pps->num_ref_idx_l0_default_active_minus1  = s->ue("PPS: num_ref_idx_l0_default_active_minus1");
-    pps->num_ref_idx_l1_default_active_minus1  = s->ue("PPS: num_ref_idx_l1_default_active_minus1");
-
-    assert(pps->num_ref_idx_l0_default_active_minus1 >= 0 && pps->num_ref_idx_l0_default_active_minus1 <= 31);
-    assert(pps->num_ref_idx_l1_default_active_minus1 >= 0 && pps->num_ref_idx_l1_default_active_minus1 <= 31);
-
-    pps->weighted_pred_flag                    = s->u(1, "PPS: weighted_pred_flag");
-    pps->weighted_bipred_idc                   = s->u(2, "PPS: weighted_bipred_idc");
-
-    assert(pps->weighted_bipred_idc >= 0 && pps->weighted_bipred_idc <= 2);
-
-    pps->pic_init_qp_minus26                   = s->se("PPS: pic_init_qp_minus26");
-    pps->pic_init_qs_minus26                   = s->se("PPS: pic_init_qs_minus26");
-    pps->chroma_qp_index_offset                = s->se("PPS: chroma_qp_index_offset");
-
-    //assert(pps->pic_init_qp_minus26 >= -(26 + QpBdOffsetY) && pps->pic_init_qp_minus26 <= 25);
-    assert(pps->pic_init_qs_minus26 >= -26 && pps->pic_init_qs_minus26 <= 25);
-    assert(pps->chroma_qp_index_offset >= -12 && pps->chroma_qp_index_offset <= 12);
-
-    pps->deblocking_filter_control_present_flag = s->u(1, "PPS: deblocking_filter_control_present_flag");
-    pps->constrained_intra_pred_flag            = s->u(1, "PPS: constrained_intra_pred_flag");
-    pps->redundant_pic_cnt_present_flag         = s->u(1, "PPS: redundant_pic_cnt_present_flag");
-
-    pps->transform_8x8_mode_flag         = 0;
-    pps->pic_scaling_matrix_present_flag = 0;
-    pps->second_chroma_qp_index_offset   = pps->chroma_qp_index_offset;
-    if (s->more_rbsp_data()) {
-        pps->transform_8x8_mode_flag           = s->u(1, "PPS: transform_8x8_mode_flag");
-        pps->pic_scaling_matrix_present_flag   = s->u(1, "PPS: pic_scaling_matrix_present_flag");
-        if (pps->pic_scaling_matrix_present_flag) {
-            for (i = 0; i < 6 + ((chroma_format_idc != YUV444) ? 2 : 6) * pps->transform_8x8_mode_flag; i++) {
-                pps->pic_scaling_list_present_flag[i]= s->u(1, "PPS: pic_scaling_list_present_flag");
-                if (pps->pic_scaling_list_present_flag[i]) {
-                    if (i < 6)
-                        s->scaling_list(pps->ScalingList4x4[i], 16,
-                                        &pps->UseDefaultScalingMatrix4x4Flag[i]);
-                    else
-                        s->scaling_list(pps->ScalingList8x8[i - 6], 64,
-                                        &pps->UseDefaultScalingMatrix8x8Flag[i - 6]);
-                }
-            }
-        }
-        pps->second_chroma_qp_index_offset      = s->se("PPS: second_chroma_qp_index_offset");
-    }
-    assert(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12);
-
-    pps->Valid = true;
-}
-
-
-// 7.3.2.11 RBSP trailing bits syntax
-
-void data_partition_t::rbsp_trailing_bits(void)
-{
-    bool rbsp_stop_one_bit;
-    bool rbsp_alignment_zero_bit;
-
-    rbsp_stop_one_bit = this->f(1);
-    while (!this->byte_aligned())
-        rbsp_alignment_zero_bit = this->f(1);
-}
-
-
-#if (MVC_EXTENSION_ENABLE)
-void nal_unit_header_mvc_extension(NALUnitHeaderMVCExt_t *NaluHeaderMVCExt, data_partition_t *s)
-{  
-    //to be implemented;  
-    NaluHeaderMVCExt->non_idr_flag     = s->u(1, "non_idr_flag");
-    NaluHeaderMVCExt->priority_id      = s->u(6, "priority_id");
-    NaluHeaderMVCExt->view_id          = s->u(10, "view_id");
-    NaluHeaderMVCExt->temporal_id      = s->u(3, "temporal_id");
-    NaluHeaderMVCExt->anchor_pic_flag  = s->u(1, "anchor_pic_flag");
-    NaluHeaderMVCExt->inter_view_flag  = s->u(1, "inter_view_flag");
-    NaluHeaderMVCExt->reserved_one_bit = s->u(1, "reserved_one_bit");
-    if (NaluHeaderMVCExt->reserved_one_bit != 1)
-        printf("Nalu Header MVC Extension: reserved_one_bit is not 1!\n");
-}
-
-void nal_unit_header_svc_extension(void)
-{
-    //to be implemented for Annex G;
-}
-
-void prefix_nal_unit_svc(void)
-{
-    //to be implemented for Annex G;
-}
-#endif
 
 
 bool operator==(const sps_t& l, const sps_t& r)
@@ -898,11 +923,11 @@ bool operator==(const pps_t& l, const pps_t& r)
 
         if (l.slice_group_map_type == 0) {
             for (int i = 0; i <= l.num_slice_groups_minus1; ++i)
-                equal &= (l.run_length_minus1[i] == r.run_length_minus1[i]);
+                equal &= (l.slice_groups[i].run_length_minus1 == r.slice_groups[i].run_length_minus1);
         } else if (l.slice_group_map_type == 2) {
             for (int i = 0; i < l.num_slice_groups_minus1; ++i) {
-                equal &= (l.top_left[i] == r.top_left[i]);
-                equal &= (l.bottom_right[i] == r.bottom_right[i]);
+                equal &= (l.slice_groups[i].top_left     == r.slice_groups[i].top_left);
+                equal &= (l.slice_groups[i].bottom_right == r.slice_groups[i].bottom_right);
             }
         } else if (l.slice_group_map_type == 3 || l.slice_group_map_type == 4 || l.slice_group_map_type == 5) {
             equal &= (l.slice_group_change_direction_flag == r.slice_group_change_direction_flag);
@@ -953,94 +978,29 @@ bool operator==(const pps_t& l, const pps_t& r)
 }
 
 
-void MakePPSavailable (VideoParameters *p_Vid, int id, pps_t *pps)
-{
-    assert (pps->Valid);
-
-    if (p_Vid->PicParSet[id].Valid && p_Vid->PicParSet[id].slice_group_id)
-        delete []p_Vid->PicParSet[id].slice_group_id;
-
-    memcpy(&p_Vid->PicParSet[id], pps, sizeof (pps_t));
-
-  // we can simply use the memory provided with the pps. the PPS is destroyed after this function
-  // call and will not try to free if pps->slice_group_id == NULL
-    p_Vid->PicParSet[id].slice_group_id = pps->slice_group_id;
-    pps->slice_group_id          = NULL;
-}
-
-void CleanUpPPS(VideoParameters *p_Vid)
-{
-    for (int i = 0; i < MAX_NUM_PPS; ++i) {
-        if (p_Vid->PicParSet[i].Valid && p_Vid->PicParSet[i].slice_group_id)
-            delete []p_Vid->PicParSet[i].slice_group_id;
-
-        p_Vid->PicParSet[i].Valid = false;
-    }
-}
-
-
-void ProcessPPS(VideoParameters *p_Vid, nal_unit_t *nalu)
-{
-    data_partition_t* dp = new data_partition_t { *nalu };
-    pps_t* pps = new pps_t;
-
-    pic_parameter_set_rbsp(p_Vid, dp, pps);
-
-    if (p_Vid->active_pps) {
-        if (pps->pic_parameter_set_id == p_Vid->active_pps->pic_parameter_set_id) {
-            if (!(*pps == *(p_Vid->active_pps))) {
-                memcpy(p_Vid->pNextPPS, p_Vid->active_pps, sizeof (pps_t));
-                if (p_Vid->dec_picture)
-                    exit_picture(p_Vid);
-                p_Vid->active_pps = nullptr;
-            }
-        }
-    }
-
-    MakePPSavailable(p_Vid, pps->pic_parameter_set_id, pps);
-    delete dp;
-    delete pps;
-}
 
 #if (MVC_EXTENSION_ENABLE)
-
-void init_subset_sps_list(sub_sps_t *subset_sps_list, int iSize)
-{
-  int i;
-  memset(subset_sps_list, 0, iSize*sizeof(subset_sps_list[0]));
-  for(i=0; i<iSize; i++)
-  {
-    subset_sps_list[i].sps.seq_parameter_set_id = -1;
-    subset_sps_list[i].sps_mvc.num_views_minus1 = -1;
-    subset_sps_list[i].sps_mvc.num_level_values_signalled_minus1 = -1;
-    subset_sps_list[i].mvc_vui_parameters.vui_mvc_num_ops_minus1 = -1;
-  }
+void nal_unit_header_mvc_extension(NALUnitHeaderMVCExt_t *NaluHeaderMVCExt, data_partition_t *s)
+{  
+    //to be implemented;  
+    NaluHeaderMVCExt->non_idr_flag     = s->u(1, "non_idr_flag");
+    NaluHeaderMVCExt->priority_id      = s->u(6, "priority_id");
+    NaluHeaderMVCExt->view_id          = s->u(10, "view_id");
+    NaluHeaderMVCExt->temporal_id      = s->u(3, "temporal_id");
+    NaluHeaderMVCExt->anchor_pic_flag  = s->u(1, "anchor_pic_flag");
+    NaluHeaderMVCExt->inter_view_flag  = s->u(1, "inter_view_flag");
+    NaluHeaderMVCExt->reserved_one_bit = s->u(1, "reserved_one_bit");
+    if (NaluHeaderMVCExt->reserved_one_bit != 1)
+        printf("Nalu Header MVC Extension: reserved_one_bit is not 1!\n");
 }
 
-
-void reset_subset_sps(sub_sps_t *subset_sps)
+void nal_unit_header_svc_extension(void)
 {
-    if (subset_sps) {
-        subset_sps->sps_mvc.num_views_minus1 = -1;
-        subset_sps->sps_mvc.views.clear();
-        subset_sps->sps_mvc.num_level_values_signalled_minus1 = -1;
-        subset_sps->sps_mvc.level_values_signalled.clear();
-
-        subset_sps->mvc_vui_parameters.vui_mvc_num_ops_minus1 = -1;
-        subset_sps->mvc_vui_parameters.vui_mvc_ops.clear();
-    }
+    //to be implemented for Annex G;
 }
 
+void prefix_nal_unit_svc(void)
+{
+    //to be implemented for Annex G;
+}
 #endif
-
-
-pic_parameter_set_t::pic_parameter_set_t()
-{
-    this->slice_group_id = NULL;
-}
-
-pic_parameter_set_t::~pic_parameter_set_t()
-{
-    if (this->slice_group_id)
-        delete this->slice_group_id;
-}

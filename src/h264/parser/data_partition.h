@@ -118,21 +118,30 @@ struct data_partition_t : public nal_unit_t {
     uint32_t    te(const char* name="");
 
 
+    void        seq_parameter_set_rbsp(sps_t& sps);
+    void        seq_parameter_set_data(sps_t& sps);
+    void        scaling_list(int* scalingList, int sizeOfScalingList, bool& useDefaultScalingMatrixFlag);
+    void        seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext);
+    void        subset_seq_parameter_set_rbsp   (sub_sps_t& sub_sps);
+    void        pic_parameter_set_rbsp          (VideoParameters *p_Vid, pps_t& pps);
+
+    void        sei_rbsp(void);
+    void        sei_message(void);
+    void        access_unit_delimiter_rbsp(void);
+    void        end_of_seq_rbsp(void);
+    void        end_of_stream_rbsp(void);
+    void        filler_data_rbsp(void);
+    void        rbsp_slice_trailing_bits(void);
+    void        rbsp_trailing_bits(void);
+
     void        vui_parameters(vui_t& vui);
     void        hrd_parameters(hrd_t& hrd);
 
-    void        seq_parameter_set_rbsp(sps_t& sps);
-    void        seq_parameter_set_data(sps_t& sps);
-    void        scaling_list(int* scalingList, int sizeOfScalingList, bool* useDefaultScalingMatrixFlag);
-    void        seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext);
     void        seq_parameter_set_svc_extension (sps_svc_t& sps_svc);
     void        svc_vui_parameters_extension    (svc_vui_t& svc_vui);
     void        seq_parameter_set_mvc_extension (sps_mvc_t& sps_mvc);
     void        mvc_vui_parameters_extension    (mvc_vui_t& mvc_vui);
     void        seq_parameter_set_mvcd_extension(sps_mvcd_t& sps_mvcd);
-    void        subset_seq_parameter_set_rbsp   (sub_sps_t& sub_sps);
-
-    void        rbsp_trailing_bits(void);
 };
 
 

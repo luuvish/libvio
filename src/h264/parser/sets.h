@@ -1,17 +1,9 @@
-#ifndef _PARSET_H_
-#define _PARSET_H_
+#ifndef __VIO_H264_SETS_H__
+#define __VIO_H264_SETS_H__
 
 
-namespace vio { namespace h264 {
-struct nal_unit_t;
-struct data_partition_t;
-}}
-struct VideoParameters;
-struct slice_t;
-
-
-using vio::h264::nal_unit_t;
-using vio::h264::data_partition_t;
+#include <cstdint>
+#include <vector>
 
 
 #define MAX_NUM_SPS  32
@@ -24,9 +16,11 @@ enum {
     CHROMA_FORMAT_444 = 3
 };
 
-#define MAX_NUM_REF_FRAMES_IN_POC_CYCLE 256
 #define MAX_NUM_SLICE_GROUPS 8
+#define MAX_NUM_REF_IDX 32
 
+
+// E.1.2 HRD parameters syntax
 
 typedef struct hrd_parameters_t {
     uint8_t     cpb_cnt_minus1;                                       // ue(v)
@@ -37,12 +31,15 @@ typedef struct hrd_parameters_t {
         uint32_t    cpb_size_value_minus1;                            // ue(v)
         bool        cbr_flag;                                         // u(1)
     };
-    std::vector<cpb_t> cpbs;
+    using cpb_v = std::vector<cpb_t>;
+    cpb_v       cpbs;
     uint8_t     initial_cpb_removal_delay_length_minus1;              // u(5)
     uint8_t     cpb_removal_delay_length_minus1;                      // u(5)
     uint8_t     dpb_output_delay_length_minus1;                       // u(5)
     uint8_t     time_offset_length;                                   // u(5)
 } hrd_t;
+
+// E.1.1 VUI parameter syntax
 
 typedef struct vui_parameters_t {
     bool        aspect_ratio_info_present_flag;                       // u(1)
@@ -109,6 +106,8 @@ enum {
     High444_Profile  = 244
 };
 
+// 7.3.2.1.1 Sequence parameter set data syntax
+
 typedef struct seq_parameter_set_t {
     bool        Valid;                  // indicates the parameter set is valid
 
@@ -135,7 +134,8 @@ typedef struct seq_parameter_set_t {
     int32_t     offset_for_non_ref_pic;                               // se(v)
     int32_t     offset_for_top_to_bottom_field;                       // se(v)
     uint8_t     num_ref_frames_in_pic_order_cnt_cycle;                // ue(v)
-    int32_t     offset_for_ref_frame[MAX_NUM_REF_FRAMES_IN_POC_CYCLE];// se(v)
+    using int32_v = std::vector<int32_t>;
+    int32_v     offset_for_ref_frame;                                 // se(v)
     uint8_t     max_num_ref_frames;                                   // ue(v)
     bool        gaps_in_frame_num_value_allowed_flag;                 // u(1)
     uint32_t    pic_width_in_mbs_minus1;                              // ue(v)
@@ -179,6 +179,8 @@ typedef struct seq_parameter_set_t {
     uint8_t     MaxDpbFrames;
 } sps_t;
 
+// 7.3.2.1.2 Sequence parameter set extension RBSP syntax
+
 typedef struct seq_parameter_set_extension_t {
     uint8_t     seq_parameter_set_id;                                 // ue(v)
     uint8_t     aux_format_idc;                                       // ue(v)
@@ -189,118 +191,7 @@ typedef struct seq_parameter_set_extension_t {
     bool        additional_extension_flag;                            // u(1)
 } sps_ext_t;
 
-bool operator==(const sps_t& l, const sps_t& r);
-
-
-#if (MVC_EXTENSION_ENABLE)
-typedef struct seq_parameter_set_svc_extension_t {
-    bool        inter_layer_deblocking_filter_control_present_flag;   // u(1)
-    uint8_t     extended_spatial_scalability_idc;                     // u(2)
-    bool        chroma_phase_x_plus1_flag;                            // u(1)
-    uint8_t     chroma_phase_y_plus1;                                 // u(2)
-    bool        seq_ref_layer_chroma_phase_x_plus1_flag;              // u(1)
-    uint8_t     seq_ref_layer_chroma_phase_y_plus1;                   // u(2)
-    int16_t     seq_scaled_ref_layer_left_offset;                     // se(v)
-    int16_t     seq_scaled_ref_layer_top_offset;                      // se(v)
-    int16_t     seq_scaled_ref_layer_right_offset;                    // se(v)
-    int16_t     seq_scaled_ref_layer_bottom_offset;                   // se(v)
-    bool        seq_tcoeff_level_prediction_flag;                     // u(1)
-    bool        adaptive_tcoeff_level_prediction_flag;                // u(1)
-    bool        slice_header_restriction_flag;                        // u(1)
-} sps_svc_t;
-
-typedef struct svc_vui_parameters_extension_t {
-    uint8_t     vui_ext_num_entries_minus1;                           // ue(v)
-    struct entry_t {
-        uint8_t     vui_ext_dependency_id;                            // u(3)
-        uint8_t     vui_ext_quality_id;                               // u(4)
-        uint8_t     vui_ext_temporal_id;                              // u(3)
-        bool        vui_ext_timing_info_present_flag;                 // u(1)
-        uint32_t    vui_ext_num_units_in_tick;                        // u(32)
-        uint32_t    vui_ext_time_scale;                               // u(32)
-        bool        vui_ext_fixed_frame_rate_flag;                    // u(1)
-        bool        vui_ext_nal_hrd_parameters_present_flag;          // u(1)
-        hrd_t       vui_ext_nal_parameters;
-        bool        vui_ext_vcl_hrd_parameters_present_flag;          // u(1)
-        hrd_t       vui_ext_vcl_parameters;
-        bool        vui_ext_low_delay_hrd_flag;                       // u(1)
-        bool        vui_ext_pic_struct_present_flag;                  // u(1)
-    };
-    std::vector<entry_t> entries;
-} svc_vui_t;
-
-typedef struct seq_parameter_set_mvc_extension_t {
-    uint32_t    num_views_minus1;                                     // ue(v)
-    struct view_t {
-        uint16_t    view_id;                                          // ue(v)
-        uint8_t               num_anchor_refs_l0;                     // ue(v)
-        std::vector<uint16_t> anchor_ref_l0;                          // ue(v)
-        uint8_t               num_anchor_refs_l1;                     // ue(v)
-        std::vector<uint16_t> anchor_ref_l1;                          // ue(v)
-        uint8_t               num_non_anchor_refs_l0;                 // ue(v)
-        std::vector<uint16_t> non_anchor_ref_l0;                      // ue(v)
-        uint8_t               num_non_anchor_refs_l1;                 // ue(v)
-        std::vector<uint16_t> non_anchor_ref_l1;                      // ue(v)
-    };
-    std::vector<view_t> views;
-    uint32_t    num_level_values_signalled_minus1;                    // ue(v)
-    struct level_value_t {
-        uint8_t     level_idc;                                        // u(8)
-        uint16_t    num_applicable_ops_minus1;                        // ue(v)
-        struct applicable_op_t {
-            uint8_t            applicable_op_temporal_id;             // u(3)
-            uint16_t           applicable_op_num_target_views_minus1; // ue(v)
-            std::vector<uint16_t> applicable_op_target_view_id;       // ue(v)
-            uint16_t              applicable_op_num_views_minus1;     // ue(v)
-        };
-        std::vector<applicable_op_t> applicable_ops;
-    };
-    std::vector<level_value_t> level_values_signalled;
-} sps_mvc_t;
-
-typedef struct mvc_vui_parameters_extension_t {
-    uint16_t    vui_mvc_num_ops_minus1;                               // ue(v)
-    struct op_t {
-        uint8_t     vui_mvc_temporal_id;                              // u(3)
-        uint16_t    vui_mvc_num_target_output_views_minus1;           // ue(v)
-        std::vector<uint16_t> vui_mvc_view_id;                        // ue(v)
-        bool        vui_mvc_timing_info_present_flag;                 // u(1)
-        uint32_t    vui_mvc_num_units_in_tick;                        // u(32)
-        uint32_t    vui_mvc_time_scale;                               // u(32)
-        bool        vui_mvc_fixed_frame_rate_flag;                    // u(1)
-        bool        vui_mvc_nal_hrd_parameters_present_flag;          // u(1)
-        hrd_t       vui_mvc_nal_hrd_parameters;
-        bool        vui_mvc_vcl_hrd_parameters_present_flag;          // u(1)
-        hrd_t       vui_mvc_vcl_hrd_parameters;
-        bool        vui_mvc_low_delay_hrd_flag;                       // u(1)
-        bool        vui_mvc_pic_struct_present_flag;                  // u(1)
-    };
-    std::vector<op_t> vui_mvc_ops;
-} mvc_vui_t;
-
-typedef struct seq_parameter_set_mvcd_t {
-
-} sps_mvcd_t;
-
-typedef struct subset_seq_parameter_set_t {
-    bool        Valid;
-
-    sps_t       sps;
-
-    sps_svc_t   sps_svc;
-    bool        svc_vui_parameters_present_flag;                      // u(1)
-    svc_vui_t   svc_vui_parameters;
-
-    bool        bit_equal_to_one;                                     // f(1)
-
-    sps_mvc_t   sps_mvc;
-    bool        mvc_vui_parameters_present_flag;                      // u(1)
-    mvc_vui_t   mvc_vui_parameters;
-
-    sps_mvcd_t  sps_mvcd;
-} sub_sps_t;
-#endif
-
+// 7.3.2.2 Picture parameter set RBSP syntax
 
 typedef struct pic_parameter_set_t {
     bool        Valid;
@@ -311,13 +202,18 @@ typedef struct pic_parameter_set_t {
     bool        bottom_field_pic_order_in_frame_present_flag;         // u(1)
     uint8_t     num_slice_groups_minus1;                              // ue(v)
     uint8_t     slice_group_map_type;                                 // ue(v)
-    uint32_t    run_length_minus1[MAX_NUM_SLICE_GROUPS];              // ue(v)
-    uint32_t    top_left         [MAX_NUM_SLICE_GROUPS];              // ue(v)
-    uint32_t    bottom_right     [MAX_NUM_SLICE_GROUPS];              // ue(v)
+    struct slice_group_t {
+        uint32_t    run_length_minus1;                                // ue(v)
+        uint32_t    top_left;                                         // ue(v)
+        uint32_t    bottom_right;                                     // ue(v)
+    };
+    using slice_group_v = std::vector<slice_group_t>;
+    slice_group_v slice_groups;
     bool        slice_group_change_direction_flag;                    // u(1)
     uint32_t    slice_group_change_rate_minus1;                       // ue(v)
     uint32_t    pic_size_in_map_units_minus1;                         // ue(v)
-    uint8_t*    slice_group_id;                                       // u(v)
+    using uint8_v = std::vector<uint8_t>;
+    uint8_v     slice_group_id;                                       // u(v)
     uint8_t     num_ref_idx_l0_default_active_minus1;                 // ue(v)
     uint8_t     num_ref_idx_l1_default_active_minus1;                 // ue(v)
     bool        weighted_pred_flag;                                   // u(1)
@@ -338,23 +234,139 @@ typedef struct pic_parameter_set_t {
     int         ScalingList8x8[6][64];
     bool        UseDefaultScalingMatrix4x4Flag[6];
     bool        UseDefaultScalingMatrix8x8Flag[6];
-
-    pic_parameter_set_t();
-    ~pic_parameter_set_t();
 } pps_t;
 
+
+// G.7.3.1.4 Sequence parameter set SVC extension syntax
+
+typedef struct seq_parameter_set_svc_extension_t {
+    bool        inter_layer_deblocking_filter_control_present_flag;   // u(1)
+    uint8_t     extended_spatial_scalability_idc;                     // u(2)
+    bool        chroma_phase_x_plus1_flag;                            // u(1)
+    uint8_t     chroma_phase_y_plus1;                                 // u(2)
+    bool        seq_ref_layer_chroma_phase_x_plus1_flag;              // u(1)
+    uint8_t     seq_ref_layer_chroma_phase_y_plus1;                   // u(2)
+    int16_t     seq_scaled_ref_layer_left_offset;                     // se(v)
+    int16_t     seq_scaled_ref_layer_top_offset;                      // se(v)
+    int16_t     seq_scaled_ref_layer_right_offset;                    // se(v)
+    int16_t     seq_scaled_ref_layer_bottom_offset;                   // se(v)
+    bool        seq_tcoeff_level_prediction_flag;                     // u(1)
+    bool        adaptive_tcoeff_level_prediction_flag;                // u(1)
+    bool        slice_header_restriction_flag;                        // u(1)
+} sps_svc_t;
+
+// G.14.1 SVC VUI parameters extension syntax
+
+typedef struct svc_vui_parameters_extension_t {
+    uint8_t     vui_ext_num_entries_minus1;                           // ue(v)
+    struct entry_t {
+        uint8_t     vui_ext_dependency_id;                            // u(3)
+        uint8_t     vui_ext_quality_id;                               // u(4)
+        uint8_t     vui_ext_temporal_id;                              // u(3)
+        bool        vui_ext_timing_info_present_flag;                 // u(1)
+        uint32_t    vui_ext_num_units_in_tick;                        // u(32)
+        uint32_t    vui_ext_time_scale;                               // u(32)
+        bool        vui_ext_fixed_frame_rate_flag;                    // u(1)
+        bool        vui_ext_nal_hrd_parameters_present_flag;          // u(1)
+        hrd_t       vui_ext_nal_parameters;
+        bool        vui_ext_vcl_hrd_parameters_present_flag;          // u(1)
+        hrd_t       vui_ext_vcl_parameters;
+        bool        vui_ext_low_delay_hrd_flag;                       // u(1)
+        bool        vui_ext_pic_struct_present_flag;                  // u(1)
+    };
+    using entry_v = std::vector<entry_t>;
+    entry_v     entries;
+} svc_vui_t;
+
+// H.7.3.2.1.4 Sequence parameter set MVC extension syntax
+
+typedef struct seq_parameter_set_mvc_extension_t {
+    using uint16_v = std::vector<uint16_t>;
+    uint32_t    num_views_minus1;                                     // ue(v)
+    struct view_t {
+        uint16_t    view_id;                                          // ue(v)
+        uint8_t     num_anchor_refs_l0;                               // ue(v)
+        uint16_v    anchor_ref_l0;                                    // ue(v)
+        uint8_t     num_anchor_refs_l1;                               // ue(v)
+        uint16_v    anchor_ref_l1;                                    // ue(v)
+        uint8_t     num_non_anchor_refs_l0;                           // ue(v)
+        uint16_v    non_anchor_ref_l0;                                // ue(v)
+        uint8_t     num_non_anchor_refs_l1;                           // ue(v)
+        uint16_v    non_anchor_ref_l1;                                // ue(v)
+    };
+    using view_v = std::vector<view_t>;
+    view_v      views;
+    uint32_t    num_level_values_signalled_minus1;                    // ue(v)
+    struct level_value_t {
+        uint8_t     level_idc;                                        // u(8)
+        uint16_t    num_applicable_ops_minus1;                        // ue(v)
+        struct applicable_op_t {
+            uint8_t     applicable_op_temporal_id;                    // u(3)
+            uint16_t    applicable_op_num_target_views_minus1;        // ue(v)
+            uint16_v    applicable_op_target_view_id;                 // ue(v)
+            uint16_t    applicable_op_num_views_minus1;               // ue(v)
+        };
+        using applicable_op_v = std::vector<applicable_op_t>;
+        applicable_op_v applicable_ops;
+    };
+    using level_value_v = std::vector<level_value_t>;
+    level_value_v   level_values_signalled;
+} sps_mvc_t;
+
+// H.14.1 MVC VUI parameters extension syntax
+
+typedef struct mvc_vui_parameters_extension_t {
+    using uint16_v = std::vector<uint16_t>;
+    uint16_t    vui_mvc_num_ops_minus1;                               // ue(v)
+    struct vui_mvc_op_t {
+        uint8_t     vui_mvc_temporal_id;                              // u(3)
+        uint16_t    vui_mvc_num_target_output_views_minus1;           // ue(v)
+        uint16_v    vui_mvc_view_id;                                  // ue(v)
+        bool        vui_mvc_timing_info_present_flag;                 // u(1)
+        uint32_t    vui_mvc_num_units_in_tick;                        // u(32)
+        uint32_t    vui_mvc_time_scale;                               // u(32)
+        bool        vui_mvc_fixed_frame_rate_flag;                    // u(1)
+        bool        vui_mvc_nal_hrd_parameters_present_flag;          // u(1)
+        hrd_t       vui_mvc_nal_hrd_parameters;
+        bool        vui_mvc_vcl_hrd_parameters_present_flag;          // u(1)
+        hrd_t       vui_mvc_vcl_hrd_parameters;
+        bool        vui_mvc_low_delay_hrd_flag;                       // u(1)
+        bool        vui_mvc_pic_struct_present_flag;                  // u(1)
+    };
+    using vui_mvc_op_v = std::vector<vui_mvc_op_t>;
+    vui_mvc_op_v    vui_mvc_ops;
+} mvc_vui_t;
+
+// I.7.3.2.1.5 Sequence parameter set MVCD extension syntax
+
+typedef struct seq_parameter_set_mvcd_t {
+
+} sps_mvcd_t;
+
+// 7.3.2.1.3 Subset sequence parameter set RBSP syntax
+
+typedef struct subset_seq_parameter_set_t {
+    bool        Valid;
+
+    sps_t       sps;
+
+    sps_svc_t   sps_svc;
+    bool        svc_vui_parameters_present_flag;                      // u(1)
+    svc_vui_t   svc_vui_parameters;
+
+    bool        bit_equal_to_one;                                     // f(1)
+
+    sps_mvc_t   sps_mvc;
+    bool        mvc_vui_parameters_present_flag;                      // u(1)
+    mvc_vui_t   mvc_vui_parameters;
+
+    sps_mvcd_t  sps_mvcd;
+} sub_sps_t;
+
+
+bool operator==(const sps_t& l, const sps_t& r);
 bool operator==(const pps_t& l, const pps_t& r);
 
-
-
-
-// 7.3.2.2 Picture parameter set RBSP syntax
-void pic_parameter_set_rbsp(VideoParameters* p_Vid, data_partition_t *p, pps_t *pps);
-
-// 7.3.2.5 End of sequence RBSP syntax
-void end_of_seq_rbsp();
-// 7.3.2.6 End of stream RBSP syntax
-void end_of_stream_rbsp();
 
 
 #if (MVC_EXTENSION_ENABLE)
@@ -371,6 +383,18 @@ typedef struct nalunitheadermvcext_tag {
 #endif
 
 
+namespace vio { namespace h264 {
+struct nal_unit_t;
+struct data_partition_t;
+}}
+struct VideoParameters;
+struct slice_t;
+
+
+using vio::h264::nal_unit_t;
+using vio::h264::data_partition_t;
+
+
 #if (MVC_EXTENSION_ENABLE)
 struct nalunitheadermvcext_tag;
 void nal_unit_header_mvc_extension(struct nalunitheadermvcext_tag *NaluHeaderMVCExt, struct data_partition_t *bitstream);
@@ -379,21 +403,10 @@ void prefix_nal_unit_svc();
 #endif
 
 
-void MakePPSavailable (VideoParameters* p_Vid, int id, pps_t *pps);
-
-void ProcessPPS (VideoParameters* p_Vid, nal_unit_t *nalu);
-
-void CleanUpPPS(VideoParameters* p_Vid);
-
 void activate_sps (VideoParameters* p_Vid, sps_t *sps);
 void activate_pps (VideoParameters* p_Vid, pps_t *pps);
 
 void UseParameterSet (struct slice_t *currSlice);
 
-#if (MVC_EXTENSION_ENABLE)
-void ProcessSubsetSPS (VideoParameters* p_Vid, nal_unit_t *nalu);
-void init_subset_sps_list(sub_sps_t *subset_sps_list, int iSize);
-void reset_subset_sps(sub_sps_t *subset_sps);
-#endif
 
-#endif /* _PARSET_H_ */
+#endif // __VIO_H264_SETS_H__

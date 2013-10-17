@@ -12,8 +12,8 @@ void slice_t::FmoGenerateType0MapUnitMap()
     do {
         for (int iGroup = 0;
              iGroup <= pps.num_slice_groups_minus1 && i < sps.PicSizeInMapUnits;
-             i += pps.run_length_minus1[iGroup++] + 1) {
-            for (int j = 0; j <= pps.run_length_minus1[iGroup] && i + j < sps.PicSizeInMapUnits; ++j)
+             i += pps.slice_groups[iGroup++].run_length_minus1 + 1) {
+            for (int j = 0; j <= pps.slice_groups[iGroup].run_length_minus1 && i + j < sps.PicSizeInMapUnits; ++j)
                 shr.MapUnitToSliceGroupMap[i + j] = iGroup;
         }
     } while (i < sps.PicSizeInMapUnits);
@@ -42,10 +42,10 @@ void slice_t::FmoGenerateType2MapUnitMap()
         shr.MapUnitToSliceGroupMap[i] = pps.num_slice_groups_minus1;
 
     for (int iGroup = pps.num_slice_groups_minus1 - 1 ; iGroup >= 0; --iGroup) {
-        int xTopLeft     = pps.top_left    [iGroup] % sps.PicWidthInMbs;
-        int yTopLeft     = pps.top_left    [iGroup] / sps.PicWidthInMbs;
-        int xBottomRight = pps.bottom_right[iGroup] % sps.PicWidthInMbs;
-        int yBottomRight = pps.bottom_right[iGroup] / sps.PicWidthInMbs;
+        int xTopLeft     = pps.slice_groups[iGroup].top_left     % sps.PicWidthInMbs;
+        int yTopLeft     = pps.slice_groups[iGroup].top_left     / sps.PicWidthInMbs;
+        int xBottomRight = pps.slice_groups[iGroup].bottom_right % sps.PicWidthInMbs;
+        int yBottomRight = pps.slice_groups[iGroup].bottom_right / sps.PicWidthInMbs;
         for (int y = yTopLeft; y <= yBottomRight; ++y) {
             for (int x = xTopLeft; x <= xBottomRight; ++x)
                 shr.MapUnitToSliceGroupMap[y * sps.PicWidthInMbs + x] = iGroup;
