@@ -143,7 +143,7 @@ void decoded_picture_buffer_t::init(VideoParameters* p_Vid, int type)
     this->num_ref_frames = sps.max_num_ref_frames; 
 
 #if (MVC_EXTENSION_ENABLE)
-    if (sps.max_dec_frame_buffering < sps.max_num_ref_frames)
+    if (sps.vui_parameters.max_dec_frame_buffering < sps.max_num_ref_frames)
 #else
     if (this->size < sps.max_num_ref_frames)
 #endif

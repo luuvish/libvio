@@ -41,7 +41,6 @@ struct bitstream_t {
 
     void        open (const char* name, type format, uint32_t max_size);
     void        close();
-    void        reset();
 
     bitstream_t& operator>>(nal_unit_t& nal);
 };

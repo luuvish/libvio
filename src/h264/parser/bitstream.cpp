@@ -272,12 +272,6 @@ void bitstream_t::close()
     }
 }
 
-void bitstream_t::reset()
-{
-    if (this->FileFormat == type::ANNEX_B)
-        this->annex_b->reset(); 
-}
-
 
 static int NALUtoRBSP(nal_unit_t& nal)
 {

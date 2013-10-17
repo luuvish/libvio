@@ -28,7 +28,7 @@ static int GetBaseViewId(VideoParameters* p_Vid, sub_sps_t** subset_sps)
 
     *subset_sps = NULL;
     curr_subset_sps = p_Vid->SubsetSeqParSet;
-    for (i = 0; i < MAXSPS; i++) {
+    for (i = 0; i < MAX_NUM_SPS; i++) {
         if (curr_subset_sps->num_views_minus1 >= 0 && curr_subset_sps->sps.Valid) {
             iBaseViewId = curr_subset_sps->view_id[0];
             break;
@@ -36,7 +36,7 @@ static int GetBaseViewId(VideoParameters* p_Vid, sub_sps_t** subset_sps)
         curr_subset_sps++;
     }
 
-    if (i < MAXSPS)
+    if (i < MAX_NUM_SPS)
         *subset_sps = curr_subset_sps;
     return iBaseViewId;
 }
@@ -53,13 +53,13 @@ int GetVOIdx(VideoParameters *p_Vid, int iViewId)
     } else {
         int i;
         sub_sps_t* curr_subset_sps = p_Vid->SubsetSeqParSet;
-        for (i = 0; i < MAXSPS; i++) {
+        for (i = 0; i < MAX_NUM_SPS; i++) {
             if (curr_subset_sps->num_views_minus1 >= 0 && curr_subset_sps->sps.Valid)
                 break;
             curr_subset_sps++;
         }
 
-        if (i < MAXSPS) {
+        if (i < MAX_NUM_SPS) {
             p_Vid->active_subset_sps = curr_subset_sps;
             int* piViewIdMap = p_Vid->active_subset_sps->view_id;
             for (iVOIdx = p_Vid->active_subset_sps->num_views_minus1; iVOIdx >= 0; iVOIdx--)
@@ -379,7 +379,33 @@ process_nalu:
             break;
 
         case nal_unit_t::NALU_TYPE_SPS:
-            ProcessSPS(p_Vid, &nal);
+            {  
+                data_partition_t* dp = new data_partition_t { nal };
+                sps_t* sps = new sps_t;
+
+                dp->seq_parameter_set_rbsp(*sps);
+
+                if (sps->Valid) {
+                    if (p_Vid->active_sps) {
+                        if (sps->seq_parameter_set_id == p_Vid->active_sps->seq_parameter_set_id) {
+                            if (!(*sps == *(p_Vid->active_sps))) {
+                                if (p_Vid->dec_picture)
+                                    exit_picture(p_Vid);
+                                p_Vid->active_sps = NULL;
+                            }
+                        }
+                    }
+                    p_Vid->SeqParSet[sps->seq_parameter_set_id] = *sps;
+
+            #if (MVC_EXTENSION_ENABLE)
+                    if (p_Vid->profile_idc < (int) sps->profile_idc)
+            #endif
+                        p_Vid->profile_idc = sps->profile_idc;
+                }
+
+                delete sps;
+                delete dp;
+            }
             break;
 
         case nal_unit_t::NALU_TYPE_AUD:
@@ -392,6 +418,16 @@ process_nalu:
             break;
 
         case nal_unit_t::NALU_TYPE_FILL:
+            break;
+
+        case nal_unit_t::NALU_TYPE_SPS_EXT:
+            {
+                data_partition_t* dp = new data_partition_t { nal };
+                sps_ext_t* sps_ext = new sps_ext_t;
+                dp->seq_parameter_set_extension_rbsp(*sps_ext);
+                delete sps_ext;
+                delete dp;
+            }
             break;
 
 #if (MVC_EXTENSION_ENABLE)

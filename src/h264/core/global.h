@@ -140,12 +140,12 @@ struct VideoParameters {
 
     pps_t*      active_pps;
     sps_t*      active_sps;
-    sps_t       SeqParSet[MAXSPS];
-    pps_t       PicParSet[MAXPPS];
+    sps_t       SeqParSet[MAX_NUM_SPS];
+    pps_t       PicParSet[MAX_NUM_PPS];
 
 #if (MVC_EXTENSION_ENABLE)
     sub_sps_t*  active_subset_sps;
-    sub_sps_t   SubsetSeqParSet[MAXSPS];
+    sub_sps_t   SubsetSeqParSet[MAX_NUM_SPS];
 #endif
 
     int         number;                                 //!< frame number

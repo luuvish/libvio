@@ -203,7 +203,7 @@ void DecoderParams::OpenDecoder(InputParameters *p_Inp)
 
     this->p_Vid->active_sps = NULL;
     this->p_Vid->active_subset_sps = NULL;
-    init_subset_sps_list(this->p_Vid->SubsetSeqParSet, MAXSPS);
+    init_subset_sps_list(this->p_Vid->SubsetSeqParSet, MAX_NUM_SPS);
 }
 
 
@@ -234,8 +234,6 @@ void DecoderParams::FinitDecoder()
     this->p_Vid->p_Dpb_layer[0]->flush();
     this->p_Vid->p_Dpb_layer[1]->flush();
 #endif
-
-    this->p_Vid->bitstream.reset();
 
     this->p_Vid->newframe = 0;
     this->p_Vid->previous_frame_num = 0;
@@ -304,7 +302,7 @@ void DecoderParams::CloseDecoder()
 
     CleanUpPPS(this->p_Vid);
 #if (MVC_EXTENSION_ENABLE)
-    for (int i = 0; i < MAXSPS; i++)
+    for (int i = 0; i < MAX_NUM_SPS; i++)
         reset_subset_sps(this->p_Vid->SubsetSeqParSet+i);
 #endif
 

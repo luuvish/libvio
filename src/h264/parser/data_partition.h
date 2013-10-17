@@ -47,6 +47,7 @@ struct nal_unit_t {
         NALU_TYPE_EOSEQ    = 10,
         NALU_TYPE_EOSTREAM = 11,
         NALU_TYPE_FILL     = 12,
+        NALU_TYPE_SPS_EXT  = 13,
 #if (MVC_EXTENSION_ENABLE)
         NALU_TYPE_PREFIX   = 14,
         NALU_TYPE_SUB_SPS  = 15,
@@ -87,6 +88,7 @@ struct nal_unit_t {
 };
 
 
+
 struct data_partition_t : public nal_unit_t {
     int         frame_bitoffset;
 
@@ -114,6 +116,20 @@ struct data_partition_t : public nal_unit_t {
     uint32_t    ce(const char* name="");
     uint32_t    me(const char* name="");
     uint32_t    te(const char* name="");
+
+
+    void        vui_parameters(vui_t& vui);
+    void        hrd_parameters(hrd_t& hrd);
+
+    void        seq_parameter_set_rbsp(sps_t& sps);
+    void        seq_parameter_set_data(sps_t& sps);
+    void        scaling_list(int* scalingList, int sizeOfScalingList, bool* useDefaultScalingMatrixFlag);
+    void        seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext);
+    void        seq_parameter_set_svc_extention(sps_svc_t& sps_svc);
+    void        svc_vui_parameters_extention(svc_vui_t& svc_vui);
+    void        subset_seq_parameter_set_rbsp(sub_sps_t& sub_sps);
+
+    void        rbsp_trailing_bits(void);
 };
 
 

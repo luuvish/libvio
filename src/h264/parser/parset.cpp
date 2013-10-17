@@ -12,136 +12,114 @@
 #include "macroblock.h"
 
 
-static inline int is_FREXT_profile(unsigned int profile_idc) 
-{
-    return ( profile_idc >= FREXT_HP || profile_idc == FREXT_CAVLC444 );
-}
-
 
 // E.1.1 VUI parameter syntax
-void vui_parameters(data_partition_t *s, vui_t *vui)
+
+void data_partition_t::vui_parameters(vui_t& vui)
 {
-    vui->aspect_ratio_idc = 0;
-    vui->aspect_ratio_info_present_flag = s->u(1, "VUI: aspect_ratio_info_present_flag");
-    if (vui->aspect_ratio_info_present_flag) {
-        vui->aspect_ratio_idc           = s->u(8, "VUI: aspect_ratio_idc");
-        if (vui->aspect_ratio_idc == Extended_SAR) {
-            vui->sar_width              = s->u(16, "VUI: sar_width");
-            vui->sar_height             = s->u(16, "VUI: sar_height");
+    #define Extended_SAR 255
+
+    vui.aspect_ratio_idc = 0;
+    vui.aspect_ratio_info_present_flag = this->u(1, "VUI: aspect_ratio_info_present_flag");
+    if (vui.aspect_ratio_info_present_flag) {
+        vui.aspect_ratio_idc = this->u(8, "VUI: aspect_ratio_idc");
+        if (vui.aspect_ratio_idc == Extended_SAR) {
+            vui.sar_width  = this->u(16, "VUI: sar_width");
+            vui.sar_height = this->u(16, "VUI: sar_height");
         }
     }
 
-    vui->overscan_info_present_flag     = s->u(1, "VUI: overscan_info_present_flag");
-    if (vui->overscan_info_present_flag)
-        vui->overscan_appropriate_flag  = s->u(1, "VUI: overscan_appropriate_flag");
+    vui.overscan_info_present_flag = this->u(1, "VUI: overscan_info_present_flag");
+    if (vui.overscan_info_present_flag)
+        vui.overscan_appropriate_flag  = this->u(1, "VUI: overscan_appropriate_flag");
 
-    vui->video_format             = 5; // Unspecified video format
-    vui->video_full_range_flag    = 0;
-    vui->colour_primaries         = 2; // Unspecified
-    vui->transfer_characteristics = 2; // Unspecified
-    vui->matrix_coefficients      = 2; // Unspecified
-    vui->video_signal_type_present_flag = s->u(1, "VUI: video_signal_type_present_flag");
-    if (vui->video_signal_type_present_flag) {
-        vui->video_format                    = s->u(3, "VUI: video_format");
-        vui->video_full_range_flag           = s->u(1, "VUI: video_full_range_flag");
-        vui->colour_description_present_flag = s->u(1, "VUI: color_description_present_flag");
-        if (vui->colour_description_present_flag) {
-            vui->colour_primaries            = s->u(8, "VUI: colour_primaries");
-            vui->transfer_characteristics    = s->u(8, "VUI: transfer_characteristics");
-            vui->matrix_coefficients         = s->u(8, "VUI: matrix_coefficients");
+    vui.video_format             = 5; // Unspecified video format
+    vui.video_full_range_flag    = 0;
+    vui.colour_primaries         = 2; // Unspecified
+    vui.transfer_characteristics = 2; // Unspecified
+    vui.matrix_coefficients      = 2; // Unspecified
+    vui.video_signal_type_present_flag = this->u(1, "VUI: video_signal_type_present_flag");
+    if (vui.video_signal_type_present_flag) {
+        vui.video_format          = this->u(3, "VUI: video_format");
+        vui.video_full_range_flag = this->u(1, "VUI: video_full_range_flag");
+        vui.colour_description_present_flag = this->u(1, "VUI: color_description_present_flag");
+        if (vui.colour_description_present_flag) {
+            vui.colour_primaries         = this->u(8, "VUI: colour_primaries");
+            vui.transfer_characteristics = this->u(8, "VUI: transfer_characteristics");
+            vui.matrix_coefficients      = this->u(8, "VUI: matrix_coefficients");
         }
     }
 
-    // if (!(BitDepthC == BitDepthY && chroma_format_idc == 3))
-    //     assert(vui->matrix_coefficients != 0);
-    // if (!(BitDepthC == BitDepthY || (BitDepthC == BitDepthY + 1 && chroma_format_idc == 3)))
-    //     assert(vui->matrix_coefficients != 8);
-
-    vui->chroma_sample_loc_type_top_field    = 0;
-    vui->chroma_sample_loc_type_bottom_field = 0;
-    vui->chroma_loc_info_present_flag = s->u(1, "VUI: chroma_loc_info_present_flag");
-    if (vui->chroma_loc_info_present_flag) {
-        vui->chroma_sample_loc_type_top_field    = s->ue("VUI: chroma_sample_loc_type_top_field");
-        vui->chroma_sample_loc_type_bottom_field = s->ue("VUI: chroma_sample_loc_type_bottom_field");
+    vui.chroma_sample_loc_type_top_field    = 0;
+    vui.chroma_sample_loc_type_bottom_field = 0;
+    vui.chroma_loc_info_present_flag = this->u(1, "VUI: chroma_loc_info_present_flag");
+    if (vui.chroma_loc_info_present_flag) {
+        vui.chroma_sample_loc_type_top_field    = this->ue("VUI: chroma_sample_loc_type_top_field");
+        vui.chroma_sample_loc_type_bottom_field = this->ue("VUI: chroma_sample_loc_type_bottom_field");
     }
 
-    // if (chroma_format_idc != 1)
-    //     assert(vui->chroma_loc_info_present_flag == 0);
+    assert(vui.chroma_sample_loc_type_top_field    <= 5);
+    assert(vui.chroma_sample_loc_type_bottom_field <= 5);
 
-    assert(vui->chroma_sample_loc_type_top_field >= 0 && vui->chroma_sample_loc_type_top_field <= 5);
-    assert(vui->chroma_sample_loc_type_bottom_field >= 0 && vui->chroma_sample_loc_type_bottom_field <= 5);
-
-    vui->fixed_frame_rate_flag = 0;
-    vui->timing_info_present_flag            = s->u(1, "VUI: timing_info_present_flag");
-    if (vui->timing_info_present_flag) {
-        vui->num_units_in_tick               = s->u(32, "VUI: num_units_in_tick");
-        vui->time_scale                      = s->u(32, "VUI: time_scale");
-        vui->fixed_frame_rate_flag           = s->u(1, "VUI: fixed_frame_rate_flag");
+    vui.fixed_frame_rate_flag = 0;
+    vui.timing_info_present_flag = this->u(1, "VUI: timing_info_present_flag");
+    if (vui.timing_info_present_flag) {
+        vui.num_units_in_tick     = this->u(32, "VUI: num_units_in_tick");
+        vui.time_scale            = this->u(32, "VUI: time_scale");
+        vui.fixed_frame_rate_flag = this->u(1, "VUI: fixed_frame_rate_flag");
     }
 
-    if (vui->timing_info_present_flag) {
-        assert(vui->num_units_in_tick > 0);
-        assert(vui->time_scale > 0);
+    assert(!vui.timing_info_present_flag || vui.num_units_in_tick > 0);
+    assert(!vui.timing_info_present_flag || vui.time_scale > 0);
+
+    vui.nal_hrd_parameters_present_flag = this->u(1, "VUI: nal_hrd_parameters_present_flag");
+    if (vui.nal_hrd_parameters_present_flag)
+        this->hrd_parameters(vui.nal_hrd_parameters);
+
+    vui.vcl_hrd_parameters_present_flag = this->u(1, "VUI: vcl_hrd_parameters_present_flag");
+    if (vui.vcl_hrd_parameters_present_flag)
+        this->hrd_parameters(vui.vcl_hrd_parameters);
+
+    vui.low_delay_hrd_flag = 1 - vui.fixed_frame_rate_flag;
+    if (vui.nal_hrd_parameters_present_flag || vui.vcl_hrd_parameters_present_flag)
+        vui.low_delay_hrd_flag = this->u(1, "VUI: low_delay_hrd_flag");
+
+    assert(!vui.fixed_frame_rate_flag || !vui.low_delay_hrd_flag);
+
+    vui.motion_vectors_over_pic_boundaries_flag = 1;
+    vui.max_bytes_per_pic_denom                 = 2;
+    vui.max_bits_per_mb_denom                   = 1;
+    vui.log2_max_mv_length_horizontal           = 16;
+    vui.log2_max_mv_length_vertical             = 16;
+
+    vui.pic_struct_present_flag    = this->u(1, "VUI: pic_struct_present_flag");
+    vui.bitstream_restriction_flag = this->u(1, "VUI: bitstream_restriction_flag");
+    if (vui.bitstream_restriction_flag) {
+        vui.motion_vectors_over_pic_boundaries_flag = this->u(1, "VUI: motion_vectors_over_pic_boundaries_flag");
+        vui.max_bytes_per_pic_denom                 = this->ue("VUI: max_bytes_per_pic_denom");
+        vui.max_bits_per_mb_denom                   = this->ue("VUI: max_bits_per_mb_denom");
+        vui.log2_max_mv_length_horizontal           = this->ue("VUI: log2_max_mv_length_horizontal");
+        vui.log2_max_mv_length_vertical             = this->ue("VUI: log2_max_mv_length_vertical");
+        vui.max_num_reorder_frames                  = this->ue("VUI: num_reorder_frames");
+        vui.max_dec_frame_buffering                 = this->ue("VUI: max_dec_frame_buffering");
     }
 
-    vui->nal_hrd_parameters_present_flag   = s->u(1, "VUI: nal_hrd_parameters_present_flag");
-    if (vui->nal_hrd_parameters_present_flag)
-        hrd_parameters(s, &vui->nal_hrd_parameters);
-
-    vui->vcl_hrd_parameters_present_flag   = s->u(1, "VUI: vcl_hrd_parameters_present_flag");
-    if (vui->vcl_hrd_parameters_present_flag)
-        hrd_parameters(s, &vui->vcl_hrd_parameters);
-
-    vui->low_delay_hrd_flag = 1 - vui->fixed_frame_rate_flag;
-    if (vui->nal_hrd_parameters_present_flag || vui->vcl_hrd_parameters_present_flag)
-        vui->low_delay_hrd_flag            = s->u(1, "VUI: low_delay_hrd_flag");
-
-    if (vui->fixed_frame_rate_flag)
-        assert(vui->low_delay_hrd_flag == 0);
-
-    vui->motion_vectors_over_pic_boundaries_flag = 1;
-    vui->max_bytes_per_pic_denom                 = 2;
-    vui->max_bits_per_mb_denom                   = 1;
-    vui->log2_max_mv_length_horizontal           = 16;
-    vui->log2_max_mv_length_vertical             = 16;
-    //if (profile_idc == 44, 86, 100, 110, 122, 244 && constraint_set3_flag)
-    //    vui->max_num_reorder_frames = 0;
-    //else
-    //    vui->max_num_reorder_frames = MaxDpbFrames;
-    //if (profile_idc == 44, 86, 100, 110, 122, 244 && constraint_set3_flag)
-    //    vui->max_dec_frame_buffering = 0;
-    //else
-    //    vui->max_dec_frame_buffering = MaxDpbFrames;
-    vui->pic_struct_present_flag          = s->u(1, "VUI: pic_struct_present_flag");
-    vui->bitstream_restriction_flag       = s->u(1, "VUI: bitstream_restriction_flag");
-    if (vui->bitstream_restriction_flag) {
-        vui->motion_vectors_over_pic_boundaries_flag = s->u(1, "VUI: motion_vectors_over_pic_boundaries_flag");
-        vui->max_bytes_per_pic_denom                 = s->ue("VUI: max_bytes_per_pic_denom");
-        vui->max_bits_per_mb_denom                   = s->ue("VUI: max_bits_per_mb_denom");
-        vui->log2_max_mv_length_horizontal           = s->ue("VUI: log2_max_mv_length_horizontal");
-        vui->log2_max_mv_length_vertical             = s->ue("VUI: log2_max_mv_length_vertical");
-        vui->max_num_reorder_frames                  = s->ue("VUI: num_reorder_frames");
-        vui->max_dec_frame_buffering                 = s->ue("VUI: max_dec_frame_buffering");
-    }
-
-    assert(vui->max_bytes_per_pic_denom >= 0 && vui->max_bytes_per_pic_denom <= 16);
-    assert(vui->max_bits_per_mb_denom >= 0 && vui->max_bits_per_mb_denom <= 16);
-    assert(vui->log2_max_mv_length_horizontal >= 0 && vui->log2_max_mv_length_horizontal <= 16);
-    assert(vui->log2_max_mv_length_vertical >= 0 && vui->log2_max_mv_length_vertical <= 16);
-    assert(vui->max_num_reorder_frames >= 0 &&
-           vui->max_num_reorder_frames <= vui->max_dec_frame_buffering);
+    assert(vui.max_bytes_per_pic_denom       <= 16);
+    assert(vui.max_bits_per_mb_denom         <= 16);
+    assert(vui.log2_max_mv_length_horizontal <= 16);
+    assert(vui.log2_max_mv_length_vertical   <= 16);
+    assert(vui.max_num_reorder_frames        <= vui.max_dec_frame_buffering);
 }
 
 // E.1.2 HRD parameters syntax
-void hrd_parameters(data_partition_t *s, hrd_t *hrd)
+
+void data_partition_t::hrd_parameters(hrd_t& hrd)
 {
-    int SchedSelIdx;
+    hrd.cpb_cnt_minus1 = this->ue("VUI: cpb_cnt_minus1");
+    hrd.bit_rate_scale = this->u(4, "VUI: bit_rate_scale");
+    hrd.cpb_size_scale = this->u(4, "VUI: cpb_size_scale");
 
-    hrd->cpb_cnt_minus1                                      = s->ue("VUI: cpb_cnt_minus1");
-    hrd->bit_rate_scale                                      = s->u(4, "VUI: bit_rate_scale");
-    hrd->cpb_size_scale                                      = s->u(4, "VUI: cpb_size_scale");
-
-    assert(hrd->cpb_cnt_minus1 >= 0 && hrd->cpb_cnt_minus1 <= 31);
+    assert(hrd.cpb_cnt_minus1 <= 31);
 
     // if (profile_idc == 66, 77, 88)
     //     BitRate[SchedSelIdx] = 1200 * MaxBR;
@@ -150,216 +128,242 @@ void hrd_parameters(data_partition_t *s, hrd_t *hrd)
     //     BitRate[SchedSelIdx] = cpbBrVcl(Nal)Factor * MaxBR
     //     CpbSize[SchedSelIdx] = cpbBrVcl(Nal)Factor * MaxCPB
 
-    for (SchedSelIdx = 0; SchedSelIdx <= hrd->cpb_cnt_minus1; SchedSelIdx++) {
-        hrd->bit_rate_value_minus1[SchedSelIdx]             = s->ue("VUI: bit_rate_value_minus1");
-        hrd->cpb_size_value_minus1[SchedSelIdx]             = s->ue("VUI: cpb_size_value_minus1");
-        hrd->cbr_flag             [SchedSelIdx]             = s->u(1, "VUI: cbr_flag");
+    for (int SchedSelIdx = 0; SchedSelIdx <= hrd.cpb_cnt_minus1; ++SchedSelIdx) {
+        hrd.bit_rate_value_minus1[SchedSelIdx] = this->ue("VUI: bit_rate_value_minus1");
+        hrd.cpb_size_value_minus1[SchedSelIdx] = this->ue("VUI: cpb_size_value_minus1");
+        hrd.cbr_flag             [SchedSelIdx] = this->u(1, "VUI: cbr_flag");
         // BitRate[SchedSelIdx] = (bit_rate_value_minus1[SchedSelIdx] + 1) * (1 << (6 + bit_rate_scale));
         // CpbSize[SchedSelIdx] = (cpb_size_value_minus1[SchedSelIdx] + 1) * (1 << (4 + cpb_size_scale));
     }
 
-    hrd->initial_cpb_removal_delay_length_minus1 = 23;
-    hrd->cpb_removal_delay_length_minus1         = 23;
-    hrd->dpb_output_delay_length_minus1          = 23;
-    hrd->time_offset_length                      = 24;
-    hrd->initial_cpb_removal_delay_length_minus1 = s->u(5, "VUI: initial_cpb_removal_delay_length_minus1");
-    hrd->cpb_removal_delay_length_minus1         = s->u(5, "VUI: cpb_removal_delay_length_minus1");
-    hrd->dpb_output_delay_length_minus1          = s->u(5, "VUI: dpb_output_delay_length_minus1");
-    hrd->time_offset_length                      = s->u(5, "VUI: time_offset_length");
+    hrd.initial_cpb_removal_delay_length_minus1 = 23;
+    hrd.cpb_removal_delay_length_minus1         = 23;
+    hrd.dpb_output_delay_length_minus1          = 23;
+    hrd.time_offset_length                      = 24;
+    hrd.initial_cpb_removal_delay_length_minus1 = this->u(5, "VUI: initial_cpb_removal_delay_length_minus1");
+    hrd.cpb_removal_delay_length_minus1         = this->u(5, "VUI: cpb_removal_delay_length_minus1");
+    hrd.dpb_output_delay_length_minus1          = this->u(5, "VUI: dpb_output_delay_length_minus1");
+    hrd.time_offset_length                      = this->u(5, "VUI: time_offset_length");
 }
 
-// 7.3.2.1 Sequence parameter set data syntax
-void seq_parameter_set_rbsp(data_partition_t *s, sps_t *sps)
-{
-    unsigned i;
 
+// Table A-1 Level limits
+
+static const int MaxDpbMbs[15] = {
+    396, 900, 2376, 2376, 4752, 8100, 8100, 18000, 20480,
+    32768, 32768, 34816, 110400, 184320, 184320
+};
+
+// 7.3.2.1 Sequence parameter set data syntax
+
+void data_partition_t::seq_parameter_set_rbsp(sps_t& sps)
+{
+    this->seq_parameter_set_data(sps);
+    this->rbsp_trailing_bits();
+}
+
+void data_partition_t::seq_parameter_set_data(sps_t& sps)
+{
     uint8_t reserved_zero_2bits;
 
-    sps->profile_idc                           = s->u(8, "SPS: profile_idc");
-    sps->constraint_set0_flag                  = s->u(1, "SPS: constrained_set0_flag");
-    sps->constraint_set1_flag                  = s->u(1, "SPS: constrained_set1_flag");
-    sps->constraint_set2_flag                  = s->u(1, "SPS: constrained_set2_flag");
-    sps->constraint_set3_flag                  = s->u(1, "SPS: constrained_set3_flag");
-    sps->constraint_set4_flag                  = s->u(1, "SPS: constrained_set4_flag");
-    sps->constraint_set5_flag                  = s->u(1, "SPS: constrained_set5_flag");
-    reserved_zero_2bits                        = s->u(2, "SPS: reserved_zero_2bits");
+    sps.profile_idc          = this->u(8, "SPS: profile_idc");
+    sps.constraint_set0_flag = this->u(1, "SPS: constrained_set0_flag");
+    sps.constraint_set1_flag = this->u(1, "SPS: constrained_set1_flag");
+    sps.constraint_set2_flag = this->u(1, "SPS: constrained_set2_flag");
+    sps.constraint_set3_flag = this->u(1, "SPS: constrained_set3_flag");
+    sps.constraint_set4_flag = this->u(1, "SPS: constrained_set4_flag");
+    sps.constraint_set5_flag = this->u(1, "SPS: constrained_set5_flag");
+    reserved_zero_2bits      = this->u(2, "SPS: reserved_zero_2bits");
 
-    if ((sps->profile_idc!=BASELINE       ) &&
-        (sps->profile_idc!=MAIN           ) &&
-        (sps->profile_idc!=EXTENDED       ) &&
-        (sps->profile_idc!=FREXT_HP       ) &&
-        (sps->profile_idc!=FREXT_Hi10P    ) &&
-        (sps->profile_idc!=FREXT_Hi422    ) &&
-        (sps->profile_idc!=FREXT_Hi444    ) &&
-        (sps->profile_idc!=FREXT_CAVLC444 )
-        && (sps->profile_idc!=MVC_HIGH)
-        && (sps->profile_idc!=STEREO_HIGH)) {
-        printf("Invalid Profile IDC (%d) encountered. \n", sps->profile_idc);
+    if ((sps.profile_idc != BASELINE       ) &&
+        (sps.profile_idc != MAIN           ) &&
+        (sps.profile_idc != EXTENDED       ) &&
+        (sps.profile_idc != FREXT_HP       ) &&
+        (sps.profile_idc != FREXT_Hi10P    ) &&
+        (sps.profile_idc != FREXT_Hi422    ) &&
+        (sps.profile_idc != FREXT_Hi444    ) &&
+        (sps.profile_idc != FREXT_CAVLC444 )
+        && (sps.profile_idc != MVC_HIGH)
+        && (sps.profile_idc != STEREO_HIGH)) {
+        printf("Invalid Profile IDC (%d) encountered. \n", sps.profile_idc);
         return;
     }
 
-    // assert(reserved_zero_2bits == 0);
+    sps.level_idc            = this->u(8, "SPS: level_idc");
+    sps.seq_parameter_set_id = this->ue("SPS: seq_parameter_set_id");
 
-    sps->level_idc                            = s->u(8, "SPS: level_idc");
-    sps->seq_parameter_set_id                 = s->ue("SPS: seq_parameter_set_id");
+    assert(sps.seq_parameter_set_id < MAX_NUM_SPS);
 
-    assert(sps->seq_parameter_set_id >= 0 && sps->seq_parameter_set_id <= 31);
+    sps.chroma_format_idc                    = CHROMA_FORMAT_420;
+    sps.separate_colour_plane_flag           = 0;
+    sps.bit_depth_luma_minus8                = 0;
+    sps.bit_depth_chroma_minus8              = 0;
+    sps.qpprime_y_zero_transform_bypass_flag = 0;
+    sps.seq_scaling_matrix_present_flag      = 0;
+    if (sps.profile_idc == FREXT_HP    || sps.profile_idc == FREXT_Hi10P ||
+        sps.profile_idc == FREXT_Hi422 || sps.profile_idc == FREXT_Hi444 ||
+        sps.profile_idc == FREXT_CAVLC444 || sps.profile_idc == MVC_HIGH ||
+        sps.profile_idc == STEREO_HIGH) {
 
-    sps->chroma_format_idc                    = YUV420;
-    sps->separate_colour_plane_flag           = 0;
-    sps->bit_depth_luma_minus8                = 0;
-    sps->bit_depth_chroma_minus8              = 0;
-    sps->qpprime_y_zero_transform_bypass_flag = 0;
-    sps->seq_scaling_matrix_present_flag      = 0;
-    if (sps->profile_idc == FREXT_HP    || sps->profile_idc == FREXT_Hi10P ||
-        sps->profile_idc == FREXT_Hi422 || sps->profile_idc == FREXT_Hi444 ||
-        sps->profile_idc == FREXT_CAVLC444 || sps->profile_idc == MVC_HIGH ||
-        sps->profile_idc == STEREO_HIGH) {
-
-        sps->chroma_format_idc                      = s->ue("SPS: chroma_format_idc");
-        if (sps->chroma_format_idc == YUV444)
-            sps->separate_colour_plane_flag         = s->u(1, "SPS: separate_colour_plane_flag");
-        sps->bit_depth_luma_minus8                  = s->ue("SPS: bit_depth_luma_minus8");
-        sps->bit_depth_chroma_minus8                = s->ue("SPS: bit_depth_chroma_minus8");
-        sps->qpprime_y_zero_transform_bypass_flag   = s->u(1, "SPS: lossless_qpprime_y_zero_flag");
-        sps->seq_scaling_matrix_present_flag        = s->u(1, "SPS: seq_scaling_matrix_present_flag");
-        if (sps->seq_scaling_matrix_present_flag) {
-            for (i = 0; i < ((sps->chroma_format_idc != YUV444) ? 8 : 12); i++) {
-                sps->seq_scaling_list_present_flag[i] = s->u(1, "SPS: seq_scaling_list_present_flag");
-                if (sps->seq_scaling_list_present_flag[i]) {
+        sps.chroma_format_idc                    = this->ue("SPS: chroma_format_idc");
+        if (sps.chroma_format_idc == CHROMA_FORMAT_444)
+            sps.separate_colour_plane_flag       = this->u(1, "SPS: separate_colour_plane_flag");
+        sps.bit_depth_luma_minus8                = this->ue("SPS: bit_depth_luma_minus8");
+        sps.bit_depth_chroma_minus8              = this->ue("SPS: bit_depth_chroma_minus8");
+        sps.qpprime_y_zero_transform_bypass_flag = this->u(1, "SPS: lossless_qpprime_y_zero_flag");
+        sps.seq_scaling_matrix_present_flag      = this->u(1, "SPS: seq_scaling_matrix_present_flag");
+        if (sps.seq_scaling_matrix_present_flag) {
+            for (int i = 0; i < (sps.chroma_format_idc != CHROMA_FORMAT_444 ? 8 : 12); ++i) {
+                sps.seq_scaling_list_present_flag[i] = this->u(1, "SPS: seq_scaling_list_present_flag");
+                if (sps.seq_scaling_list_present_flag[i]) {
                     if (i < 6)
-                        scaling_list(sps->ScalingList4x4[i], 16,
-                                     &sps->UseDefaultScalingMatrix4x4Flag[i], s);
+                        this->scaling_list(sps.ScalingList4x4[i], 16,
+                                           &sps.UseDefaultScalingMatrix4x4Flag[i]);
                     else
-                        scaling_list(sps->ScalingList8x8[i - 6], 64,
-                                     &sps->UseDefaultScalingMatrix8x8Flag[i - 6], s);
+                        this->scaling_list(sps.ScalingList8x8[i - 6], 64,
+                                           &sps.UseDefaultScalingMatrix8x8Flag[i - 6]);
                 }
             }
         }
     }
 
-    if (!sps->separate_colour_plane_flag)
-        sps->ChromaArrayType = sps->chroma_format_idc;
-    else
-        sps->ChromaArrayType = 0;
-    sps->SubWidthC  = sps->chroma_format_idc < 3 ? 2 : 1;
-    sps->SubHeightC = sps->chroma_format_idc < 2 ? 2 : 1;
-    if (sps->chroma_format_idc == 0 || sps->separate_colour_plane_flag == 1) {
-        sps->MbWidthC  = 0;
-        sps->MbHeightC = 0;
-    } else {
-        sps->MbWidthC  = 16 / sps->SubWidthC;
-        sps->MbHeightC = 16 / sps->SubHeightC;
+    assert(sps.profile_idc != 183 || sps.chroma_format_idc == CHROMA_FORMAT_400);
+    assert(sps.chroma_format_idc <= CHROMA_FORMAT_444);
+
+    sps.ChromaArrayType = !sps.separate_colour_plane_flag ? sps.chroma_format_idc : 0;
+    sps.SubWidthC  = sps.ChromaArrayType != 0 && sps.ChromaArrayType < 3 ? 2 : 1;
+    sps.SubHeightC = sps.ChromaArrayType != 0 && sps.ChromaArrayType < 2 ? 2 : 1;
+    sps.MbWidthC   = sps.ChromaArrayType == 0 ? 0 : 16 / sps.SubWidthC;
+    sps.MbHeightC  = sps.ChromaArrayType == 0 ? 0 : 16 / sps.SubHeightC;
+
+    assert(sps.bit_depth_luma_minus8   <= 6);
+    assert(sps.bit_depth_chroma_minus8 <= 6);
+
+    sps.BitDepthY   = 8 + sps.bit_depth_luma_minus8;
+    sps.QpBdOffsetY = 6 * sps.bit_depth_luma_minus8;
+    sps.BitDepthC   = 8 + sps.bit_depth_chroma_minus8;
+    sps.QpBdOffsetC = 6 * sps.bit_depth_chroma_minus8;
+    sps.RawMbBits   = 256 * sps.BitDepthY + 2 * sps.MbWidthC * sps.MbHeightC * sps.BitDepthC;
+
+    sps.log2_max_frame_num_minus4 = this->ue("SPS: log2_max_frame_num_minus4");
+
+    assert(sps.log2_max_frame_num_minus4 <= 12);
+    sps.MaxFrameNum = 1 << (sps.log2_max_frame_num_minus4 + 4);
+
+    sps.pic_order_cnt_type = this->ue("SPS: pic_order_cnt_type");
+
+    assert(sps.pic_order_cnt_type <= 2);
+
+    if (sps.pic_order_cnt_type == 0) {
+        sps.log2_max_pic_order_cnt_lsb_minus4 = this->ue("SPS: log2_max_pic_order_cnt_lsb_minus4");
+
+        assert(sps.log2_max_pic_order_cnt_lsb_minus4 <= 12);
+        sps.MaxPicOrderCntLsb = 1 << (sps.log2_max_pic_order_cnt_lsb_minus4 + 4);
+    } else if (sps.pic_order_cnt_type == 1) {
+        sps.delta_pic_order_always_zero_flag      = this->u(1, "SPS: delta_pic_order_always_zero_flag");
+        sps.offset_for_non_ref_pic                = this->se("SPS: offset_for_non_ref_pic");
+        sps.offset_for_top_to_bottom_field        = this->se("SPS: offset_for_top_to_bottom_field");
+        sps.num_ref_frames_in_pic_order_cnt_cycle = this->ue("SPS: num_ref_frames_in_pic_order_cnt_cycle");
+
+        for (int i = 0; i < sps.num_ref_frames_in_pic_order_cnt_cycle; ++i)
+            sps.offset_for_ref_frame[i] = this->se("SPS: offset_for_ref_frame[i]");
+
+        sps.ExpectedDeltaPerPicOrderCntCycle = 0;
+        for (int i = 0; i < sps.num_ref_frames_in_pic_order_cnt_cycle; ++i)
+            sps.ExpectedDeltaPerPicOrderCntCycle += sps.offset_for_ref_frame[i];
     }
 
-    assert(sps->bit_depth_luma_minus8 >= 0 && sps->bit_depth_luma_minus8 <= 6);
-    assert(sps->bit_depth_chroma_minus8 >= 0 && sps->bit_depth_chroma_minus8 <= 6);
+    sps.max_num_ref_frames = this->ue("SPS: num_ref_frames");
 
-    sps->BitDepthY   = 8 + sps->bit_depth_luma_minus8;
-    sps->QpBdOffsetY = 6 * sps->bit_depth_luma_minus8;
-    sps->BitDepthC   = 8 + sps->bit_depth_chroma_minus8;
-    sps->QpBdOffsetC = 6 * sps->bit_depth_chroma_minus8;
-    sps->RawMbBits   = 256 * sps->BitDepthY + 2 * sps->MbWidthC * sps->MbHeightC * sps->BitDepthC;
+    sps.gaps_in_frame_num_value_allowed_flag = this->u(1, "SPS: gaps_in_frame_num_value_allowed_flag");
 
-    sps->log2_max_frame_num_minus4              = s->ue("SPS: log2_max_frame_num_minus4");
+    sps.pic_width_in_mbs_minus1        = this->ue("SPS: pic_width_in_mbs_minus1");
+    sps.pic_height_in_map_units_minus1 = this->ue("SPS: pic_height_in_map_units_minus1");
 
-    assert(sps->log2_max_frame_num_minus4 >= 0 && sps->log2_max_frame_num_minus4 <= 12);
-    sps->MaxFrameNum = 1 << (sps->log2_max_frame_num_minus4 + 4);
+    sps.PicWidthInMbs       = sps.pic_width_in_mbs_minus1 + 1;
+    sps.PicWidthInSamplesL  = sps.PicWidthInMbs * 16;
+    sps.PicWidthInSamplesC  = sps.PicWidthInMbs * sps.MbWidthC;
+    sps.PicHeightInMapUnits = sps.pic_height_in_map_units_minus1 + 1;
+    sps.PicSizeInMapUnits   = sps.PicWidthInMbs * sps.PicHeightInMapUnits;
 
-    sps->pic_order_cnt_type                     = s->ue("SPS: pic_order_cnt_type");
+    sps.frame_mbs_only_flag = this->u(1, "SPS: frame_mbs_only_flag");
 
-    assert(sps->pic_order_cnt_type >= 0 && sps->pic_order_cnt_type <= 2);
+    sps.FrameHeightInMbs = (2 - sps.frame_mbs_only_flag) * sps.PicHeightInMapUnits;
 
-    if (sps->pic_order_cnt_type == 0)
-        sps->log2_max_pic_order_cnt_lsb_minus4     = s->ue("SPS: log2_max_pic_order_cnt_lsb_minus4");
-    else if (sps->pic_order_cnt_type == 1) {
-        sps->delta_pic_order_always_zero_flag      = s->u(1, "SPS: delta_pic_order_always_zero_flag");
-        sps->offset_for_non_ref_pic                = s->se("SPS: offset_for_non_ref_pic");
-        sps->offset_for_top_to_bottom_field        = s->se("SPS: offset_for_top_to_bottom_field");
-        sps->num_ref_frames_in_pic_order_cnt_cycle = s->ue("SPS: num_ref_frames_in_pic_order_cnt_cycle");
-        for (i = 0; i < sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
-            sps->offset_for_ref_frame[i]           = s->se("SPS: offset_for_ref_frame[i]");
+    sps.mb_adaptive_frame_field_flag = 0;
+    if (!sps.frame_mbs_only_flag)
+        sps.mb_adaptive_frame_field_flag = this->u(1, "SPS: mb_adaptive_frame_field_flag");
+
+    sps.direct_8x8_inference_flag = this->u(1, "SPS: direct_8x8_inference_flag");
+
+    assert(sps.frame_mbs_only_flag || sps.direct_8x8_inference_flag);
+
+    sps.frame_cropping_flag = this->u(1, "SPS: frame_cropping_flag");
+    if (sps.frame_cropping_flag) {
+        sps.frame_crop_left_offset   = this->ue("SPS: frame_crop_left_offset");
+        sps.frame_crop_right_offset  = this->ue("SPS: frame_crop_right_offset");
+        sps.frame_crop_top_offset    = this->ue("SPS: frame_crop_top_offset");
+        sps.frame_crop_bottom_offset = this->ue("SPS: frame_crop_bottom_offset");
+
+        sps.CropUnitX = sps.SubWidthC;
+        sps.CropUnitY = sps.SubHeightC * (2 - sps.frame_mbs_only_flag);
+
+        assert(sps.frame_crop_left_offset <=
+               (sps.PicWidthInSamplesL / sps.CropUnitX) - (sps.frame_crop_right_offset + 1));
+        assert(sps.frame_crop_top_offset <=
+               (16 * sps.FrameHeightInMbs / sps.CropUnitY) - (sps.frame_crop_bottom_offset + 1));
     }
 
-    if (sps->pic_order_cnt_type == 0)
-        assert(sps->log2_max_pic_order_cnt_lsb_minus4 >= 0 && sps->log2_max_pic_order_cnt_lsb_minus4 <= 12);
-    else if (sps->pic_order_cnt_type == 1) {
-        assert(sps->offset_for_non_ref_pic >= -(1 << 31) + 1 && sps->offset_for_non_ref_pic <= (1 << 31) - 1);
-        assert(sps->offset_for_top_to_bottom_field >= -(1 << 31) + 1 && sps->offset_for_top_to_bottom_field <= (1 << 31) - 1);
-        assert(sps->num_ref_frames_in_pic_order_cnt_cycle >= 0 && sps->num_ref_frames_in_pic_order_cnt_cycle <= 255);
+    sps.vui_parameters_present_flag = this->u(1, "SPS: vui_parameters_present_flag");
+    sps.vui_parameters.matrix_coefficients = 2;
+    if (sps.vui_parameters_present_flag)
+        this->vui_parameters(sps.vui_parameters);
+
+    if (sps.vui_parameters_present_flag) {
+        if (!(sps.BitDepthC == sps.BitDepthY && sps.chroma_format_idc == 3))
+            assert(sps.vui_parameters.matrix_coefficients != 0);
+        if (!(sps.BitDepthC == sps.BitDepthY ||
+             (sps.BitDepthC == sps.BitDepthY + 1 && sps.chroma_format_idc == 3)))
+            assert(sps.vui_parameters.matrix_coefficients != 8);
+        if (sps.chroma_format_idc != 1)
+            assert(!sps.vui_parameters.chroma_loc_info_present_flag);
     }
 
-    sps->MaxPicOrderCntLsb = 1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4);
-    sps->ExpectedDeltaPerPicOrderCntCycle = 0;
-    for (i = 0; i < sps->num_ref_frames_in_pic_order_cnt_cycle; i++)
-        sps->ExpectedDeltaPerPicOrderCntCycle += sps->offset_for_ref_frame[i];
+    int level_idc;
+    bool level_1b = (sps.profile_idc == 66 || sps.profile_idc == 77 || sps.profile_idc == 88) &&
+                    (sps.level_idc == 11 && sps.constraint_set3_flag);
+    level_idc = level_1b ? 10 : sps.level_idc;
+    level_idc = 3 * (level_idc / 10) + (level_idc % 10) - 3;
+    level_idc = level_idc < 0 ? 0 : level_idc;
+    assert(level_idc <= 14);
 
-    sps->max_num_ref_frames                        = s->ue("SPS: num_ref_frames");
+    sps.MaxDpbFrames =
+        min<int>(MaxDpbMbs[level_idc] / (sps.PicWidthInMbs * sps.FrameHeightInMbs), 16);
 
-    // assert(sps->max_num_ref_frames >= 0 && sps->max_num_ref_frames <= MaxDpbFrames);
-
-    sps->gaps_in_frame_num_value_allowed_flag  = s->u(1, "SPS: gaps_in_frame_num_value_allowed_flag");
-
-    sps->pic_width_in_mbs_minus1               = s->ue("SPS: pic_width_in_mbs_minus1");
-    sps->pic_height_in_map_units_minus1        = s->ue("SPS: pic_height_in_map_units_minus1");
-
-    sps->PicWidthInMbs       = sps->pic_width_in_mbs_minus1 + 1;
-    sps->PicWidthInSamplesL  = sps->PicWidthInMbs * 16;
-    sps->PicWidthInSamplesC  = sps->PicWidthInMbs * sps->MbWidthC;
-    sps->PicHeightInMapUnits = sps->pic_height_in_map_units_minus1 + 1;
-    sps->PicSizeInMapUnits   = sps->PicWidthInMbs * sps->PicHeightInMapUnits;
-
-    sps->frame_mbs_only_flag                   = s->u(1, "SPS: frame_mbs_only_flag");
-
-    sps->FrameHeightInMbs = (2 - sps->frame_mbs_only_flag) * sps->PicHeightInMapUnits;
-
-    sps->mb_adaptive_frame_field_flag = 0;
-    if (!sps->frame_mbs_only_flag)
-        sps->mb_adaptive_frame_field_flag      = s->u(1, "SPS: mb_adaptive_frame_field_flag");
-
-    sps->direct_8x8_inference_flag             = s->u(1, "SPS: direct_8x8_inference_flag");
-
-    if (!sps->frame_mbs_only_flag)
-        assert(sps->direct_8x8_inference_flag == 1);
-
-    sps->frame_cropping_flag                   = s->u(1, "SPS: frame_cropping_flag");
-    if (sps->frame_cropping_flag) {
-        sps->frame_crop_left_offset      = s->ue("SPS: frame_crop_left_offset");
-        sps->frame_crop_right_offset     = s->ue("SPS: frame_crop_right_offset");
-        sps->frame_crop_top_offset       = s->ue("SPS: frame_crop_top_offset");
-        sps->frame_crop_bottom_offset    = s->ue("SPS: frame_crop_bottom_offset");
+    if (!sps.vui_parameters_present_flag || !sps.vui_parameters.bitstream_restriction_flag) {
+        sps.vui_parameters.max_num_reorder_frames =
+            (sps.profile_idc == 44 || sps.profile_idc == 86 || sps.profile_idc == 100 ||
+             sps.profile_idc == 110 || sps.profile_idc == 122 || sps.profile_idc == 244) &&
+            sps.constraint_set3_flag ? 0 : sps.MaxDpbFrames;
+        sps.vui_parameters.max_dec_frame_buffering =
+            (sps.profile_idc == 44 || sps.profile_idc == 86 || sps.profile_idc == 100 ||
+             sps.profile_idc == 110 || sps.profile_idc == 122 || sps.profile_idc == 244) &&
+            sps.constraint_set3_flag ? 0 : sps.MaxDpbFrames;
     }
 
-    if (sps->frame_cropping_flag) {
-        if (sps->ChromaArrayType == 0) {
-            sps->CropUnitX = 1;
-            sps->CropUnitY = 2 - sps->frame_mbs_only_flag;
-        } else {
-            sps->CropUnitX = sps->SubWidthC;
-            sps->CropUnitY = sps->SubHeightC * (2 - sps->frame_mbs_only_flag);
-        }
-        assert(sps->frame_crop_left_offset >= 0 &&
-               sps->frame_crop_left_offset <= (sps->PicWidthInSamplesL / sps->CropUnitX) -
-                                              (sps->frame_crop_right_offset + 1));
-        assert(sps->frame_crop_top_offset >= 0 &&
-               sps->frame_crop_top_offset <= (16 * sps->FrameHeightInMbs / sps->CropUnitY) -
-                                             (sps->frame_crop_bottom_offset + 1));
-    }
+    assert(sps.vui_parameters.max_num_reorder_frames <= sps.MaxDpbFrames);
+    assert(sps.vui_parameters.max_dec_frame_buffering <= sps.MaxDpbFrames);
+    assert(sps.max_num_ref_frames <= sps.MaxDpbFrames);
 
-    sps->vui_parameters_present_flag           = s->u(1, "SPS: vui_parameters_present_flag");
-    sps->vui_parameters.matrix_coefficients = 2;
-    if (sps->vui_parameters_present_flag)
-        vui_parameters(s, &sps->vui_parameters);
-
-    sps->Valid = true;
+    sps.Valid = true;
 }
 
-static const byte ZZ_SCAN[16] = {
+static const uint8_t ZZ_SCAN_4x4[16] = {
      0,  1,  4,  8,  5,  2,  3,  6,
      9, 12, 13, 10,  7, 11, 14, 15
 };
 
-static const byte ZZ_SCAN8[64] = {
+static const uint8_t ZZ_SCAN_8x8[64] = {
      0,  1,  8, 16,  9,  2,  3, 10,
     17, 24, 32, 25, 18, 11,  4,  5,
     12, 19, 26, 33, 40, 48, 41, 34,
@@ -371,16 +375,16 @@ static const byte ZZ_SCAN8[64] = {
 };
 
 // 7.3.2.1.1.1 Scaling list syntax
-void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScalingMatrixFlag, data_partition_t *s)
+
+void data_partition_t::scaling_list(int* scalingList, int sizeOfScalingList, bool* useDefaultScalingMatrixFlag)
 {
     int lastScale = 8;
     int nextScale = 8;
-    int j;
 
-    for (j = 0; j < sizeOfScalingList; j++) {
-        int scanj = (sizeOfScalingList == 16) ? ZZ_SCAN[j] : ZZ_SCAN8[j];
+    for (int j = 0; j < sizeOfScalingList; j++) {
+        int scanj = (sizeOfScalingList == 16) ? ZZ_SCAN_4x4[j] : ZZ_SCAN_8x8[j];
         if (nextScale != 0) {
-            int delta_scale = s->se("   : delta_sl");
+            int8_t delta_scale = this->se("   : delta_sl");
             nextScale = (lastScale + delta_scale + 256) % 256;
             *useDefaultScalingMatrixFlag = (scanj == 0 && nextScale == 0);
         }
@@ -389,213 +393,68 @@ void scaling_list(int *scalingList, int sizeOfScalingList, bool *useDefaultScali
     }
 }
 
-// 7.3.2.2 Picture parameter set RBSP syntax
-void pic_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, pps_t *pps)
+// 7.3.2.1.2 Sequence parameter set extension RBSP syntax
+
+void data_partition_t::seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext)
 {
-    int iGroup;
-    int i;
-    int chroma_format_idc;
+    sps_ext.seq_parameter_set_id = this->ue("SPS_EXT: seq_parameter_set_id");
+    sps_ext.aux_format_idc       = this->ue("SPS_EXT: aux_format_idc");
 
-    pps->pic_parameter_set_id                         = s->ue("PPS: pic_parameter_set_id");
-    pps->seq_parameter_set_id                         = s->ue("PPS: seq_parameter_set_id");
-    pps->entropy_coding_mode_flag                     = s->u(1, "PPS: entropy_coding_mode_flag");
-    pps->bottom_field_pic_order_in_frame_present_flag = s->u(1, "PPS: bottom_field_pic_order_in_frame_present_flag");
+    assert(sps_ext.seq_parameter_set_id < MAX_NUM_SPS);
+    assert(sps_ext.aux_format_idc <= 3);
 
-    assert(pps->pic_parameter_set_id >= 0 && pps->pic_parameter_set_id <= 255);
-    assert(pps->seq_parameter_set_id >= 0 && pps->seq_parameter_set_id <= 31);
+    if (sps_ext.aux_format_idc != 0) {
+        sps_ext.bit_depth_aux_minus8 = this->ue("SPS_EXT: bit_depth_aux_minus8");
 
-    chroma_format_idc = p_Vid->SeqParSet[pps->seq_parameter_set_id].chroma_format_idc;
+        assert(sps_ext.bit_depth_aux_minus8 <= 4);
 
-    pps->num_slice_groups_minus1                = s->ue("PPS: num_slice_groups_minus1");
-    if (pps->num_slice_groups_minus1 > 0) {
-        pps->slice_group_map_type               = s->ue("PPS: slice_group_map_type");
-        if (pps->slice_group_map_type == 0) {
-            for (iGroup = 0; iGroup <= pps->num_slice_groups_minus1; iGroup++)
-                pps->run_length_minus1[iGroup]                 = s->ue("PPS: run_length_minus1 [i]");
-        } else if (pps->slice_group_map_type == 2) {
-            for (iGroup = 0; iGroup < pps->num_slice_groups_minus1; iGroup++) {
-                pps->top_left    [iGroup]                      = s->ue("PPS: top_left [i]");
-                pps->bottom_right[iGroup]                      = s->ue("PPS: bottom_right [i]");
-            }
-        } else if (pps->slice_group_map_type == 3 ||
-                   pps->slice_group_map_type == 4 ||
-                   pps->slice_group_map_type == 5) {
-            pps->slice_group_change_direction_flag     = s->u(1, "PPS: slice_group_change_direction_flag");
-            pps->slice_group_change_rate_minus1        = s->ue("PPS: slice_group_change_rate_minus1");
-        } else if (pps->slice_group_map_type == 6) {
-            const int bitsSliceGroupId[8] = { 1, 1, 2, 2, 3, 3, 3, 3 };
-            pps->pic_size_in_map_units_minus1      = s->ue("PPS: pic_size_in_map_units_minus1");
-            pps->slice_group_id = new uint8_t[pps->pic_size_in_map_units_minus1 + 1];
-            for (i = 0; i <= pps->pic_size_in_map_units_minus1; i++)
-                pps->slice_group_id[i] = (byte) s->u(bitsSliceGroupId[pps->num_slice_groups_minus1], "slice_group_id[i]");
-        }
+        uint8_t bit_depth_aux = sps_ext.bit_depth_aux_minus8 + 9;
+
+        sps_ext.alpha_incr_flag         = this->u(1, "SPS_EXT: alpha_incr_flag");
+        sps_ext.alpha_opaque_value      = this->u(bit_depth_aux, "SPS_EXT: alpha_opaque_value");
+        sps_ext.alpha_transparent_value = this->u(bit_depth_aux, "SPS_EXT: alpha_transparent_value");
     }
+    sps_ext.additional_extension_flag = this->u(1, "SPS_EXT: additional_extension_flag");
 
-    assert(pps->num_slice_groups_minus1 >= 0 && pps->num_slice_groups_minus1 <= 7);
-    assert(pps->slice_group_map_type >= 0 && pps->slice_group_map_type <= 6);
-    if (pps->num_slice_groups_minus1 != 1)
-        assert(pps->slice_group_map_type != 3 && pps->slice_group_map_type != 4 && pps->slice_group_map_type != 5);
-    // assert(pps->run_length_minus1[i] <= PicSizeInMapUnits - 1);
-    // assert(pps->top_left[i] <= pps->bottom_right[i] && pps->bottom_right[i] < PicSizeInMapUnits);
-    // assert(pps->top_left[i] % PicWidthInMbs <= pps->bottom_right[i] % PicWidthInMbs);
-
-    // assert(pps->slice_group_change_rate_minus1 >= 0 &&
-    //        pps->slice_group_change_rate_minus1 <= PicSizeInMapUnits - 1);
-    pps->SliceGroupChangeRate = pps->slice_group_change_rate_minus1 + 1;
-    //assert(pps->pic_size_in_map_units_minus1 == PicSizeInMapUnits - 1);
-    //assert(pps->slice_group_id[i] >= 0 && pps->slice_group_id[i] <= pps->num_slice_groups_minus1);
-
-    pps->num_ref_idx_l0_default_active_minus1  = s->ue("PPS: num_ref_idx_l0_default_active_minus1");
-    pps->num_ref_idx_l1_default_active_minus1  = s->ue("PPS: num_ref_idx_l1_default_active_minus1");
-
-    assert(pps->num_ref_idx_l0_default_active_minus1 >= 0 && pps->num_ref_idx_l0_default_active_minus1 <= 31);
-    assert(pps->num_ref_idx_l1_default_active_minus1 >= 0 && pps->num_ref_idx_l1_default_active_minus1 <= 31);
-
-    pps->weighted_pred_flag                    = s->u(1, "PPS: weighted_pred_flag");
-    pps->weighted_bipred_idc                   = s->u(2, "PPS: weighted_bipred_idc");
-
-    assert(pps->weighted_bipred_idc >= 0 && pps->weighted_bipred_idc <= 2);
-
-    pps->pic_init_qp_minus26                   = s->se("PPS: pic_init_qp_minus26");
-    pps->pic_init_qs_minus26                   = s->se("PPS: pic_init_qs_minus26");
-    pps->chroma_qp_index_offset                = s->se("PPS: chroma_qp_index_offset");
-
-    //assert(pps->pic_init_qp_minus26 >= -(26 + QpBdOffsetY) && pps->pic_init_qp_minus26 <= 25);
-    assert(pps->pic_init_qs_minus26 >= -26 && pps->pic_init_qs_minus26 <= 25);
-    assert(pps->chroma_qp_index_offset >= -12 && pps->chroma_qp_index_offset <= 12);
-
-    pps->deblocking_filter_control_present_flag = s->u(1, "PPS: deblocking_filter_control_present_flag");
-    pps->constrained_intra_pred_flag            = s->u(1, "PPS: constrained_intra_pred_flag");
-    pps->redundant_pic_cnt_present_flag         = s->u(1, "PPS: redundant_pic_cnt_present_flag");
-
-    pps->transform_8x8_mode_flag         = 0;
-    pps->pic_scaling_matrix_present_flag = 0;
-    pps->second_chroma_qp_index_offset   = pps->chroma_qp_index_offset;
-    if (s->more_rbsp_data()) {
-        pps->transform_8x8_mode_flag           = s->u(1, "PPS: transform_8x8_mode_flag");
-        pps->pic_scaling_matrix_present_flag   = s->u(1, "PPS: pic_scaling_matrix_present_flag");
-        if (pps->pic_scaling_matrix_present_flag) {
-            for (i = 0; i < 6 + ((chroma_format_idc != YUV444) ? 2 : 6) * pps->transform_8x8_mode_flag; i++) {
-                pps->pic_scaling_list_present_flag[i]= s->u(1, "PPS: pic_scaling_list_present_flag");
-                if (pps->pic_scaling_list_present_flag[i]) {
-                    if (i < 6)
-                        scaling_list(pps->ScalingList4x4[i], 16,
-                                     &pps->UseDefaultScalingMatrix4x4Flag[i], s);
-                    else
-                        scaling_list(pps->ScalingList8x8[i - 6], 64,
-                                     &pps->UseDefaultScalingMatrix8x8Flag[i - 6], s);
-                }
-            }
-        }
-        pps->second_chroma_qp_index_offset      = s->se("PPS: second_chroma_qp_index_offset");
-    }
-    assert(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12);
-
-    pps->Valid = true;
+    this->rbsp_trailing_bits();
 }
 
 
-// fill subset_sps with content of p
 #if (MVC_EXTENSION_ENABLE)
 
-static void get_max_dec_frame_buf_size(sps_t *sps)
+// G.7.3.1.4 Sequence parameter set SVC extension syntax
+
+void data_partition_t::seq_parameter_set_svc_extention(sps_svc_t& sps_svc)
 {
-  int pic_size = (sps->pic_width_in_mbs_minus1 + 1) * (sps->pic_height_in_map_units_minus1 + 1) * (sps->frame_mbs_only_flag?1:2) * 384;
-
-  int size = 0;
-
-    switch (sps->level_idc) {
-    case 9:
-        size = 152064;
-        break;
-    case 10:
-        size = 152064;
-        break;
-    case 11:
-        if (!is_FREXT_profile(sps->profile_idc) && (sps->constraint_set3_flag == 1))
-            size = 152064;
-        else
-            size = 345600;
-        break;
-    case 12:
-        size = 912384;
-        break;
-    case 13:
-        size = 912384;
-        break;
-    case 20:
-        size = 912384;
-        break;
-    case 21:
-        size = 1824768;
-        break;
-    case 22:
-        size = 3110400;
-        break;
-    case 30:
-        size = 3110400;
-        break;
-    case 31:
-        size = 6912000;
-        break;
-    case 32:
-        size = 7864320;
-        break;
-    case 40:
-        size = 12582912;
-        break;
-    case 41:
-        size = 12582912;
-        break;
-    case 42:
-        size = 13369344;
-        break;
-    case 50:
-        size = 42393600;
-        break;
-    case 51:
-        size = 70778880;
-        break;
-    case 52:
-        size = 70778880;
-        break;
-    default:
-        error(500, "undefined level");
-        break;
-    }
-
-    size /= pic_size;
-    size = min( size, 16);
-    sps->max_dec_frame_buffering = size;
+    //to be implemented for Annex G;
 }
+
+// G.14.1 SVC VUI parameters extension syntax
+
+void data_partition_t::svc_vui_parameters_extention(svc_vui_t& svc_vui)
+{
+    //to be implemented for Annex G;
+}
+
+// H.7.3.2.1.4 Sequence parameter set MVC extension syntax
 
 static void seq_parameter_set_mvc_extension(sub_sps_t *subset_sps, data_partition_t *s)
 {
   int i, j, num_views;
 
-  subset_sps->num_views_minus1 = s->ue("num_views_minus1");
-  num_views = 1+subset_sps->num_views_minus1;
-  if( num_views >0)
-  {
-    if ((subset_sps->view_id = (int*) calloc(num_views, sizeof(int))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->view_id");
-    if ((subset_sps->num_anchor_refs_l0 = (int*) calloc(num_views, sizeof(int))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->num_anchor_refs_l0");
-    if ((subset_sps->num_anchor_refs_l1 = (int*) calloc(num_views, sizeof(int))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->num_anchor_refs_l1");
-    if ((subset_sps->anchor_ref_l0 = (int**) calloc(num_views, sizeof(int*))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->anchor_ref_l0");
-    if ((subset_sps->anchor_ref_l1 = (int**) calloc(num_views, sizeof(int*))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->anchor_ref_l1");
-    if ((subset_sps->num_non_anchor_refs_l0 = (int*) calloc(num_views, sizeof(int))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->num_non_anchor_refs_l0");
-    if ((subset_sps->num_non_anchor_refs_l1 = (int*) calloc(num_views, sizeof(int))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->num_non_anchor_refs_l1");
-    if ((subset_sps->non_anchor_ref_l0 = (int**) calloc(num_views, sizeof(int*))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->non_anchor_ref_l0");
-    if ((subset_sps->non_anchor_ref_l1 = (int**) calloc(num_views, sizeof(int*))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->non_anchor_ref_l1");
-  }
+    subset_sps->num_views_minus1 = s->ue("num_views_minus1");
+    num_views = subset_sps->num_views_minus1 + 1;
+    if (num_views > 0) {
+        subset_sps->view_id = (int*) calloc(num_views, sizeof(int));
+        subset_sps->num_anchor_refs_l0 = (int*) calloc(num_views, sizeof(int));
+        subset_sps->num_anchor_refs_l1 = (int*) calloc(num_views, sizeof(int));
+        subset_sps->anchor_ref_l0 = (int**) calloc(num_views, sizeof(int*));
+        subset_sps->anchor_ref_l1 = (int**) calloc(num_views, sizeof(int*));
+        subset_sps->num_non_anchor_refs_l0 = (int*) calloc(num_views, sizeof(int));
+        subset_sps->num_non_anchor_refs_l1 = (int*) calloc(num_views, sizeof(int));
+        subset_sps->non_anchor_ref_l0 = (int**) calloc(num_views, sizeof(int*));
+        subset_sps->non_anchor_ref_l1 = (int**) calloc(num_views, sizeof(int*));
+    }
   for(i=0; i<num_views; i++)
   {
     subset_sps->view_id[i] = s->ue("view_id");
@@ -689,6 +548,218 @@ static void seq_parameter_set_mvc_extension(sub_sps_t *subset_sps, data_partitio
   }
 }
 
+// 7.3.2.1.3 Subset sequence parameter set RBSP syntax
+
+static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, int *curr_seq_set_id);
+static void mvc_vui_parameters_extension(mvc_vui_t *pMVCVUI, data_partition_t *s);
+
+void ProcessSubsetSPS(VideoParameters *p_Vid, nal_unit_t *nalu)
+{
+    data_partition_t *dp = new data_partition_t { *nalu };
+    sub_sps_t *subset_sps;
+    int curr_seq_set_id;
+
+    subset_seq_parameter_set_rbsp(p_Vid, dp, &curr_seq_set_id);
+
+    subset_sps = p_Vid->SubsetSeqParSet + curr_seq_set_id;
+    //get_max_dec_frame_buf_size(&(subset_sps->sps));
+    //check capability;
+    if (subset_sps->num_views_minus1 > 1) {
+        printf("Warning: num_views:%d is greater than 2, only decode baselayer!\n", subset_sps->num_views_minus1+1);
+        subset_sps->Valid = 0;
+        subset_sps->sps.Valid = 0;
+        p_Vid->p_Inp->DecodeAllLayers = 0;
+    } else if (subset_sps->num_views_minus1==1 && (subset_sps->view_id[0]!=0 || subset_sps->view_id[1]!=1))
+        p_Vid->OpenOutputFiles(subset_sps->view_id[0], subset_sps->view_id[1]);
+
+    if (subset_sps->Valid)
+        p_Vid->profile_idc = subset_sps->sps.profile_idc;
+
+    delete dp;
+}
+
+static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, int *curr_seq_set_id)
+{
+    sub_sps_t *subset_sps;
+    bool additional_extension2_flag;
+    bool additional_extension2_data_flag;
+    sps_t *sps = new sps_t;
+    if (!sps)
+        no_mem_exit ("AllocSPS: SPS");
+
+    assert(s != NULL);
+    assert(s->rbsp_byte != 0);
+
+    s->seq_parameter_set_rbsp(*sps);
+
+    *curr_seq_set_id = sps->seq_parameter_set_id;
+    subset_sps = p_Vid->SubsetSeqParSet + sps->seq_parameter_set_id;
+    if (subset_sps->Valid || subset_sps->num_views_minus1>=0) {
+        if (memcmp(&subset_sps->sps, sps, sizeof (sps_t)-sizeof(int)))
+            assert(0);
+        reset_subset_sps(subset_sps);
+    }
+    memcpy(&subset_sps->sps, sps, sizeof (sps_t));
+
+    assert (subset_sps != NULL);
+    subset_sps->Valid = false;
+
+    if (subset_sps->sps.profile_idc == 83 || subset_sps->sps.profile_idc == 86) {
+
+    } else if (subset_sps->sps.profile_idc == MVC_HIGH ||
+               subset_sps->sps.profile_idc == STEREO_HIGH) {
+        subset_sps->bit_equal_to_one = s->u(1, "bit_equal_to_one");
+
+        if (subset_sps->bit_equal_to_one != 1) {
+            printf("\nbit_equal_to_one is not equal to 1!\n");
+            return 0;
+        }
+
+        seq_parameter_set_mvc_extension(subset_sps, s);
+
+        subset_sps->mvc_vui_parameters_present_flag = s->u(1, "mvc_vui_parameters_present_flag");
+        if (subset_sps->mvc_vui_parameters_present_flag)
+            mvc_vui_parameters_extension(&subset_sps->MVCVUIParams, s);
+    }
+
+    additional_extension2_flag = s->u(1, "additional_extension2_flag");
+    if (additional_extension2_flag) {
+        while (s->more_rbsp_data())
+            additional_extension2_data_flag = s->u(1, "additional_extension2_flag");
+    }
+
+    if (subset_sps->sps.Valid)
+        subset_sps->Valid = true;
+
+    delete sps;
+    return 0;
+}
+#endif
+
+// 7.3.2.2 Picture parameter set RBSP syntax
+
+void pic_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, pps_t *pps)
+{
+    int iGroup;
+    int i;
+    int chroma_format_idc;
+
+    pps->pic_parameter_set_id                         = s->ue("PPS: pic_parameter_set_id");
+    pps->seq_parameter_set_id                         = s->ue("PPS: seq_parameter_set_id");
+    pps->entropy_coding_mode_flag                     = s->u(1, "PPS: entropy_coding_mode_flag");
+    pps->bottom_field_pic_order_in_frame_present_flag = s->u(1, "PPS: bottom_field_pic_order_in_frame_present_flag");
+
+    assert(pps->pic_parameter_set_id >= 0 && pps->pic_parameter_set_id <= 255);
+    assert(pps->seq_parameter_set_id >= 0 && pps->seq_parameter_set_id <= 31);
+
+    chroma_format_idc = p_Vid->SeqParSet[pps->seq_parameter_set_id].chroma_format_idc;
+
+    pps->num_slice_groups_minus1                = s->ue("PPS: num_slice_groups_minus1");
+    if (pps->num_slice_groups_minus1 > 0) {
+        pps->slice_group_map_type               = s->ue("PPS: slice_group_map_type");
+        if (pps->slice_group_map_type == 0) {
+            for (iGroup = 0; iGroup <= pps->num_slice_groups_minus1; iGroup++)
+                pps->run_length_minus1[iGroup]                 = s->ue("PPS: run_length_minus1 [i]");
+        } else if (pps->slice_group_map_type == 2) {
+            for (iGroup = 0; iGroup < pps->num_slice_groups_minus1; iGroup++) {
+                pps->top_left    [iGroup]                      = s->ue("PPS: top_left [i]");
+                pps->bottom_right[iGroup]                      = s->ue("PPS: bottom_right [i]");
+            }
+        } else if (pps->slice_group_map_type == 3 ||
+                   pps->slice_group_map_type == 4 ||
+                   pps->slice_group_map_type == 5) {
+            pps->slice_group_change_direction_flag     = s->u(1, "PPS: slice_group_change_direction_flag");
+            pps->slice_group_change_rate_minus1        = s->ue("PPS: slice_group_change_rate_minus1");
+        } else if (pps->slice_group_map_type == 6) {
+            const int bitsSliceGroupId[8] = { 1, 1, 2, 2, 3, 3, 3, 3 };
+            pps->pic_size_in_map_units_minus1      = s->ue("PPS: pic_size_in_map_units_minus1");
+            pps->slice_group_id = new uint8_t[pps->pic_size_in_map_units_minus1 + 1];
+            for (i = 0; i <= pps->pic_size_in_map_units_minus1; i++)
+                pps->slice_group_id[i] = (byte) s->u(bitsSliceGroupId[pps->num_slice_groups_minus1], "slice_group_id[i]");
+        }
+    }
+
+    assert(pps->num_slice_groups_minus1 >= 0 && pps->num_slice_groups_minus1 <= 7);
+    assert(pps->slice_group_map_type >= 0 && pps->slice_group_map_type <= 6);
+    if (pps->num_slice_groups_minus1 != 1)
+        assert(pps->slice_group_map_type != 3 && pps->slice_group_map_type != 4 && pps->slice_group_map_type != 5);
+    // assert(pps->run_length_minus1[i] <= PicSizeInMapUnits - 1);
+    // assert(pps->top_left[i] <= pps->bottom_right[i] && pps->bottom_right[i] < PicSizeInMapUnits);
+    // assert(pps->top_left[i] % PicWidthInMbs <= pps->bottom_right[i] % PicWidthInMbs);
+
+    // assert(pps->slice_group_change_rate_minus1 >= 0 &&
+    //        pps->slice_group_change_rate_minus1 <= PicSizeInMapUnits - 1);
+    pps->SliceGroupChangeRate = pps->slice_group_change_rate_minus1 + 1;
+    //assert(pps->pic_size_in_map_units_minus1 == PicSizeInMapUnits - 1);
+    //assert(pps->slice_group_id[i] >= 0 && pps->slice_group_id[i] <= pps->num_slice_groups_minus1);
+
+    pps->num_ref_idx_l0_default_active_minus1  = s->ue("PPS: num_ref_idx_l0_default_active_minus1");
+    pps->num_ref_idx_l1_default_active_minus1  = s->ue("PPS: num_ref_idx_l1_default_active_minus1");
+
+    assert(pps->num_ref_idx_l0_default_active_minus1 >= 0 && pps->num_ref_idx_l0_default_active_minus1 <= 31);
+    assert(pps->num_ref_idx_l1_default_active_minus1 >= 0 && pps->num_ref_idx_l1_default_active_minus1 <= 31);
+
+    pps->weighted_pred_flag                    = s->u(1, "PPS: weighted_pred_flag");
+    pps->weighted_bipred_idc                   = s->u(2, "PPS: weighted_bipred_idc");
+
+    assert(pps->weighted_bipred_idc >= 0 && pps->weighted_bipred_idc <= 2);
+
+    pps->pic_init_qp_minus26                   = s->se("PPS: pic_init_qp_minus26");
+    pps->pic_init_qs_minus26                   = s->se("PPS: pic_init_qs_minus26");
+    pps->chroma_qp_index_offset                = s->se("PPS: chroma_qp_index_offset");
+
+    //assert(pps->pic_init_qp_minus26 >= -(26 + QpBdOffsetY) && pps->pic_init_qp_minus26 <= 25);
+    assert(pps->pic_init_qs_minus26 >= -26 && pps->pic_init_qs_minus26 <= 25);
+    assert(pps->chroma_qp_index_offset >= -12 && pps->chroma_qp_index_offset <= 12);
+
+    pps->deblocking_filter_control_present_flag = s->u(1, "PPS: deblocking_filter_control_present_flag");
+    pps->constrained_intra_pred_flag            = s->u(1, "PPS: constrained_intra_pred_flag");
+    pps->redundant_pic_cnt_present_flag         = s->u(1, "PPS: redundant_pic_cnt_present_flag");
+
+    pps->transform_8x8_mode_flag         = 0;
+    pps->pic_scaling_matrix_present_flag = 0;
+    pps->second_chroma_qp_index_offset   = pps->chroma_qp_index_offset;
+    if (s->more_rbsp_data()) {
+        pps->transform_8x8_mode_flag           = s->u(1, "PPS: transform_8x8_mode_flag");
+        pps->pic_scaling_matrix_present_flag   = s->u(1, "PPS: pic_scaling_matrix_present_flag");
+        if (pps->pic_scaling_matrix_present_flag) {
+            for (i = 0; i < 6 + ((chroma_format_idc != YUV444) ? 2 : 6) * pps->transform_8x8_mode_flag; i++) {
+                pps->pic_scaling_list_present_flag[i]= s->u(1, "PPS: pic_scaling_list_present_flag");
+                if (pps->pic_scaling_list_present_flag[i]) {
+                    if (i < 6)
+                        s->scaling_list(pps->ScalingList4x4[i], 16,
+                                        &pps->UseDefaultScalingMatrix4x4Flag[i]);
+                    else
+                        s->scaling_list(pps->ScalingList8x8[i - 6], 64,
+                                        &pps->UseDefaultScalingMatrix8x8Flag[i - 6]);
+                }
+            }
+        }
+        pps->second_chroma_qp_index_offset      = s->se("PPS: second_chroma_qp_index_offset");
+    }
+    assert(pps->second_chroma_qp_index_offset >= -12 && pps->second_chroma_qp_index_offset <= 12);
+
+    pps->Valid = true;
+}
+
+
+// 7.3.2.11 RBSP trailing bits syntax
+
+void data_partition_t::rbsp_trailing_bits(void)
+{
+    bool rbsp_stop_one_bit;
+    bool rbsp_alignment_zero_bit;
+
+    rbsp_stop_one_bit = this->f(1);
+    while (!this->byte_aligned())
+        rbsp_alignment_zero_bit = this->f(1);
+}
+
+// fill subset_sps with content of p
+#if (MVC_EXTENSION_ENABLE)
+
+
+
 static int MemAlloc1D(void** ppBuf, int iEleSize, int iNum)
 {
   if(iEleSize*iNum <=0)
@@ -766,66 +837,6 @@ static void mvc_vui_parameters_extension(mvc_vui_t *pMVCVUI, data_partition_t *s
       pMVCVUI->pic_struct_present_flag[i] = (char) s->u(1, "vui_mvc_pic_struct_present_flag");
     }
   }
-}
-
-// 7.3.2.1.3 Subset sequence parameter set RBSP syntax
-static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, int *curr_seq_set_id)
-{
-    sub_sps_t *subset_sps;
-    bool additional_extension2_flag;
-    bool additional_extension2_data_flag;
-    sps_t *sps = new sps_t;
-    if (!sps)
-        no_mem_exit ("AllocSPS: SPS");
-
-    assert(s != NULL);
-    assert(s->rbsp_byte != 0);
-
-  seq_parameter_set_rbsp(s, sps);
-  get_max_dec_frame_buf_size(sps);
-
-  *curr_seq_set_id = sps->seq_parameter_set_id;
-  subset_sps = p_Vid->SubsetSeqParSet + sps->seq_parameter_set_id;
-  if(subset_sps->Valid || subset_sps->num_views_minus1>=0)
-  {
-    if(memcmp(&subset_sps->sps, sps, sizeof (sps_t)-sizeof(int)))
-      assert(0);
-    reset_subset_sps(subset_sps);
-  }
-  memcpy (&subset_sps->sps, sps, sizeof (sps_t));
-
-  assert (subset_sps != NULL);
-  subset_sps->Valid = false;
-
-    if (subset_sps->sps.profile_idc == 83 || subset_sps->sps.profile_idc == 86) {
-
-    } else if (subset_sps->sps.profile_idc == MVC_HIGH ||
-               subset_sps->sps.profile_idc == STEREO_HIGH) {
-        subset_sps->bit_equal_to_one = s->u(1, "bit_equal_to_one");
-
-        if (subset_sps->bit_equal_to_one != 1) {
-            printf("\nbit_equal_to_one is not equal to 1!\n");
-            return 0;
-        }
-
-        seq_parameter_set_mvc_extension(subset_sps, s);
-
-        subset_sps->mvc_vui_parameters_present_flag = s->u(1, "mvc_vui_parameters_present_flag");
-        if (subset_sps->mvc_vui_parameters_present_flag)
-            mvc_vui_parameters_extension(&subset_sps->MVCVUIParams, s);
-    }
-
-    additional_extension2_flag = s->u(1, "additional_extension2_flag");
-    if (additional_extension2_flag) {
-        while (s->more_rbsp_data())
-            additional_extension2_data_flag = s->u(1, "additional_extension2_flag");
-    }
-
-    if (subset_sps->sps.Valid)
-        subset_sps->Valid = true;
-
-    delete sps;
-    return 0;
 }
 #endif
 
@@ -1011,7 +1022,7 @@ void MakePPSavailable (VideoParameters *p_Vid, int id, pps_t *pps)
 
 void CleanUpPPS(VideoParameters *p_Vid)
 {
-    for (int i = 0; i < MAXPPS; ++i) {
+    for (int i = 0; i < MAX_NUM_PPS; ++i) {
         if (p_Vid->PicParSet[i].Valid && p_Vid->PicParSet[i].slice_group_id)
             delete []p_Vid->PicParSet[i].slice_group_id;
 
@@ -1019,65 +1030,6 @@ void CleanUpPPS(VideoParameters *p_Vid)
     }
 }
 
-
-void ProcessSPS(VideoParameters *p_Vid, nal_unit_t *nalu)
-{  
-    data_partition_t* dp = new data_partition_t { *nalu };
-    sps_t* sps = new sps_t;
-
-    seq_parameter_set_rbsp(dp, sps);
-#if (MVC_EXTENSION_ENABLE)
-    get_max_dec_frame_buf_size(sps);
-#endif
-
-    if (sps->Valid) {
-        if (p_Vid->active_sps) {
-            if (sps->seq_parameter_set_id == p_Vid->active_sps->seq_parameter_set_id) {
-                if (!(*sps == *(p_Vid->active_sps))) {
-                    if (p_Vid->dec_picture)
-                        exit_picture(p_Vid);
-                    p_Vid->active_sps = NULL;
-                }
-            }
-        }
-        p_Vid->SeqParSet[sps->seq_parameter_set_id] = *sps;
-
-#if (MVC_EXTENSION_ENABLE)
-        if (p_Vid->profile_idc < (int) sps->profile_idc)
-#endif
-            p_Vid->profile_idc = sps->profile_idc;
-    }
-
-    delete dp;
-    delete sps;
-}
-
-#if (MVC_EXTENSION_ENABLE)
-void ProcessSubsetSPS(VideoParameters *p_Vid, nal_unit_t *nalu)
-{
-    data_partition_t *dp = new data_partition_t { *nalu };
-    sub_sps_t *subset_sps;
-    int curr_seq_set_id;
-
-    subset_seq_parameter_set_rbsp(p_Vid, dp, &curr_seq_set_id);
-
-    subset_sps = p_Vid->SubsetSeqParSet + curr_seq_set_id;
-    get_max_dec_frame_buf_size(&(subset_sps->sps));
-    //check capability;
-    if (subset_sps->num_views_minus1 > 1) {
-        printf("Warning: num_views:%d is greater than 2, only decode baselayer!\n", subset_sps->num_views_minus1+1);
-        subset_sps->Valid = 0;
-        subset_sps->sps.Valid = 0;
-        p_Vid->p_Inp->DecodeAllLayers = 0;
-    } else if (subset_sps->num_views_minus1==1 && (subset_sps->view_id[0]!=0 || subset_sps->view_id[1]!=1))
-        p_Vid->OpenOutputFiles(subset_sps->view_id[0], subset_sps->view_id[1]);
-
-    if (subset_sps->Valid)
-        p_Vid->profile_idc = subset_sps->sps.profile_idc;
-
-    delete dp;
-}
-#endif
 
 void ProcessPPS(VideoParameters *p_Vid, nal_unit_t *nalu)
 {
