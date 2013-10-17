@@ -396,7 +396,7 @@ static void init_lists_b_slice(slice_t *currSlice)
 
 #if (MVC_EXTENSION_ENABLE)
 
-static int is_view_id_in_ref_view_list(int view_id, int *ref_view_id, int num_ref_views)
+static int is_view_id_in_ref_view_list(int view_id, std::vector<uint16_t>& ref_view_id, int num_ref_views)
 {
     int i;
     for (i = 0; i < num_ref_views; i++) {
@@ -417,19 +417,21 @@ static void append_interview_list(
     int pic_avail;
     int poc = 0;
     int fld_idx;
-    int num_ref_views, *ref_view_id;
     pic_t *fs = p_Dpb->fs_ilref[0];
 
     if (iVOIdx < 0)
         printf("Error: iVOIdx: %d is not less than 0\n", iVOIdx);
 
-    if (anchor_pic_flag) {
-        num_ref_views = list_idx? p_Vid->active_subset_sps->num_anchor_refs_l1[iVOIdx] : p_Vid->active_subset_sps->num_anchor_refs_l0[iVOIdx];
-        ref_view_id   = list_idx? p_Vid->active_subset_sps->anchor_ref_l1[iVOIdx]:p_Vid->active_subset_sps->anchor_ref_l0[iVOIdx];
-    } else {
-        num_ref_views = list_idx? p_Vid->active_subset_sps->num_non_anchor_refs_l1[iVOIdx] : p_Vid->active_subset_sps->num_non_anchor_refs_l0[iVOIdx];
-        ref_view_id   = list_idx? p_Vid->active_subset_sps->non_anchor_ref_l1[iVOIdx]:p_Vid->active_subset_sps->non_anchor_ref_l0[iVOIdx];
-    }
+    int num_ref_views = anchor_pic_flag ?
+        (list_idx ? p_Vid->active_subset_sps->sps_mvc.views[iVOIdx].num_anchor_refs_l1 :
+                    p_Vid->active_subset_sps->sps_mvc.views[iVOIdx].num_anchor_refs_l0) :
+        (list_idx ? p_Vid->active_subset_sps->sps_mvc.views[iVOIdx].num_non_anchor_refs_l1 :
+                    p_Vid->active_subset_sps->sps_mvc.views[iVOIdx].num_non_anchor_refs_l0);
+    auto& ref_view_id = anchor_pic_flag ?
+        (list_idx ? p_Vid->active_subset_sps->sps_mvc.views[iVOIdx].anchor_ref_l1 :
+                    p_Vid->active_subset_sps->sps_mvc.views[iVOIdx].anchor_ref_l0 ) :
+        (list_idx ? p_Vid->active_subset_sps->sps_mvc.views[iVOIdx].non_anchor_ref_l1 :
+                    p_Vid->active_subset_sps->sps_mvc.views[iVOIdx].non_anchor_ref_l0);
 
     fld_idx = bottom_field_flag ? 1 : 0;
 
@@ -1023,12 +1025,11 @@ static void reorder_lists(slice_t *currSlice)
 static int GetViewIdx(VideoParameters *p_Vid, int iVOIdx)
 {
     int iViewIdx = -1;
-    int *piViewIdMap;
 
     if (p_Vid->active_subset_sps) {
-        assert(p_Vid->active_subset_sps->num_views_minus1 >= iVOIdx && iVOIdx >= 0);
-        piViewIdMap = p_Vid->active_subset_sps->view_id;
-        iViewIdx = piViewIdMap[iVOIdx];    
+        assert(p_Vid->active_subset_sps->sps_mvc.num_views_minus1 >= iVOIdx && iVOIdx >= 0);
+        auto& piViewIdMap = p_Vid->active_subset_sps->sps_mvc.views;
+        iViewIdx = piViewIdMap[iVOIdx].view_id;    
     }
 
     return iViewIdx;
@@ -1041,9 +1042,11 @@ static int get_maxViewIdx(VideoParameters *p_Vid, int view_id, int anchor_pic_fl
 
     if (VOIdx >= 0) {
         if (anchor_pic_flag)
-            maxViewIdx = listidx? p_Vid->active_subset_sps->num_anchor_refs_l1[VOIdx] : p_Vid->active_subset_sps->num_anchor_refs_l0[VOIdx];
+            maxViewIdx = listidx ? p_Vid->active_subset_sps->sps_mvc.views[VOIdx].num_anchor_refs_l1 :
+                                   p_Vid->active_subset_sps->sps_mvc.views[VOIdx].num_anchor_refs_l0;
         else
-            maxViewIdx = listidx? p_Vid->active_subset_sps->num_non_anchor_refs_l1[VOIdx] : p_Vid->active_subset_sps->num_non_anchor_refs_l0[VOIdx];
+            maxViewIdx = listidx ? p_Vid->active_subset_sps->sps_mvc.views[VOIdx].num_non_anchor_refs_l1 :
+                                   p_Vid->active_subset_sps->sps_mvc.views[VOIdx].num_non_anchor_refs_l0;
     }
 
     return maxViewIdx;
@@ -1094,7 +1097,7 @@ static void reorder_interview(VideoParameters *p_Vid, slice_t *currSlice, storab
     }
 }
 
-static void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, int **anchor_ref, int **non_anchor_ref, int view_id, int anchor_pic_flag, int currPOC, int listidx)
+static void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, std::vector<sps_mvc_t::view_t>& views, int view_id, int anchor_pic_flag, int currPOC, int listidx)
 {
     VideoParameters *p_Vid = currSlice->p_Vid;
     shr_t& shr = currSlice->header;
@@ -1168,9 +1171,11 @@ static void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, int **anc
             picViewIdxLXPred = picViewIdxLX;
 
             if (anchor_pic_flag)
-                targetViewID = anchor_ref[curr_VOIdx][picViewIdxLX];
+                targetViewID = cur_list == 0 ? views[curr_VOIdx].anchor_ref_l0[picViewIdxLX] :
+                                               views[curr_VOIdx].anchor_ref_l1[picViewIdxLX];
             else
-                targetViewID = non_anchor_ref[curr_VOIdx][picViewIdxLX];
+                targetViewID = cur_list == 0 ? views[curr_VOIdx].non_anchor_ref_l0[picViewIdxLX] :
+                                               views[curr_VOIdx].non_anchor_ref_l1[picViewIdxLX];
 
             reorder_interview(p_Vid, currSlice, currSlice->RefPicList[cur_list], num_ref_idx_lX_active_minus1, &refIdxLX, targetViewID, currPOC, listidx);
         }
@@ -1187,8 +1192,7 @@ static void reorder_lists_mvc(slice_t* currSlice, int currPOC)
     if (shr.slice_type != I_slice && shr.slice_type != SI_slice) {
         if (shr.ref_pic_list_modification_flag_l0) {
             reorder_ref_pic_list_mvc(currSlice, LIST_0,
-                p_Vid->active_subset_sps->anchor_ref_l0,
-                p_Vid->active_subset_sps->non_anchor_ref_l0,
+                p_Vid->active_subset_sps->sps_mvc.views,
                 currSlice->view_id, currSlice->anchor_pic_flag, currPOC, 0);
         }
         if (p_Vid->no_reference_picture == currSlice->RefPicList[0][shr.num_ref_idx_l0_active_minus1]) {
@@ -1203,8 +1207,7 @@ static void reorder_lists_mvc(slice_t* currSlice, int currPOC)
     if (shr.slice_type == B_slice) {
         if (shr.ref_pic_list_modification_flag_l1) {
             reorder_ref_pic_list_mvc(currSlice, LIST_1,
-                p_Vid->active_subset_sps->anchor_ref_l1,
-                p_Vid->active_subset_sps->non_anchor_ref_l1,
+                p_Vid->active_subset_sps->sps_mvc.views,
                 currSlice->view_id, currSlice->anchor_pic_flag, currPOC, 1);
         }
         if (p_Vid->no_reference_picture == currSlice->RefPicList[1][shr.num_ref_idx_l1_active_minus1]) {

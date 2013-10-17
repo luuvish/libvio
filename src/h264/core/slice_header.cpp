@@ -29,8 +29,8 @@ static int GetBaseViewId(VideoParameters* p_Vid, sub_sps_t** subset_sps)
     *subset_sps = NULL;
     curr_subset_sps = p_Vid->SubsetSeqParSet;
     for (i = 0; i < MAX_NUM_SPS; i++) {
-        if (curr_subset_sps->num_views_minus1 >= 0 && curr_subset_sps->sps.Valid) {
-            iBaseViewId = curr_subset_sps->view_id[0];
+        if (curr_subset_sps->sps_mvc.views.size() > 0 && curr_subset_sps->sps.Valid) {
+            iBaseViewId = curr_subset_sps->sps_mvc.views[0].view_id;
             break;
         }
         curr_subset_sps++;
@@ -45,25 +45,25 @@ int GetVOIdx(VideoParameters *p_Vid, int iViewId)
 {
     int iVOIdx = -1;
     if (p_Vid->active_subset_sps) {
-        int* piViewIdMap = p_Vid->active_subset_sps->view_id;
-        for (iVOIdx = p_Vid->active_subset_sps->num_views_minus1; iVOIdx >= 0; iVOIdx--) {
-            if (piViewIdMap[iVOIdx] == iViewId)
+        auto& piViewIdMap = p_Vid->active_subset_sps->sps_mvc.views;
+        for (iVOIdx = p_Vid->active_subset_sps->sps_mvc.num_views_minus1; iVOIdx >= 0; iVOIdx--) {
+            if (piViewIdMap[iVOIdx].view_id == iViewId)
                 break;
         }
     } else {
         int i;
         sub_sps_t* curr_subset_sps = p_Vid->SubsetSeqParSet;
         for (i = 0; i < MAX_NUM_SPS; i++) {
-            if (curr_subset_sps->num_views_minus1 >= 0 && curr_subset_sps->sps.Valid)
+            if (curr_subset_sps->sps_mvc.views.size() > 0 && curr_subset_sps->sps.Valid)
                 break;
             curr_subset_sps++;
         }
 
         if (i < MAX_NUM_SPS) {
             p_Vid->active_subset_sps = curr_subset_sps;
-            int* piViewIdMap = p_Vid->active_subset_sps->view_id;
-            for (iVOIdx = p_Vid->active_subset_sps->num_views_minus1; iVOIdx >= 0; iVOIdx--)
-                if (piViewIdMap[iVOIdx] == iViewId)
+            auto& piViewIdMap = p_Vid->active_subset_sps->sps_mvc.views;
+            for (iVOIdx = p_Vid->active_subset_sps->sps_mvc.num_views_minus1; iVOIdx >= 0; iVOIdx--)
+                if (piViewIdMap[iVOIdx].view_id == iViewId)
                     break;
 
             return iVOIdx;
@@ -141,14 +141,14 @@ static int parse_idr(slice_t *currSlice)
                 currSlice->anchor_pic_flag = currSlice->idr_flag;
             }
         } else {
-            assert(p_Vid->active_subset_sps->num_views_minus1 >=0);
+            assert(p_Vid->active_subset_sps->sps_mvc.num_views_minus1 >= 0);
             // prefix NALU available
             if (currSlice->NaluHeaderMVCExt.iPrefixNALU > 0) {
                 currSlice->view_id = currSlice->NaluHeaderMVCExt.view_id;
                 currSlice->inter_view_flag = currSlice->NaluHeaderMVCExt.inter_view_flag;
                 currSlice->anchor_pic_flag = currSlice->NaluHeaderMVCExt.anchor_pic_flag;
             } else { //no prefix NALU;
-                currSlice->view_id = p_Vid->active_subset_sps->view_id[0];
+                currSlice->view_id = p_Vid->active_subset_sps->sps_mvc.views[0].view_id;
                 currSlice->inter_view_flag = 1;
                 currSlice->anchor_pic_flag = currSlice->idr_flag;
             }

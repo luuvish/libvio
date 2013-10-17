@@ -125,9 +125,12 @@ struct data_partition_t : public nal_unit_t {
     void        seq_parameter_set_data(sps_t& sps);
     void        scaling_list(int* scalingList, int sizeOfScalingList, bool* useDefaultScalingMatrixFlag);
     void        seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext);
-    void        seq_parameter_set_svc_extention(sps_svc_t& sps_svc);
-    void        svc_vui_parameters_extention(svc_vui_t& svc_vui);
-    void        subset_seq_parameter_set_rbsp(sub_sps_t& sub_sps);
+    void        seq_parameter_set_svc_extension (sps_svc_t& sps_svc);
+    void        svc_vui_parameters_extension    (svc_vui_t& svc_vui);
+    void        seq_parameter_set_mvc_extension (sps_mvc_t& sps_mvc);
+    void        mvc_vui_parameters_extension    (mvc_vui_t& mvc_vui);
+    void        seq_parameter_set_mvcd_extension(sps_mvcd_t& sps_mvcd);
+    void        subset_seq_parameter_set_rbsp   (sub_sps_t& sub_sps);
 
     void        rbsp_trailing_bits(void);
 };

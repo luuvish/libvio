@@ -24,8 +24,6 @@ enum {
     CHROMA_FORMAT_444 = 3
 };
 
-#define MAX_NUM_HRD_CPB_CNT 32
-
 #define MAX_NUM_REF_FRAMES_IN_POC_CYCLE 256
 #define MAX_NUM_SLICE_GROUPS 8
 
@@ -34,9 +32,12 @@ typedef struct hrd_parameters_t {
     uint8_t     cpb_cnt_minus1;                                       // ue(v)
     uint8_t     bit_rate_scale;                                       // u(4)
     uint8_t     cpb_size_scale;                                       // u(4)
-    uint32_t    bit_rate_value_minus1[MAX_NUM_HRD_CPB_CNT];           // ue(v)
-    uint32_t    cpb_size_value_minus1[MAX_NUM_HRD_CPB_CNT];           // ue(v)
-    bool        cbr_flag             [MAX_NUM_HRD_CPB_CNT];           // u(1)
+    struct cpb_t {
+        uint32_t    bit_rate_value_minus1;                            // ue(v)
+        uint32_t    cpb_size_value_minus1;                            // ue(v)
+        bool        cbr_flag;                                         // u(1)
+    };
+    std::vector<cpb_t> cpbs;
     uint8_t     initial_cpb_removal_delay_length_minus1;              // u(5)
     uint8_t     cpb_removal_delay_length_minus1;                      // u(5)
     uint8_t     dpb_output_delay_length_minus1;                       // u(5)
@@ -210,7 +211,7 @@ typedef struct seq_parameter_set_svc_extension_t {
 
 typedef struct svc_vui_parameters_extension_t {
     uint8_t     vui_ext_num_entries_minus1;                           // ue(v)
-    struct {
+    struct entry_t {
         uint8_t     vui_ext_dependency_id;                            // u(3)
         uint8_t     vui_ext_quality_id;                               // u(4)
         uint8_t     vui_ext_temporal_id;                              // u(3)
@@ -224,60 +225,57 @@ typedef struct svc_vui_parameters_extension_t {
         hrd_t       vui_ext_vcl_parameters;
         bool        vui_ext_low_delay_hrd_flag;                       // u(1)
         bool        vui_ext_pic_struct_present_flag;                  // u(1)
-    } entries[1024];
+    };
+    std::vector<entry_t> entries;
 } svc_vui_t;
 
 typedef struct seq_parameter_set_mvc_extension_t {
     uint32_t    num_views_minus1;                                     // ue(v)
-    struct {
+    struct view_t {
         uint16_t    view_id;                                          // ue(v)
-        uint8_t     num_anchor_refs_l0;                               // ue(v)
-        uint16_t    anchor_ref_l0[15];                                // ue(v)
-        uint8_t     num_anchor_refs_l1;                               // ue(v)
-        uint16_t    anchor_ref_l1[15];                                // ue(v)
-        uint8_t     num_non_anchor_refs_l0;                           // ue(v)
-        uint16_t    non_anchor_ref_l0[15];                            // ue(v)
-        uint8_t     num_non_anchor_refs_l1;                           // ue(v)
-        uint16_t    non_anchor_ref_l1[15];                            // ue(v)
-    } views[1024];
+        uint8_t               num_anchor_refs_l0;                     // ue(v)
+        std::vector<uint16_t> anchor_ref_l0;                          // ue(v)
+        uint8_t               num_anchor_refs_l1;                     // ue(v)
+        std::vector<uint16_t> anchor_ref_l1;                          // ue(v)
+        uint8_t               num_non_anchor_refs_l0;                 // ue(v)
+        std::vector<uint16_t> non_anchor_ref_l0;                      // ue(v)
+        uint8_t               num_non_anchor_refs_l1;                 // ue(v)
+        std::vector<uint16_t> non_anchor_ref_l1;                      // ue(v)
+    };
+    std::vector<view_t> views;
     uint32_t    num_level_values_signalled_minus1;                    // ue(v)
-    struct {
+    struct level_value_t {
         uint8_t     level_idc;                                        // u(8)
         uint16_t    num_applicable_ops_minus1;                        // ue(v)
-        struct {
-            uint8_t     applicable_op_temporal_id;                    // u(3)
-            uint16_t    applicable_op_num_target_views_minus1;        // ue(v)
-            uint16_t    applicable_op_target_view_id[1024];           // ue(v)
-            uint16_t    applicable_op_num_views_minus1;               // ue(v)
-        } applicable_ops[1024];
-    } level_values_signalled[64];
+        struct applicable_op_t {
+            uint8_t            applicable_op_temporal_id;             // u(3)
+            uint16_t           applicable_op_num_target_views_minus1; // ue(v)
+            std::vector<uint16_t> applicable_op_target_view_id;       // ue(v)
+            uint16_t              applicable_op_num_views_minus1;     // ue(v)
+        };
+        std::vector<applicable_op_t> applicable_ops;
+    };
+    std::vector<level_value_t> level_values_signalled;
 } sps_mvc_t;
 
-typedef struct mvc_vui_parameters_t {
-    int         num_ops_minus1;
-    char *      temporal_id;
-    int  *      num_target_output_views_minus1;
-    int **      view_id;
-    char *      timing_info_present_flag;
-    int  *      num_units_in_tick;
-    int  *      time_scale;
-    char *      fixed_frame_rate_flag;
-    char *      nal_hrd_parameters_present_flag;
-    char *      vcl_hrd_parameters_present_flag;
-    char *      low_delay_hrd_flag;
-    char *      pic_struct_present_flag;
-
-    //hrd parameters;
-    char        cpb_cnt_minus1;
-    char        bit_rate_scale;
-    char        cpb_size_scale;
-    int         bit_rate_value_minus1[32];
-    int         cpb_size_value_minus1[32];
-    char        cbr_flag[32];
-    char        initial_cpb_removal_delay_length_minus1;
-    char        cpb_removal_delay_length_minus1;
-    char        dpb_output_delay_length_minus1;
-    char        time_offset_length;
+typedef struct mvc_vui_parameters_extension_t {
+    uint16_t    vui_mvc_num_ops_minus1;                               // ue(v)
+    struct op_t {
+        uint8_t     vui_mvc_temporal_id;                              // u(3)
+        uint16_t    vui_mvc_num_target_output_views_minus1;           // ue(v)
+        std::vector<uint16_t> vui_mvc_view_id;                        // ue(v)
+        bool        vui_mvc_timing_info_present_flag;                 // u(1)
+        uint32_t    vui_mvc_num_units_in_tick;                        // u(32)
+        uint32_t    vui_mvc_time_scale;                               // u(32)
+        bool        vui_mvc_fixed_frame_rate_flag;                    // u(1)
+        bool        vui_mvc_nal_hrd_parameters_present_flag;          // u(1)
+        hrd_t       vui_mvc_nal_hrd_parameters;
+        bool        vui_mvc_vcl_hrd_parameters_present_flag;          // u(1)
+        hrd_t       vui_mvc_vcl_hrd_parameters;
+        bool        vui_mvc_low_delay_hrd_flag;                       // u(1)
+        bool        vui_mvc_pic_struct_present_flag;                  // u(1)
+    };
+    std::vector<op_t> vui_mvc_ops;
 } mvc_vui_t;
 
 typedef struct seq_parameter_set_mvcd_t {
@@ -289,41 +287,17 @@ typedef struct subset_seq_parameter_set_t {
 
     sps_t       sps;
 
-    //sps_svc_t   sps_svc;
+    sps_svc_t   sps_svc;
     bool        svc_vui_parameters_present_flag;                      // u(1)
-    //svc_vui_t   svc_vui_parameters;
+    svc_vui_t   svc_vui_parameters;
 
     bool        bit_equal_to_one;                                     // f(1)
 
-    //sps_mvc_t   sps_mvc;
+    sps_mvc_t   sps_mvc;
     bool        mvc_vui_parameters_present_flag;                      // u(1)
-    //mvc_vui_t   mvc_vui_parameters;
+    mvc_vui_t   mvc_vui_parameters;
 
     sps_mvcd_t  sps_mvcd;
-
-
-// seq_parameter_set_mvc_extension_t
-    int         num_views_minus1;
-    int *       view_id;
-    int *       num_anchor_refs_l0;
-    int**       anchor_ref_l0;
-    int *       num_anchor_refs_l1;
-    int**       anchor_ref_l1;
-
-    int *       num_non_anchor_refs_l0;
-    int**       non_anchor_ref_l0;
-    int *       num_non_anchor_refs_l1;
-    int**       non_anchor_ref_l1;
-   
-    int         num_level_values_signalled_minus1;
-    int  *      level_idc;
-    int  *      num_applicable_ops_minus1;
-    int **      applicable_op_temporal_id;
-    int **      applicable_op_num_target_views_minus1;
-    int***      applicable_op_target_view_id;
-    int **      applicable_op_num_views_minus1;
-
-    mvc_vui_t   MVCVUIParams;
 } sub_sps_t;
 #endif
 
@@ -343,7 +317,7 @@ typedef struct pic_parameter_set_t {
     bool        slice_group_change_direction_flag;                    // u(1)
     uint32_t    slice_group_change_rate_minus1;                       // ue(v)
     uint32_t    pic_size_in_map_units_minus1;                         // ue(v)
-    uint8_t    *slice_group_id;                                       // u(v)
+    uint8_t*    slice_group_id;                                       // u(v)
     uint8_t     num_ref_idx_l0_default_active_minus1;                 // ue(v)
     uint8_t     num_ref_idx_l1_default_active_minus1;                 // ue(v)
     bool        weighted_pred_flag;                                   // u(1)

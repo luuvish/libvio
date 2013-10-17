@@ -115,11 +115,13 @@ void data_partition_t::vui_parameters(vui_t& vui)
 
 void data_partition_t::hrd_parameters(hrd_t& hrd)
 {
+    #define MAX_NUM_HRD_CPB 32
+
     hrd.cpb_cnt_minus1 = this->ue("VUI: cpb_cnt_minus1");
     hrd.bit_rate_scale = this->u(4, "VUI: bit_rate_scale");
     hrd.cpb_size_scale = this->u(4, "VUI: cpb_size_scale");
 
-    assert(hrd.cpb_cnt_minus1 <= 31);
+    assert(hrd.cpb_cnt_minus1 < MAX_NUM_HRD_CPB);
 
     // if (profile_idc == 66, 77, 88)
     //     BitRate[SchedSelIdx] = 1200 * MaxBR;
@@ -128,10 +130,12 @@ void data_partition_t::hrd_parameters(hrd_t& hrd)
     //     BitRate[SchedSelIdx] = cpbBrVcl(Nal)Factor * MaxBR
     //     CpbSize[SchedSelIdx] = cpbBrVcl(Nal)Factor * MaxCPB
 
+    hrd.cpbs = std::vector<hrd_t::cpb_t>(hrd.cpb_cnt_minus1 + 1);
     for (int SchedSelIdx = 0; SchedSelIdx <= hrd.cpb_cnt_minus1; ++SchedSelIdx) {
-        hrd.bit_rate_value_minus1[SchedSelIdx] = this->ue("VUI: bit_rate_value_minus1");
-        hrd.cpb_size_value_minus1[SchedSelIdx] = this->ue("VUI: cpb_size_value_minus1");
-        hrd.cbr_flag             [SchedSelIdx] = this->u(1, "VUI: cbr_flag");
+        hrd_t::cpb_t& cpb = hrd.cpbs[SchedSelIdx];
+        cpb.bit_rate_value_minus1 = this->ue("VUI: bit_rate_value_minus1");
+        cpb.cpb_size_value_minus1 = this->ue("VUI: cpb_size_value_minus1");
+        cpb.cbr_flag              = this->u(1, "VUI: cbr_flag");
         // BitRate[SchedSelIdx] = (bit_rate_value_minus1[SchedSelIdx] + 1) * (1 << (6 + bit_rate_scale));
         // CpbSize[SchedSelIdx] = (cpb_size_value_minus1[SchedSelIdx] + 1) * (1 << (4 + cpb_size_scale));
     }
@@ -424,206 +428,207 @@ void data_partition_t::seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext)
 
 // G.7.3.1.4 Sequence parameter set SVC extension syntax
 
-void data_partition_t::seq_parameter_set_svc_extention(sps_svc_t& sps_svc)
+void data_partition_t::seq_parameter_set_svc_extension(sps_svc_t& sps_svc)
 {
     //to be implemented for Annex G;
 }
 
 // G.14.1 SVC VUI parameters extension syntax
 
-void data_partition_t::svc_vui_parameters_extention(svc_vui_t& svc_vui)
+void data_partition_t::svc_vui_parameters_extension(svc_vui_t& svc_vui)
 {
     //to be implemented for Annex G;
+    #define MAX_NUM_SVC_VUI_ENTRIES 1024
 }
 
 // H.7.3.2.1.4 Sequence parameter set MVC extension syntax
 
-static void seq_parameter_set_mvc_extension(sub_sps_t *subset_sps, data_partition_t *s)
+void data_partition_t::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
 {
-  int i, j, num_views;
+    #define MAX_NUM_SPS_MVC_VIEWS                     1024
+    #define MAX_NUM_SPS_MVC_ANCHOR                      16
+    #define MAX_NUM_SPS_MVC_LEVEL_VALUES_SIGNALLED      64
+    #define MAX_NUM_SPS_MVC_APPLICABLE_OPS            1024
+    #define MAX_NUM_SPS_MVC_APPLICABLE_OP_TARGET_VIEW 1024
 
-    subset_sps->num_views_minus1 = s->ue("num_views_minus1");
-    num_views = subset_sps->num_views_minus1 + 1;
-    if (num_views > 0) {
-        subset_sps->view_id = (int*) calloc(num_views, sizeof(int));
-        subset_sps->num_anchor_refs_l0 = (int*) calloc(num_views, sizeof(int));
-        subset_sps->num_anchor_refs_l1 = (int*) calloc(num_views, sizeof(int));
-        subset_sps->anchor_ref_l0 = (int**) calloc(num_views, sizeof(int*));
-        subset_sps->anchor_ref_l1 = (int**) calloc(num_views, sizeof(int*));
-        subset_sps->num_non_anchor_refs_l0 = (int*) calloc(num_views, sizeof(int));
-        subset_sps->num_non_anchor_refs_l1 = (int*) calloc(num_views, sizeof(int));
-        subset_sps->non_anchor_ref_l0 = (int**) calloc(num_views, sizeof(int*));
-        subset_sps->non_anchor_ref_l1 = (int**) calloc(num_views, sizeof(int*));
-    }
-  for(i=0; i<num_views; i++)
-  {
-    subset_sps->view_id[i] = s->ue("view_id");
-  }
-  for(i=1; i<num_views; i++)
-  {
-    subset_sps->num_anchor_refs_l0[i] = s->ue("num_anchor_refs_l0");
-    if(subset_sps->num_anchor_refs_l0[i]>0)
-    {
-      if ((subset_sps->anchor_ref_l0[i] = (int*) calloc(subset_sps->num_anchor_refs_l0[i], sizeof(int))) == NULL)
-        no_mem_exit("init_subset_seq_parameter_set: subset_sps->anchor_ref_l0[i]");
-      for(j=0; j<subset_sps->num_anchor_refs_l0[i]; j++)
-        subset_sps->anchor_ref_l0[i][j] = s->ue("anchor_ref_l0");
+    sps_mvc.num_views_minus1 = this->ue("num_views_minus1");
+    assert(sps_mvc.num_views_minus1 < MAX_NUM_SPS_MVC_VIEWS);
+    sps_mvc.views = std::vector<sps_mvc_t::view_t>(sps_mvc.num_views_minus1 + 1);
+
+    for (int i = 0; i <= sps_mvc.num_views_minus1; ++i) {
+        sps_mvc.views[i].view_id = this->ue("view_id");
+        assert(sps_mvc.views[i].view_id < MAX_NUM_SPS_MVC_VIEWS);
     }
 
-    subset_sps->num_anchor_refs_l1[i] = s->ue("num_anchor_refs_l1");
-    if(subset_sps->num_anchor_refs_l1[i]>0)
-    {
-      if ((subset_sps->anchor_ref_l1[i] = (int*) calloc(subset_sps->num_anchor_refs_l1[i], sizeof(int))) == NULL)
-        no_mem_exit("init_subset_seq_parameter_set: subset_sps->anchor_ref_l1[i]");
-      for(j=0; j<subset_sps->num_anchor_refs_l1[i]; j++)
-        subset_sps->anchor_ref_l1[i][j] = s->ue("anchor_ref_l1");
-    }
-  }
-  for(i=1; i<num_views; i++)
-  {
-    subset_sps->num_non_anchor_refs_l0[i] = s->ue("num_non_anchor_refs_l0");
-    if(subset_sps->num_non_anchor_refs_l0[i]>0)
-    {
-      if ((subset_sps->non_anchor_ref_l0[i] = (int*) calloc(subset_sps->num_non_anchor_refs_l0[i], sizeof(int))) == NULL)
-        no_mem_exit("init_subset_seq_parameter_set: subset_sps->non_anchor_ref_l0[i]");
-      for(j=0; j<subset_sps->num_non_anchor_refs_l0[i]; j++)
-        subset_sps->non_anchor_ref_l0[i][j] = s->ue("non_anchor_ref_l0");
-    }
-    subset_sps->num_non_anchor_refs_l1[i] = s->ue("num_non_anchor_refs_l1");
-    if(subset_sps->num_non_anchor_refs_l1[i]>0)
-    {
-      if ((subset_sps->non_anchor_ref_l1[i] = (int*) calloc(subset_sps->num_non_anchor_refs_l1[i], sizeof(int))) == NULL)
-        no_mem_exit("init_subset_seq_parameter_set: subset_sps->non_anchor_ref_l1[i]");
-      for(j=0; j<subset_sps->num_non_anchor_refs_l1[i]; j++)
-        subset_sps->non_anchor_ref_l1[i][j] = s->ue("non_anchor_ref_l1");
-    }
-  }
-  subset_sps->num_level_values_signalled_minus1 = s->ue("num_level_values_signalled_minus1");
-  if(subset_sps->num_level_values_signalled_minus1 >=0)
-  {
-    i = 1+ subset_sps->num_level_values_signalled_minus1;
-    if ((subset_sps->level_idc = (int*) calloc(i, sizeof(int))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->level_idc");
-    if ((subset_sps->num_applicable_ops_minus1 = (int*) calloc(i, sizeof(int))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->num_applicable_ops_minus1");
-    if ((subset_sps->applicable_op_temporal_id = (int**) calloc(i, sizeof(int*))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->applicable_op_temporal_id");
-    if ((subset_sps->applicable_op_num_target_views_minus1 = (int**) calloc(i, sizeof(int*))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->applicable_op_num_target_views_minus1");
-    if ((subset_sps->applicable_op_target_view_id = (int***) calloc(i, sizeof(int**))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->applicable_op_target_view_id");
-    if ((subset_sps->applicable_op_num_views_minus1 = (int**) calloc(i, sizeof(int*))) == NULL)
-      no_mem_exit("init_subset_seq_parameter_set: subset_sps->applicable_op_num_views_minus1");
-  }
-  for(i=0; i<=subset_sps->num_level_values_signalled_minus1; i++)
-  {
-    subset_sps->level_idc[i] = s->u(8, "level_idc");
-    subset_sps->num_applicable_ops_minus1[i] = s->ue("num_applicable_ops_minus1");
-    if(subset_sps->num_applicable_ops_minus1[i]>=0)
-    {
-      if ((subset_sps->applicable_op_temporal_id[i] = (int*) calloc(1+subset_sps->num_applicable_ops_minus1[i], sizeof(int))) == NULL)
-        no_mem_exit("init_subset_seq_parameter_set: subset_sps->applicable_op_temporal_id[i]");
-      if ((subset_sps->applicable_op_num_target_views_minus1[i] = (int*) calloc(1+subset_sps->num_applicable_ops_minus1[i], sizeof(int))) == NULL)
-        no_mem_exit("init_subset_seq_parameter_set: subset_sps->applicable_op_num_target_views_minus1[i]");
-      if ((subset_sps->applicable_op_target_view_id[i] = (int**) calloc(1+subset_sps->num_applicable_ops_minus1[i], sizeof(int *))) == NULL)
-        no_mem_exit("init_subset_seq_parameter_set: subset_sps->applicable_op_target_view_id[i]");
-      if ((subset_sps->applicable_op_num_views_minus1[i] = (int*) calloc(1+subset_sps->num_applicable_ops_minus1[i], sizeof(int))) == NULL)
-        no_mem_exit("init_subset_seq_parameter_set: subset_sps->applicable_op_num_views_minus1[i]");
+    for (int i = 1; i <= sps_mvc.num_views_minus1; ++i) {
+        sps_mvc_t::view_t& view = sps_mvc.views[i];
 
-      for(j=0; j<=subset_sps->num_applicable_ops_minus1[i]; j++)
-      {
-        int k;
-        subset_sps->applicable_op_temporal_id[i][j] = s->u(3, "applicable_op_temporal_id");
-        subset_sps->applicable_op_num_target_views_minus1[i][j] = s->ue("applicable_op_num_target_views_minus1");
-        if(subset_sps->applicable_op_num_target_views_minus1[i][j]>=0)
-        {
-          if ((subset_sps->applicable_op_target_view_id[i][j] = (int*) calloc(1+subset_sps->applicable_op_num_target_views_minus1[i][j], sizeof(int))) == NULL)
-            no_mem_exit("init_subset_seq_parameter_set: subset_sps->applicable_op_target_view_id[i][j]");
-          for(k = 0; k <= subset_sps->applicable_op_num_target_views_minus1[i][j]; k++)
-            subset_sps->applicable_op_target_view_id[i][j][k] = s->ue("applicable_op_target_view_id");
+        view.num_anchor_refs_l0 = this->ue("num_anchor_refs_l0");
+        assert(view.num_anchor_refs_l0 <= min<int>(15, sps_mvc.num_views_minus1));
+        if (view.num_anchor_refs_l0 > 0) {
+            view.anchor_ref_l0 = std::vector<uint16_t>(view.num_anchor_refs_l0);
+            for (int j = 0; j < view.num_anchor_refs_l0; ++j) {
+                view.anchor_ref_l0[j] = this->ue("anchor_ref_l0");
+                assert(view.anchor_ref_l0[j] < MAX_NUM_SPS_MVC_VIEWS);
+            }
         }
-        subset_sps->applicable_op_num_views_minus1[i][j] = s->ue("applicable_op_num_views_minus1");
-      }
+
+        view.num_anchor_refs_l1 = this->ue("num_anchor_refs_l1");
+        assert(view.num_anchor_refs_l1 <= min<int>(15, sps_mvc.num_views_minus1));
+        if (view.num_anchor_refs_l1 > 0) {
+            view.anchor_ref_l1 = std::vector<uint16_t>(view.num_anchor_refs_l1);
+            for (int j = 0; j < view.num_anchor_refs_l1; ++j) {
+                view.anchor_ref_l1[j] = this->ue("anchor_ref_l1");
+                assert(view.anchor_ref_l1[j] < MAX_NUM_SPS_MVC_VIEWS);
+            }
+        }
     }
-  }
+
+    for (int i = 1; i <= sps_mvc.num_views_minus1; ++i) {
+        sps_mvc_t::view_t& view = sps_mvc.views[i];
+
+        view.num_non_anchor_refs_l0 = this->ue("num_non_anchor_refs_l0");
+        assert(view.num_non_anchor_refs_l0 <= min<int>(15, sps_mvc.num_views_minus1));
+        if (view.num_non_anchor_refs_l0 > 0) {
+            view.non_anchor_ref_l0 = std::vector<uint16_t>(view.num_non_anchor_refs_l0);
+            for (int j = 0; j < view.num_non_anchor_refs_l0; ++j) {
+                view.non_anchor_ref_l0[j] = this->ue("non_anchor_ref_l0");
+                assert(view.non_anchor_ref_l0[j] < MAX_NUM_SPS_MVC_VIEWS);
+            }
+        }
+
+        view.num_non_anchor_refs_l1 = this->ue("num_non_anchor_refs_l1");
+        assert(view.num_non_anchor_refs_l1 <= min<int>(15, sps_mvc.num_views_minus1));
+        if (view.num_non_anchor_refs_l1 > 0) {
+            view.non_anchor_ref_l1 = std::vector<uint16_t>(view.num_non_anchor_refs_l1);
+            for (int j = 0; j < view.num_non_anchor_refs_l1; ++j) {
+                view.non_anchor_ref_l1[j] = this->ue("non_anchor_ref_l1");
+                assert(view.non_anchor_ref_l1[j] < MAX_NUM_SPS_MVC_VIEWS);
+            }
+        }
+    }
+
+    sps_mvc.num_level_values_signalled_minus1 = this->ue("num_level_values_signalled_minus1");
+    assert(sps_mvc.num_level_values_signalled_minus1 < MAX_NUM_SPS_MVC_LEVEL_VALUES_SIGNALLED);
+    sps_mvc.level_values_signalled =
+        std::vector<sps_mvc_t::level_value_t>(sps_mvc.num_level_values_signalled_minus1 + 1);
+
+    for (int i = 0; i <= sps_mvc.num_level_values_signalled_minus1; ++i) {
+        sps_mvc_t::level_value_t& level_value = sps_mvc.level_values_signalled[i];
+        level_value.level_idc                 = this->u(8, "level_idc");
+        level_value.num_applicable_ops_minus1 = this->ue("num_applicable_ops_minus1");
+        assert(level_value.num_applicable_ops_minus1 < MAX_NUM_SPS_MVC_APPLICABLE_OPS);
+        level_value.applicable_ops = std::vector<sps_mvc_t::level_value_t::applicable_op_t>
+                                                (level_value.num_applicable_ops_minus1 + 1);
+
+        for (int j = 0; j <= level_value.num_applicable_ops_minus1; ++j) {
+            sps_mvc_t::level_value_t::applicable_op_t& applicable_op = level_value.applicable_ops[j];
+            applicable_op.applicable_op_temporal_id = this->u(3, "applicable_op_temporal_id");
+            applicable_op.applicable_op_num_target_views_minus1 = this->ue("applicable_op_num_target_views_minus1");
+            assert(applicable_op.applicable_op_num_target_views_minus1 < MAX_NUM_SPS_MVC_APPLICABLE_OP_TARGET_VIEW);
+            applicable_op.applicable_op_target_view_id =
+                std::vector<uint16_t>(applicable_op.applicable_op_num_target_views_minus1 + 1);
+            for (int k = 0; k <= applicable_op.applicable_op_num_target_views_minus1; ++k) {
+                applicable_op.applicable_op_target_view_id[k] = this->ue("applicable_op_target_view_id");
+                assert(applicable_op.applicable_op_target_view_id[k] < MAX_NUM_SPS_MVC_APPLICABLE_OP_TARGET_VIEW);
+            }
+            applicable_op.applicable_op_num_views_minus1 = this->ue("applicable_op_num_views_minus1");
+            assert(applicable_op.applicable_op_num_views_minus1 < MAX_NUM_SPS_MVC_APPLICABLE_OP_TARGET_VIEW);
+        }
+    }
+}
+
+// H.14.1 MVC VUI parameters extension syntax
+
+void data_partition_t::mvc_vui_parameters_extension(mvc_vui_t& mvc_vui)
+{
+    #define MAX_NUM_MVC_VUI_OPS   1024
+    #define MAX_NUM_MVC_VUI_VIEWS 1024
+
+    mvc_vui.vui_mvc_num_ops_minus1 = this->ue("vui_mvc_num_ops_minus1");
+    assert(mvc_vui.vui_mvc_num_ops_minus1 < MAX_NUM_MVC_VUI_OPS);
+    mvc_vui.vui_mvc_ops = std::vector<mvc_vui_t::op_t>(mvc_vui.vui_mvc_num_ops_minus1 + 1);
+
+    for (int i = 0; i <= mvc_vui.vui_mvc_num_ops_minus1; ++i) {
+        mvc_vui_t::op_t& vui_mvc_op = mvc_vui.vui_mvc_ops[i];
+
+        vui_mvc_op.vui_mvc_temporal_id = this->u(3, "vui_mvc_temporal_id");
+        vui_mvc_op.vui_mvc_num_target_output_views_minus1 = this->ue("vui_mvc_num_target_output_views_minus1");
+        assert(vui_mvc_op.vui_mvc_num_target_output_views_minus1 < MAX_NUM_MVC_VUI_VIEWS);
+        vui_mvc_op.vui_mvc_view_id = std::vector<uint16_t>(vui_mvc_op.vui_mvc_num_target_output_views_minus1 + 1);
+
+        for (int j = 0; j <= vui_mvc_op.vui_mvc_num_target_output_views_minus1; ++j) {
+            vui_mvc_op.vui_mvc_view_id[j] = this->ue("vui_mvc_view_id");
+            assert(vui_mvc_op.vui_mvc_view_id[j] < MAX_NUM_MVC_VUI_VIEWS);
+        }
+
+        vui_mvc_op.vui_mvc_timing_info_present_flag = this->u(1, "vui_mvc_timing_info_present_flag");
+        if (vui_mvc_op.vui_mvc_timing_info_present_flag) {
+            vui_mvc_op.vui_mvc_num_units_in_tick     = this->u(32, "vui_mvc_num_units_in_tick");
+            vui_mvc_op.vui_mvc_time_scale            = this->u(32, "vui_mvc_time_scale");
+            vui_mvc_op.vui_mvc_fixed_frame_rate_flag = this->u(1, "vui_mvc_fixed_frame_rate_flag");
+        }
+
+        vui_mvc_op.vui_mvc_nal_hrd_parameters_present_flag = this->u(1, "vui_mvc_nal_hrd_parameters_present_flag");
+        if (vui_mvc_op.vui_mvc_nal_hrd_parameters_present_flag)
+            this->hrd_parameters(vui_mvc_op.vui_mvc_nal_hrd_parameters);
+        vui_mvc_op.vui_mvc_vcl_hrd_parameters_present_flag = this->u(1, "vui_mvc_vcl_hrd_parameters_present_flag");
+        if (vui_mvc_op.vui_mvc_vcl_hrd_parameters_present_flag)
+            this->hrd_parameters(vui_mvc_op.vui_mvc_vcl_hrd_parameters);
+        if (vui_mvc_op.vui_mvc_nal_hrd_parameters_present_flag ||
+            vui_mvc_op.vui_mvc_vcl_hrd_parameters_present_flag)
+            vui_mvc_op.vui_mvc_low_delay_hrd_flag = this->u(1, "vui_mvc_low_delay_hrd_flag");
+        vui_mvc_op.vui_mvc_pic_struct_present_flag = this->u(1, "vui_mvc_pic_struct_present_flag");
+    }
+}
+
+// I.7.3.2.1.5 Sequence parameter set MVCD extension syntax
+
+void data_partition_t::seq_parameter_set_mvcd_extension(sps_mvcd_t& sps_mvcd)
+{
+    //to be implemented for Annex I;
 }
 
 // 7.3.2.1.3 Subset sequence parameter set RBSP syntax
 
-static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, int *curr_seq_set_id);
-static void mvc_vui_parameters_extension(mvc_vui_t *pMVCVUI, data_partition_t *s);
-
-void ProcessSubsetSPS(VideoParameters *p_Vid, nal_unit_t *nalu)
+static void subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, int *curr_seq_set_id)
 {
-    data_partition_t *dp = new data_partition_t { *nalu };
-    sub_sps_t *subset_sps;
-    int curr_seq_set_id;
-
-    subset_seq_parameter_set_rbsp(p_Vid, dp, &curr_seq_set_id);
-
-    subset_sps = p_Vid->SubsetSeqParSet + curr_seq_set_id;
-    //get_max_dec_frame_buf_size(&(subset_sps->sps));
-    //check capability;
-    if (subset_sps->num_views_minus1 > 1) {
-        printf("Warning: num_views:%d is greater than 2, only decode baselayer!\n", subset_sps->num_views_minus1+1);
-        subset_sps->Valid = 0;
-        subset_sps->sps.Valid = 0;
-        p_Vid->p_Inp->DecodeAllLayers = 0;
-    } else if (subset_sps->num_views_minus1==1 && (subset_sps->view_id[0]!=0 || subset_sps->view_id[1]!=1))
-        p_Vid->OpenOutputFiles(subset_sps->view_id[0], subset_sps->view_id[1]);
-
-    if (subset_sps->Valid)
-        p_Vid->profile_idc = subset_sps->sps.profile_idc;
-
-    delete dp;
-}
-
-static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_t *s, int *curr_seq_set_id)
-{
-    sub_sps_t *subset_sps;
-    bool additional_extension2_flag;
-    bool additional_extension2_data_flag;
-    sps_t *sps = new sps_t;
-    if (!sps)
-        no_mem_exit ("AllocSPS: SPS");
-
-    assert(s != NULL);
-    assert(s->rbsp_byte != 0);
+    sps_t* sps = new sps_t;
 
     s->seq_parameter_set_rbsp(*sps);
 
     *curr_seq_set_id = sps->seq_parameter_set_id;
-    subset_sps = p_Vid->SubsetSeqParSet + sps->seq_parameter_set_id;
-    if (subset_sps->Valid || subset_sps->num_views_minus1>=0) {
+    sub_sps_t* subset_sps = p_Vid->SubsetSeqParSet + sps->seq_parameter_set_id;
+    if (subset_sps->Valid) {
         if (memcmp(&subset_sps->sps, sps, sizeof (sps_t)-sizeof(int)))
             assert(0);
         reset_subset_sps(subset_sps);
     }
     memcpy(&subset_sps->sps, sps, sizeof (sps_t));
 
-    assert (subset_sps != NULL);
     subset_sps->Valid = false;
 
     if (subset_sps->sps.profile_idc == 83 || subset_sps->sps.profile_idc == 86) {
-
-    } else if (subset_sps->sps.profile_idc == MVC_HIGH ||
-               subset_sps->sps.profile_idc == STEREO_HIGH) {
+        s->seq_parameter_set_svc_extension(subset_sps->sps_svc);
+        subset_sps->svc_vui_parameters_present_flag = s->u(1, "svc_vui_parameters_present_flag");
+        if (subset_sps->svc_vui_parameters_present_flag)
+            s->svc_vui_parameters_extension(subset_sps->svc_vui_parameters);
+    } else if (subset_sps->sps.profile_idc == 118 || subset_sps->sps.profile_idc == 128) {
         subset_sps->bit_equal_to_one = s->u(1, "bit_equal_to_one");
-
-        if (subset_sps->bit_equal_to_one != 1) {
-            printf("\nbit_equal_to_one is not equal to 1!\n");
-            return 0;
-        }
-
-        seq_parameter_set_mvc_extension(subset_sps, s);
-
+        assert(subset_sps->bit_equal_to_one == 1);
+        s->seq_parameter_set_mvc_extension(subset_sps->sps_mvc);
         subset_sps->mvc_vui_parameters_present_flag = s->u(1, "mvc_vui_parameters_present_flag");
         if (subset_sps->mvc_vui_parameters_present_flag)
-            mvc_vui_parameters_extension(&subset_sps->MVCVUIParams, s);
+            s->mvc_vui_parameters_extension(subset_sps->mvc_vui_parameters);
+    } else if (subset_sps->sps.profile_idc == 138) {
+        subset_sps->bit_equal_to_one = s->u(1, "bit_equal_to_one");
+        assert(subset_sps->bit_equal_to_one == 1);
+        s->seq_parameter_set_mvcd_extension(subset_sps->sps_mvcd);
     }
 
-    additional_extension2_flag = s->u(1, "additional_extension2_flag");
+    bool additional_extension2_flag = s->u(1, "additional_extension2_flag");
     if (additional_extension2_flag) {
+        bool additional_extension2_data_flag;
         while (s->more_rbsp_data())
             additional_extension2_data_flag = s->u(1, "additional_extension2_flag");
     }
@@ -632,9 +637,37 @@ static int subset_seq_parameter_set_rbsp(VideoParameters *p_Vid, data_partition_
         subset_sps->Valid = true;
 
     delete sps;
-    return 0;
 }
+
+void ProcessSubsetSPS(VideoParameters *p_Vid, nal_unit_t *nalu)
+{
+    data_partition_t *dp = new data_partition_t { *nalu };
+    int curr_seq_set_id;
+
+    subset_seq_parameter_set_rbsp(p_Vid, dp, &curr_seq_set_id);
+
+    sub_sps_t* subset_sps = p_Vid->SubsetSeqParSet + curr_seq_set_id;
+    //get_max_dec_frame_buf_size(&(subset_sps->sps));
+    //check capability;
+    if (subset_sps->sps_mvc.num_views_minus1 > 1) {
+        printf("Warning: num_views:%d is greater than 2, only decode baselayer!\n",
+                subset_sps->sps_mvc.num_views_minus1 + 1);
+        subset_sps->Valid = 0;
+        subset_sps->sps.Valid = 0;
+        p_Vid->p_Inp->DecodeAllLayers = 0;
+    } else if (subset_sps->sps_mvc.num_views_minus1 == 1 &&
+        (subset_sps->sps_mvc.views[0].view_id != 0 || subset_sps->sps_mvc.views[1].view_id != 1))
+        p_Vid->OpenOutputFiles(subset_sps->sps_mvc.views[0].view_id, subset_sps->sps_mvc.views[1].view_id);
+
+    if (subset_sps->Valid)
+        p_Vid->profile_idc = subset_sps->sps.profile_idc;
+
+    delete dp;
+}
+
 #endif
+
+
 
 // 7.3.2.2 Picture parameter set RBSP syntax
 
@@ -754,91 +787,6 @@ void data_partition_t::rbsp_trailing_bits(void)
     while (!this->byte_aligned())
         rbsp_alignment_zero_bit = this->f(1);
 }
-
-// fill subset_sps with content of p
-#if (MVC_EXTENSION_ENABLE)
-
-
-
-static int MemAlloc1D(void** ppBuf, int iEleSize, int iNum)
-{
-  if(iEleSize*iNum <=0)
-    return 1;
-
-  *ppBuf = calloc(iNum, iEleSize);
-  return (*ppBuf == NULL);
-}
-
-static void mvc_hrd_parameters(mvc_vui_t *pMVCVUI, data_partition_t *s)
-{
-  int i;
-
-  pMVCVUI->cpb_cnt_minus1 = (char) s->ue("cpb_cnt_minus1");
-  assert(pMVCVUI->cpb_cnt_minus1<=31);
-  pMVCVUI->bit_rate_scale = (char) s->u(4, "bit_rate_scale");
-  pMVCVUI->cpb_size_scale = (char) s->u(4, "cpb_size_scale");
-  for(i=0; i<=pMVCVUI->cpb_cnt_minus1; i++)
-  {
-    pMVCVUI->bit_rate_value_minus1[i] = s->ue("bit_rate_value_minus1");
-    pMVCVUI->cpb_size_value_minus1[i] = s->ue("cpb_size_value_minus1");
-    pMVCVUI->cbr_flag[i]              = s->u(1, "cbr_flag");
-  }
-  pMVCVUI->initial_cpb_removal_delay_length_minus1 = (char) s->u(5, "initial_cpb_removal_delay_length_minus1");
-  pMVCVUI->cpb_removal_delay_length_minus1         = (char) s->u(5, "cpb_removal_delay_length_minus1");
-  pMVCVUI->dpb_output_delay_length_minus1          = (char) s->u(5, "dpb_output_delay_length_minus1");
-  pMVCVUI->time_offset_length                      = (char) s->u(5, "time_offset_length");
-
-}
-
-static void mvc_vui_parameters_extension(mvc_vui_t *pMVCVUI, data_partition_t *s)
-{
-  int i, j, iNumOps;
-
-  pMVCVUI->num_ops_minus1 = s->ue("vui_mvc_num_ops_minus1");
-  iNumOps = 1+ pMVCVUI->num_ops_minus1;
-  if(iNumOps > 0)
-  {
-    MemAlloc1D((void **)&(pMVCVUI->temporal_id), sizeof(pMVCVUI->temporal_id[0]), iNumOps);
-    MemAlloc1D((void **)&(pMVCVUI->num_target_output_views_minus1), sizeof(pMVCVUI->num_target_output_views_minus1[0]), iNumOps);
-    if ((pMVCVUI->view_id = (int**) calloc(iNumOps, sizeof(int*))) == NULL)
-      no_mem_exit("mvc_vui_parameters_extension: pMVCVUI->view_id");
-    MemAlloc1D((void **)&(pMVCVUI->timing_info_present_flag), sizeof(pMVCVUI->timing_info_present_flag[0]), iNumOps);
-    MemAlloc1D((void **)&(pMVCVUI->num_units_in_tick), sizeof(pMVCVUI->num_units_in_tick[0]), iNumOps);
-    MemAlloc1D((void **)&(pMVCVUI->time_scale), sizeof(pMVCVUI->time_scale[0]), iNumOps);
-    MemAlloc1D((void **)&(pMVCVUI->fixed_frame_rate_flag), sizeof(pMVCVUI->fixed_frame_rate_flag[0]), iNumOps);
-    MemAlloc1D((void **)&(pMVCVUI->nal_hrd_parameters_present_flag), sizeof(pMVCVUI->nal_hrd_parameters_present_flag[0]), iNumOps);
-    MemAlloc1D((void **)&(pMVCVUI->vcl_hrd_parameters_present_flag), sizeof(pMVCVUI->vcl_hrd_parameters_present_flag[0]), iNumOps);
-    MemAlloc1D((void **)&(pMVCVUI->low_delay_hrd_flag), sizeof(pMVCVUI->low_delay_hrd_flag[0]), iNumOps);
-    MemAlloc1D((void **)&(pMVCVUI->pic_struct_present_flag), sizeof(pMVCVUI->pic_struct_present_flag[0]), iNumOps);
-
-    for(i=0; i<iNumOps; i++)
-    {
-      pMVCVUI->temporal_id[i] = (char) s->u(3, "vui_mvc_temporal_id");
-      pMVCVUI->num_target_output_views_minus1[i] = s->ue("vui_mvc_num_target_output_views_minus1");
-      if(pMVCVUI->num_target_output_views_minus1[i] >= 0)
-        MemAlloc1D((void **)&(pMVCVUI->view_id[i]), sizeof(pMVCVUI->view_id[0][0]), pMVCVUI->num_target_output_views_minus1[i]+1);
-      for(j=0; j<=pMVCVUI->num_target_output_views_minus1[i]; j++)
-        pMVCVUI->view_id[i][j] = s->ue("vui_mvc_view_id");
-      pMVCVUI->timing_info_present_flag[i] = (char) s->u(1, "vui_mvc_timing_info_present_flag");
-      if(pMVCVUI->timing_info_present_flag[i])
-      {
-        pMVCVUI->num_units_in_tick[i]     = s->u(32, "vui_mvc_num_units_in_tick");
-        pMVCVUI->time_scale[i]            = s->u(32, "vui_mvc_time_scale");
-        pMVCVUI->fixed_frame_rate_flag[i] = s->u(1, "vui_mvc_fixed_frame_rate_flag");
-      }
-      pMVCVUI->nal_hrd_parameters_present_flag[i] = (char) s->u(1, "vui_mvc_nal_hrd_parameters_present_flag");
-      if(pMVCVUI->nal_hrd_parameters_present_flag[i])
-        mvc_hrd_parameters(pMVCVUI, s);
-      pMVCVUI->vcl_hrd_parameters_present_flag[i] = (char) s->u(1, "vcl_hrd_parameters_present_flag");
-      if(pMVCVUI->vcl_hrd_parameters_present_flag[i])
-        mvc_hrd_parameters(pMVCVUI, s);
-      if(pMVCVUI->nal_hrd_parameters_present_flag[i]||pMVCVUI->vcl_hrd_parameters_present_flag[i])
-        pMVCVUI->low_delay_hrd_flag[i]    = (char) s->u(1, "vui_mvc_low_delay_hrd_flag");
-      pMVCVUI->pic_struct_present_flag[i] = (char) s->u(1, "vui_mvc_pic_struct_present_flag");
-    }
-  }
-}
-#endif
 
 
 #if (MVC_EXTENSION_ENABLE)
@@ -1063,101 +1011,24 @@ void init_subset_sps_list(sub_sps_t *subset_sps_list, int iSize)
   for(i=0; i<iSize; i++)
   {
     subset_sps_list[i].sps.seq_parameter_set_id = -1;
-    subset_sps_list[i].num_views_minus1 = -1;
-    subset_sps_list[i].num_level_values_signalled_minus1 = -1;
-    subset_sps_list[i].MVCVUIParams.num_ops_minus1 = -1;
+    subset_sps_list[i].sps_mvc.num_views_minus1 = -1;
+    subset_sps_list[i].sps_mvc.num_level_values_signalled_minus1 = -1;
+    subset_sps_list[i].mvc_vui_parameters.vui_mvc_num_ops_minus1 = -1;
   }
 }
 
-
-static inline void free_pointer(void *pointer)
-{
-  if (pointer != NULL)
-  {
-    free(pointer);
-    pointer = NULL;
-  }
-}
 
 void reset_subset_sps(sub_sps_t *subset_sps)
 {
-  int i, j;
+    if (subset_sps) {
+        subset_sps->sps_mvc.num_views_minus1 = -1;
+        subset_sps->sps_mvc.views.clear();
+        subset_sps->sps_mvc.num_level_values_signalled_minus1 = -1;
+        subset_sps->sps_mvc.level_values_signalled.clear();
 
-  if(subset_sps && subset_sps->num_views_minus1>=0)
-  {
-    subset_sps->sps.seq_parameter_set_id = -1;
-
-    free_pointer(subset_sps->view_id);
-    for(i=0; i<=subset_sps->num_views_minus1; i++)
-    {
-      free_pointer(subset_sps->anchor_ref_l0[i]);
-      free_pointer(subset_sps->anchor_ref_l1[i]);
+        subset_sps->mvc_vui_parameters.vui_mvc_num_ops_minus1 = -1;
+        subset_sps->mvc_vui_parameters.vui_mvc_ops.clear();
     }
-    free_pointer(subset_sps->anchor_ref_l0);
-    free_pointer(subset_sps->anchor_ref_l1);
-    free_pointer(subset_sps->num_anchor_refs_l0);
-    free_pointer(subset_sps->num_anchor_refs_l1);
-
-    for(i=0; i<=subset_sps->num_views_minus1; i++)
-    {
-      free_pointer(subset_sps->non_anchor_ref_l0[i]);
-      free_pointer(subset_sps->non_anchor_ref_l1[i]);
-    }
-    free_pointer(subset_sps->non_anchor_ref_l0);
-    free_pointer(subset_sps->non_anchor_ref_l1);
-    free_pointer(subset_sps->num_non_anchor_refs_l0);
-    free_pointer(subset_sps->num_non_anchor_refs_l1);
-
-    if(subset_sps->num_level_values_signalled_minus1 >= 0)
-    {
-      free_pointer(subset_sps->level_idc);
-      for(i=0; i<=subset_sps->num_level_values_signalled_minus1; i++)
-      {
-        for(j=0; j<=subset_sps->num_applicable_ops_minus1[i]; j++)
-        {
-          free_pointer(subset_sps->applicable_op_target_view_id[i][j]);
-        }
-        free_pointer(subset_sps->applicable_op_target_view_id[i]);
-        free_pointer(subset_sps->applicable_op_temporal_id[i]);
-        free_pointer(subset_sps->applicable_op_num_target_views_minus1[i]);
-        free_pointer(subset_sps->applicable_op_num_views_minus1[i]);
-      }
-      free_pointer(subset_sps->applicable_op_target_view_id);
-      free_pointer(subset_sps->applicable_op_temporal_id);
-      free_pointer(subset_sps->applicable_op_num_target_views_minus1);
-      free_pointer(subset_sps->applicable_op_num_views_minus1);      
-      free_pointer(subset_sps->num_applicable_ops_minus1);
-
-      subset_sps->num_level_values_signalled_minus1 = -1;
-    }
-
-    //end;
-    subset_sps->num_views_minus1 = -1;
-  }
-
-  if(subset_sps && subset_sps->mvc_vui_parameters_present_flag)
-  {
-    mvc_vui_t *pMVCVUI = &(subset_sps->MVCVUIParams);
-    if(pMVCVUI->num_ops_minus1 >=0)
-    {
-      free_pointer(pMVCVUI->temporal_id);
-      free_pointer(pMVCVUI->num_target_output_views_minus1);
-      for(i=0; i<=pMVCVUI->num_ops_minus1; i++)
-        free_pointer(pMVCVUI->view_id[i]);
-      free_pointer(pMVCVUI->view_id);
-      free_pointer(pMVCVUI->timing_info_present_flag);
-      free_pointer(pMVCVUI->num_units_in_tick);
-      free_pointer(pMVCVUI->time_scale);
-      free_pointer(pMVCVUI->fixed_frame_rate_flag);
-      free_pointer(pMVCVUI->nal_hrd_parameters_present_flag);
-      free_pointer(pMVCVUI->vcl_hrd_parameters_present_flag);
-      free_pointer(pMVCVUI->low_delay_hrd_flag);
-      free_pointer(pMVCVUI->pic_struct_present_flag);
-
-      pMVCVUI->num_ops_minus1 = -1;
-    }
-    subset_sps->mvc_vui_parameters_present_flag = 0;
-  }
 }
 
 #endif

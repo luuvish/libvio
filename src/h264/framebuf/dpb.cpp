@@ -109,7 +109,7 @@ int getDpbSize(VideoParameters* p_Vid, sps_t* active_sps)
     size /= pic_size;
 #if MVC_EXTENSION_ENABLE
     if (p_Vid->profile_idc == MVC_HIGH || p_Vid->profile_idc == STEREO_HIGH) {
-        int num_views = p_Vid->active_subset_sps->num_views_minus1+1;
+        int num_views = p_Vid->active_subset_sps->sps_mvc.num_views_minus1 + 1;
         size = min(2 * size, max<int>(1, round(log2(num_views))) * 16) / num_views;
     } else
 #endif
