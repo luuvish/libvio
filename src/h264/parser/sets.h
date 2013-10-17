@@ -1,9 +1,61 @@
+/*
+ * =============================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * =============================================================================
+ *
+ *  File      : sets.h
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * =============================================================================
+ */
+
 #ifndef __VIO_H264_SETS_H__
 #define __VIO_H264_SETS_H__
 
-
 #include <cstdint>
 #include <vector>
+
+
+//AVC Profile IDC definitions
+enum {
+    FREXT_CAVLC444 = 44,       //!< YUV 4:4:4/14 "CAVLC 4:4:4"
+    BASELINE       = 66,       //!< YUV 4:2:0/8  "Baseline"
+    MAIN           = 77,       //!< YUV 4:2:0/8  "Main"
+    EXTENDED       = 88,       //!< YUV 4:2:0/8  "Extended"
+    FREXT_HP       = 100,      //!< YUV 4:2:0/8  "High"
+    FREXT_Hi10P    = 110,      //!< YUV 4:2:0/10 "High 10"
+    FREXT_Hi422    = 122,      //!< YUV 4:2:2/10 "High 4:2:2"
+    FREXT_Hi444    = 244,      //!< YUV 4:4:4/14 "High 4:4:4"
+    MVC_HIGH       = 118,      //!< YUV 4:2:0/8  "Multiview High"
+    STEREO_HIGH    = 128       //!< YUV 4:2:0/8  "Stereo High"
+};
+
+// A.2 Profiles
+enum {
+    CAVLC444_Profile =  44,
+    Baseline_Profile =  66,
+    Main_Profile     =  77,
+    Extended_Profile =  88,
+    High_Profile     = 100,
+    High10_Profile   = 110,
+    High422_Profile  = 122,
+    High444_Profile  = 244
+};
+
+namespace vio  {
+namespace h264 {
 
 
 #define MAX_NUM_SPS  32
@@ -18,6 +70,63 @@ enum {
 
 #define MAX_NUM_SLICE_GROUPS 8
 #define MAX_NUM_REF_IDX 32
+
+
+struct nal_unit_t {
+    static const uint32_t MAX_NAL_UNIT_SIZE = 8000000;
+
+    enum {
+        NALU_TYPE_SLICE    =  1,
+        NALU_TYPE_DPA      =  2,
+        NALU_TYPE_DPB      =  3,
+        NALU_TYPE_DPC      =  4,
+        NALU_TYPE_IDR      =  5,
+        NALU_TYPE_SEI      =  6,
+        NALU_TYPE_SPS      =  7,
+        NALU_TYPE_PPS      =  8,
+        NALU_TYPE_AUD      =  9,
+        NALU_TYPE_EOSEQ    = 10,
+        NALU_TYPE_EOSTREAM = 11,
+        NALU_TYPE_FILL     = 12,
+        NALU_TYPE_SPS_EXT  = 13,
+#if (MVC_EXTENSION_ENABLE)
+        NALU_TYPE_PREFIX   = 14,
+        NALU_TYPE_SUB_SPS  = 15,
+        NALU_TYPE_SLC_EXT  = 20,
+        NALU_TYPE_VDRD     = 24
+#endif
+    };
+
+    uint16_t    lost_packets;
+    uint32_t    max_size;
+
+    uint32_t    num_bytes_in_nal_unit;
+    uint32_t    num_bytes_in_rbsp;
+    uint8_t*    rbsp_byte;
+
+    bool        forbidden_zero_bit;                                   // f(1)
+    uint8_t     nal_ref_idc;                                          // u(2)
+    uint8_t     nal_unit_type;                                        // u(5)
+
+#if (MVC_EXTENSION_ENABLE)
+    bool        svc_extension_flag;                                   // u(1)
+    bool        non_idr_flag;                                         // u(1)
+    uint8_t     priority_id;                                          // u(6)
+    uint16_t    view_id;                                              // u(10)
+    uint8_t     temporal_id;                                          // u(3)
+    bool        anchor_pic_flag;                                      // u(1)
+    bool        inter_view_flag;                                      // u(1)
+    bool        reserved_one_bit;                                     // u(1)
+#endif
+
+    nal_unit_t(uint32_t size=MAX_NAL_UNIT_SIZE) :
+        max_size { size }, rbsp_byte { new uint8_t[size] } {}
+
+    ~nal_unit_t() {
+        if (this->rbsp_byte)
+            delete []this->rbsp_byte;
+    }
+};
 
 
 // E.1.2 HRD parameters syntax
@@ -78,33 +187,6 @@ typedef struct vui_parameters_t {
     uint8_t     max_dec_frame_buffering;                              // ue(v)
 } vui_t;
 
-
-
-//AVC Profile IDC definitions
-enum {
-    FREXT_CAVLC444 = 44,       //!< YUV 4:4:4/14 "CAVLC 4:4:4"
-    BASELINE       = 66,       //!< YUV 4:2:0/8  "Baseline"
-    MAIN           = 77,       //!< YUV 4:2:0/8  "Main"
-    EXTENDED       = 88,       //!< YUV 4:2:0/8  "Extended"
-    FREXT_HP       = 100,      //!< YUV 4:2:0/8  "High"
-    FREXT_Hi10P    = 110,      //!< YUV 4:2:0/10 "High 10"
-    FREXT_Hi422    = 122,      //!< YUV 4:2:2/10 "High 4:2:2"
-    FREXT_Hi444    = 244,      //!< YUV 4:4:4/14 "High 4:4:4"
-    MVC_HIGH       = 118,      //!< YUV 4:2:0/8  "Multiview High"
-    STEREO_HIGH    = 128       //!< YUV 4:2:0/8  "Stereo High"
-};
-
-// A.2 Profiles
-enum {
-    CAVLC444_Profile =  44,
-    Baseline_Profile =  66,
-    Main_Profile     =  77,
-    Extended_Profile =  88,
-    High_Profile     = 100,
-    High10_Profile   = 110,
-    High422_Profile  = 122,
-    High444_Profile  = 244
-};
 
 // 7.3.2.1.1 Sequence parameter set data syntax
 
@@ -368,45 +450,8 @@ bool operator==(const sps_t& l, const sps_t& r);
 bool operator==(const pps_t& l, const pps_t& r);
 
 
-
-#if (MVC_EXTENSION_ENABLE)
-typedef struct nalunitheadermvcext_tag {
-    unsigned int non_idr_flag;
-    unsigned int priority_id;
-    unsigned int view_id;
-    unsigned int temporal_id;
-    unsigned int anchor_pic_flag;
-    unsigned int inter_view_flag;
-    unsigned int reserved_one_bit;
-    unsigned int iPrefixNALU;
-} NALUnitHeaderMVCExt_t;
-#endif
-
-
-namespace vio { namespace h264 {
-struct nal_unit_t;
-struct data_partition_t;
-}}
-struct VideoParameters;
-struct slice_t;
-
-
-using vio::h264::nal_unit_t;
-using vio::h264::data_partition_t;
-
-
-#if (MVC_EXTENSION_ENABLE)
-struct nalunitheadermvcext_tag;
-void nal_unit_header_mvc_extension(struct nalunitheadermvcext_tag *NaluHeaderMVCExt, struct data_partition_t *bitstream);
-void nal_unit_header_svc_extension();
-void prefix_nal_unit_svc();
-#endif
-
-
-void activate_sps (VideoParameters* p_Vid, sps_t *sps);
-void activate_pps (VideoParameters* p_Vid, pps_t *pps);
-
-void UseParameterSet (struct slice_t *currSlice);
+}
+}
 
 
 #endif // __VIO_H264_SETS_H__

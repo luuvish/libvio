@@ -16,13 +16,10 @@ typedef struct tone_mapping_struct_s {
 
     px_t lut[1<<MAX_CODED_BIT_DEPTH];       //<! look up table for mapping the coded data value to output data value
 
-    data_partition_t *data;
     int        payloadSize;
 } ToneMappingSEI;
 
 struct slice_t;
-
-void sei_rbsp();
 
 void parse_sei(byte *payload, int size, VideoParameters *p_Vid, struct slice_t *pSlice);
 

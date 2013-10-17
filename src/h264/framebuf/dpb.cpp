@@ -10,6 +10,7 @@
 
 using vio::h264::mb_t;
 
+
 #include "erc_api.h"
 
 static inline int RSD(int x)

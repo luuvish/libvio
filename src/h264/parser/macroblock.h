@@ -25,6 +25,8 @@
 #define _VIO_H264_MACROBLOCK_H_
 
 
+struct slice_t;
+
 namespace vio  {
 namespace h264 {
 
@@ -72,7 +74,6 @@ enum {
     B_4x8          =  6,
     B_4x4          =  7
 };
-
 
 struct macroblock_t {
     slice_t*    p_Slice;

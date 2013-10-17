@@ -1,6 +1,7 @@
 
 #include "picture.h"
 #include "memalloc.h"
+#include "slice.h"
 
 
 static inline int RSD(int x)

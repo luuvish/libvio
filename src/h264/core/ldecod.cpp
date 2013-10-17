@@ -5,7 +5,7 @@
 
 #include "slice.h"
 #include "macroblock.h"
-#include "data_partition.h"
+#include "interpret.h"
 #include "bitstream_cabac.h"
 #include "memalloc.h"
 #include "dpb.h"
@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 
 #include <stdarg.h>
+
 
 // Decoder definition. This should be the only global variable in the entire
 // software. Global variables should be avoided.

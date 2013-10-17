@@ -9,6 +9,7 @@
 #include "output.h"
 
 using vio::h264::mb_t;
+using vio::h264::sps_mvc_t;
 
 #include "erc_api.h"
 

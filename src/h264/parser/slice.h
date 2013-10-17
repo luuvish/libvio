@@ -8,7 +8,7 @@
 #include "macroblock.h"
 
 #include "neighbour.h"
-#include "parser.h"
+#include "interpret.h"
 #include "decoder.h"
 
 #define MAX_NUM_DECSLICES      16
@@ -144,6 +144,20 @@ struct slice_header_t {
 using shr_t = slice_header_t;
 
 
+#if (MVC_EXTENSION_ENABLE)
+struct NALUnitHeaderMVCExt_t {
+    unsigned int non_idr_flag;
+    unsigned int priority_id;
+    unsigned int view_id;
+    unsigned int temporal_id;
+    unsigned int anchor_pic_flag;
+    unsigned int inter_view_flag;
+    unsigned int reserved_one_bit;
+    unsigned int iPrefixNALU;
+};
+#endif
+
+
 struct slice_t {
     VideoParameters* p_Vid;
     pps_t*      active_pps;
@@ -178,17 +192,17 @@ struct slice_t {
     storable_picture* RefPicList[2][33];
 
 #if (MVC_EXTENSION_ENABLE)
-    int           listinterviewidx0;
-    int           listinterviewidx1;
-    pic_t** fs_listinterview0;
-    pic_t** fs_listinterview1;
+    int         listinterviewidx0;
+    int         listinterviewidx1;
+    pic_t**     fs_listinterview0;
+    pic_t**     fs_listinterview1;
 #endif
 
 
     int         dpB_NotPresent;    //!< non-zero, if data partition B is lost
     int         dpC_NotPresent;    //!< non-zero, if data partition C is lost
 
-    px_t***   mb_pred; // IntraPrediction()
+    px_t***     mb_pred; // IntraPrediction()
 
     Neighbour   neighbour;
     Parser      parser;
@@ -226,14 +240,6 @@ struct slice_t {
     bool        operator!=(const slice_t& slice);
 };
 
-
-void slice_header(slice_t *currSlice);
-void ref_pic_list_modification(slice_t *currSlice);
-void ref_pic_list_mvc_modification(slice_t *currSlice);
-void pred_weight_table(slice_t *currSlice);
-//void dec_ref_pic_marking(slice_t *currSlice);
-
-void dec_ref_pic_marking(VideoParameters *p_Vid, data_partition_t *currStream, slice_t *pSlice);
 
 void decode_poc(VideoParameters *p_Vid, slice_t *pSlice);
 

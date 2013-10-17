@@ -88,7 +88,7 @@ private:
     const int*  qmatrix[12];
 
     int         mb_rres[3][16][16];
-    px_t      mb_rec [3][16][16];
+    px_t        mb_rec [3][16][16];
 };
 
 

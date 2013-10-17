@@ -26,7 +26,7 @@
 #include "macroblock.h"
 #include "neighbour.h"
 
-#include "parser.h"
+#include "interpret.h"
 
 #include <functional>
 

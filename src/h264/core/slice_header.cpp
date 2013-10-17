@@ -4,7 +4,7 @@
 #include "report.h"
 
 #include "slice.h"
-#include "data_partition.h"
+#include "interpret.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
 #include "sets.h"
@@ -72,6 +72,34 @@ int GetVOIdx(VideoParameters *p_Vid, int iViewId)
     }
 
     return iVOIdx;
+}
+#endif
+
+
+
+#if (MVC_EXTENSION_ENABLE)
+void nal_unit_header_mvc_extension(NALUnitHeaderMVCExt_t *NaluHeaderMVCExt, data_partition_t *s)
+{  
+    //to be implemented;  
+    NaluHeaderMVCExt->non_idr_flag     = s->u(1, "non_idr_flag");
+    NaluHeaderMVCExt->priority_id      = s->u(6, "priority_id");
+    NaluHeaderMVCExt->view_id          = s->u(10, "view_id");
+    NaluHeaderMVCExt->temporal_id      = s->u(3, "temporal_id");
+    NaluHeaderMVCExt->anchor_pic_flag  = s->u(1, "anchor_pic_flag");
+    NaluHeaderMVCExt->inter_view_flag  = s->u(1, "inter_view_flag");
+    NaluHeaderMVCExt->reserved_one_bit = s->u(1, "reserved_one_bit");
+    if (NaluHeaderMVCExt->reserved_one_bit != 1)
+        printf("Nalu Header MVC Extension: reserved_one_bit is not 1!\n");
+}
+
+void nal_unit_header_svc_extension(void)
+{
+    //to be implemented for Annex G;
+}
+
+void prefix_nal_unit_svc(void)
+{
+    //to be implemented for Annex G;
 }
 #endif
 
@@ -161,7 +189,7 @@ static int parse_idr(slice_t *currSlice)
     // the parameter set ID of the SLice header.  Hence, read the pic_parameter_set_id
     // of the slice header first, then setup the active parameter sets, and then read
     // the rest of the slice header
-    slice_header(currSlice);
+    currSlice->parser.partArr[0].slice_header(*currSlice);
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->view_id >= 0)
         currSlice->p_Dpb = p_Vid->p_Dpb_layer[currSlice->view_id];
@@ -218,7 +246,7 @@ static int parse_dpa(slice_t *currSlice)
     currSlice->anchor_pic_flag = currSlice->idr_flag;
 #endif
 
-    slice_header(currSlice);
+    dp0.slice_header(*currSlice);
 #if MVC_EXTENSION_ENABLE
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[currSlice->view_id];
 #endif
@@ -309,20 +337,18 @@ static int read_new_slice(slice_t *currSlice)
 
     nal_unit_t& nal = *p_Vid->nalu; 
     int current_header = 0;
-    data_partition_t& dp = currSlice->parser.partArr[0];
 
     for (;;) {
-#if (MVC_EXTENSION_ENABLE)
-        currSlice->svc_extension_flag = -1;
-#endif
         p_Vid->bitstream >> nal;
         if (0 == nal.num_bytes_in_rbsp)
             return EOS;
 
 #if (MVC_EXTENSION_ENABLE)
+        currSlice->svc_extension_flag = -1;
         if (p_Inp->DecodeAllLayers == 1 &&
             (nal.nal_unit_type == nal_unit_t::NALU_TYPE_PREFIX ||
              nal.nal_unit_type == nal_unit_t::NALU_TYPE_SLC_EXT)) {
+            data_partition_t& dp = currSlice->parser.partArr[0];
             dp = nal;
 
             currSlice->svc_extension_flag = dp.u(1, "svc_extension_flag");

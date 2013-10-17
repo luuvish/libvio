@@ -21,6 +21,15 @@
 
 using vio::h264::bitstream_t;
 using vio::h264::mb_t;
+namespace vio {
+namespace h264 {
+struct nal_unit_t;
+}
+}
+using vio::h264::nal_unit_t;
+using vio::h264::sps_t;
+using vio::h264::pps_t;
+using vio::h264::sub_sps_t;
 
 
 enum {
@@ -242,6 +251,8 @@ void exit_picture(VideoParameters *p_Vid);
 #if (MVC_EXTENSION_ENABLE)
 extern int GetVOIdx(VideoParameters *p_Vid, int iViewId);
 #endif
+
+extern void UseParameterSet(slice_t* currSlice);
 
 
 #endif

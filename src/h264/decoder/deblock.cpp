@@ -536,7 +536,7 @@ void Deblock::filter_horizontal(mb_t* MbQ)
 
 void Deblock::deblock_pic(VideoParameters* p_Vid)
 {
-    slice_t* slice = p_Vid->ppSliceList[0];
+    slice_t* slice = p_Vid->dec_picture->slice_headers[0];
     shr_t& shr = slice->header;
     mb_t* mb_data = slice->neighbour.mb_data;
 

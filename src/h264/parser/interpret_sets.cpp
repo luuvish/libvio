@@ -25,7 +25,12 @@
 #include "global.h"
 #include "defines.h"
 #include "sets.h"
-#include "data_partition.h"
+#include "slice.h"
+#include "interpret.h"
+
+
+namespace vio  {
+namespace h264 {
 
 
 // Table A-1 Level limits
@@ -464,24 +469,6 @@ void data_partition_t::pic_parameter_set_rbsp(VideoParameters* p_Vid, pps_t& pps
     pps.Valid = true;
 }
 
-// 7.3.2.3 Supplemental enhancement information RBSP syntax
-
-void data_partition_t::sei_rbsp(void)
-{
-    do {
-        this->sei_message();
-    } while (this->more_rbsp_data());
-
-    this->rbsp_trailing_bits();
-}
-
-// 7.3.2.3.1 Supplemental enhancement information message syntax
-
-void data_partition_t::sei_message()
-{
-
-}
-
 // 7.3.2.4 Access unit delimiter RBSP syntax
 
 void data_partition_t::access_unit_delimiter_rbsp(void)
@@ -515,6 +502,53 @@ void data_partition_t::filler_data_rbsp(void)
     this->rbsp_trailing_bits();
 }
 
+// 7.3.2.8 Slice layer without partitioning RBSP syntax
+
+void data_partition_t::slice_layer_without_partitioning_rbsp(void)
+{
+    slice_t slice;
+    this->slice_header(slice);
+    this->slice_data();
+    this->rbsp_trailing_bits();
+}
+
+// 7.3.2.9.1 Slice data partition A RBSP syntax
+
+void data_partition_t::slice_data_partition_a_layer_rbsp(void)
+{
+    slice_t slice;
+    this->slice_header(slice);
+//    uint32_t slice_id = this->ue();
+    this->slice_data();
+    this->rbsp_trailing_bits();
+}
+
+// 7.3.2.9.2 Slice data partition B RBSP syntax
+
+void data_partition_t::slice_data_partition_b_layer_rbsp(void)
+{
+//    uint32_t slice_id = this->ue();
+//    if (slice.seperate_colour_plane_flag)
+//        colour_plane_id = this->u(2);
+//    if (slice.redundant_pic_cnt_present_flag)
+//        redundant_pic_cnt = this->ue();
+    this->slice_data();
+    this->rbsp_trailing_bits();
+}
+
+// 7.3.2.9.3 Slice data partition C RBSP syntax
+
+void data_partition_t::slice_data_partition_c_layer_rbsp(void)
+{
+//    uint32_t slice_id = this->ue();
+//    if (slice.seperate_colour_plane_flag)
+//        colour_plane_id = this->u(2);
+//    if (slice.redundant_pic_cnt_present_flag)
+//        redundant_pic_cnt = this->ue();
+    this->slice_data();
+    this->rbsp_trailing_bits();
+}
+
 // 7.3.2.10 RBSP slice trailing bits syntax
 
 void data_partition_t::rbsp_slice_trailing_bits(void)
@@ -538,7 +572,20 @@ void data_partition_t::rbsp_trailing_bits(void)
     while (!this->byte_aligned())
         rbsp_alignment_zero_bit = this->f(1);
 }
+/*
+// 7.3.3 Slice header syntax
 
+void data_partition_t::slice_header(slice_t& slice)
+{
+
+}
+*/
+// 7.3.4 Slice data syntax
+
+void data_partition_t::slice_data()
+{
+    
+}
 
 // E.1.1 VUI parameter syntax
 
@@ -978,29 +1025,5 @@ bool operator==(const pps_t& l, const pps_t& r)
 }
 
 
-
-#if (MVC_EXTENSION_ENABLE)
-void nal_unit_header_mvc_extension(NALUnitHeaderMVCExt_t *NaluHeaderMVCExt, data_partition_t *s)
-{  
-    //to be implemented;  
-    NaluHeaderMVCExt->non_idr_flag     = s->u(1, "non_idr_flag");
-    NaluHeaderMVCExt->priority_id      = s->u(6, "priority_id");
-    NaluHeaderMVCExt->view_id          = s->u(10, "view_id");
-    NaluHeaderMVCExt->temporal_id      = s->u(3, "temporal_id");
-    NaluHeaderMVCExt->anchor_pic_flag  = s->u(1, "anchor_pic_flag");
-    NaluHeaderMVCExt->inter_view_flag  = s->u(1, "inter_view_flag");
-    NaluHeaderMVCExt->reserved_one_bit = s->u(1, "reserved_one_bit");
-    if (NaluHeaderMVCExt->reserved_one_bit != 1)
-        printf("Nalu Header MVC Extension: reserved_one_bit is not 1!\n");
 }
-
-void nal_unit_header_svc_extension(void)
-{
-    //to be implemented for Annex G;
 }
-
-void prefix_nal_unit_svc(void)
-{
-    //to be implemented for Annex G;
-}
-#endif

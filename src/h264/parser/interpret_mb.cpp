@@ -24,7 +24,7 @@
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "parser.h"
+#include "interpret.h"
 #include "intra_prediction.h"
 #include "transform.h"
 

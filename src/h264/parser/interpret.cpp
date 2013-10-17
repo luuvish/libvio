@@ -25,7 +25,7 @@
 
 #include "memalloc.h"
 #include "bitstream_cabac.h"
-#include "data_partition.h"
+#include "interpret.h"
 
 
 namespace vio  {

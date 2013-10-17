@@ -4,7 +4,7 @@
 #include "report.h"
 
 #include "slice.h"
-#include "data_partition.h"
+#include "interpret.h"
 #include "bitstream_cabac.h"
 #include "bitstream.h"
 #include "sets.h"
@@ -14,6 +14,7 @@
 #include "memalloc.h"
 #include "macroblock.h"
 #include "neighbour.h"
+#include "transform.h"
 
 using vio::h264::mb_t;
 
@@ -394,7 +395,7 @@ void activate_sps(VideoParameters *p_Vid, sps_t *sps)
 #if (DISABLE_ERC == 0)
         ercInit(p_Vid, sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16, 1);
         if (p_Vid->dec_picture) {
-            slice_t& slice = *p_Vid->ppSliceList[0];
+            slice_t& slice = *p_Vid->dec_picture->slice_headers[0];
             shr_t& shr = slice.header;
             ercReset(p_Vid->erc_errorVar, shr.PicSizeInMbs, shr.PicSizeInMbs, p_Vid->dec_picture->size_x);
             p_Vid->erc_mvperMB = 0;
@@ -432,8 +433,8 @@ void UseParameterSet(slice_t *currSlice)
     } else {
         // Set SPS to the subset SPS parameters
         p_Vid->active_subset_sps = p_Vid->SubsetSeqParSet + pps->seq_parameter_set_id;
-        sps = &(p_Vid->active_subset_sps->sps);
-        if (!p_Vid->SubsetSeqParSet[pps->seq_parameter_set_id].Valid)
+        sps = &p_Vid->active_subset_sps->sps;
+        if (!p_Vid->active_subset_sps->Valid)
             printf ("PicParset %d references an invalid (uninitialized) Subset Sequence Parameter Set with ID %d, expect the unexpected...\n", 
                     PicParsetId, (int) pps->seq_parameter_set_id);
     }
@@ -571,6 +572,169 @@ void exit_picture(VideoParameters *p_Vid)
     p_Vid->dec_picture = nullptr;
 }
 
+
+
+namespace vio  {
+namespace h264 {
+
+
+void macroblock_t::init(slice_t& slice)
+{
+    sps_t& sps = *slice.active_sps;
+    shr_t& shr = slice.header;
+    mb_t& mb = *this;
+
+    mb.p_Slice = &slice;
+    mb.mbAddrX = slice.parser.current_mb_nr;
+    // Save the slice number of this macroblock. When the macroblock below
+    // is coded it will use this to decide if prediction for above is possible
+    mb.slice_nr = (short) slice.current_slice_nr;
+    mb.ei_flag  = 1;
+    mb.dpl_flag = 0;
+
+    /* Update coordinates of the current macroblock */
+    if (shr.MbaffFrameFlag) {
+        mb.mb.x = (mb.mbAddrX / 2) % sps.PicWidthInMbs;
+        mb.mb.y = (mb.mbAddrX / 2) / sps.PicWidthInMbs * 2 + (mb.mbAddrX % 2);
+    } else {
+        mb.mb.x = mb.mbAddrX % sps.PicWidthInMbs;
+        mb.mb.y = mb.mbAddrX / sps.PicWidthInMbs;
+    }
+
+    mb.is_intra_block          = 0;
+    mb.mb_skip_flag            = 0;
+    mb.mb_type                 = 0;
+    mb.mb_qp_delta             = 0;
+    mb.intra_chroma_pred_mode  = 0;
+    mb.CodedBlockPatternLuma   = 0;
+    mb.CodedBlockPatternChroma = 0;
+
+    // Reset syntax element entries in MB struct
+    if (shr.slice_type != I_slice) {
+        memset(mb.mvd_l0, 0, sizeof(mb.mvd_l0));
+        if (shr.slice_type == B_slice)
+            memset(mb.mvd_l1, 0, sizeof(mb.mvd_l1));
+    }
+
+    memset(mb.cbp_blks, 0, sizeof(mb.cbp_blks));
+    memset(mb.cbp_bits, 0, sizeof(mb.cbp_bits));
+
+    if (!slice.parser.is_reset_coeff) {
+        memset(slice.decoder.transform->cof[0][0], 0, 16 * 16 * sizeof(int));
+        if (!slice.parser.is_reset_coeff_cr) {
+            memset(slice.decoder.transform->cof[1][0], 0, 2 * 16 * 16 * sizeof(int));
+            slice.parser.is_reset_coeff_cr = 1;
+        }
+        slice.parser.is_reset_coeff = 1;
+    }
+
+    mb.mb_field_decoding_flag = 0;
+    if (shr.MbaffFrameFlag) {
+        bool prevMbSkipped = (mb.mbAddrX % 2 == 1) ?
+            slice.neighbour.mb_data[mb.mbAddrX - 1].mb_skip_flag : 0;
+        if (mb.mbAddrX % 2 == 0 || prevMbSkipped) {
+            int topMbAddr = mb.mbAddrX & ~1;
+
+            mb_t* mbA = slice.neighbour.get_mb(&slice, false, topMbAddr, {-1, 0});
+            mb_t* mbB = slice.neighbour.get_mb(&slice, false, topMbAddr, {0, -1});
+            mbA = mbA && mbA->slice_nr == mb.slice_nr ? mbA : nullptr;
+            mbB = mbB && mbB->slice_nr == mb.slice_nr ? mbB : nullptr;
+
+            if (mbA)
+                mb.mb_field_decoding_flag = mbA->mb_field_decoding_flag;
+            else if (mbB)
+                mb.mb_field_decoding_flag = mbB->mb_field_decoding_flag;
+        } else
+            mb.mb_field_decoding_flag = slice.neighbour.mb_data[mb.mbAddrX - 1].mb_field_decoding_flag;
+    }
+}
+
+bool macroblock_t::close(slice_t& slice)
+{
+    pps_t& pps = *slice.active_pps;
+    shr_t& shr = slice.header;
+
+    bool eos_bit = (!shr.MbaffFrameFlag || this->mbAddrX % 2);
+    bool startcode_follows;
+
+    //! The if() statement below resembles the original code, which tested
+    //! mbAddrX == p_Vid->PicSizeInMbs.  Both is, of course, nonsense
+    //! In an error prone environment, one can only be sure to have a new
+    //! picture by checking the tr of the next slice header!
+
+    if (this->mbAddrX == shr.PicSizeInMbs - 1)
+        return true;
+
+    slice.parser.current_mb_nr = slice.p_Vid->ppSliceList[0]->FmoGetNextMBNr(slice.parser.current_mb_nr);
+
+    if (pps.entropy_coding_mode_flag)
+        startcode_follows = eos_bit && slice.parser.cabac[0].decode_terminate();
+    else
+        startcode_follows = !slice.parser.partArr[0].more_rbsp_data();
+
+    if (slice.parser.current_mb_nr == -1) { // End of slice_t group, MUST be end of slice
+        assert(startcode_follows);
+        return true;
+    }
+
+    if (!startcode_follows)
+        return false;
+
+    if (shr.slice_type == I_slice || shr.slice_type == SI_slice)
+        return true;
+    if (pps.entropy_coding_mode_flag)
+        return true;
+    if (slice.parser.mb_skip_run <= 0)
+        return true;
+
+    return false;
+}
+
+    
+}
+}
+
+slice_t::slice_t()
+{
+    shr_t& shr = this->header;
+
+    get_mem3Dpel(&this->mb_pred, 3, 16, 16);
+
+#if (MVC_EXTENSION_ENABLE)
+    this->view_id         = -1;
+    this->inter_view_flag = 0;
+    this->anchor_pic_flag = 0;
+#endif
+    // reference flag initialization
+    for (int i = 0; i < 17; i++)
+        this->ref_flag[i] = 1;
+    for (int j = 0; j < 2; j++) {
+        for (int i = 0; i < MAX_LIST_SIZE; i++)
+            this->RefPicList[j][i] = NULL;
+        this->RefPicSize[j] = 0;
+    }
+
+    shr.MbToSliceGroupMap      = nullptr;
+    shr.MapUnitToSliceGroupMap = nullptr;
+}
+
+slice_t::~slice_t()
+{
+    shr_t& shr = this->header;
+
+    free_mem3Dpel(this->mb_pred);
+
+    while (shr.dec_ref_pic_marking_buffer) {
+        drpm_t* tmp_drpm = shr.dec_ref_pic_marking_buffer;
+        shr.dec_ref_pic_marking_buffer = tmp_drpm->Next;
+        free(tmp_drpm);
+    }
+
+    if (shr.MbToSliceGroupMap)
+        delete []shr.MbToSliceGroupMap;
+    if (shr.MapUnitToSliceGroupMap)
+        delete []shr.MapUnitToSliceGroupMap;
+}
 
 void slice_t::init()
 {

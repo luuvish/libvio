@@ -1,5 +1,5 @@
 /*
- * ===========================================================================
+ * =============================================================================
  *
  *   This confidential and proprietary software may be used only
  *  as authorized by a licensing agreement from Thumb o'Cat Inc.
@@ -10,28 +10,119 @@
  * 
  *   The entire notice above must be reproduced on all authorized copies.
  *
- * ===========================================================================
+ * =============================================================================
  *
- *  File      : parser.h
+ *  File      : interpret.h
  *  Author(s) : Luuvish
  *  Version   : 1.0
  *  Revision  :
  *      1.0 June 16, 2013    first release
  *
- * ===========================================================================
+ * =============================================================================
  */
 
-#ifndef _VIO_H264_PARSER_H_
-#define _VIO_H264_PARSER_H_
+#ifndef __VIO_H264_INTERPRET_H__
+#define __VIO_H264_INTERPRET_H__
 
-
-#include "bitstream_cabac.h"
-#include "data_partition.h"
+#include <cstdint>
+#include "sets.h"
 #include "picture.h"
+#include "neighbour.h"
+#include "bitstream_cabac.h"
 
 
 namespace vio  {
 namespace h264 {
+
+
+struct data_partition_t : public nal_unit_t {
+    int         frame_bitoffset;
+
+                data_partition_t(uint32_t size=MAX_NAL_UNIT_SIZE);
+                data_partition_t(const nal_unit_t& nal);
+
+    data_partition_t& operator=(const nal_unit_t& nal);
+
+    bool        byte_aligned            (void);
+    bool        more_data_in_byte_stream(void);
+    bool        more_rbsp_data          (void);
+    bool        more_rbsp_trailing_data (void);
+
+    uint32_t    next_bits(uint8_t n);
+    uint32_t    read_bits(uint8_t n);
+
+    uint32_t    u (uint8_t n,   const char* name="");
+    int32_t     i (uint8_t n,   const char* name="");
+    uint32_t    f (uint8_t n,   const char* name="");
+    uint32_t    b (uint8_t n=8, const char* name="");
+
+    uint32_t    ue(const char* name="");
+    int32_t     se(const char* name="");
+    uint32_t    ae(const char* name="");
+    uint32_t    ce(const char* name="");
+    uint32_t    me(const char* name="");
+    uint32_t    te(const char* name="");
+
+
+    void        seq_parameter_set_rbsp(sps_t& sps);
+    void        seq_parameter_set_data(sps_t& sps);
+    void        scaling_list(int* scalingList, int sizeOfScalingList,
+                             bool& useDefaultScalingMatrixFlag);
+    void        seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext);
+    void        subset_seq_parameter_set_rbsp   (sub_sps_t& sub_sps);
+    void        pic_parameter_set_rbsp          (VideoParameters *p_Vid, pps_t& pps);
+
+    void        sei_rbsp(void);
+    void        sei_message(void);
+    void        access_unit_delimiter_rbsp(void);
+    void        end_of_seq_rbsp(void);
+    void        end_of_stream_rbsp(void);
+    void        filler_data_rbsp(void);
+
+    void        slice_layer_without_partitioning_rbsp();
+    void        slice_data_partition_a_layer_rbsp();
+    void        slice_data_partition_b_layer_rbsp();
+    void        slice_data_partition_c_layer_rbsp();
+    void        slice_header                 (slice_t& slice);
+    void        ref_pic_list_modification    (slice_t& slice);
+    void        ref_pic_list_mvc_modification(slice_t& slice);
+    void        pred_weight_table            (slice_t& slice);
+    void        dec_ref_pic_marking(VideoParameters *p_Vid, slice_t& slice);
+    void        slice_data();
+
+    void        rbsp_slice_trailing_bits(void);
+    void        rbsp_trailing_bits(void);
+
+    void        vui_parameters(vui_t& vui);
+    void        hrd_parameters(hrd_t& hrd);
+
+    void        seq_parameter_set_svc_extension (sps_svc_t& sps_svc);
+    void        svc_vui_parameters_extension    (svc_vui_t& svc_vui);
+    void        seq_parameter_set_mvc_extension (sps_mvc_t& sps_mvc);
+    void        mvc_vui_parameters_extension    (mvc_vui_t& mvc_vui);
+    void        seq_parameter_set_mvcd_extension(sps_mvcd_t& sps_mvcd);
+};
+
+
+struct cabac_context_t;
+
+struct cabac_engine_t {
+    data_partition_t* dp;
+    uint16_t    codIRange;
+    uint16_t    codIOffset;
+
+    void        init(data_partition_t* dp);
+
+    bool        decode_decision (cabac_context_t* ctx);
+    bool        decode_bypass   ();
+    bool        decode_terminate();
+    void        renormD();
+
+    uint32_t    u  (cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx);
+    uint32_t    tu (cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx, uint32_t cMax);
+    int32_t     ueg(cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx, uint32_t cMax, uint8_t k);
+    uint32_t    fl (cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t maxBinIdxCtx, uint32_t cMax);
+};
 
 
 //! Data Partitioning Modes
@@ -193,4 +284,4 @@ private:
 }
 
 
-#endif // _VIO_H264_PARSER_H_
+#endif // __VIO_H264_INTERPRET_H__

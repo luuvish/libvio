@@ -1,9 +1,36 @@
+/*
+ * =============================================================================
+ *
+ *   This confidential and proprietary software may be used only
+ *  as authorized by a licensing agreement from Thumb o'Cat Inc.
+ *  In the event of publication, the following notice is applicable:
+ * 
+ *       Copyright (C) 2013 - 2013 Thumb o'Cat
+ *                     All right reserved.
+ * 
+ *   The entire notice above must be reproduced on all authorized copies.
+ *
+ * =============================================================================
+ *
+ *  File      : interpret_sei.cpp
+ *  Author(s) : Luuvish
+ *  Version   : 1.0
+ *  Revision  :
+ *      1.0 June 16, 2013    first release
+ *
+ * =============================================================================
+ */
+
+#include "interpret.h"
 #include "global.h"
 #include "sei.h"
-#include "data_partition.h"
 #include "slice.h"
 #include "sets.h"
 
+
+using vio::h264::data_partition_t;
+using vio::h264::vui_t;
+using vio::h264::hrd_t;
 
 enum {
     SEI_BUFFERING_PERIOD = 0,
@@ -354,7 +381,7 @@ void dec_ref_pic_marking_repetition( byte* payload, int size, VideoParameters *p
     pSlice->idr_flag = original_idr_flag;
     shr.dec_ref_pic_marking_buffer = NULL;
 
-    dec_ref_pic_marking(p_Vid, buf, pSlice);
+    buf->dec_ref_pic_marking(p_Vid, *pSlice);
 
     while (shr.dec_ref_pic_marking_buffer) {
         drpm_t* tmp_drpm = shr.dec_ref_pic_marking_buffer;
@@ -1185,4 +1212,23 @@ void parse_sei(byte *msg, int size, VideoParameters *p_Vid, slice_t *pSlice)
     // ignore the trailing bits rbsp_trailing_bits();
     assert(msg[offset] == 0x80);      // this is the trailing bits
     assert(offset + 1 == size);
+}
+
+
+// 7.3.2.3 Supplemental enhancement information RBSP syntax
+
+void data_partition_t::sei_rbsp(void)
+{
+    do {
+        this->sei_message();
+    } while (this->more_rbsp_data());
+
+    this->rbsp_trailing_bits();
+}
+
+// 7.3.2.3.1 Supplemental enhancement information message syntax
+
+void data_partition_t::sei_message()
+{
+
 }

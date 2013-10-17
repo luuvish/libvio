@@ -4,7 +4,6 @@
 
 #include <cstdint>
 #include <vector>
-#include "global.h"
 
 
 struct motion_vector_t {
@@ -54,7 +53,8 @@ inline mv_t operator >> (const mv_t& l, int r)
     return {(int16_t)(l.mv_x >> r), (int16_t)(l.mv_y >> r)};
 }
 
-#include "slice.h"
+#include "global.h"
+//#include "slice.h"
 
 
 struct storable_picture;
@@ -78,11 +78,11 @@ struct macroblock_t;
 
 
 struct storable_picture {
-    sps_t*                       sps;
-    pps_t*                       pps;
-    std::vector<slice_t*>        slice_headers;
-    std::vector<macroblock_t*>   mbs;
-    pic_motion_params**          mv_infos;
+    sps_t*                     sps;
+    pps_t*                     pps;
+    std::vector<slice_t*>      slice_headers;
+    std::vector<macroblock_t*> mbs;
+    pic_motion_params**        mv_infos;
     px_t**                     pixels[3];
 
     int         poc;
@@ -122,8 +122,8 @@ struct storable_picture {
     int         iChromaStride;
     int         iChromaPadX;
     int         iChromaPadY;
-    px_t**    imgY;
-    px_t**    imgUV[2];
+    px_t**      imgY;
+    px_t**      imgUV[2];
 
     pic_motion_params** mv_info;
     pic_motion_params** JVmv_info[3];
@@ -142,7 +142,7 @@ struct storable_picture {
     int         seiHasTone_mapping;
     int         tone_mapping_model_id;
     int         tonemapped_bit_depth;  
-    px_t*     tone_mapping_lut;                //!< tone mapping look up table
+    px_t*       tone_mapping_lut;                //!< tone mapping look up table
 
     bool        is_short_ref();
     bool        is_long_ref();
