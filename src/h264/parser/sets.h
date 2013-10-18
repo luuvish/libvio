@@ -108,7 +108,6 @@ struct nal_unit_t {
     uint8_t     nal_ref_idc;                                          // u(2)
     uint8_t     nal_unit_type;                                        // u(5)
 
-#if (MVC_EXTENSION_ENABLE)
     bool        svc_extension_flag;                                   // u(1)
     bool        non_idr_flag;                                         // u(1)
     uint8_t     priority_id;                                          // u(6)
@@ -117,7 +116,6 @@ struct nal_unit_t {
     bool        anchor_pic_flag;                                      // u(1)
     bool        inter_view_flag;                                      // u(1)
     bool        reserved_one_bit;                                     // u(1)
-#endif
 
     nal_unit_t(uint32_t size=MAX_NAL_UNIT_SIZE) :
         max_size { size }, rbsp_byte { new uint8_t[size] } {}
