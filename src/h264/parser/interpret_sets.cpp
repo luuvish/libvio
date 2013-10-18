@@ -572,20 +572,7 @@ void data_partition_t::rbsp_trailing_bits(void)
     while (!this->byte_aligned())
         rbsp_alignment_zero_bit = this->f(1);
 }
-/*
-// 7.3.3 Slice header syntax
 
-void data_partition_t::slice_header(slice_t& slice)
-{
-
-}
-*/
-// 7.3.4 Slice data syntax
-
-void data_partition_t::slice_data()
-{
-    
-}
 
 // E.1.1 VUI parameter syntax
 

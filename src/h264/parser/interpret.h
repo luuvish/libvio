@@ -72,12 +72,12 @@ struct data_partition_t : public nal_unit_t {
     void        subset_seq_parameter_set_rbsp   (sub_sps_t& sub_sps);
     void        pic_parameter_set_rbsp          (VideoParameters *p_Vid, pps_t& pps);
 
-    void        sei_rbsp(void);
-    void        sei_message(void);
+    void        sei_rbsp                  (void);
+    void        sei_message               (void);
     void        access_unit_delimiter_rbsp(void);
-    void        end_of_seq_rbsp(void);
-    void        end_of_stream_rbsp(void);
-    void        filler_data_rbsp(void);
+    void        end_of_seq_rbsp           (void);
+    void        end_of_stream_rbsp        (void);
+    void        filler_data_rbsp          (void);
 
     void        slice_layer_without_partitioning_rbsp();
     void        slice_data_partition_a_layer_rbsp();
@@ -87,11 +87,11 @@ struct data_partition_t : public nal_unit_t {
     void        ref_pic_list_modification    (slice_t& slice);
     void        ref_pic_list_mvc_modification(slice_t& slice);
     void        pred_weight_table            (slice_t& slice);
-    void        dec_ref_pic_marking(VideoParameters *p_Vid, slice_t& slice);
+    void        dec_ref_pic_marking          (slice_t& slice);
     void        slice_data();
 
     void        rbsp_slice_trailing_bits(void);
-    void        rbsp_trailing_bits(void);
+    void        rbsp_trailing_bits      (void);
 
     void        vui_parameters(vui_t& vui);
     void        hrd_parameters(hrd_t& hrd);

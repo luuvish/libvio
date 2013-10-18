@@ -78,25 +78,6 @@ int GetVOIdx(VideoParameters *p_Vid, int iViewId)
 
 
 #if (MVC_EXTENSION_ENABLE)
-void nal_unit_header_mvc_extension(NALUnitHeaderMVCExt_t *NaluHeaderMVCExt, data_partition_t *s)
-{  
-    //to be implemented;  
-    NaluHeaderMVCExt->non_idr_flag     = s->u(1, "non_idr_flag");
-    NaluHeaderMVCExt->priority_id      = s->u(6, "priority_id");
-    NaluHeaderMVCExt->view_id          = s->u(10, "view_id");
-    NaluHeaderMVCExt->temporal_id      = s->u(3, "temporal_id");
-    NaluHeaderMVCExt->anchor_pic_flag  = s->u(1, "anchor_pic_flag");
-    NaluHeaderMVCExt->inter_view_flag  = s->u(1, "inter_view_flag");
-    NaluHeaderMVCExt->reserved_one_bit = s->u(1, "reserved_one_bit");
-    if (NaluHeaderMVCExt->reserved_one_bit != 1)
-        printf("Nalu Header MVC Extension: reserved_one_bit is not 1!\n");
-}
-
-void nal_unit_header_svc_extension(void)
-{
-    //to be implemented for Annex G;
-}
-
 void prefix_nal_unit_svc(void)
 {
     //to be implemented for Annex G;
@@ -117,7 +98,8 @@ static void Error_tracking(VideoParameters *p_Vid, slice_t *currSlice)
                 p_Vid->Is_primary_correct = 0; // primary slice is incorrect
         }
     } else if (shr.redundant_pic_cnt != 0 && p_Vid->type != I_slice) {
-        int redundant_slice_ref_idx = shr.abs_diff_pic_num_minus1[0][0] + 1;
+        int redundant_slice_ref_idx = shr.ref_pic_list_modifications[0].size() > 0 ?
+                shr.ref_pic_list_modifications[0][0].abs_diff_pic_num_minus1 + 1 : 1;
         if (currSlice->ref_flag[redundant_slice_ref_idx] == 0)  // reference of redundant slice is incorrect
             p_Vid->Is_redundant_correct = 0;  // redundant slice is incorrect
     }
@@ -144,8 +126,9 @@ static int parse_idr(slice_t *currSlice)
     if (!p_Vid->recovery_point_found)
         return current_header;
 
-    currSlice->idr_flag = (nalu->nal_unit_type == nal_unit_t::NALU_TYPE_IDR);
-    currSlice->nal_ref_idc = nalu->nal_ref_idc;
+    currSlice->IdrPicFlag    = (nalu->nal_unit_type == nal_unit_t::NALU_TYPE_IDR);
+    currSlice->nal_ref_idc   = nalu->nal_ref_idc;
+    currSlice->nal_unit_type = nalu->nal_unit_type;
     currSlice->parser.dp_mode = PAR_DP_1;
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->svc_extension_flag != 0)
@@ -166,7 +149,7 @@ static int parse_idr(slice_t *currSlice)
                 currSlice->anchor_pic_flag = currSlice->NaluHeaderMVCExt.anchor_pic_flag;
             } else {
                 currSlice->inter_view_flag = 1;
-                currSlice->anchor_pic_flag = currSlice->idr_flag;
+                currSlice->anchor_pic_flag = currSlice->IdrPicFlag;
             }
         } else {
             assert(p_Vid->active_subset_sps->sps_mvc.num_views_minus1 >= 0);
@@ -178,7 +161,7 @@ static int parse_idr(slice_t *currSlice)
             } else { //no prefix NALU;
                 currSlice->view_id = p_Vid->active_subset_sps->sps_mvc.views[0].view_id;
                 currSlice->inter_view_flag = 1;
-                currSlice->anchor_pic_flag = currSlice->idr_flag;
+                currSlice->anchor_pic_flag = currSlice->IdrPicFlag;
             }
         }
     }
@@ -190,6 +173,18 @@ static int parse_idr(slice_t *currSlice)
     // of the slice header first, then setup the active parameter sets, and then read
     // the rest of the slice header
     currSlice->parser.partArr[0].slice_header(*currSlice);
+
+    UseParameterSet(currSlice);
+    /* Tian Dong: frame_num gap processing, if found */
+    if (currSlice->IdrPicFlag) {
+        p_Vid->PrevRefFrameNum = currSlice->header.frame_num;
+        // picture error concealment
+        p_Vid->last_ref_pic_poc = 0;
+    }
+    p_Vid->type = currSlice->header.slice_type;
+    p_Vid->structure = currSlice->header.structure;
+    p_Vid->no_output_of_prior_pics_flag = currSlice->header.no_output_of_prior_pics_flag;
+
 #if (MVC_EXTENSION_ENABLE)
     if (currSlice->view_id >= 0)
         currSlice->p_Dpb = p_Vid->p_Dpb_layer[currSlice->view_id];
@@ -231,8 +226,9 @@ static int parse_dpa(slice_t *currSlice)
     currSlice->dpB_NotPresent = 1;
     currSlice->dpC_NotPresent = 1;
 
-    currSlice->idr_flag    = 0;
-    currSlice->nal_ref_idc = nalu->nal_ref_idc;
+    currSlice->IdrPicFlag    = 0;
+    currSlice->nal_ref_idc   = nalu->nal_ref_idc;
+    currSlice->nal_unit_type = nalu->nal_unit_type;
     currSlice->parser.dp_mode = PAR_DP_3;
 #if MVC_EXTENSION_ENABLE
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[0];
@@ -243,10 +239,22 @@ static int parse_dpa(slice_t *currSlice)
     currSlice->view_id = GetBaseViewId(p_Vid, &p_Vid->active_subset_sps);
     currSlice->inter_view_flag = 1;
     currSlice->layer_id = currSlice->view_id = GetVOIdx(p_Vid, currSlice->view_id);
-    currSlice->anchor_pic_flag = currSlice->idr_flag;
+    currSlice->anchor_pic_flag = currSlice->IdrPicFlag;
 #endif
 
     dp0.slice_header(*currSlice);
+
+    UseParameterSet(currSlice);
+    /* Tian Dong: frame_num gap processing, if found */
+    if (currSlice->IdrPicFlag) {
+        p_Vid->PrevRefFrameNum = currSlice->header.frame_num;
+        // picture error concealment
+        p_Vid->last_ref_pic_poc = 0;
+    }
+    p_Vid->type = currSlice->header.slice_type;
+    p_Vid->structure = currSlice->header.structure;
+    p_Vid->no_output_of_prior_pics_flag = currSlice->header.no_output_of_prior_pics_flag;
+
 #if MVC_EXTENSION_ENABLE
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[currSlice->view_id];
 #endif
@@ -346,26 +354,16 @@ static int read_new_slice(slice_t *currSlice)
 #if (MVC_EXTENSION_ENABLE)
         currSlice->svc_extension_flag = -1;
         if (p_Inp->DecodeAllLayers == 1 &&
-            (nal.nal_unit_type == nal_unit_t::NALU_TYPE_PREFIX ||
-             nal.nal_unit_type == nal_unit_t::NALU_TYPE_SLC_EXT)) {
-            data_partition_t& dp = currSlice->parser.partArr[0];
-            dp = nal;
-
-            currSlice->svc_extension_flag = dp.u(1, "svc_extension_flag");
-
-            if (currSlice->svc_extension_flag)
-                nal_unit_header_svc_extension();
-            else {
-                nal_unit_header_mvc_extension(&currSlice->NaluHeaderMVCExt, &dp);
-                currSlice->NaluHeaderMVCExt.iPrefixNALU = (nal.nal_unit_type == nal_unit_t::NALU_TYPE_PREFIX);
-            }
-
-            if (nal.nal_unit_type == nal_unit_t::NALU_TYPE_SLC_EXT) {        
-                if (currSlice->svc_extension_flag) {
-                    //to be implemented for Annex G;
-                } else
-                    nal.nal_unit_type = nal_unit_t::NALU_TYPE_SLICE;
-            }
+            (nal.nal_unit_type == 14 || nal.nal_unit_type == 20 || nal.nal_unit_type == 21)) {
+            currSlice->svc_extension_flag                = nal.svc_extension_flag;
+            currSlice->NaluHeaderMVCExt.non_idr_flag     = nal.non_idr_flag;
+            currSlice->NaluHeaderMVCExt.priority_id      = nal.priority_id;
+            currSlice->NaluHeaderMVCExt.view_id          = nal.view_id;
+            currSlice->NaluHeaderMVCExt.temporal_id      = nal.temporal_id;
+            currSlice->NaluHeaderMVCExt.anchor_pic_flag  = nal.anchor_pic_flag;
+            currSlice->NaluHeaderMVCExt.inter_view_flag  = nal.inter_view_flag;
+            currSlice->NaluHeaderMVCExt.reserved_one_bit = nal.reserved_one_bit;
+            currSlice->NaluHeaderMVCExt.iPrefixNALU      = nal.nal_unit_type == nal_unit_t::NALU_TYPE_PREFIX;
         }
 #endif
 

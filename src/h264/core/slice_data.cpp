@@ -165,17 +165,17 @@ void init_picture(slice_t* currSlice)
     if (p_Vid->recovery_point)
         p_Vid->recovery_frame_num = (shr.frame_num + p_Vid->recovery_frame_cnt) % sps.MaxFrameNum;
 
-    if (currSlice->idr_flag)
+    if (currSlice->IdrPicFlag)
         p_Vid->recovery_frame_num = shr.frame_num;
 
     if (!p_Vid->recovery_point &&
-        shr.frame_num != p_Vid->pre_frame_num &&
-        shr.frame_num != (p_Vid->pre_frame_num + 1) % sps.MaxFrameNum) {
+        shr.frame_num != p_Vid->PrevRefFrameNum &&
+        shr.frame_num != (p_Vid->PrevRefFrameNum + 1) % sps.MaxFrameNum) {
         if (sps.gaps_in_frame_num_value_allowed_flag == 0) {
 #if (DISABLE_ERC == 0)
             // picture error concealment
             if (p_Inp->conceal_mode != 0) {
-                if (shr.frame_num < (p_Vid->pre_frame_num + 1) % sps.MaxFrameNum) {
+                if (shr.frame_num < (p_Vid->PrevRefFrameNum + 1) % sps.MaxFrameNum) {
                     /* Conceal lost IDR frames and any frames immediately
                        following the IDR. Use frame copy for these since
                        lists cannot be formed correctly for motion copy*/
@@ -201,7 +201,7 @@ void init_picture(slice_t* currSlice)
     }
 
     if (currSlice->nal_ref_idc)
-        p_Vid->pre_frame_num = shr.frame_num;
+        p_Vid->PrevRefFrameNum = shr.frame_num;
 
     //calculate POC
     decode_poc(p_Vid, currSlice);
@@ -274,7 +274,7 @@ void init_picture(slice_t* currSlice)
 
     dec_picture->used_for_reference = currSlice->nal_ref_idc != 0;
 
-    dec_picture->slice.idr_flag     = currSlice->idr_flag;
+    dec_picture->slice.idr_flag     = currSlice->IdrPicFlag;
     dec_picture->slice.slice_type   = p_Vid->type;
 
     dec_picture->PicNum             = shr.frame_num;
@@ -462,7 +462,7 @@ void init_picture_decoding(VideoParameters *p_Vid)
     }
 
     UseParameterSet(pSlice);
-    if (pSlice->idr_flag)
+    if (pSlice->IdrPicFlag)
         p_Vid->number = 0;
 
     p_Vid->structure = shr.structure;
@@ -565,7 +565,7 @@ void exit_picture(VideoParameters *p_Vid)
 #endif
 
     if (p_Vid->last_has_mmco_5)
-        p_Vid->pre_frame_num = 0;
+        p_Vid->PrevRefFrameNum = 0;
 
     p_Vid->status(&p_Vid->dec_picture);
 
@@ -723,12 +723,6 @@ slice_t::~slice_t()
     shr_t& shr = this->header;
 
     free_mem3Dpel(this->mb_pred);
-
-    while (shr.dec_ref_pic_marking_buffer) {
-        drpm_t* tmp_drpm = shr.dec_ref_pic_marking_buffer;
-        shr.dec_ref_pic_marking_buffer = tmp_drpm->Next;
-        free(tmp_drpm);
-    }
 
     if (shr.MbToSliceGroupMap)
         delete []shr.MbToSliceGroupMap;

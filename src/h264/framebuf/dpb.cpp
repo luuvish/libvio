@@ -736,7 +736,6 @@ void decoded_picture_buffer_t::mm_mark_current_picture_long_term(storable_pictur
 
 void decoded_picture_buffer_t::adaptive_memory_management(storable_picture* p)
 {
-    drpm_t* tmp_drpm;
     VideoParameters *p_Vid = this->p_Vid;
 
     p_Vid->last_has_mmco_5 = 0;
@@ -744,28 +743,23 @@ void decoded_picture_buffer_t::adaptive_memory_management(storable_picture* p)
     assert(!p->slice.idr_flag);
     assert(p->slice_headers[0]->header.adaptive_ref_pic_marking_mode_flag);
 
-    while (p->slice_headers[0]->header.dec_ref_pic_marking_buffer) {
-        tmp_drpm = p->slice_headers[0]->header.dec_ref_pic_marking_buffer;
-        switch (tmp_drpm->memory_management_control_operation) {
-        case 0:
-            if (tmp_drpm->Next != NULL)
-                error(500, "memory_management_control_operation = 0 not last operation in buffer");
-            break;
+    for (auto& mmco : p->slice_headers[0]->header.adaptive_ref_pic_markings) {
+        switch (mmco.memory_management_control_operation) {
         case 1:
-            this->mm_unmark_short_term_for_reference(p, tmp_drpm->difference_of_pic_nums_minus1);
+            this->mm_unmark_short_term_for_reference(p, mmco.difference_of_pic_nums_minus1);
             this->update_ref_list();
             break;
         case 2:
-            this->mm_unmark_long_term_for_reference(p, tmp_drpm->long_term_pic_num);
+            this->mm_unmark_long_term_for_reference(p, mmco.long_term_pic_num);
             this->update_ltref_list();
             break;
         case 3:
-            this->mm_assign_long_term_frame_idx(p, tmp_drpm->difference_of_pic_nums_minus1, tmp_drpm->long_term_frame_idx);
+            this->mm_assign_long_term_frame_idx(p, mmco.difference_of_pic_nums_minus1, mmco.long_term_frame_idx);
             this->update_ref_list();
             this->update_ltref_list();
             break;
         case 4:
-            this->mm_update_max_long_term_frame_idx(tmp_drpm->max_long_term_frame_idx_plus1);
+            this->mm_update_max_long_term_frame_idx(mmco.max_long_term_frame_idx_plus1);
             this->update_ltref_list();
             break;
         case 5:
@@ -774,15 +768,15 @@ void decoded_picture_buffer_t::adaptive_memory_management(storable_picture* p)
             p_Vid->last_has_mmco_5 = 1;
             break;
         case 6:
-            this->mm_mark_current_picture_long_term(p, tmp_drpm->long_term_frame_idx);
+            this->mm_mark_current_picture_long_term(p, mmco.long_term_frame_idx);
             this->check_num_ref();
             break;
         default:
             error(500, "invalid memory_management_control_operation in buffer");
         }
-        p->slice_headers[0]->header.dec_ref_pic_marking_buffer = tmp_drpm->Next;
-        delete tmp_drpm;
     }
+    p->slice_headers[0]->header.adaptive_ref_pic_markings.clear();
+
     if (p_Vid->last_has_mmco_5) {
         p->PicNum = p->frame_num = 0;
 
@@ -961,7 +955,7 @@ void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
     printf("A gap in frame number is found, try to fill it.\n");
 
     int CurrFrameNum            = shr.frame_num;
-    int UnusedShortTermFrameNum = (p_Vid->pre_frame_num + 1) % sps.MaxFrameNum;
+    int UnusedShortTermFrameNum = (p_Vid->PrevRefFrameNum + 1) % sps.MaxFrameNum;
 
     while (CurrFrameNum != UnusedShortTermFrameNum) {
         storable_picture* picture = new storable_picture(p_Vid, FRAME,
@@ -986,7 +980,7 @@ void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
 
         slice.p_Dpb->store_picture(picture);
 
-        p_Vid->pre_frame_num = UnusedShortTermFrameNum;
+        p_Vid->PrevRefFrameNum = UnusedShortTermFrameNum;
         UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % sps.MaxFrameNum;
     }
 

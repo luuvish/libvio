@@ -939,9 +939,6 @@ static void reorder_long_term(slice_t *currSlice, storable_picture **RefPicListX
 static void reorder_ref_pic_list(slice_t *currSlice, int cur_list)
 {
     shr_t& shr = currSlice->header;
-    uint8_t  *modification_of_pic_nums_idc = shr.modification_of_pic_nums_idc[cur_list];
-    uint32_t *abs_diff_pic_num_minus1      = shr.abs_diff_pic_num_minus1     [cur_list];
-    uint32_t *long_term_pic_num            = shr.long_term_pic_num           [cur_list];
 
     int num_ref_idx_lX_active_minus1 = 
         cur_list == 0 ? shr.num_ref_idx_l0_active_minus1
@@ -952,21 +949,21 @@ static void reorder_ref_pic_list(slice_t *currSlice, int cur_list)
 
     picNumLXPred = shr.CurrPicNum;
 
-    for (int i = 0; modification_of_pic_nums_idc[i] != 3; i++) {
-        if (modification_of_pic_nums_idc[i] > 3)
+    for (auto& idc : shr.ref_pic_list_modifications[cur_list]) {
+        if (idc.modification_of_pic_nums_idc > 3)
             error(500, "Invalid modification_of_pic_nums_idc command");
 
-        if (modification_of_pic_nums_idc[i] < 2) {
-            if (modification_of_pic_nums_idc[i] == 0) {
-                if (picNumLXPred < abs_diff_pic_num_minus1[i] + 1)
-                    picNumLXNoWrap = picNumLXPred - (abs_diff_pic_num_minus1[i] + 1) + shr.MaxPicNum;
+        if (idc.modification_of_pic_nums_idc < 2) {
+            if (idc.modification_of_pic_nums_idc == 0) {
+                if (picNumLXPred < idc.abs_diff_pic_num_minus1 + 1)
+                    picNumLXNoWrap = picNumLXPred - (idc.abs_diff_pic_num_minus1 + 1) + shr.MaxPicNum;
                 else
-                    picNumLXNoWrap = picNumLXPred - (abs_diff_pic_num_minus1[i] + 1);
+                    picNumLXNoWrap = picNumLXPred - (idc.abs_diff_pic_num_minus1 + 1);
             } else {
-                if (picNumLXPred + (abs_diff_pic_num_minus1[i] + 1) >= shr.MaxPicNum)
-                    picNumLXNoWrap = picNumLXPred + (abs_diff_pic_num_minus1[i] + 1) - shr.MaxPicNum;
+                if (picNumLXPred + (idc.abs_diff_pic_num_minus1 + 1) >= shr.MaxPicNum)
+                    picNumLXNoWrap = picNumLXPred + (idc.abs_diff_pic_num_minus1 + 1) - shr.MaxPicNum;
                 else
-                    picNumLXNoWrap = picNumLXPred + (abs_diff_pic_num_minus1[i] + 1);
+                    picNumLXNoWrap = picNumLXPred + (idc.abs_diff_pic_num_minus1 + 1);
             }
             picNumLXPred = picNumLXNoWrap;
 
@@ -980,7 +977,7 @@ static void reorder_ref_pic_list(slice_t *currSlice, int cur_list)
 #endif
         } else {
 #if (MVC_EXTENSION_ENABLE)
-            reorder_long_term(currSlice, currSlice->RefPicList[cur_list], num_ref_idx_lX_active_minus1, long_term_pic_num[i], &refIdxLX, -1);
+            reorder_long_term(currSlice, currSlice->RefPicList[cur_list], num_ref_idx_lX_active_minus1, idc.long_term_pic_num, &refIdxLX, -1);
 #endif
         }
     }
@@ -1103,12 +1100,8 @@ static void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, std::vect
     VideoParameters *p_Vid = currSlice->p_Vid;
     shr_t& shr = currSlice->header;
 
-    uint8_t  *modification_of_pic_nums_idc = shr.modification_of_pic_nums_idc[cur_list];
-    uint32_t *abs_diff_pic_num_minus1      = shr.abs_diff_pic_num_minus1[cur_list];
-    uint32_t *long_term_pic_num            = shr.long_term_pic_num[cur_list];
     int num_ref_idx_lX_active_minus1 = cur_list == 0 ?
         shr.num_ref_idx_l0_active_minus1 : shr.num_ref_idx_l1_active_minus1;
-    uint32_t *abs_diff_view_idx_minus1 = shr.abs_diff_view_idx_minus1[cur_list];
 
     int maxPicNum, currPicNum, picNumLXNoWrap, picNumLXPred, picNumLX;
     int picViewIdxLX, targetViewID;
@@ -1133,21 +1126,21 @@ static void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, std::vect
 
     picNumLXPred = currPicNum;
 
-    for (int i = 0; modification_of_pic_nums_idc[i] != 3; i++) {
-        if (modification_of_pic_nums_idc[i] > 5)
+    for (auto& idc : shr.ref_pic_list_modifications[cur_list]) {
+        if (idc.modification_of_pic_nums_idc > 5)
             error(500, "Invalid modification_of_pic_nums_idc command");
 
-        if (modification_of_pic_nums_idc[i] < 2) {
-            if (modification_of_pic_nums_idc[i] == 0) {
-                if (picNumLXPred < abs_diff_pic_num_minus1[i] + 1)
-                    picNumLXNoWrap = picNumLXPred - (abs_diff_pic_num_minus1[i] + 1) + maxPicNum;
+        if (idc.modification_of_pic_nums_idc < 2) {
+            if (idc.modification_of_pic_nums_idc == 0) {
+                if (picNumLXPred < idc.abs_diff_pic_num_minus1 + 1)
+                    picNumLXNoWrap = picNumLXPred - (idc.abs_diff_pic_num_minus1 + 1) + maxPicNum;
                 else
-                    picNumLXNoWrap = picNumLXPred - (abs_diff_pic_num_minus1[i] + 1);
+                    picNumLXNoWrap = picNumLXPred - (idc.abs_diff_pic_num_minus1 + 1);
             } else {
-                if (picNumLXPred + abs_diff_pic_num_minus1[i] + 1 >= maxPicNum)
-                    picNumLXNoWrap = picNumLXPred + (abs_diff_pic_num_minus1[i] + 1) - maxPicNum;
+                if (picNumLXPred + idc.abs_diff_pic_num_minus1 + 1 >= maxPicNum)
+                    picNumLXNoWrap = picNumLXPred + (idc.abs_diff_pic_num_minus1 + 1) - maxPicNum;
                 else
-                    picNumLXNoWrap = picNumLXPred + (abs_diff_pic_num_minus1[i] + 1);
+                    picNumLXNoWrap = picNumLXPred + (idc.abs_diff_pic_num_minus1 + 1);
             }
             picNumLXPred = picNumLXNoWrap;
 
@@ -1157,15 +1150,15 @@ static void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, std::vect
                 picNumLX = picNumLXNoWrap;
 
             reorder_short_term(currSlice, cur_list, num_ref_idx_lX_active_minus1, picNumLX, &refIdxLX, view_id);
-        } else if (modification_of_pic_nums_idc[i] == 2)
-            reorder_long_term(currSlice, currSlice->RefPicList[cur_list], num_ref_idx_lX_active_minus1, long_term_pic_num[i], &refIdxLX, view_id);
+        } else if (idc.modification_of_pic_nums_idc == 2)
+            reorder_long_term(currSlice, currSlice->RefPicList[cur_list], num_ref_idx_lX_active_minus1, idc.long_term_pic_num, &refIdxLX, view_id);
         else {
-            if (modification_of_pic_nums_idc[i] == 4) {
-                picViewIdxLX = picViewIdxLXPred - (abs_diff_view_idx_minus1[i] + 1);
+            if (idc.modification_of_pic_nums_idc == 4) {
+                picViewIdxLX = picViewIdxLXPred - (idc.abs_diff_view_idx_minus1 + 1);
                 if (picViewIdxLX < 0)
                     picViewIdxLX += maxViewIdx;
             } else {
-                picViewIdxLX = picViewIdxLXPred + (abs_diff_view_idx_minus1[i] + 1);
+                picViewIdxLX = picViewIdxLXPred + (idc.abs_diff_view_idx_minus1 + 1);
                 if (picViewIdxLX >= maxViewIdx)
                     picViewIdxLX -= maxViewIdx;
             }

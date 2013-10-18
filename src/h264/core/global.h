@@ -201,7 +201,7 @@ struct VideoParameters {
     int         recovery_poc;
     bool        non_conforming_stream;
 
-    unsigned    pre_frame_num;           //!< store the frame_num in the last decoded slice. For detecting gap in frame_num.
+    unsigned    PrevRefFrameNum;           //!< store the frame_num in the last decoded slice. For detecting gap in frame_num.
 
     // Redundant slices. Should be moved to another structure and allocated only if extended profile
     unsigned    previous_frame_num; //!< frame number of previous slice

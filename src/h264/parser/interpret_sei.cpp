@@ -371,31 +371,25 @@ void dec_ref_pic_marking_repetition( byte* payload, int size, VideoParameters *p
     shr_t& shr = pSlice->header;
 
     // we need to save everything that is probably overwritten in dec_ref_pic_marking()
-    drpm_t* old_drpm = shr.dec_ref_pic_marking_buffer;
-    bool old_idr_flag                        = pSlice->idr_flag;
-    bool old_no_output_of_prior_pics_flag    = shr.no_output_of_prior_pics_flag;
-    bool old_long_term_reference_flag        = shr.long_term_reference_flag;
-    bool old_adaptive_ref_pic_buffering_flag = shr.adaptive_ref_pic_marking_mode_flag;
+    bool old_idr_flag                           = pSlice->IdrPicFlag;
+    bool old_no_output_of_prior_pics_flag       = shr.no_output_of_prior_pics_flag;
+    bool old_long_term_reference_flag           = shr.long_term_reference_flag;
+    bool old_adaptive_ref_pic_marking_mode_flag = shr.adaptive_ref_pic_marking_mode_flag;
+    auto old_adaptive_ref_pic_markings          = shr.adaptive_ref_pic_markings;
 
     // set new initial values
-    pSlice->idr_flag = original_idr_flag;
-    shr.dec_ref_pic_marking_buffer = NULL;
+    pSlice->IdrPicFlag = original_idr_flag;
 
-    buf->dec_ref_pic_marking(p_Vid, *pSlice);
-
-    while (shr.dec_ref_pic_marking_buffer) {
-        drpm_t* tmp_drpm = shr.dec_ref_pic_marking_buffer;
-        shr.dec_ref_pic_marking_buffer = tmp_drpm->Next;
-        delete tmp_drpm;
-    }
+    buf->dec_ref_pic_marking(*pSlice);
 
     // restore old values in p_Vid
-    shr.dec_ref_pic_marking_buffer = old_drpm;
-    pSlice->idr_flag = old_idr_flag;
-    shr.no_output_of_prior_pics_flag = old_no_output_of_prior_pics_flag;
+    pSlice->IdrPicFlag                     = old_idr_flag;
+    shr.no_output_of_prior_pics_flag       = old_no_output_of_prior_pics_flag;
+    shr.long_term_reference_flag           = old_long_term_reference_flag;
+    shr.adaptive_ref_pic_marking_mode_flag = old_adaptive_ref_pic_marking_mode_flag;
+    shr.adaptive_ref_pic_markings          = old_adaptive_ref_pic_markings;
+
     p_Vid->no_output_of_prior_pics_flag = shr.no_output_of_prior_pics_flag;
-    shr.long_term_reference_flag = old_long_term_reference_flag;
-    shr.adaptive_ref_pic_marking_mode_flag = old_adaptive_ref_pic_buffering_flag;
 
     free (buf);
 }

@@ -35,6 +35,89 @@ namespace vio  {
 namespace h264 {
 
 
+static void nal_unit_header_mvc_extension(nal_unit_t& nal)
+{
+    nal.non_idr_flag     = (nal.rbsp_byte[1] >> 6) & 1;
+    nal.priority_id      = (nal.rbsp_byte[1]     ) & 63;
+    nal.view_id          = (nal.rbsp_byte[2] << 2) | ((nal.rbsp_byte[3] >> 6) & 3);
+    nal.temporal_id      = (nal.rbsp_byte[3] >> 3) & 7;
+    nal.anchor_pic_flag  = (nal.rbsp_byte[3] >> 2) & 1;
+    nal.inter_view_flag  = (nal.rbsp_byte[3] >> 1) & 1;
+    nal.reserved_one_bit = (nal.rbsp_byte[3]     ) & 1;
+
+    if (nal.reserved_one_bit != 1)
+        printf("Nalu Header MVC Extension: reserved_one_bit is not 1!\n");
+}
+
+static void nal_unit_header_svc_extension(nal_unit_t& nal)
+{
+    //to be implemented for Annex G;
+}
+
+// 7.3.1 NAL unit syntax
+
+static void nal_unit(nal_unit_t& nal)
+{
+    nal.forbidden_zero_bit = (nal.rbsp_byte[0] >> 7) & 1;
+    nal.nal_ref_idc        = (nal.rbsp_byte[0] >> 5) & 3;
+    nal.nal_unit_type      = (nal.rbsp_byte[0] & 0x1f);
+
+    nal.svc_extension_flag = -1;
+
+    if (nal.nal_unit_type == 14 || nal.nal_unit_type == 20 || nal.nal_unit_type == 21) {
+        nal.svc_extension_flag = (nal.rbsp_byte[1] >> 7) & 1;
+        if (nal.svc_extension_flag)
+            nal_unit_header_svc_extension(nal);
+        else
+            nal_unit_header_mvc_extension(nal);
+
+        if (nal.nal_unit_type == nal_unit_t::NALU_TYPE_SLC_EXT) {        
+            if (!nal.svc_extension_flag)
+                nal.nal_unit_type = nal_unit_t::NALU_TYPE_SLICE;
+        }
+    }
+}
+
+static int NALUtoRBSP(nal_unit_t& nal)
+{
+    int nalUnitHeaderBytes = 1;
+    if (nal.nal_unit_type == 14 || nal.nal_unit_type == 20 || nal.nal_unit_type == 21)
+        nalUnitHeaderBytes += 3;
+
+    if (nal.num_bytes_in_nal_unit < nalUnitHeaderBytes)
+        return nal.num_bytes_in_rbsp = nal.num_bytes_in_nal_unit;
+
+    int count = 0;
+    int j = nalUnitHeaderBytes;
+
+    for (int i = nalUnitHeaderBytes; i < nal.num_bytes_in_nal_unit; ++i) {
+        //starting from begin_bytepos to avoid header information
+        //in NAL unit, 0x000000, 0x000001 or 0x000002 shall not occur at any byte-aligned position
+        if (count == 2 && nal.rbsp_byte[i] < 0x03) 
+            return nal.num_bytes_in_rbsp = -1;
+        if (count == 2 && nal.rbsp_byte[i] == 0x03) {
+            //check the 4th byte after 0x000003, except when cabac_zero_word is used, in which case the last three bytes of this NAL unit must be 0x000003
+            if (i < nal.num_bytes_in_nal_unit - 1 && nal.rbsp_byte[i + 1] > 0x03)
+                return nal.num_bytes_in_rbsp = -1;
+            //if cabac_zero_word is used, the final byte of this NAL unit(0x03) is discarded, and the last two bytes of RBSP must be 0x0000
+            if (i == nal.num_bytes_in_nal_unit - 1)
+                return nal.num_bytes_in_rbsp = j;
+
+            ++i;
+            count = 0;
+        }
+        nal.rbsp_byte[j] = nal.rbsp_byte[i];
+        if (nal.rbsp_byte[i] == 0x00)
+            ++count;
+        else
+            count = 0;
+        ++j;
+    }
+
+    return nal.num_bytes_in_rbsp = j;
+}
+
+
 struct annex_b_t {
     static const int MAX_IOBUF_SIZE = 512 * 1024;
 
@@ -157,11 +240,8 @@ uint32_t annex_b_t::get_nalu(nal_unit_t& nal)
 
             nal.num_bytes_in_nal_unit = (pos - 1) - LeadingZero8BitsCount;
             memcpy(nal.rbsp_byte, this->Buf + LeadingZero8BitsCount, nal.num_bytes_in_nal_unit);
-            nal.forbidden_zero_bit = (nal.rbsp_byte[0] >> 7) & 1;
-            nal.nal_ref_idc        = (nal.rbsp_byte[0] >> 5) & 3;
-            nal.nal_unit_type      = (nal.rbsp_byte[0] & 0x1f);
             this->nextstartcodebytes = 0;
-
+            nal_unit(nal);
             return pos - 1;
         }
 
@@ -199,10 +279,8 @@ uint32_t annex_b_t::get_nalu(nal_unit_t& nal)
 
     nal.num_bytes_in_nal_unit = pos - LeadingZero8BitsCount;
     memcpy(nal.rbsp_byte, this->Buf + LeadingZero8BitsCount, nal.num_bytes_in_nal_unit);
-    nal.forbidden_zero_bit = (nal.rbsp_byte[0] >> 7) & 1;
-    nal.nal_ref_idc        = (nal.rbsp_byte[0] >> 5) & 3;
-    nal.nal_unit_type      = (nal.rbsp_byte[0] & 0x1f);
-    nal.lost_packets       = 0;
+    nal.lost_packets = 0;
+    nal_unit(nal);
 
     return pos;
 }
@@ -272,41 +350,6 @@ void bitstream_t::close()
     }
 }
 
-
-static int NALUtoRBSP(nal_unit_t& nal)
-{
-    if (nal.num_bytes_in_nal_unit < 1)
-        return nal.num_bytes_in_rbsp = nal.num_bytes_in_nal_unit;
-
-    int count = 0;
-    int j = 1;
-
-    for (int i = 1; i < nal.num_bytes_in_nal_unit; ++i) {
-        //starting from begin_bytepos to avoid header information
-        //in NAL unit, 0x000000, 0x000001 or 0x000002 shall not occur at any byte-aligned position
-        if (count == 2 && nal.rbsp_byte[i] < 0x03) 
-            return nal.num_bytes_in_rbsp = -1;
-        if (count == 2 && nal.rbsp_byte[i] == 0x03) {
-            //check the 4th byte after 0x000003, except when cabac_zero_word is used, in which case the last three bytes of this NAL unit must be 0x000003
-            if (i < nal.num_bytes_in_nal_unit - 1 && nal.rbsp_byte[i + 1] > 0x03)
-                return nal.num_bytes_in_rbsp = -1;
-            //if cabac_zero_word is used, the final byte of this NAL unit(0x03) is discarded, and the last two bytes of RBSP must be 0x0000
-            if (i == nal.num_bytes_in_nal_unit - 1)
-                return nal.num_bytes_in_rbsp = j;
-
-            ++i;
-            count = 0;
-        }
-        nal.rbsp_byte[j] = nal.rbsp_byte[i];
-        if (nal.rbsp_byte[i] == 0x00)
-            ++count;
-        else
-            count = 0;
-        ++j;
-    }
-
-    return nal.num_bytes_in_rbsp = j;
-}
 
 bitstream_t& bitstream_t::operator>>(nal_unit_t& nal)
 {

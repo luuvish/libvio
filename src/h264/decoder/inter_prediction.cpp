@@ -70,10 +70,8 @@ void InterPrediction::mc_prediction(
     if (weighted_pred_flag) {
         int ref_idx = shr.MbaffFrameFlag && mb->mb_field_decoding_flag ? l0_refframe >> 1 : l0_refframe;
 
-        weight = pl == 0 ? (pred_dir == 0 ? shr.luma_weight_l0 : shr.luma_weight_l1)[ref_idx] :
-                           (pred_dir == 0 ? shr.chroma_weight_l0 : shr.chroma_weight_l1)[ref_idx][pl - 1];
-        offset = pl == 0 ? (pred_dir == 0 ? shr.luma_offset_l0 : shr.luma_offset_l1)[ref_idx] :
-                           (pred_dir == 0 ? shr.chroma_offset_l0 : shr.chroma_offset_l1)[ref_idx][pl - 1];
+        weight = shr.pred_weight_l[pred_dir][pl][ref_idx].weight;
+        offset = shr.pred_weight_l[pred_dir][pl][ref_idx].offset;
         offset <<= pl == 0 ? sps.bit_depth_luma_minus8 : sps.bit_depth_chroma_minus8;
 
         denom  = pl > 0 ? shr.chroma_log2_weight_denom : shr.luma_log2_weight_denom;
@@ -108,10 +106,10 @@ void InterPrediction::bi_prediction(
         int ref_idx1 = shr.MbaffFrameFlag && mb->mb_field_decoding_flag ? l1_refframe >> 1 : l1_refframe;
 
         if (pps.weighted_bipred_idc == 1) {
-            weight0 = pl == 0 ? shr.luma_weight_l0[ref_idx0] : shr.chroma_weight_l0[ref_idx0][pl - 1];
-            weight1 = pl == 0 ? shr.luma_weight_l1[ref_idx1] : shr.chroma_weight_l1[ref_idx1][pl - 1];
-            offset0 = pl == 0 ? shr.luma_offset_l0[ref_idx0] : shr.chroma_offset_l0[ref_idx0][pl - 1];
-            offset1 = pl == 0 ? shr.luma_offset_l1[ref_idx1] : shr.chroma_offset_l1[ref_idx1][pl - 1];
+            weight0 = shr.pred_weight_l[0][pl][ref_idx0].weight;
+            weight1 = shr.pred_weight_l[1][pl][ref_idx1].weight;
+            offset0 = shr.pred_weight_l[0][pl][ref_idx0].offset;
+            offset1 = shr.pred_weight_l[1][pl][ref_idx1].offset;
             offset0 <<= pl == 0 ? sps.bit_depth_luma_minus8 : sps.bit_depth_chroma_minus8;
             offset1 <<= pl == 0 ? sps.bit_depth_luma_minus8 : sps.bit_depth_chroma_minus8;
         }

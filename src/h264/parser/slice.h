@@ -38,18 +38,6 @@ enum {
 };
 
 
-struct decoded_reference_picture_marking_t;
-using drpm_t = decoded_reference_picture_marking_t;
-
-struct decoded_reference_picture_marking_t {
-    uint32_t    memory_management_control_operation;                  // ue(v)
-    uint32_t    difference_of_pic_nums_minus1;                        // ue(v)
-    uint32_t    long_term_pic_num;                                    // ue(v)
-    uint32_t    long_term_frame_idx;                                  // ue(v)
-    uint32_t    max_long_term_frame_idx_plus1;                        // ue(v)
-    drpm_t*     Next;
-};
-
 struct VideoParameters;
 
 struct slice_header_t {
@@ -72,42 +60,37 @@ struct slice_header_t {
 
     bool        ref_pic_list_modification_flag_l0;                    // u(1)
     bool        ref_pic_list_modification_flag_l1;                    // u(1)
-    uint8_t     modification_of_pic_nums_idc[2][32+1];                // ue(v)
-    uint32_t    abs_diff_pic_num_minus1     [2][32+1];                // ue(v)
-    uint32_t    long_term_pic_num           [2][32+1];                // ue(v)
-#if (MVC_EXTENSION_ENABLE)
-    uint32_t    abs_diff_view_idx_minus1    [2][32+1];                // ue(v)
-#endif
+    struct ref_pic_list_modification_t {
+        uint8_t     modification_of_pic_nums_idc;                     // ue(v)
+        uint32_t    abs_diff_pic_num_minus1;                          // ue(v)
+        uint32_t    long_term_pic_num;                                // ue(v)
+        uint32_t    abs_diff_view_idx_minus1;                         // ue(v)
+    };
+    using ref_pic_list_modification_v = std::vector<ref_pic_list_modification_t>;
+    ref_pic_list_modification_v ref_pic_list_modifications[2];
 
     uint8_t     luma_log2_weight_denom;                               // ue(v)
     uint8_t     chroma_log2_weight_denom;                             // ue(v)
-    bool        luma_weight_l0_flag  [MAX_NUM_REF_IDX];               // u(1)
-    int8_t      luma_weight_l0       [MAX_NUM_REF_IDX];               // se(v)
-    int8_t      luma_offset_l0       [MAX_NUM_REF_IDX];               // se(v)
-    bool        chroma_weight_l0_flag[MAX_NUM_REF_IDX];               // u(1)
-    int8_t      chroma_weight_l0     [MAX_NUM_REF_IDX][2];            // se(v)
-    int8_t      chroma_offset_l0     [MAX_NUM_REF_IDX][2];            // se(v)
-    bool        luma_weight_l1_flag  [MAX_NUM_REF_IDX];               // u(1)
-    int8_t      luma_weight_l1       [MAX_NUM_REF_IDX];               // se(v)
-    int8_t      luma_offset_l1       [MAX_NUM_REF_IDX];               // se(v)
-    bool        chroma_weight_l1_flag[MAX_NUM_REF_IDX];               // u(1)
-    int8_t      chroma_weight_l1     [MAX_NUM_REF_IDX][2];            // se(v)
-    int8_t      chroma_offset_l1     [MAX_NUM_REF_IDX][2];            // se(v)
+    struct pred_weight_t {
+        bool        weight_flag;                                      // u(1)
+        int8_t      weight;                                           // se(v)
+        int8_t      offset;                                           // se(v)
+    };
+    using pred_weight_v = std::vector<pred_weight_t>;
+    pred_weight_v pred_weight_l[2][3];
 
     bool        no_output_of_prior_pics_flag;                         // u(1)
     bool        long_term_reference_flag;                             // u(1)
     bool        adaptive_ref_pic_marking_mode_flag;                   // u(1)
-    //struct decoded_reference_picture_marking_t;
-    //using drpm_t = decoded_reference_picture_marking_t;
-    //struct decoded_reference_picture_marking_t {
-    //    uint32_t    memory_management_control_operation;              // ue(v)
-    //    uint32_t    difference_of_pic_nums_minus1;                    // ue(v)
-    //    uint32_t    long_term_pic_num;                                // ue(v)
-    //    uint32_t    long_term_frame_idx;                              // ue(v)
-    //    uint32_t    max_long_term_frame_idx_plus1;                    // ue(v)
-    //    drpm_t*     Next;
-    //};
-    drpm_t*     dec_ref_pic_marking_buffer;
+    struct adaptive_ref_pic_marking_t {
+        uint32_t    memory_management_control_operation;              // ue(v)
+        uint32_t    difference_of_pic_nums_minus1;                    // ue(v)
+        uint32_t    long_term_pic_num;                                // ue(v)
+        uint32_t    long_term_frame_idx;                              // ue(v)
+        uint32_t    max_long_term_frame_idx_plus1;                    // ue(v)
+    };
+    using adaptive_ref_pic_marking_v = std::vector<adaptive_ref_pic_marking_t>;
+    adaptive_ref_pic_marking_v adaptive_ref_pic_markings;
 
     uint8_t     cabac_init_idc;                                       // ue(v)
     int8_t      slice_qp_delta;                                       // se(v)
@@ -162,42 +145,47 @@ struct slice_t {
     VideoParameters* p_Vid;
     pps_t*      active_pps;
     sps_t*      active_sps;
-    int         svc_extension_flag;
 
     // dpb pointer
     dpb_t*      p_Dpb;
 
-    //slice property;
-    bool        idr_flag;
-    int         nal_ref_idc;
-    uint8_t     nal_unit_type;
+    bool        forbidden_zero_bit;                                   // f(1)
+    uint8_t     nal_ref_idc;                                          // u(2)
+    uint8_t     nal_unit_type;                                        // u(5)
 
+//    bool        svc_extension_flag;                                   // u(1)
+//    bool        non_idr_flag;                                         // u(1)
+//    uint8_t     priority_id;                                          // u(6)
+//    uint16_t    view_id;                                              // u(10)
+//    uint8_t     temporal_id;                                          // u(3)
+//    bool        anchor_pic_flag;                                      // u(1)
+//    bool        inter_view_flag;                                      // u(1)
+//    bool        reserved_one_bit;                                     // u(1)
+
+    bool        IdrPicFlag;
     shr_t       header;
 
     unsigned    num_dec_mb;
     short       current_slice_nr;
 
+
     int         layer_id;
-#if (MVC_EXTENSION_ENABLE)
+    int         svc_extension_flag;
     int         view_id;
-    int         inter_view_flag;
     int         anchor_pic_flag;
+    int         inter_view_flag;
 
     NALUnitHeaderMVCExt_t NaluHeaderMVCExt;
-#endif
 
     //slice header information;
     int               ref_flag[17]; //!< 0: i-th previous frame is incorrect
     char              RefPicSize[2];
     storable_picture* RefPicList[2][33];
 
-#if (MVC_EXTENSION_ENABLE)
     int         listinterviewidx0;
     int         listinterviewidx1;
     pic_t**     fs_listinterview0;
     pic_t**     fs_listinterview1;
-#endif
-
 
     int         dpB_NotPresent;    //!< non-zero, if data partition B is lost
     int         dpC_NotPresent;    //!< non-zero, if data partition C is lost

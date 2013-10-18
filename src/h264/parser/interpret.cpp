@@ -219,15 +219,23 @@ data_partition_t::data_partition_t(uint32_t size) :
 data_partition_t::data_partition_t(const nal_unit_t& nal) :
     nal_unit_t { nal.max_size }
 {
-    memcpy(this->rbsp_byte, &nal.rbsp_byte[1], nal.num_bytes_in_rbsp - 1);
-    this->num_bytes_in_rbsp = nal.num_bytes_in_rbsp - 1;
+    int nalUnitHeaderBytes = 1;
+    if (nal.nal_unit_type == 14 || nal.nal_unit_type == 20 || nal.nal_unit_type == 21)
+        nalUnitHeaderBytes += 3;
+
+    memcpy(this->rbsp_byte, &nal.rbsp_byte[nalUnitHeaderBytes], nal.num_bytes_in_rbsp - nalUnitHeaderBytes);
+    this->num_bytes_in_rbsp = nal.num_bytes_in_rbsp - nalUnitHeaderBytes;
     this->frame_bitoffset = 0;
 }
 
 data_partition_t& data_partition_t::operator=(const nal_unit_t& nal)
 {
-    memcpy(this->rbsp_byte, &nal.rbsp_byte[1], nal.num_bytes_in_rbsp - 1);
-    this->num_bytes_in_rbsp = nal.num_bytes_in_rbsp - 1;
+    int nalUnitHeaderBytes = 1;
+    if (nal.nal_unit_type == 14 || nal.nal_unit_type == 20 || nal.nal_unit_type == 21)
+        nalUnitHeaderBytes += 3;
+
+    memcpy(this->rbsp_byte, &nal.rbsp_byte[nalUnitHeaderBytes], nal.num_bytes_in_rbsp - nalUnitHeaderBytes);
+    this->num_bytes_in_rbsp = nal.num_bytes_in_rbsp - nalUnitHeaderBytes;
     this->frame_bitoffset = 0;
     return *this;
 }
