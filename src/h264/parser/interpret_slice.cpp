@@ -94,11 +94,7 @@ void data_partition_t::slice_header(slice_t& slice)
     shr.MaxPicNum          = sps.MaxFrameNum * (1 + shr.field_pic_flag);
     shr.CurrPicNum         = shr.frame_num * (1 + shr.field_pic_flag) + shr.field_pic_flag;
 
-    if (slice.IdrPicFlag
-#if (MVC_EXTENSION_ENABLE)
-        || (slice.svc_extension_flag == 0 && slice.NaluHeaderMVCExt.non_idr_flag == 0)
-#endif
-    )
+    if (slice.IdrPicFlag || (slice.mvc_extension_flag && !slice.non_idr_flag))
         shr.idr_pic_id = this->ue("SH: idr_pic_id");
 
     shr.delta_pic_order_cnt_bottom = 0;
@@ -411,11 +407,7 @@ void data_partition_t::dec_ref_pic_marking(slice_t& slice)
 
     shr.adaptive_ref_pic_markings.clear();
 
-    if (slice.IdrPicFlag
-#if (MVC_EXTENSION_ENABLE)
-        || (slice.svc_extension_flag == 0 && slice.NaluHeaderMVCExt.non_idr_flag == 0)
-#endif
-    ) {
+    if (slice.IdrPicFlag || (slice.mvc_extension_flag && !slice.non_idr_flag)) {
         shr.no_output_of_prior_pics_flag = this->u(1, "SH: no_output_of_prior_pics_flag");
         shr.long_term_reference_flag     = this->u(1, "SH: long_term_reference_flag");
 

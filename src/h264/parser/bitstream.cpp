@@ -47,6 +47,9 @@ static void nal_unit_header_mvc_extension(nal_unit_t& nal)
 
     if (nal.reserved_one_bit != 1)
         printf("Nalu Header MVC Extension: reserved_one_bit is not 1!\n");
+
+    if (nal.nal_unit_type == 20)
+        nal.nal_unit_type = 1;
 }
 
 static void nal_unit_header_svc_extension(nal_unit_t& nal)
@@ -62,19 +65,16 @@ static void nal_unit(nal_unit_t& nal)
     nal.nal_ref_idc        = (nal.rbsp_byte[0] >> 5) & 3;
     nal.nal_unit_type      = (nal.rbsp_byte[0] & 0x1f);
 
-    nal.svc_extension_flag = -1;
+    nal.mvc_extension_flag = 0;
+    nal.svc_extension_flag = 0;
 
     if (nal.nal_unit_type == 14 || nal.nal_unit_type == 20 || nal.nal_unit_type == 21) {
         nal.svc_extension_flag = (nal.rbsp_byte[1] >> 7) & 1;
+        nal.mvc_extension_flag = ~nal.svc_extension_flag;
         if (nal.svc_extension_flag)
             nal_unit_header_svc_extension(nal);
         else
             nal_unit_header_mvc_extension(nal);
-
-        if (nal.nal_unit_type == nal_unit_t::NALU_TYPE_SLC_EXT) {        
-            if (!nal.svc_extension_flag)
-                nal.nal_unit_type = nal_unit_t::NALU_TYPE_SLICE;
-        }
     }
 }
 

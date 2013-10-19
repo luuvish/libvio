@@ -573,6 +573,13 @@ void data_partition_t::rbsp_trailing_bits(void)
         rbsp_alignment_zero_bit = this->f(1);
 }
 
+// 7.3.2.12 Prefix NAL unit RBSP syntax
+
+void data_partition_t::prefix_nal_unit_rbsp(void)
+{
+    //to be implemented for Annex G;
+}
+
 
 // E.1.1 VUI parameter syntax
 

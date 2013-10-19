@@ -76,15 +76,6 @@ int GetVOIdx(VideoParameters *p_Vid, int iViewId)
 #endif
 
 
-
-#if (MVC_EXTENSION_ENABLE)
-void prefix_nal_unit_svc(void)
-{
-    //to be implemented for Annex G;
-}
-#endif
-
-
 static void Error_tracking(VideoParameters *p_Vid, slice_t *currSlice)
 {
     shr_t& shr = currSlice->header;
@@ -108,13 +99,14 @@ static void Error_tracking(VideoParameters *p_Vid, slice_t *currSlice)
 
 static int parse_idr(slice_t *currSlice)
 {
+    InputParameters *p_Inp = currSlice->p_Vid->p_Inp;
     VideoParameters *p_Vid = currSlice->p_Vid;
-    nal_unit_t *nalu = p_Vid->nalu; 
+    nal_unit_t& nal = *p_Vid->nalu; 
     int current_header = 0;
 
-    if (p_Vid->recovery_point || nalu->nal_unit_type == nal_unit_t::NALU_TYPE_IDR) {
+    if (p_Vid->recovery_point || nal.nal_unit_type == nal_unit_t::NALU_TYPE_IDR) {
         if (!p_Vid->recovery_point_found) {
-            if (nalu->nal_unit_type != nal_unit_t::NALU_TYPE_IDR) {
+            if (nal.nal_unit_type != nal_unit_t::NALU_TYPE_IDR) {
                 printf("Warning: Decoding does not start with an IDR picture.\n");
                 p_Vid->non_conforming_stream = 1;
             } else
@@ -126,43 +118,41 @@ static int parse_idr(slice_t *currSlice)
     if (!p_Vid->recovery_point_found)
         return current_header;
 
-    currSlice->IdrPicFlag    = (nalu->nal_unit_type == nal_unit_t::NALU_TYPE_IDR);
-    currSlice->nal_ref_idc   = nalu->nal_ref_idc;
-    currSlice->nal_unit_type = nalu->nal_unit_type;
-    currSlice->parser.dp_mode = PAR_DP_1;
+    currSlice->mvc_extension_flag = 0;
+    currSlice->svc_extension_flag = 0;
 #if (MVC_EXTENSION_ENABLE)
-    if (currSlice->svc_extension_flag != 0)
+    if (p_Inp->DecodeAllLayers == 1 && nal.nal_unit_type == 1) {
+        currSlice->mvc_extension_flag = nal.mvc_extension_flag;
+        currSlice->svc_extension_flag = nal.svc_extension_flag;
+        currSlice->non_idr_flag       = nal.non_idr_flag;
+        currSlice->priority_id        = nal.priority_id;
+        currSlice->view_id            = nal.view_id;
+        currSlice->temporal_id        = nal.temporal_id;
+        currSlice->anchor_pic_flag    = nal.anchor_pic_flag;
+        currSlice->inter_view_flag    = nal.inter_view_flag;
+        currSlice->reserved_one_bit   = nal.reserved_one_bit;
+    }
 #endif
-        currSlice->parser.partArr[0] = *nalu;
+
+    currSlice->IdrPicFlag    = nal.nal_unit_type == nal_unit_t::NALU_TYPE_IDR;
+    currSlice->nal_ref_idc   = nal.nal_ref_idc;
+    currSlice->nal_unit_type = nal.nal_unit_type;
 
 #if (MVC_EXTENSION_ENABLE)
-    if (currSlice->svc_extension_flag == 0) {
-        currSlice->view_id         = currSlice->NaluHeaderMVCExt.view_id;
-        currSlice->inter_view_flag = currSlice->NaluHeaderMVCExt.inter_view_flag;
-        currSlice->anchor_pic_flag = currSlice->NaluHeaderMVCExt.anchor_pic_flag;
-    } else if (currSlice->svc_extension_flag == -1) { //SVC and the normal AVC;
+    if (currSlice->mvc_extension_flag) {
+        currSlice->view_id         = nal.view_id;
+        currSlice->anchor_pic_flag = nal.anchor_pic_flag;
+        currSlice->inter_view_flag = nal.inter_view_flag;
+    } else if (!currSlice->svc_extension_flag) { //SVC and the normal AVC;
         if (p_Vid->active_subset_sps == NULL) {
-            currSlice->view_id = GetBaseViewId(p_Vid, &p_Vid->active_subset_sps);
-            if (currSlice->NaluHeaderMVCExt.iPrefixNALU > 0) {
-                assert(currSlice->view_id == currSlice->NaluHeaderMVCExt.view_id);
-                currSlice->inter_view_flag = currSlice->NaluHeaderMVCExt.inter_view_flag;
-                currSlice->anchor_pic_flag = currSlice->NaluHeaderMVCExt.anchor_pic_flag;
-            } else {
-                currSlice->inter_view_flag = 1;
-                currSlice->anchor_pic_flag = currSlice->IdrPicFlag;
-            }
+            currSlice->view_id         = GetBaseViewId(p_Vid, &p_Vid->active_subset_sps);
+            currSlice->anchor_pic_flag = nal.nal_unit_type == nal_unit_t::NALU_TYPE_IDR;
+            currSlice->inter_view_flag = 1;
         } else {
             assert(p_Vid->active_subset_sps->sps_mvc.num_views_minus1 >= 0);
-            // prefix NALU available
-            if (currSlice->NaluHeaderMVCExt.iPrefixNALU > 0) {
-                currSlice->view_id = currSlice->NaluHeaderMVCExt.view_id;
-                currSlice->inter_view_flag = currSlice->NaluHeaderMVCExt.inter_view_flag;
-                currSlice->anchor_pic_flag = currSlice->NaluHeaderMVCExt.anchor_pic_flag;
-            } else { //no prefix NALU;
-                currSlice->view_id = p_Vid->active_subset_sps->sps_mvc.views[0].view_id;
-                currSlice->inter_view_flag = 1;
-                currSlice->anchor_pic_flag = currSlice->IdrPicFlag;
-            }
+            currSlice->view_id         = p_Vid->active_subset_sps->sps_mvc.views[0].view_id;
+            currSlice->anchor_pic_flag = nal.nal_unit_type == nal_unit_t::NALU_TYPE_IDR;
+            currSlice->inter_view_flag = 1;
         }
     }
     currSlice->layer_id = currSlice->view_id = GetVOIdx(p_Vid, currSlice->view_id);
@@ -172,6 +162,8 @@ static int parse_idr(slice_t *currSlice)
     // the parameter set ID of the SLice header.  Hence, read the pic_parameter_set_id
     // of the slice header first, then setup the active parameter sets, and then read
     // the rest of the slice header
+    currSlice->parser.dp_mode = PAR_DP_1;
+    currSlice->parser.partArr[0] = nal;
     currSlice->parser.partArr[0].slice_header(*currSlice);
 
     UseParameterSet(currSlice);
@@ -214,7 +206,7 @@ static int parse_idr(slice_t *currSlice)
 static int parse_dpa(slice_t *currSlice)
 {
     VideoParameters* p_Vid = currSlice->p_Vid;
-    nal_unit_t* nalu = p_Vid->nalu;
+    nal_unit_t& nal = *p_Vid->nalu;
     int current_header = 0;
 
     int slice_id_a, slice_id_b, slice_id_c;
@@ -226,23 +218,24 @@ static int parse_dpa(slice_t *currSlice)
     currSlice->dpB_NotPresent = 1;
     currSlice->dpC_NotPresent = 1;
 
+    currSlice->mvc_extension_flag = 0;
+    currSlice->svc_extension_flag = 0;
     currSlice->IdrPicFlag    = 0;
-    currSlice->nal_ref_idc   = nalu->nal_ref_idc;
-    currSlice->nal_unit_type = nalu->nal_unit_type;
-    currSlice->parser.dp_mode = PAR_DP_3;
+    currSlice->nal_ref_idc   = nal.nal_ref_idc;
+    currSlice->nal_unit_type = nal.nal_unit_type;
 #if MVC_EXTENSION_ENABLE
     currSlice->p_Dpb = p_Vid->p_Dpb_layer[0];
 #endif
-    data_partition_t& dp0 = currSlice->parser.partArr[0];
-    dp0 = *nalu;
 #if MVC_EXTENSION_ENABLE
     currSlice->view_id = GetBaseViewId(p_Vid, &p_Vid->active_subset_sps);
-    currSlice->inter_view_flag = 1;
     currSlice->layer_id = currSlice->view_id = GetVOIdx(p_Vid, currSlice->view_id);
     currSlice->anchor_pic_flag = currSlice->IdrPicFlag;
+    currSlice->inter_view_flag = 1;
 #endif
 
-    dp0.slice_header(*currSlice);
+    currSlice->parser.dp_mode = PAR_DP_3;
+    currSlice->parser.partArr[0] = nal;
+    currSlice->parser.partArr[0].slice_header(*currSlice);
 
     UseParameterSet(currSlice);
     /* Tian Dong: frame_num gap processing, if found */
@@ -273,26 +266,26 @@ static int parse_dpa(slice_t *currSlice)
     // Now I need to read the slice ID, which depends on the value of
     // redundant_pic_cnt_present_flag
 
-    slice_id_a = dp0.ue("NALU: DP_A slice_id");
+    slice_id_a = currSlice->parser.partArr[0].ue("NALU: DP_A slice_id");
 
     if (p_Vid->active_pps->entropy_coding_mode_flag)
         error(500, "received data partition with CABAC, this is not allowed");
 
     // continue with reading next DP
-    p_Vid->bitstream >> *nalu;
-    if (0 == nalu->num_bytes_in_rbsp)
+    p_Vid->bitstream >> nal;
+    if (0 == nal.num_bytes_in_rbsp)
         return current_header;
 
-    if ( nal_unit_t::NALU_TYPE_DPB == nalu->nal_unit_type) {
+    if (nal_unit_t::NALU_TYPE_DPB == nal.nal_unit_type) {
         // we got a DPB
         data_partition_t& dp1 = currSlice->parser.partArr[1];
-        dp1 = *nalu;
+        dp1 = nal;
 
         slice_id_b = dp1.ue("NALU: DP_B slice_id");
 
         currSlice->dpB_NotPresent = 0; 
 
-        if ((slice_id_b != slice_id_a) || (nalu->lost_packets)) {
+        if (slice_id_b != slice_id_a || nal.lost_packets) {
             printf ("Waning: got a data partition B which does not match DP_A (DP loss!)\n");
             currSlice->dpB_NotPresent = 1;
             currSlice->dpC_NotPresent = 1;
@@ -301,22 +294,22 @@ static int parse_dpa(slice_t *currSlice)
                 dp1.ue("NALU: DP_B redundant_pic_cnt");
 
             // we're finished with DP_B, so let's continue with next DP
-            p_Vid->bitstream >> *nalu;
-            if (0 == nalu->num_bytes_in_rbsp)
+            p_Vid->bitstream >> nal;
+            if (0 == nal.num_bytes_in_rbsp)
                 return current_header;
         }
     } else
         currSlice->dpB_NotPresent = 1;
 
     // check if we got DP_C
-    if ( nal_unit_t::NALU_TYPE_DPC == nalu->nal_unit_type) {
+    if (nal_unit_t::NALU_TYPE_DPC == nal.nal_unit_type) {
         data_partition_t& dp2 = currSlice->parser.partArr[2];
-        dp2 = *nalu;
+        dp2 = nal;
 
         currSlice->dpC_NotPresent = 0;
 
         slice_id_c = dp2.ue("NALU: DP_C slice_id");
-        if ((slice_id_c != slice_id_a)|| (nalu->lost_packets)) {
+        if (slice_id_c != slice_id_a || nal.lost_packets) {
             printf ("Warning: got a data partition C which does not match DP_A(DP loss!)\n");
             currSlice->dpC_NotPresent =1;
         }
@@ -327,8 +320,7 @@ static int parse_dpa(slice_t *currSlice)
         currSlice->dpC_NotPresent = 1;
 
     // check if we read anything else than the expected partitions
-    if (nalu->nal_unit_type != nal_unit_t::NALU_TYPE_DPB &&
-        nalu->nal_unit_type != nal_unit_t::NALU_TYPE_DPC) {
+    if (nal.nal_unit_type != nal_unit_t::NALU_TYPE_DPB && nal.nal_unit_type != nal_unit_t::NALU_TYPE_DPC) {
         // we have a NALI that we can't process here, so restart processing
         return 100;
         // yes, "goto" should not be used, but it's really the best way here before we restructure the decoding loop
@@ -350,22 +342,6 @@ static int read_new_slice(slice_t *currSlice)
         p_Vid->bitstream >> nal;
         if (0 == nal.num_bytes_in_rbsp)
             return EOS;
-
-#if (MVC_EXTENSION_ENABLE)
-        currSlice->svc_extension_flag = -1;
-        if (p_Inp->DecodeAllLayers == 1 &&
-            (nal.nal_unit_type == 14 || nal.nal_unit_type == 20 || nal.nal_unit_type == 21)) {
-            currSlice->svc_extension_flag                = nal.svc_extension_flag;
-            currSlice->NaluHeaderMVCExt.non_idr_flag     = nal.non_idr_flag;
-            currSlice->NaluHeaderMVCExt.priority_id      = nal.priority_id;
-            currSlice->NaluHeaderMVCExt.view_id          = nal.view_id;
-            currSlice->NaluHeaderMVCExt.temporal_id      = nal.temporal_id;
-            currSlice->NaluHeaderMVCExt.anchor_pic_flag  = nal.anchor_pic_flag;
-            currSlice->NaluHeaderMVCExt.inter_view_flag  = nal.inter_view_flag;
-            currSlice->NaluHeaderMVCExt.reserved_one_bit = nal.reserved_one_bit;
-            currSlice->NaluHeaderMVCExt.iPrefixNALU      = nal.nal_unit_type == nal_unit_t::NALU_TYPE_PREFIX;
-        }
-#endif
 
 process_nalu:
         switch (nal.nal_unit_type) {
@@ -476,8 +452,11 @@ process_nalu:
             break;
 
         case nal_unit_t::NALU_TYPE_PREFIX:
-            if (currSlice->svc_extension_flag == 1)
-                prefix_nal_unit_svc();
+            {
+                data_partition_t* dp = new data_partition_t { nal };
+                dp->prefix_nal_unit_rbsp();
+                delete dp;
+            }
             break;
 
         case nal_unit_t::NALU_TYPE_SUB_SPS:

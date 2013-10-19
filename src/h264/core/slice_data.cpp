@@ -426,7 +426,7 @@ void UseParameterSet(slice_t *currSlice)
     if (!pps->Valid)
         printf ("Trying to use an invalid (uninitialized) Picture Parameter Set with ID %d, expect the unexpected...\n", PicParsetId);
 #if (MVC_EXTENSION_ENABLE)
-    if (currSlice->svc_extension_flag == -1) {
+    if (!currSlice->mvc_extension_flag && !currSlice->svc_extension_flag) {
         if (!sps->Valid)
             printf ("PicParset %d references an invalid (uninitialized) Sequence Parameter Set with ID %d, expect the unexpected...\n", 
         PicParsetId, (int) pps->seq_parameter_set_id);
@@ -470,7 +470,7 @@ void init_picture_decoding(VideoParameters *p_Vid)
     pSlice->fmo_init();
 
 #if (MVC_EXTENSION_ENABLE)
-    if (pSlice->layer_id > 0 && pSlice->svc_extension_flag == 0 && pSlice->NaluHeaderMVCExt.non_idr_flag == 0)
+    if (pSlice->layer_id > 0 && pSlice->mvc_extension_flag && pSlice->non_idr_flag == 0)
         p_Vid->p_Dpb_layer[pSlice->layer_id]->idr_memory_management(p_Vid->dec_picture);
     p_Vid->p_Dpb_layer[pSlice->view_id]->update_ref_list();
     p_Vid->p_Dpb_layer[pSlice->view_id]->update_ltref_list();

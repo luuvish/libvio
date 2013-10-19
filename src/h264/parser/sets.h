@@ -108,6 +108,7 @@ struct nal_unit_t {
     uint8_t     nal_ref_idc;                                          // u(2)
     uint8_t     nal_unit_type;                                        // u(5)
 
+    bool        mvc_extension_flag;
     bool        svc_extension_flag;                                   // u(1)
     bool        non_idr_flag;                                         // u(1)
     uint8_t     priority_id;                                          // u(6)

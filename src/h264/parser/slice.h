@@ -11,11 +11,6 @@
 #include "interpret.h"
 #include "decoder.h"
 
-#define MAX_NUM_DECSLICES      16
-
-#define MAX_REFERENCE_PICTURES 32               //!< H.264 allows 32 fields
-
-#define MAX_NUM_REF_IDX 32
 
 namespace vio { namespace h264 {
 struct cabac_contexts_t;
@@ -127,40 +122,25 @@ struct slice_header_t {
 using shr_t = slice_header_t;
 
 
-#if (MVC_EXTENSION_ENABLE)
-struct NALUnitHeaderMVCExt_t {
-    unsigned int non_idr_flag;
-    unsigned int priority_id;
-    unsigned int view_id;
-    unsigned int temporal_id;
-    unsigned int anchor_pic_flag;
-    unsigned int inter_view_flag;
-    unsigned int reserved_one_bit;
-    unsigned int iPrefixNALU;
-};
-#endif
-
-
 struct slice_t {
     VideoParameters* p_Vid;
+    dpb_t*      p_Dpb;
     pps_t*      active_pps;
     sps_t*      active_sps;
-
-    // dpb pointer
-    dpb_t*      p_Dpb;
 
     bool        forbidden_zero_bit;                                   // f(1)
     uint8_t     nal_ref_idc;                                          // u(2)
     uint8_t     nal_unit_type;                                        // u(5)
 
-//    bool        svc_extension_flag;                                   // u(1)
-//    bool        non_idr_flag;                                         // u(1)
-//    uint8_t     priority_id;                                          // u(6)
+    bool        mvc_extension_flag;
+    bool        svc_extension_flag;                                   // u(1)
+    bool        non_idr_flag;                                         // u(1)
+    uint8_t     priority_id;                                          // u(6)
 //    uint16_t    view_id;                                              // u(10)
-//    uint8_t     temporal_id;                                          // u(3)
-//    bool        anchor_pic_flag;                                      // u(1)
-//    bool        inter_view_flag;                                      // u(1)
-//    bool        reserved_one_bit;                                     // u(1)
+    uint8_t     temporal_id;                                          // u(3)
+    bool        anchor_pic_flag;                                      // u(1)
+    bool        inter_view_flag;                                      // u(1)
+    bool        reserved_one_bit;                                     // u(1)
 
     bool        IdrPicFlag;
     shr_t       header;
@@ -170,12 +150,7 @@ struct slice_t {
 
 
     int         layer_id;
-    int         svc_extension_flag;
     int         view_id;
-    int         anchor_pic_flag;
-    int         inter_view_flag;
-
-    NALUnitHeaderMVCExt_t NaluHeaderMVCExt;
 
     //slice header information;
     int               ref_flag[17]; //!< 0: i-th previous frame is incorrect

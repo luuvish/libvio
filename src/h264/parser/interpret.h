@@ -79,19 +79,21 @@ struct data_partition_t : public nal_unit_t {
     void        end_of_stream_rbsp        (void);
     void        filler_data_rbsp          (void);
 
-    void        slice_layer_without_partitioning_rbsp();
-    void        slice_data_partition_a_layer_rbsp();
-    void        slice_data_partition_b_layer_rbsp();
-    void        slice_data_partition_c_layer_rbsp();
+    void        slice_layer_without_partitioning_rbsp(void);
+    void        slice_data_partition_a_layer_rbsp    (void);
+    void        slice_data_partition_b_layer_rbsp    (void);
+    void        slice_data_partition_c_layer_rbsp    (void);
+    void        rbsp_slice_trailing_bits             (void);
+    void        rbsp_trailing_bits                   (void);
+    void        prefix_nal_unit_rbsp                 (void);
+    void        slice_layer_extension_rbsp           (void);
+
     void        slice_header                 (slice_t& slice);
     void        ref_pic_list_modification    (slice_t& slice);
     void        ref_pic_list_mvc_modification(slice_t& slice);
     void        pred_weight_table            (slice_t& slice);
     void        dec_ref_pic_marking          (slice_t& slice);
     void        slice_data();
-
-    void        rbsp_slice_trailing_bits(void);
-    void        rbsp_trailing_bits      (void);
 
     void        vui_parameters(vui_t& vui);
     void        hrd_parameters(hrd_t& hrd);

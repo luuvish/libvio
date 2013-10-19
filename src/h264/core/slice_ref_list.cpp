@@ -570,7 +570,7 @@ static void init_lists_p_slice_mvc(slice_t *currSlice)
 
     currSlice->RefPicSize[1] = 0;    
 
-    if (currSlice->svc_extension_flag == 0) {
+    if (currSlice->mvc_extension_flag) {
         int curr_view_id = currSlice->layer_id;
         currSlice->fs_listinterview0 = new pic_t*[p_Dpb->size];
         list0idx = currSlice->RefPicSize[0];
@@ -753,7 +753,7 @@ static void init_lists_b_slice_mvc(slice_t *currSlice)
         }
     }
 
-    if (currSlice->svc_extension_flag == 0) {
+    if (currSlice->mvc_extension_flag) {
         int curr_view_id = currSlice->view_id;
         // B-slice_t
         currSlice->fs_listinterview0 = new pic_t*[p_Dpb->size];
@@ -1118,7 +1118,7 @@ static void reorder_ref_pic_list_mvc(slice_t *currSlice, int cur_list, std::vect
         currPicNum = 2 * shr.frame_num + 1;
     }
 
-    if (currSlice->svc_extension_flag == 0) {
+    if (currSlice->mvc_extension_flag) {
         curr_VOIdx = view_id;
         maxViewIdx = get_maxViewIdx(p_Vid, view_id, anchor_pic_flag, 0);
         picViewIdxLXPred=-1;
@@ -1226,7 +1226,7 @@ void slice_t::init_ref_lists()
     this->init_lists();
 
 #if (MVC_EXTENSION_ENABLE)
-    if (this->svc_extension_flag == 0 || this->svc_extension_flag == 1)
+    if (this->mvc_extension_flag || this->svc_extension_flag)
         reorder_lists_mvc(this, shr.PicOrderCnt);
     else
         reorder_lists(this);
