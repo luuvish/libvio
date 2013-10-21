@@ -234,9 +234,6 @@ void DecoderParams::FinitDecoder()
     this->p_Vid->p_Dpb_layer[0]->flush();
     this->p_Vid->p_Dpb_layer[1]->flush();
 #endif
-
-    this->p_Vid->newframe = 0;
-    this->p_Vid->previous_frame_num = 0;
 }
 
 

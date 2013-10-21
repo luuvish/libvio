@@ -14,60 +14,6 @@ using vio::h264::sps_mvc_t;
 #include "erc_api.h"
 
 
-void slice_t::update_pic_num()
-{
-    dpb_t& dpb = *this->p_Dpb;
-    sps_t& sps = *this->active_sps;
-    shr_t& shr = this->header;
-
-    if (!shr.field_pic_flag) {
-        for (int i = 0; i < dpb.ref_frames_in_buffer; ++i) {
-            pic_t* fs = dpb.fs_ref[i];
-            if (fs->is_used == 3) {
-                if (fs->frame->used_for_reference && !fs->frame->is_long_term) {
-                    if (fs->FrameNum > shr.frame_num)
-                        fs->FrameNumWrap = fs->FrameNum - sps.MaxFrameNum;
-                    else
-                        fs->FrameNumWrap = fs->FrameNum;
-                    fs->frame->PicNum = fs->FrameNumWrap;
-                }
-            }
-        }
-        for (int i = 0; i < dpb.ltref_frames_in_buffer; ++i) {
-            pic_t* fs = dpb.fs_ltref[i];
-            if (fs->is_used == 3) {
-                if (fs->frame->is_long_term)
-                    fs->frame->LongTermPicNum = fs->frame->LongTermFrameIdx;
-            }
-        }
-    } else {
-        int add_top    = !shr.bottom_field_flag ? 1 : 0;
-        int add_bottom = !shr.bottom_field_flag ? 0 : 1;
-
-        for (int i = 0; i < dpb.ref_frames_in_buffer; ++i) {
-            pic_t* fs = dpb.fs_ref[i];
-            if (fs->is_reference) {
-                if (fs->FrameNum > shr.frame_num)
-                    fs->FrameNumWrap = fs->FrameNum - sps.MaxFrameNum;
-                else
-                    fs->FrameNumWrap = fs->FrameNum;
-                if (fs->is_reference & 1)
-                    fs->top_field->PicNum = 2 * fs->FrameNumWrap + add_top;
-                if (fs->is_reference & 2)
-                    fs->bottom_field->PicNum = 2 * fs->FrameNumWrap + add_bottom;
-            }
-        }
-        for (int i = 0; i < dpb.ltref_frames_in_buffer; ++i) {
-            pic_t* fs = dpb.fs_ltref[i];
-            if (fs->is_long_term & 1)
-                fs->top_field->LongTermPicNum = 2 * fs->top_field->LongTermFrameIdx + add_top;
-            if (fs->is_long_term & 2)
-                fs->bottom_field->LongTermPicNum = 2 * fs->bottom_field->LongTermFrameIdx + add_bottom;
-        }
-    }
-}
-
-
 
 static void gen_pic_list_from_frame_list(bool bottom_field_flag, pic_t **fs_list, int list_idx, storable_picture **list, char *list_size, int long_term)
 {

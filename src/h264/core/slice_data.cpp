@@ -21,7 +21,6 @@ using vio::h264::mb_t;
 #include "erc_api.h"
 #include "dpb.h"
 
-#define MAX_NUM_SLICES 50
 
 
 static inline int is_BL_profile(unsigned int profile_idc) 
@@ -204,7 +203,7 @@ void init_picture(slice_t* currSlice)
         p_Vid->PrevRefFrameNum = shr.frame_num;
 
     //calculate POC
-    decode_poc(p_Vid, currSlice);
+    currSlice->decode_poc();
 
     if (p_Vid->recovery_frame_num == (int) shr.frame_num && p_Vid->recovery_poc == 0x7fffffff)
         p_Vid->recovery_poc = shr.PicOrderCnt;
@@ -452,9 +451,6 @@ void init_picture_decoding(VideoParameters *p_Vid)
     slice_t *pSlice = p_Vid->ppSliceList[0];
     shr_t& shr = pSlice->header;
 
-    if (p_Vid->iSliceNumOfCurrPic >= MAX_NUM_SLICES)
-        error(200, "Maximum number of supported slices exceeded. \nPlease recompile with increased value for MAX_NUM_SLICES");
-
     if (p_Vid->pNextPPS->Valid && p_Vid->pNextPPS->pic_parameter_set_id == shr.pic_parameter_set_id) {
         pps_t tmpPPS = p_Vid->PicParSet[shr.pic_parameter_set_id];
         p_Vid->PicParSet[p_Vid->pNextPPS->pic_parameter_set_id] = *(p_Vid->pNextPPS);
@@ -467,14 +463,14 @@ void init_picture_decoding(VideoParameters *p_Vid)
 
     p_Vid->structure = shr.structure;
 
-    pSlice->fmo_init();
+    pSlice->init_slice_group_map();
 
 #if (MVC_EXTENSION_ENABLE)
     if (pSlice->layer_id > 0 && pSlice->mvc_extension_flag && pSlice->non_idr_flag == 0)
         p_Vid->p_Dpb_layer[pSlice->layer_id]->idr_memory_management(p_Vid->dec_picture);
     p_Vid->p_Dpb_layer[pSlice->view_id]->update_ref_list();
     p_Vid->p_Dpb_layer[pSlice->view_id]->update_ltref_list();
-    pSlice->update_pic_num();
+    p_Vid->p_Dpb_layer[pSlice->view_id]->init_picture_number(*pSlice);
 #endif
 }
 
@@ -665,7 +661,7 @@ bool macroblock_t::close(slice_t& slice)
     if (this->mbAddrX == shr.PicSizeInMbs - 1)
         return true;
 
-    slice.parser.current_mb_nr = slice.p_Vid->ppSliceList[0]->FmoGetNextMBNr(slice.parser.current_mb_nr);
+    slice.parser.current_mb_nr = slice.p_Vid->ppSliceList[0]->NextMbAddress(slice.parser.current_mb_nr);
 
     if (pps.entropy_coding_mode_flag)
         startcode_follows = eos_bit && slice.parser.cabac[0].decode_terminate();
@@ -696,8 +692,6 @@ bool macroblock_t::close(slice_t& slice)
 
 slice_t::slice_t()
 {
-    shr_t& shr = this->header;
-
     get_mem3Dpel(&this->mb_pred, 3, 16, 16);
 
 #if (MVC_EXTENSION_ENABLE)
@@ -713,21 +707,11 @@ slice_t::slice_t()
             this->RefPicList[j][i] = NULL;
         this->RefPicSize[j] = 0;
     }
-
-    shr.MbToSliceGroupMap      = nullptr;
-    shr.MapUnitToSliceGroupMap = nullptr;
 }
 
 slice_t::~slice_t()
 {
-    shr_t& shr = this->header;
-
     free_mem3Dpel(this->mb_pred);
-
-    if (shr.MbToSliceGroupMap)
-        delete []shr.MbToSliceGroupMap;
-    if (shr.MapUnitToSliceGroupMap)
-        delete []shr.MapUnitToSliceGroupMap;
 }
 
 void slice_t::init()

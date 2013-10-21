@@ -177,9 +177,6 @@ struct VideoParameters {
     concealment_node* concealment_head;
     concealment_node* concealment_end;
 
-    // for POC mode 1:
-    int         PicOrderCnt;
-
     int         no_output_of_prior_pics_flag;
 
     // picture error concealment

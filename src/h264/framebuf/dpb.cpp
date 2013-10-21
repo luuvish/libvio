@@ -426,6 +426,59 @@ void decoded_picture_buffer_t::flush()
     this->last_output_poc = INT_MIN;
 }
 
+void decoded_picture_buffer_t::init_picture_number(slice_t& slice)
+{
+    sps_t& sps = *slice.active_sps;
+    shr_t& shr = slice.header;
+
+    if (!shr.field_pic_flag) {
+        for (int i = 0; i < this->ref_frames_in_buffer; ++i) {
+            pic_t* fs = this->fs_ref[i];
+            if (fs->is_used == 3) {
+                if (fs->frame->used_for_reference && !fs->frame->is_long_term) {
+                    if (fs->FrameNum > shr.frame_num)
+                        fs->FrameNumWrap = fs->FrameNum - sps.MaxFrameNum;
+                    else
+                        fs->FrameNumWrap = fs->FrameNum;
+                    fs->frame->PicNum = fs->FrameNumWrap;
+                }
+            }
+        }
+        for (int i = 0; i < this->ltref_frames_in_buffer; ++i) {
+            pic_t* fs = this->fs_ltref[i];
+            if (fs->is_used == 3) {
+                if (fs->frame->is_long_term)
+                    fs->frame->LongTermPicNum = fs->frame->LongTermFrameIdx;
+            }
+        }
+    } else {
+        int add_top    = !shr.bottom_field_flag ? 1 : 0;
+        int add_bottom = !shr.bottom_field_flag ? 0 : 1;
+
+        for (int i = 0; i < this->ref_frames_in_buffer; ++i) {
+            pic_t* fs = this->fs_ref[i];
+            if (fs->is_reference) {
+                if (fs->FrameNum > shr.frame_num)
+                    fs->FrameNumWrap = fs->FrameNum - sps.MaxFrameNum;
+                else
+                    fs->FrameNumWrap = fs->FrameNum;
+                if (fs->is_reference & 1)
+                    fs->top_field->PicNum = 2 * fs->FrameNumWrap + add_top;
+                if (fs->is_reference & 2)
+                    fs->bottom_field->PicNum = 2 * fs->FrameNumWrap + add_bottom;
+            }
+        }
+        for (int i = 0; i < this->ltref_frames_in_buffer; ++i) {
+            pic_t* fs = this->fs_ltref[i];
+            if (fs->is_long_term & 1)
+                fs->top_field->LongTermPicNum = 2 * fs->top_field->LongTermFrameIdx + add_top;
+            if (fs->is_long_term & 2)
+                fs->bottom_field->LongTermPicNum = 2 * fs->bottom_field->LongTermFrameIdx + add_bottom;
+        }
+    }
+}
+
+
 void decoded_picture_buffer_t::update_ref_list()
 {
     int i, j;
@@ -972,7 +1025,7 @@ void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *currSlice)
 
         shr.frame_num = UnusedShortTermFrameNum;
         if (sps.pic_order_cnt_type != 0)
-            decode_poc(p_Vid, p_Vid->ppSliceList[0]);
+            p_Vid->ppSliceList[0]->decode_poc();
         picture->top_poc    = shr.TopFieldOrderCnt;
         picture->bottom_poc = shr.BottomFieldOrderCnt;
         picture->frame_poc  = shr.PicOrderCnt;

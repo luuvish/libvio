@@ -62,6 +62,8 @@ public:
     void        update_ref_list();
     void        update_ltref_list();
 
+    void        init_picture_number(slice_t& slice);
+
 protected:
     void        get_smallest_poc(int* poc, int* pos);
 

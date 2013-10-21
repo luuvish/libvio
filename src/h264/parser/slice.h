@@ -109,8 +109,6 @@ struct slice_header_t {
     int8_t      FilterOffsetA;
     int8_t      FilterOffsetB;
     uint32_t    MapUnitsInSliceGroup0;
-    uint8_t*    MbToSliceGroupMap;
-    uint8_t*    MapUnitToSliceGroupMap;
 
     int32_t     PicOrderCntMsb;
     int32_t     FrameNumOffset;
@@ -145,6 +143,13 @@ struct slice_t {
     bool        IdrPicFlag;
     shr_t       header;
 
+    using uint8_v = std::vector<uint8_t>;
+    uint8_v     MbToSliceGroupMap;
+    //slice header information;
+    int               ref_flag[17]; //!< 0: i-th previous frame is incorrect
+    char              RefPicSize[2];
+    storable_picture* RefPicList[2][33];
+
     unsigned    num_dec_mb;
     short       current_slice_nr;
 
@@ -152,10 +157,6 @@ struct slice_t {
     int         layer_id;
     int         view_id;
 
-    //slice header information;
-    int               ref_flag[17]; //!< 0: i-th previous frame is incorrect
-    char              RefPicSize[2];
-    storable_picture* RefPicList[2][33];
 
     int         listinterviewidx0;
     int         listinterviewidx1;
@@ -179,31 +180,27 @@ struct slice_t {
     slice_t();
     ~slice_t();
 
-    void        update_pic_num();
     void        init_lists    ();
     void        init_ref_lists();
 
-    void        fmo_init();
-    void        fmo_close();
-    int         FmoGetNextMBNr(int CurrentMbNr);
+    void        decode_poc();
+    void        init_slice_group_map();
 
-    void        FmoGenerateType0MapUnitMap();
-    void        FmoGenerateType1MapUnitMap();
-    void        FmoGenerateType2MapUnitMap();
-    void        FmoGenerateType3MapUnitMap();
-    void        FmoGenerateType4MapUnitMap();
-    void        FmoGenerateType5MapUnitMap();
-    void        FmoGenerateType6MapUnitMap();
-    void        FmoGenerateMapUnitToSliceGroupMap();
-    void        FmoGenerateMbToSliceGroupMap();
-
+    int         NextMbAddress(int n);
     void        init();
     void        decode();
 
     bool        operator!=(const slice_t& slice);
+
+protected:
+    void        FmoGenerateType0MapUnitMap(uint8_v& mapUnitToSliceGroupMap);
+    void        FmoGenerateType1MapUnitMap(uint8_v& mapUnitToSliceGroupMap);
+    void        FmoGenerateType2MapUnitMap(uint8_v& mapUnitToSliceGroupMap);
+    void        FmoGenerateType3MapUnitMap(uint8_v& mapUnitToSliceGroupMap);
+    void        FmoGenerateType4MapUnitMap(uint8_v& mapUnitToSliceGroupMap);
+    void        FmoGenerateType5MapUnitMap(uint8_v& mapUnitToSliceGroupMap);
+    void        FmoGenerateType6MapUnitMap(uint8_v& mapUnitToSliceGroupMap);
 };
 
-
-void decode_poc(VideoParameters *p_Vid, slice_t *pSlice);
 
 #endif /* _SLICE_H_ */
