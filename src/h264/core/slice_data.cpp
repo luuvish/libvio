@@ -180,7 +180,7 @@ void init_picture(slice_t* currSlice)
                        lists cannot be formed correctly for motion copy*/
                     p_Vid->conceal_mode = 1;
                     p_Vid->IDR_concealment_flag = 1;
-                    conceal_lost_frames(p_Dpb, currSlice);
+                    p_Dpb->conceal_lost_frames(currSlice);
                     //reset to original concealment mode for future drops
                     p_Vid->conceal_mode = p_Inp->conceal_mode;
                 } else {
@@ -188,7 +188,7 @@ void init_picture(slice_t* currSlice)
                     p_Vid->conceal_mode = p_Inp->conceal_mode;
 
                     p_Vid->IDR_concealment_flag = 0;
-                    conceal_lost_frames(p_Dpb, currSlice);
+                    p_Dpb->conceal_lost_frames(currSlice);
                 }
             } else
 #endif

@@ -58,9 +58,6 @@ enum PictureStructure {
 };
 
 
-struct pic_motion_params_old;
-struct pic_motion_params;
-
 struct slice_t;
 struct macroblock_t;
 
@@ -68,18 +65,19 @@ struct decoded_picture_buffer_t;
 
 struct InputParameters;
 struct VideoParameters;
-struct DecodedPicList;
 
 struct SNRParameters;
 
 struct tone_mapping_struct_s;
 struct picture_t;
 using pic_t = picture_t;
-struct sei_params;
-struct concealment_node;
-struct object_buffer;
-struct ercVariables_s;
 struct storable_picture;
+
+struct sei_params;
+
+struct concealment_node;
+struct objectBuffer_t;
+struct ercVariables_t;
 
 struct CodingParameters {
     int layer_id;
@@ -170,13 +168,6 @@ struct VideoParameters {
     mb_t*       mb_data;               //!< array containing all MBs of a whole frame
     mb_t*       mb_data_JV[3]; //!< mb_data to be used for 4:4:4 independent mode
 
-
-    // picture error concealment
-    // concealment_head points to first node in list, concealment_end points to
-    // last node in list. Initialize both to NULL, meaning no nodes in list yet
-    concealment_node* concealment_head;
-    concealment_node* concealment_end;
-
     int         no_output_of_prior_pics_flag;
 
     // picture error concealment
@@ -214,8 +205,13 @@ struct VideoParameters {
     storable_picture* no_reference_picture; //!< dummy storable picture for recovery point
 
     // Error parameters
-    object_buffer*  erc_object_list;
-    ercVariables_s* erc_errorVar;
+    objectBuffer_t* erc_object_list;
+    ercVariables_t* erc_errorVar;
+    // picture error concealment
+    // concealment_head points to first node in list, concealment_end points to
+    // last node in list. Initialize both to NULL, meaning no nodes in list yet
+    concealment_node* concealment_head;
+    concealment_node* concealment_end;
 
     int         erc_mvperMB;
     VideoParameters* erc_img;

@@ -4,26 +4,7 @@
 static void concealBlocks          ( VideoParameters *p_Vid, int lastColumn, int lastRow, int comp, frame *recfr, int picSizeX, char *condition );
 static void pixMeanInterpolateBlock( VideoParameters *p_Vid, px_t *src[], px_t *block, int blockSize, int frameWidth );
 
-/*!
- ************************************************************************
- * \brief
- *      The main function for Intra frame concealment.
- *      Calls "concealBlocks" for each color component (Y,U,V) separately
- * \return
- *      0, if the concealment was not successful and simple concealment should be used
- *      1, otherwise (even if none of the blocks were concealed)
- * \param p_Vid
- *      video encoding parameters for current picture
- * \param recfr
- *      Reconstructed frame buffer
- * \param picSizeX
- *      Width of the frame in pixels
- * \param picSizeY
- *      Height of the frame in pixels
- * \param errorVar
- *      Variables for error concealment
- ************************************************************************
- */
+
 int ercConcealIntraFrame( VideoParameters *p_Vid, frame *recfr, int picSizeX, int picSizeY, ercVariables_t *errorVar )
 {
   int lastColumn = 0, lastRow = 0;

@@ -23,8 +23,8 @@ static void gen_pic_list_from_frame_list(bool bottom_field_flag, pic_t **fs_list
     auto is_ref = long_term ? std::mem_fn(&storable_picture::is_long_ref) : std::mem_fn(&storable_picture::is_short_ref);
 
     if (!bottom_field_flag) {
-        while (top_idx < list_idx || bot_idx<list_idx) {
-            for (; top_idx < list_idx; top_idx++) {
+        while (top_idx < list_idx || bot_idx < list_idx) {
+            for (; top_idx < list_idx; ++top_idx) {
                 if (fs_list[top_idx]->is_used & 1) {
                     if (is_ref(fs_list[top_idx]->top_field)) {
                         // short term ref pic
@@ -35,7 +35,7 @@ static void gen_pic_list_from_frame_list(bool bottom_field_flag, pic_t **fs_list
                     }
                 }
             }
-            for (; bot_idx < list_idx; bot_idx++) {
+            for (; bot_idx < list_idx; ++bot_idx) {
                 if (fs_list[bot_idx]->is_used & 2) {
                     if (is_ref(fs_list[bot_idx]->bottom_field)) {
                         // short term ref pic
@@ -48,8 +48,8 @@ static void gen_pic_list_from_frame_list(bool bottom_field_flag, pic_t **fs_list
             }
         }
     } else {
-        while (top_idx < list_idx || bot_idx<list_idx) {
-            for (; bot_idx < list_idx; bot_idx++) {
+        while (top_idx < list_idx || bot_idx < list_idx) {
+            for (; bot_idx < list_idx; ++bot_idx) {
                 if (fs_list[bot_idx]->is_used & 2) {
                     if (is_ref(fs_list[bot_idx]->bottom_field)) {
                         // short term ref pic
@@ -60,7 +60,7 @@ static void gen_pic_list_from_frame_list(bool bottom_field_flag, pic_t **fs_list
                     }
                 }
             }
-            for (; top_idx < list_idx; top_idx++) {
+            for (; top_idx < list_idx; ++top_idx) {
                 if (fs_list[top_idx]->is_used & 1) {
                     if (is_ref(fs_list[top_idx]->top_field)) {
                         // short term ref pic
@@ -111,7 +111,7 @@ static void init_lists_p_slice(slice_t *currSlice)
             int pic_num2 = (*(storable_picture**)b)->PicNum;
             //int pic_num1 = (*(reinterpret_cast<const storable_picture**>(a)))->PicNum;
             //int pic_num2 = (*(reinterpret_cast<const storable_picture**>(b)))->PicNum;
-            return (pic_num1 < pic_num2) ? 1 : (pic_num1 > pic_num2) ? -1 : 0;
+            return pic_num2 - pic_num1;
         });
         currSlice->RefPicSize[0] = (char) list0idx;
 
@@ -127,7 +127,7 @@ static void init_lists_p_slice(slice_t *currSlice)
                    sizeof(storable_picture*), [](const void* a, const void* b) {
             int pic_num1 = (*(storable_picture**)a)->LongTermPicNum;
             int pic_num2 = (*(storable_picture**)b)->LongTermPicNum;
-            return (pic_num1 < pic_num2) ? -1 : (pic_num1 > pic_num2) ? 1 : 0;
+            return pic_num1 - pic_num2;
         });
         currSlice->RefPicSize[0] = (char) list0idx;
     } else {
@@ -143,7 +143,7 @@ static void init_lists_p_slice(slice_t *currSlice)
         std::qsort(fs_list0, list0idx, sizeof(pic_t*), [](const void* a, const void* b) {
             int pic_num1 = (*(pic_t**)a)->FrameNumWrap;
             int pic_num2 = (*(pic_t**)b)->FrameNumWrap;
-            return (pic_num1 < pic_num2) ? 1 : (pic_num1 > pic_num2) ? -1 : 0;
+            return pic_num2 - pic_num1;
         });
 
         currSlice->RefPicSize[0] = 0;
@@ -157,7 +157,7 @@ static void init_lists_p_slice(slice_t *currSlice)
         std::qsort(fs_listlt, listltidx, sizeof(pic_t*), [](const void* a, const void* b) {
             int idx1 = (*(pic_t**)a)->LongTermFrameIdx;
             int idx2 = (*(pic_t**)b)->LongTermFrameIdx;
-            return (idx1 < idx2) ? -1 : (idx1 > idx2) ? 1 : 0;
+            return idx1 - idx2;
         });
 
         gen_pic_list_from_frame_list(shr.bottom_field_flag, fs_listlt, listltidx, currSlice->RefPicList[0], &currSlice->RefPicSize[0], 1);

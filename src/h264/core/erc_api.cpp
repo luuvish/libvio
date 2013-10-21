@@ -5,354 +5,171 @@ using vio::h264::mb_t;
 using namespace vio::h264;
 
 #include "erc_api.h"
+#include "erc_do.h"
 #include "slice.h"
 #include "macroblock.h"
 
-/*!
- ************************************************************************
- * \brief
- *    Initinize the error concealment module
- ************************************************************************
- */
+
 void ercInit(VideoParameters *p_Vid, int pic_sizex, int pic_sizey, int flag)
 {
-  ercClose(p_Vid, p_Vid->erc_errorVar);
-  p_Vid->erc_object_list = new objectBuffer_t[(pic_sizex * pic_sizey) >> 6];
+    ercClose(p_Vid, p_Vid->erc_errorVar);
 
-  // the error concealment instance is allocated
-  p_Vid->erc_errorVar = ercOpen();
+    p_Vid->erc_object_list = new objectBuffer_t[(pic_sizex * pic_sizey) >> 6];
 
-  // set error concealment ON
-  ercSetErrorConcealment(p_Vid->erc_errorVar, flag);
+    // the error concealment instance is allocated
+    ercVariables_t* errorVar = new ercVariables_t;
+    errorVar->nOfMBs              = 0;
+    errorVar->segments            = NULL;
+    errorVar->currSegment         = 0;
+    errorVar->yCondition          = NULL;
+    errorVar->uCondition          = NULL;
+    errorVar->vCondition          = NULL;
+    errorVar->prevFrameYCondition = NULL;
+    errorVar->concealment         = 1;
+
+    p_Vid->erc_errorVar = errorVar;
+
+    // set error concealment ON
+    if (p_Vid->erc_errorVar)
+        p_Vid->erc_errorVar->concealment = flag;
 }
 
-/*!
- ************************************************************************
- * \brief
- *      Allocates data structures used in error concealment.
- *\return
- *      The allocated ercVariables_t is returned.
- ************************************************************************
- */
-ercVariables_t *ercOpen( void )
+void ercReset(ercVariables_t *errorVar, int nOfMBs, int numOfSegments, int picSizeX)
 {
-  ercVariables_t* errorVar = new ercVariables_t;
+    if (errorVar && errorVar->concealment) {
+        ercSegment_t *segments = NULL;
+        // If frame size has been changed
+        if (nOfMBs != errorVar->nOfMBs && errorVar->yCondition != NULL) {
+            delete []errorVar->yCondition;
+            errorVar->yCondition = NULL;
+            delete []errorVar->prevFrameYCondition;
+            errorVar->prevFrameYCondition = NULL;
+            delete []errorVar->uCondition;
+            errorVar->uCondition = NULL;
+            delete []errorVar->vCondition;
+            errorVar->vCondition = NULL;
+            delete []errorVar->segments;
+            errorVar->segments = NULL;
+        }
 
-  errorVar->nOfMBs = 0;
-  errorVar->segments = NULL;
-  errorVar->currSegment = 0;
-  errorVar->yCondition = NULL;
-  errorVar->uCondition = NULL;
-  errorVar->vCondition = NULL;
-  errorVar->prevFrameYCondition = NULL;
+        // If the structures are uninitialized (first frame, or frame size is changed)
+        if (errorVar->yCondition == NULL) {
+            errorVar->segments = new ercSegment_t[numOfSegments];
+            memset(errorVar->segments, 0, numOfSegments * sizeof(ercSegment_t));
+            errorVar->nOfSegments = numOfSegments;
+            errorVar->yCondition = new char[4 * nOfMBs];
+            errorVar->prevFrameYCondition = new char[4 * nOfMBs];
+            errorVar->uCondition = new char[nOfMBs];
+            errorVar->vCondition = new char[nOfMBs];
+            errorVar->nOfMBs = nOfMBs;
+        } else {
+            // Store the yCondition struct of the previous frame
+            char* tmp = errorVar->prevFrameYCondition;
+            errorVar->prevFrameYCondition = errorVar->yCondition;
+            errorVar->yCondition = tmp;
+        }
 
-  errorVar->concealment = 1;
+        // Reset tables and parameters
+        memset(errorVar->yCondition, 0, 4 * nOfMBs * sizeof(*errorVar->yCondition));
+        memset(errorVar->uCondition, 0,     nOfMBs * sizeof(*errorVar->uCondition));
+        memset(errorVar->vCondition, 0,     nOfMBs * sizeof(*errorVar->vCondition));
 
-  return errorVar;
+        if (errorVar->nOfSegments != numOfSegments) {
+            delete []errorVar->segments;
+            errorVar->segments = new ercSegment_t[numOfSegments];
+            errorVar->nOfSegments = numOfSegments;
+        }
+
+        segments = errorVar->segments;
+        for (int i = 0; i < errorVar->nOfSegments; i++) {
+            segments->startMBPos = 0;
+            segments->endMBPos = (short) (nOfMBs - 1);
+            (segments++)->fCorrupted = 1; //! mark segments as corrupted
+        }
+
+        errorVar->currSegment = 0;
+        errorVar->nOfCorruptedSegments = 0;
+    }
 }
 
-/*!
- ************************************************************************
- * \brief
- *      Resets the variables used in error detection.
- *      Should be called always when starting to decode a new frame.
- * \param errorVar
- *      Variables for error concealment
- * \param nOfMBs
- *      Number of macroblocks in a frame
- * \param numOfSegments
- *    Estimated number of segments (memory reserved)
- * \param picSizeX
- *      Width of the frame in pixels.
- ************************************************************************
- */
-void ercReset( ercVariables_t *errorVar, int nOfMBs, int numOfSegments, int picSizeX )
+void ercClose(VideoParameters *p_Vid, ercVariables_t *errorVar)
 {
-  char *tmp = NULL;
-  int i = 0;
-
-  if ( errorVar && errorVar->concealment )
-  {
-    ercSegment_t *segments = NULL;
-    // If frame size has been changed
-    if ( nOfMBs != errorVar->nOfMBs && errorVar->yCondition != NULL )
-    {
-      delete []errorVar->yCondition;
-      errorVar->yCondition = NULL;
-      delete []errorVar->prevFrameYCondition;
-      errorVar->prevFrameYCondition = NULL;
-      delete []errorVar->uCondition;
-      errorVar->uCondition = NULL;
-      delete []errorVar->vCondition;
-      errorVar->vCondition = NULL;
-      delete []errorVar->segments;
-      errorVar->segments = NULL;
+    if (errorVar) {
+        if (errorVar->yCondition) {
+            delete []errorVar->segments;
+            delete []errorVar->yCondition;
+            delete []errorVar->uCondition;
+            delete []errorVar->vCondition;
+            delete []errorVar->prevFrameYCondition;
+        }
+        delete errorVar;
+        errorVar = NULL;
     }
 
-    // If the structures are uninitialized (first frame, or frame size is changed)
-    if ( errorVar->yCondition == NULL )
-    {
-      errorVar->segments = new ercSegment_t[numOfSegments];
-      memset( errorVar->segments, 0, numOfSegments*sizeof(ercSegment_t));
-      errorVar->nOfSegments = numOfSegments;
-
-      errorVar->yCondition = new char[4 * nOfMBs];
-      errorVar->prevFrameYCondition = new char[4 * nOfMBs];
-      errorVar->uCondition = new char[nOfMBs];
-      errorVar->vCondition = new char[nOfMBs];
-      errorVar->nOfMBs = nOfMBs;
+    if (p_Vid->erc_object_list) {
+        delete []p_Vid->erc_object_list;
+        p_Vid->erc_object_list = NULL;
     }
-    else
-    {
-      // Store the yCondition struct of the previous frame
-      tmp = errorVar->prevFrameYCondition;
-      errorVar->prevFrameYCondition = errorVar->yCondition;
-      errorVar->yCondition = tmp;
-    }
-
-    // Reset tables and parameters
-    memset( errorVar->yCondition, 0, 4*nOfMBs*sizeof(*errorVar->yCondition));
-    memset( errorVar->uCondition, 0,   nOfMBs*sizeof(*errorVar->uCondition));
-    memset( errorVar->vCondition, 0,   nOfMBs*sizeof(*errorVar->vCondition));
-
-    if (errorVar->nOfSegments != numOfSegments)
-    {
-      delete []errorVar->segments;
-      errorVar->segments = new ercSegment_t[numOfSegments];
-      errorVar->nOfSegments = numOfSegments;
-    }
-
-    segments = errorVar->segments;
-    for ( i = 0; i < errorVar->nOfSegments; i++ )
-    {
-      segments->startMBPos = 0;
-      segments->endMBPos = (short) (nOfMBs - 1);
-      (segments++)->fCorrupted = 1; //! mark segments as corrupted
-    }
-
-    errorVar->currSegment = 0;
-    errorVar->nOfCorruptedSegments = 0;
-  }
 }
 
-/*!
- ************************************************************************
- * \brief
- *      Resets the variables used in error detection.
- *      Should be called always when starting to decode a new frame.
- * \param p_Vid
- *      VideoParameters variable
- * \param errorVar
- *      Variables for error concealment
- ************************************************************************
- */
-void ercClose(VideoParameters *p_Vid,  ercVariables_t *errorVar )
+
+static void ercStartSegment(int currMBNum, int segment, unsigned int bitPos, ercVariables_t *errorVar)
 {
-  if ( errorVar != NULL )
-  {
-    if (errorVar->yCondition != NULL)
-    {
-      delete []errorVar->segments;
-      delete []errorVar->yCondition;
-      delete []errorVar->uCondition;
-      delete []errorVar->vCondition;
-      delete []errorVar->prevFrameYCondition;
+    if (errorVar && errorVar->concealment) {
+        errorVar->currSegmentCorrupted = 0;
+        errorVar->segments[segment].fCorrupted = 0;
+        errorVar->segments[segment].startMBPos = (short) currMBNum;
     }
-    delete errorVar;
-    errorVar = NULL;
-  }
-
-  if (p_Vid->erc_object_list)
-  {
-    delete []p_Vid->erc_object_list;
-    p_Vid->erc_object_list = NULL;
-  }
 }
 
-/*!
- ************************************************************************
- * \brief
- *      Sets error concealment ON/OFF. Can be invoked only between frames, not during a frame
- * \param errorVar
- *      Variables for error concealment
- * \param value
- *      New value
- ************************************************************************
- */
-void ercSetErrorConcealment( ercVariables_t *errorVar, int value )
+static void ercStopSegment(int currMBNum, int segment, unsigned int bitPos, ercVariables_t *errorVar)
 {
-  if ( errorVar != NULL )
-    errorVar->concealment = value;
-}
-
-/*!
- ************************************************************************
- * \brief
- *      Creates a new segment in the segment-list, and marks the start MB and bit position.
- *      If the end of the previous segment was not explicitly marked by "ercStopSegment",
- *      also marks the end of the previous segment.
- *      If needed, it reallocates the segment-list for a larger storage place.
- * \param currMBNum
- *      The MB number where the new slice/segment starts
- * \param segment
- *      Segment/slice_t No. counted by the caller
- * \param bitPos
- *      data_partition_t pointer: number of bits read from the buffer.
- * \param errorVar
- *      Variables for error detector
- ************************************************************************
- */
-void ercStartSegment( int currMBNum, int segment, unsigned int bitPos, ercVariables_t *errorVar )
-{
-  if ( errorVar && errorVar->concealment )
-  {
-    errorVar->currSegmentCorrupted = 0;
-
-    errorVar->segments[ segment ].fCorrupted = 0;
-    errorVar->segments[ segment ].startMBPos = (short) currMBNum;
-
-  }
-}
-
-/*!
- ************************************************************************
- * \brief
- *      Marks the end position of a segment.
- * \param currMBNum
- *      The last MB number of the previous segment
- * \param segment
- *      Segment/slice_t No. counted by the caller
- *      If (segment<0) the internal segment counter is used.
- * \param bitPos
- *      data_partition_t pointer: number of bits read from the buffer.
- * \param errorVar
- *      Variables for error detector
- ************************************************************************
- */
-void ercStopSegment( int currMBNum, int segment, unsigned int bitPos, ercVariables_t *errorVar )
-{
-  if ( errorVar && errorVar->concealment )
-  {
-    errorVar->segments[ segment ].endMBPos = (short) currMBNum;
-    errorVar->currSegment++;
-  }
-}
-
-/*!
- ************************************************************************
- * \brief
- *      Marks the current segment (the one which has the "currMBNum" MB in it)
- *      as lost: all the blocks of the MBs in the segment as corrupted.
- * \param picSizeX
- *      Width of the frame in pixels.
- * \param errorVar
- *      Variables for error detector
- ************************************************************************
- */
-void ercMarkCurrSegmentLost(int picSizeX, ercVariables_t *errorVar )
-{
-  int j = 0;
-  int current_segment;
-
-  current_segment = errorVar->currSegment-1;
-  if ( errorVar && errorVar->concealment )
-  {
-    if (errorVar->currSegmentCorrupted == 0)
-    {
-      errorVar->nOfCorruptedSegments++;
-      errorVar->currSegmentCorrupted = 1;
+    if (errorVar && errorVar->concealment) {
+        errorVar->segments[segment].endMBPos = (short) currMBNum;
+        errorVar->currSegment++;
     }
-
-    for ( j = errorVar->segments[current_segment].startMBPos; j <= errorVar->segments[current_segment].endMBPos; j++ )
-    {
-      errorVar->yCondition[MBNum2YBlock (j, 0, picSizeX)] = ERC_BLOCK_CORRUPTED;
-      errorVar->yCondition[MBNum2YBlock (j, 1, picSizeX)] = ERC_BLOCK_CORRUPTED;
-      errorVar->yCondition[MBNum2YBlock (j, 2, picSizeX)] = ERC_BLOCK_CORRUPTED;
-      errorVar->yCondition[MBNum2YBlock (j, 3, picSizeX)] = ERC_BLOCK_CORRUPTED;
-      errorVar->uCondition[j] = ERC_BLOCK_CORRUPTED;
-      errorVar->vCondition[j] = ERC_BLOCK_CORRUPTED;
-    }
-    errorVar->segments[current_segment].fCorrupted = 1;
-  }
 }
 
-/*!
- ************************************************************************
- * \brief
- *      Marks the current segment (the one which has the "currMBNum" MB in it)
- *      as OK: all the blocks of the MBs in the segment as OK.
- * \param picSizeX
- *      Width of the frame in pixels.
- * \param errorVar
- *      Variables for error detector
- ************************************************************************
- */
-void ercMarkCurrSegmentOK(int picSizeX, ercVariables_t *errorVar )
+static void ercMarkCurrSegmentLost(int picSizeX, ercVariables_t *errorVar)
 {
-  int j = 0;
-  int current_segment;
+    int current_segment = errorVar->currSegment - 1;
 
-  current_segment = errorVar->currSegment-1;
-  if ( errorVar && errorVar->concealment )
-  {
-    // mark all the Blocks belonging to the segment as OK */
-    for ( j = errorVar->segments[current_segment].startMBPos; j <= errorVar->segments[current_segment].endMBPos; j++ )
-    {
-      errorVar->yCondition[MBNum2YBlock (j, 0, picSizeX)] = ERC_BLOCK_OK;
-      errorVar->yCondition[MBNum2YBlock (j, 1, picSizeX)] = ERC_BLOCK_OK;
-      errorVar->yCondition[MBNum2YBlock (j, 2, picSizeX)] = ERC_BLOCK_OK;
-      errorVar->yCondition[MBNum2YBlock (j, 3, picSizeX)] = ERC_BLOCK_OK;
-      errorVar->uCondition[j] = ERC_BLOCK_OK;
-      errorVar->vCondition[j] = ERC_BLOCK_OK;
+    if (errorVar && errorVar->concealment) {
+        if (errorVar->currSegmentCorrupted == 0) {
+            errorVar->nOfCorruptedSegments++;
+            errorVar->currSegmentCorrupted = 1;
+        }
+
+        for (int j = errorVar->segments[current_segment].startMBPos; j <= errorVar->segments[current_segment].endMBPos; j++) {
+            errorVar->yCondition[MBNum2YBlock (j, 0, picSizeX)] = ERC_BLOCK_CORRUPTED;
+            errorVar->yCondition[MBNum2YBlock (j, 1, picSizeX)] = ERC_BLOCK_CORRUPTED;
+            errorVar->yCondition[MBNum2YBlock (j, 2, picSizeX)] = ERC_BLOCK_CORRUPTED;
+            errorVar->yCondition[MBNum2YBlock (j, 3, picSizeX)] = ERC_BLOCK_CORRUPTED;
+            errorVar->uCondition[j] = ERC_BLOCK_CORRUPTED;
+            errorVar->vCondition[j] = ERC_BLOCK_CORRUPTED;
+        }
+        errorVar->segments[current_segment].fCorrupted = 1;
     }
-    errorVar->segments[current_segment].fCorrupted = 0;
-  }
 }
 
-/*!
- ************************************************************************
- * \brief
- *      Marks the Blocks of the given component (YUV) of the current MB as concealed.
- * \param currMBNum
- *      Selects the segment where this MB number is in.
- * \param comp
- *      Component to mark (0:Y, 1:U, 2:V, <0:All)
- * \param picSizeX
- *      Width of the frame in pixels.
- * \param errorVar
- *      Variables for error detector
- ************************************************************************
- */
-void ercMarkCurrMBConcealed( int currMBNum, int comp, int picSizeX, ercVariables_t *errorVar )
+static void ercMarkCurrSegmentOK(int picSizeX, ercVariables_t *errorVar)
 {
-  int setAll = 0;
+    int current_segment = errorVar->currSegment - 1;
 
-  if ( errorVar && errorVar->concealment )
-  {
-    if (comp < 0)
-    {
-      setAll = 1;
-      comp = 0;
+    if (errorVar && errorVar->concealment) {
+        // mark all the Blocks belonging to the segment as OK */
+        for (int j = errorVar->segments[current_segment].startMBPos; j <= errorVar->segments[current_segment].endMBPos; j++) {
+            errorVar->yCondition[MBNum2YBlock (j, 0, picSizeX)] = ERC_BLOCK_OK;
+            errorVar->yCondition[MBNum2YBlock (j, 1, picSizeX)] = ERC_BLOCK_OK;
+            errorVar->yCondition[MBNum2YBlock (j, 2, picSizeX)] = ERC_BLOCK_OK;
+            errorVar->yCondition[MBNum2YBlock (j, 3, picSizeX)] = ERC_BLOCK_OK;
+            errorVar->uCondition[j] = ERC_BLOCK_OK;
+            errorVar->vCondition[j] = ERC_BLOCK_OK;
+        }
+        errorVar->segments[current_segment].fCorrupted = 0;
     }
-
-    switch (comp)
-    {
-    case 0:
-      errorVar->yCondition[MBNum2YBlock (currMBNum, 0, picSizeX)] = ERC_BLOCK_CONCEALED;
-      errorVar->yCondition[MBNum2YBlock (currMBNum, 1, picSizeX)] = ERC_BLOCK_CONCEALED;
-      errorVar->yCondition[MBNum2YBlock (currMBNum, 2, picSizeX)] = ERC_BLOCK_CONCEALED;
-      errorVar->yCondition[MBNum2YBlock (currMBNum, 3, picSizeX)] = ERC_BLOCK_CONCEALED;
-      if (!setAll)
-        break;
-    case 1:
-      errorVar->uCondition[currMBNum] = ERC_BLOCK_CONCEALED;
-      if (!setAll)
-        break;
-    case 2:
-      errorVar->vCondition[currMBNum] = ERC_BLOCK_CONCEALED;
-    }
-  }
 }
+
 
 void erc_picture(VideoParameters *p_Vid)
 {
@@ -409,87 +226,68 @@ void erc_picture(VideoParameters *p_Vid)
     }
 }
 
-/*!
- ************************************************************************
- * \brief
- *    write the encoding mode and motion vectors of current
- *    MB to the buffer of the error concealment module.
- ************************************************************************
- */
-void ercWriteMBMODEandMV(mb_t *currMB)
+void ercWriteMBMODEandMV(mb_t* currMB)
 {
-  VideoParameters *p_Vid = currMB->p_Slice->p_Vid;
-  int i, ii, jj, currMBNum = currMB->mbAddrX;
-  storable_picture *dec_picture = p_Vid->dec_picture;
-  int mbx = xPosMB(currMBNum, dec_picture->size_x), mby = yPosMB(currMBNum, dec_picture->size_x);
-  objectBuffer_t *currRegion, *pRegion;
+    VideoParameters *p_Vid = currMB->p_Slice->p_Vid;
+    int currMBNum = currMB->mbAddrX;
+    storable_picture *dec_picture = p_Vid->dec_picture;
+    int mbx = xPosMB(currMBNum, dec_picture->size_x), mby = yPosMB(currMBNum, dec_picture->size_x);
+    objectBuffer_t *currRegion, *pRegion;
 
-  currRegion = p_Vid->erc_object_list + (currMBNum<<2);
+    currRegion = p_Vid->erc_object_list + (currMBNum<<2);
 
-  if(p_Vid->type != B_slice) //non-B frame
-  {
-    for (i=0; i<4; ++i)
-    {
-      pRegion             = currRegion + i;
-      pRegion->regionMode = (currMB->mb_type == I_16x16 ? REGMODE_INTRA :
-        currMB->SubMbType[i]==I_4x4 ? REGMODE_INTRA_8x8  :
-        currMB->SubMbType[i]==0    ? REGMODE_INTER_COPY :
-        currMB->SubMbType[i]==1    ? REGMODE_INTER_PRED : REGMODE_INTER_PRED_8x8);
-      if (currMB->SubMbType[i]==0 || currMB->SubMbType[i]==I_4x4)  // INTRA OR COPY
-      {
-        pRegion->mv[0]    = 0;
-        pRegion->mv[1]    = 0;
-        pRegion->mv[2]    = 0;
-      }
-      else
-      {
-        ii              = 4*mbx + (i & 0x01)*2;
-        jj              = 4*mby + (i >> 1  )*2;
-        if (currMB->SubMbType[i]>=5 && currMB->SubMbType[i]<=7)  // SMALL BLOCKS
-        {
-          pRegion->mv[0]  = (dec_picture->mv_info[jj][ii].mv[LIST_0].mv_x + dec_picture->mv_info[jj][ii + 1].mv[LIST_0].mv_x + dec_picture->mv_info[jj + 1][ii].mv[LIST_0].mv_x + dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_x + 2)/4;
-          pRegion->mv[1]  = (dec_picture->mv_info[jj][ii].mv[LIST_0].mv_y + dec_picture->mv_info[jj][ii + 1].mv[LIST_0].mv_y + dec_picture->mv_info[jj + 1][ii].mv[LIST_0].mv_y + dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_y + 2)/4;
+    if (p_Vid->type != B_slice) { //non-B frame
+        for (int i = 0; i < 4; ++i) {
+            pRegion             = currRegion + i;
+            pRegion->regionMode = currMB->mb_type      == I_16x16 ? REGMODE_INTRA :
+                                  currMB->SubMbType[i] == I_4x4   ? REGMODE_INTRA_8x8  :
+                                  currMB->SubMbType[i] == 0       ? REGMODE_INTER_COPY :
+                                  currMB->SubMbType[i] == 1       ? REGMODE_INTER_PRED : REGMODE_INTER_PRED_8x8;
+            if (currMB->SubMbType[i] == 0 || currMB->SubMbType[i] == I_4x4) { // INTRA OR COPY
+                pRegion->mv[0] = 0;
+                pRegion->mv[1] = 0;
+                pRegion->mv[2] = 0;
+            } else {
+                int ii = 4 * mbx + (i & 0x01) * 2;
+                int jj = 4 * mby + (i >> 1  ) * 2;
+                if (currMB->SubMbType[i] >= 5 && currMB->SubMbType[i] <= 7) { // SMALL BLOCKS
+                    pRegion->mv[0] = (dec_picture->mv_info[jj    ][ii    ].mv[LIST_0].mv_x +
+                                      dec_picture->mv_info[jj    ][ii + 1].mv[LIST_0].mv_x +
+                                      dec_picture->mv_info[jj + 1][ii    ].mv[LIST_0].mv_x +
+                                      dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_x + 2) / 4;
+                    pRegion->mv[1] = (dec_picture->mv_info[jj][ii].mv[LIST_0].mv_y + dec_picture->mv_info[jj][ii + 1].mv[LIST_0].mv_y + dec_picture->mv_info[jj + 1][ii].mv[LIST_0].mv_y + dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_y + 2)/4;
+                } else { // 16x16, 16x8, 8x16, 8x8
+                    pRegion->mv[0] = dec_picture->mv_info[jj][ii].mv[LIST_0].mv_x;
+                    pRegion->mv[1] = dec_picture->mv_info[jj][ii].mv[LIST_0].mv_y;
+                }
+                currMB->p_Slice->erc_mvperMB += abs(pRegion->mv[0]) + abs(pRegion->mv[1]);
+                pRegion->mv[2] = dec_picture->mv_info[jj][ii].ref_idx[LIST_0];
+            }
         }
-        else // 16x16, 16x8, 8x16, 8x8
-        {
-          pRegion->mv[0]  = dec_picture->mv_info[jj][ii].mv[LIST_0].mv_x;
-          pRegion->mv[1]  = dec_picture->mv_info[jj][ii].mv[LIST_0].mv_y;
+    } else { //B-frame
+        for (int i = 0; i < 4; ++i) {
+            int ii = 4 * mbx + (i % 2) * 2;
+            int jj = 4 * mby + (i / 2) * 2;
+            pRegion = currRegion + i;
+            pRegion->regionMode = currMB->mb_type      == I_16x16 ? REGMODE_INTRA :
+                                  currMB->SubMbType[i] == I_4x4   ? REGMODE_INTRA_8x8 : REGMODE_INTER_PRED_8x8;
+            if (currMB->mb_type == I_16x16 || currMB->SubMbType[i] == I_4x4) { // INTRA
+                pRegion->mv[0] = 0;
+                pRegion->mv[1] = 0;
+                pRegion->mv[2] = 0;
+            } else {
+                int idx = (dec_picture->mv_info[jj][ii].ref_idx[0] < 0) ? 1 : 0;
+                pRegion->mv[0] = (dec_picture->mv_info[jj    ][ii    ].mv[idx].mv_x + 
+                                  dec_picture->mv_info[jj    ][ii + 1].mv[idx].mv_x + 
+                                  dec_picture->mv_info[jj + 1][ii    ].mv[idx].mv_x + 
+                                  dec_picture->mv_info[jj + 1][ii + 1].mv[idx].mv_x + 2) / 4;
+                pRegion->mv[1] = (dec_picture->mv_info[jj    ][ii    ].mv[idx].mv_y + 
+                                  dec_picture->mv_info[jj    ][ii + 1].mv[idx].mv_y + 
+                                  dec_picture->mv_info[jj + 1][ii    ].mv[idx].mv_y + 
+                                  dec_picture->mv_info[jj + 1][ii + 1].mv[idx].mv_y + 2) / 4;
+                currMB->p_Slice->erc_mvperMB += abs(pRegion->mv[0]) + abs(pRegion->mv[1]);
+                pRegion->mv[2] = (dec_picture->mv_info[jj][ii].ref_idx[idx]);
+            }
         }
-        currMB->p_Slice->erc_mvperMB      += abs(pRegion->mv[0]) + abs(pRegion->mv[1]);
-        pRegion->mv[2]    = dec_picture->mv_info[jj][ii].ref_idx[LIST_0];
-      }
     }
-  }
-  else  //B-frame
-  {
-    for (i=0; i<4; ++i)
-    {
-      ii                  = 4*mbx + (i%2)*2;
-      jj                  = 4*mby + (i/2)*2;
-      pRegion             = currRegion + i;
-      pRegion->regionMode = (currMB->mb_type  ==I_16x16  ? REGMODE_INTRA      :
-        currMB->SubMbType[i]==I_4x4 ? REGMODE_INTRA_8x8  : REGMODE_INTER_PRED_8x8);
-      if (currMB->mb_type==I_16x16 || currMB->SubMbType[i]==I_4x4)  // INTRA
-      {
-        pRegion->mv[0]    = 0;
-        pRegion->mv[1]    = 0;
-        pRegion->mv[2]    = 0;
-      }
-      else
-      {
-        int idx = (dec_picture->mv_info[jj][ii].ref_idx[0] < 0) ? 1 : 0;
-        pRegion->mv[0]    = (dec_picture->mv_info[jj][ii].mv[idx].mv_x + 
-          dec_picture->mv_info[jj][ii+1].mv[idx].mv_x + 
-          dec_picture->mv_info[jj+1][ii].mv[idx].mv_x + 
-          dec_picture->mv_info[jj+1][ii+1].mv[idx].mv_x + 2)/4;
-        pRegion->mv[1]    = (dec_picture->mv_info[jj][ii].mv[idx].mv_y + 
-          dec_picture->mv_info[jj][ii+1].mv[idx].mv_y + 
-          dec_picture->mv_info[jj+1][ii].mv[idx].mv_y + 
-          dec_picture->mv_info[jj+1][ii+1].mv[idx].mv_y + 2)/4;
-        currMB->p_Slice->erc_mvperMB      += abs(pRegion->mv[0]) + abs(pRegion->mv[1]);
-
-        pRegion->mv[2]  = (dec_picture->mv_info[jj][ii].ref_idx[idx]);
-      }
-    }
-  }
 }

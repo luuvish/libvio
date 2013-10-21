@@ -5,6 +5,7 @@
 #include "memalloc.h"
 #include "erc_do.h"
 #include "macroblock.h"
+#include "output.h"
 
 
 //! look up tables for FRExt_chroma support
@@ -85,6 +86,38 @@ static void add_node   ( VideoParameters *p_Vid, struct concealment_node *ptr );
 static void delete_node( VideoParameters *p_Vid, struct concealment_node *ptr );
 
 static const int uv_div[2][4] = {{0, 1, 1, 0}, {0, 1, 0, 0}}; //[x/y][yuv_format]
+
+
+static void ercMarkCurrMBConcealed( int currMBNum, int comp, int picSizeX, ercVariables_t *errorVar )
+{
+  int setAll = 0;
+
+  if ( errorVar && errorVar->concealment )
+  {
+    if (comp < 0)
+    {
+      setAll = 1;
+      comp = 0;
+    }
+
+    switch (comp)
+    {
+    case 0:
+      errorVar->yCondition[MBNum2YBlock (currMBNum, 0, picSizeX)] = ERC_BLOCK_CONCEALED;
+      errorVar->yCondition[MBNum2YBlock (currMBNum, 1, picSizeX)] = ERC_BLOCK_CONCEALED;
+      errorVar->yCondition[MBNum2YBlock (currMBNum, 2, picSizeX)] = ERC_BLOCK_CONCEALED;
+      errorVar->yCondition[MBNum2YBlock (currMBNum, 3, picSizeX)] = ERC_BLOCK_CONCEALED;
+      if (!setAll)
+        break;
+    case 1:
+      errorVar->uCondition[currMBNum] = ERC_BLOCK_CONCEALED;
+      if (!setAll)
+        break;
+    case 2:
+      errorVar->vCondition[currMBNum] = ERC_BLOCK_CONCEALED;
+    }
+  }
+}
 
 /*!
  ************************************************************************
@@ -1044,6 +1077,8 @@ static storable_picture* get_last_ref_pic_from_dpb(dpb_t *p_Dpb)
   return NULL;
 }
 
+static void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool field_pic_flag);
+
 /*!
 ************************************************************************
 * \brief
@@ -1183,98 +1218,6 @@ copy_prev_pic_to_concealed_pic(storable_picture *picture, dpb_t *p_Dpb)
 /*!
 ************************************************************************
 * \brief
-* This function conceals a missing reference frame. The routine is called
-* based on the difference in frame number. It conceals an IDR frame loss
-* based on the sudden decrease in frame number.
-*
-************************************************************************
-*/
-
-void conceal_lost_frames(dpb_t *p_Dpb, slice_t *pSlice)
-{
-  VideoParameters *p_Vid = p_Dpb->p_Vid;
-  sps_t *sps = p_Vid->active_sps;
-  int CurrFrameNum;
-  int UnusedShortTermFrameNum;
-  storable_picture *picture = NULL;
-  int tmp1 = pSlice->header.delta_pic_order_cnt[0];
-  int tmp2 = pSlice->header.delta_pic_order_cnt[1];
-  int i;
-
-  pSlice->header.delta_pic_order_cnt[0] = pSlice->header.delta_pic_order_cnt[1] = 0;
-
-  // printf("A gap in frame number is found, try to fill it.\n");
-
-  if(p_Vid->IDR_concealment_flag == 1)
-  {
-    // Conceals an IDR frame loss. Uses the reference frame in the previous
-    // GOP for concealment.
-    UnusedShortTermFrameNum = 0;
-    p_Vid->last_ref_pic_poc = -p_Vid->p_Inp->poc_gap;
-    p_Vid->earlier_missing_poc = 0;
-  }
-  else
-    UnusedShortTermFrameNum = (p_Vid->PrevRefFrameNum + 1) % p_Vid->active_sps->MaxFrameNum;
-
-  CurrFrameNum = pSlice->header.frame_num;
-
-  while (CurrFrameNum != UnusedShortTermFrameNum)
-  {
-    picture = new storable_picture(p_Vid, FRAME,
-        sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
-        sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
-
-    picture->PicNum = UnusedShortTermFrameNum;
-    picture->frame_num = UnusedShortTermFrameNum;
-    picture->non_existing = 0;
-    picture->is_output = 0;
-    picture->used_for_reference = 1;
-    picture->concealed_pic = 1;
-
-    pSlice->header.frame_num = UnusedShortTermFrameNum;
-
-    picture->top_poc=p_Vid->last_ref_pic_poc + p_Vid->p_Inp->ref_poc_gap;
-    picture->bottom_poc=picture->top_poc;
-    picture->frame_poc=picture->top_poc;
-    picture->poc=picture->top_poc;
-    p_Vid->last_ref_pic_poc = picture->poc;
-
-    copy_prev_pic_to_concealed_pic(picture, p_Dpb);
-
-    if(p_Vid->IDR_concealment_flag == 1)
-    {
-      picture->slice.slice_type = I_slice;
-      picture->slice.idr_flag = 1;
-      p_Dpb->flush();
-      picture->top_poc= 0;
-      picture->bottom_poc=picture->top_poc;
-      picture->frame_poc=picture->top_poc;
-      picture->poc=picture->top_poc;
-      p_Vid->last_ref_pic_poc = picture->poc;
-    }
-
-    p_Vid->p_Dpb_layer[0]->store_picture(picture);
-
-    picture=NULL;
-
-    p_Vid->PrevRefFrameNum = UnusedShortTermFrameNum;
-    UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % p_Vid->active_sps->MaxFrameNum;
-
-    // update reference flags and set current flag.
-    for(i=16;i>0;i--)
-    {
-      pSlice->ref_flag[i] = pSlice->ref_flag[i-1];
-    }
-    pSlice->ref_flag[0] = 0;
-  }
-  pSlice->header.delta_pic_order_cnt[0] = tmp1;
-  pSlice->header.delta_pic_order_cnt[1] = tmp2;
-  pSlice->header.frame_num = CurrFrameNum;
-}
-
-/*!
-************************************************************************
-* \brief
 * Updates the reference list for motion vector copy concealment for non-
 * reference frame loss.
 *
@@ -1306,7 +1249,7 @@ void update_ref_list_for_concealment(dpb_t *p_Dpb)
 *
 ************************************************************************
 */
-void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool field_pic_flag)
+static void init_lists_for_non_reference_loss(dpb_t *p_Dpb, int currSliceType, bool field_pic_flag)
 {
     VideoParameters *p_Vid = p_Dpb->p_Vid;
     sps_t *active_sps = p_Vid->active_sps;
@@ -1473,21 +1416,12 @@ storable_picture *get_pic_from_dpb(dpb_t *p_Dpb, int missingpoc, unsigned int *p
 ************************************************************************
 */
 
-int comp(const void *i, const void *j)
+static int comp(const void *i, const void *j)
 {
-  return *(int *)i - *(int *)j;
+    return *(int *)i - *(int *)j;
 }
 
-/*!
-************************************************************************
-* \brief
-* Initialises a node, allocates memory for the node, and returns
-* a pointer to the new node.
-*
-************************************************************************
-*/
-
-struct concealment_node * init_node( storable_picture* picture, int missingpoc )
+static concealment_node* init_node( storable_picture* picture, int missingpoc)
 {
   struct concealment_node *ptr;
 
@@ -1582,6 +1516,77 @@ void delete_list( VideoParameters *p_Vid, struct concealment_node *ptr )
 }
 
 
+
+void decoded_picture_buffer_t::conceal_lost_frames(slice_t *pSlice)
+{
+    VideoParameters *p_Vid = this->p_Vid;
+    sps_t *sps = p_Vid->active_sps;
+    int tmp1 = pSlice->header.delta_pic_order_cnt[0];
+    int tmp2 = pSlice->header.delta_pic_order_cnt[1];
+
+    pSlice->header.delta_pic_order_cnt[0] = pSlice->header.delta_pic_order_cnt[1] = 0;
+
+    // printf("A gap in frame number is found, try to fill it.\n");
+
+    int UnusedShortTermFrameNum;
+    if (p_Vid->IDR_concealment_flag == 1) {
+        // Conceals an IDR frame loss. Uses the reference frame in the previous
+        // GOP for concealment.
+        UnusedShortTermFrameNum = 0;
+        p_Vid->last_ref_pic_poc = -p_Vid->p_Inp->poc_gap;
+        p_Vid->earlier_missing_poc = 0;
+    } else
+        UnusedShortTermFrameNum = (p_Vid->PrevRefFrameNum + 1) % p_Vid->active_sps->MaxFrameNum;
+
+    int CurrFrameNum = pSlice->header.frame_num;
+
+    while (CurrFrameNum != UnusedShortTermFrameNum) {
+        storable_picture* picture = new storable_picture(p_Vid, FRAME,
+            sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16,
+            sps->PicWidthInMbs * sps->MbWidthC, sps->FrameHeightInMbs * sps->MbHeightC, 1);
+
+        picture->PicNum = UnusedShortTermFrameNum;
+        picture->frame_num = UnusedShortTermFrameNum;
+        picture->non_existing = 0;
+        picture->is_output = 0;
+        picture->used_for_reference = 1;
+        picture->concealed_pic = 1;
+
+        pSlice->header.frame_num = UnusedShortTermFrameNum;
+
+        picture->top_poc=p_Vid->last_ref_pic_poc + p_Vid->p_Inp->ref_poc_gap;
+        picture->bottom_poc=picture->top_poc;
+        picture->frame_poc=picture->top_poc;
+        picture->poc=picture->top_poc;
+        p_Vid->last_ref_pic_poc = picture->poc;
+
+        copy_prev_pic_to_concealed_pic(picture, this);
+
+        if (p_Vid->IDR_concealment_flag == 1) {
+            picture->slice.slice_type = I_slice;
+            picture->slice.idr_flag = 1;
+            this->flush();
+            picture->top_poc        = 0;
+            picture->bottom_poc     = picture->top_poc;
+            picture->frame_poc      = picture->top_poc;
+            picture->poc            = picture->top_poc;
+            p_Vid->last_ref_pic_poc = picture->poc;
+        }
+
+        p_Vid->p_Dpb_layer[0]->store_picture(picture);
+
+        p_Vid->PrevRefFrameNum = UnusedShortTermFrameNum;
+        UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % p_Vid->active_sps->MaxFrameNum;
+
+        // update reference flags and set current flag.
+        for (int i = 16; i > 0; i--)
+            pSlice->ref_flag[i] = pSlice->ref_flag[i-1];
+        pSlice->ref_flag[0] = 0;
+    }
+    pSlice->header.delta_pic_order_cnt[0] = tmp1;
+    pSlice->header.delta_pic_order_cnt[1] = tmp2;
+    pSlice->header.frame_num = CurrFrameNum;
+}
 
 void decoded_picture_buffer_t::conceal_non_ref_pics(int diff)
 {

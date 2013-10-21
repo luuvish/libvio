@@ -64,6 +64,7 @@ public:
 
     void        init_picture_number(slice_t& slice);
 
+    void        conceal_lost_frames(slice_t *pSlice);
 protected:
     void        get_smallest_poc(int* poc, int* pos);
 
