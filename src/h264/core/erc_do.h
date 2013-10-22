@@ -61,10 +61,8 @@ int ercConcealIntraFrame(VideoParameters *p_Vid, frame *recfr, int picSizeX, int
 int ercConcealInterFrame(frame *recfr, objectBuffer_t *object_list, int picSizeX, int picSizeY, ercVariables_t *errorVar, int chroma_format_idc);
 
 
-void ercPixConcealIMB(VideoParameters *p_Vid, px_t *currFrame, int row, int column, int predBlocks[], int frameWidth, int mbWidthInBlocks);
-int ercCollect8PredBlocks( int predBlocks[], int currRow, int currColumn, char *condition,
-                          int maxRow, int maxColumn, int step, byte fNoCornerNeigh );
-int ercCollectColumnBlocks( int predBlocks[], int currRow, int currColumn, char *condition, int maxRow, int maxColumn, int step );
+int ercCollect8PredBlocks(int predBlocks[], int currRow, int currColumn, char* condition,
+                          int maxRow, int maxColumn, int step, uint8_t fNoCornerNeigh);
 
 #define isSplitted(object_list,currMBNum) \
     ((object_list+((currMBNum)<<2))->regionMode >= REGMODE_SPLITTED)

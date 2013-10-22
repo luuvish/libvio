@@ -10,7 +10,7 @@ using namespace vio::h264;
 #include "macroblock.h"
 
 
-void ercInit(VideoParameters *p_Vid, int pic_sizex, int pic_sizey, int flag)
+void ercInit(VideoParameters* p_Vid, int pic_sizex, int pic_sizey, int flag)
 {
     ercClose(p_Vid, p_Vid->erc_errorVar);
 
@@ -34,34 +34,34 @@ void ercInit(VideoParameters *p_Vid, int pic_sizex, int pic_sizey, int flag)
         p_Vid->erc_errorVar->concealment = flag;
 }
 
-void ercReset(ercVariables_t *errorVar, int nOfMBs, int numOfSegments, int picSizeX)
+void ercReset(ercVariables_t* errorVar, int nOfMBs, int numOfSegments, int picSizeX)
 {
     if (errorVar && errorVar->concealment) {
         ercSegment_t *segments = NULL;
         // If frame size has been changed
         if (nOfMBs != errorVar->nOfMBs && errorVar->yCondition != NULL) {
-            delete []errorVar->yCondition;
-            errorVar->yCondition = NULL;
-            delete []errorVar->prevFrameYCondition;
-            errorVar->prevFrameYCondition = NULL;
-            delete []errorVar->uCondition;
-            errorVar->uCondition = NULL;
-            delete []errorVar->vCondition;
-            errorVar->vCondition = NULL;
             delete []errorVar->segments;
-            errorVar->segments = NULL;
+            delete []errorVar->yCondition;
+            delete []errorVar->uCondition;
+            delete []errorVar->vCondition;
+            delete []errorVar->prevFrameYCondition;
+            errorVar->segments            = NULL;
+            errorVar->yCondition          = NULL;
+            errorVar->uCondition          = NULL;
+            errorVar->vCondition          = NULL;
+            errorVar->prevFrameYCondition = NULL;
         }
 
         // If the structures are uninitialized (first frame, or frame size is changed)
         if (errorVar->yCondition == NULL) {
-            errorVar->segments = new ercSegment_t[numOfSegments];
-            memset(errorVar->segments, 0, numOfSegments * sizeof(ercSegment_t));
-            errorVar->nOfSegments = numOfSegments;
-            errorVar->yCondition = new char[4 * nOfMBs];
+            errorVar->nOfMBs              = nOfMBs;
+            errorVar->segments            = new ercSegment_t[numOfSegments];
+            errorVar->nOfSegments         = numOfSegments;
+            errorVar->yCondition          = new char[4 * nOfMBs];
+            errorVar->uCondition          = new char[nOfMBs];
+            errorVar->vCondition          = new char[nOfMBs];
             errorVar->prevFrameYCondition = new char[4 * nOfMBs];
-            errorVar->uCondition = new char[nOfMBs];
-            errorVar->vCondition = new char[nOfMBs];
-            errorVar->nOfMBs = nOfMBs;
+            memset(errorVar->segments, 0, numOfSegments * sizeof(ercSegment_t));
         } else {
             // Store the yCondition struct of the previous frame
             char* tmp = errorVar->prevFrameYCondition;
@@ -92,7 +92,7 @@ void ercReset(ercVariables_t *errorVar, int nOfMBs, int numOfSegments, int picSi
     }
 }
 
-void ercClose(VideoParameters *p_Vid, ercVariables_t *errorVar)
+void ercClose(VideoParameters* p_Vid, ercVariables_t* errorVar)
 {
     if (errorVar) {
         if (errorVar->yCondition) {
@@ -113,7 +113,7 @@ void ercClose(VideoParameters *p_Vid, ercVariables_t *errorVar)
 }
 
 
-static void ercStartSegment(int currMBNum, int segment, unsigned int bitPos, ercVariables_t *errorVar)
+static void ercStartSegment(int currMBNum, int segment, ercVariables_t* errorVar)
 {
     if (errorVar && errorVar->concealment) {
         errorVar->currSegmentCorrupted = 0;
@@ -122,7 +122,7 @@ static void ercStartSegment(int currMBNum, int segment, unsigned int bitPos, erc
     }
 }
 
-static void ercStopSegment(int currMBNum, int segment, unsigned int bitPos, ercVariables_t *errorVar)
+static void ercStopSegment(int currMBNum, int segment, ercVariables_t* errorVar)
 {
     if (errorVar && errorVar->concealment) {
         errorVar->segments[segment].endMBPos = (short) currMBNum;
@@ -130,7 +130,7 @@ static void ercStopSegment(int currMBNum, int segment, unsigned int bitPos, ercV
     }
 }
 
-static void ercMarkCurrSegmentLost(int picSizeX, ercVariables_t *errorVar)
+static void ercMarkCurrSegmentLost(int picSizeX, ercVariables_t* errorVar)
 {
     int current_segment = errorVar->currSegment - 1;
 
@@ -141,10 +141,10 @@ static void ercMarkCurrSegmentLost(int picSizeX, ercVariables_t *errorVar)
         }
 
         for (int j = errorVar->segments[current_segment].startMBPos; j <= errorVar->segments[current_segment].endMBPos; j++) {
-            errorVar->yCondition[MBNum2YBlock (j, 0, picSizeX)] = ERC_BLOCK_CORRUPTED;
-            errorVar->yCondition[MBNum2YBlock (j, 1, picSizeX)] = ERC_BLOCK_CORRUPTED;
-            errorVar->yCondition[MBNum2YBlock (j, 2, picSizeX)] = ERC_BLOCK_CORRUPTED;
-            errorVar->yCondition[MBNum2YBlock (j, 3, picSizeX)] = ERC_BLOCK_CORRUPTED;
+            errorVar->yCondition[MBNum2YBlock(j, 0, picSizeX)] = ERC_BLOCK_CORRUPTED;
+            errorVar->yCondition[MBNum2YBlock(j, 1, picSizeX)] = ERC_BLOCK_CORRUPTED;
+            errorVar->yCondition[MBNum2YBlock(j, 2, picSizeX)] = ERC_BLOCK_CORRUPTED;
+            errorVar->yCondition[MBNum2YBlock(j, 3, picSizeX)] = ERC_BLOCK_CORRUPTED;
             errorVar->uCondition[j] = ERC_BLOCK_CORRUPTED;
             errorVar->vCondition[j] = ERC_BLOCK_CORRUPTED;
         }
@@ -152,17 +152,17 @@ static void ercMarkCurrSegmentLost(int picSizeX, ercVariables_t *errorVar)
     }
 }
 
-static void ercMarkCurrSegmentOK(int picSizeX, ercVariables_t *errorVar)
+static void ercMarkCurrSegmentOK(int picSizeX, ercVariables_t* errorVar)
 {
     int current_segment = errorVar->currSegment - 1;
 
     if (errorVar && errorVar->concealment) {
         // mark all the Blocks belonging to the segment as OK */
         for (int j = errorVar->segments[current_segment].startMBPos; j <= errorVar->segments[current_segment].endMBPos; j++) {
-            errorVar->yCondition[MBNum2YBlock (j, 0, picSizeX)] = ERC_BLOCK_OK;
-            errorVar->yCondition[MBNum2YBlock (j, 1, picSizeX)] = ERC_BLOCK_OK;
-            errorVar->yCondition[MBNum2YBlock (j, 2, picSizeX)] = ERC_BLOCK_OK;
-            errorVar->yCondition[MBNum2YBlock (j, 3, picSizeX)] = ERC_BLOCK_OK;
+            errorVar->yCondition[MBNum2YBlock(j, 0, picSizeX)] = ERC_BLOCK_OK;
+            errorVar->yCondition[MBNum2YBlock(j, 1, picSizeX)] = ERC_BLOCK_OK;
+            errorVar->yCondition[MBNum2YBlock(j, 2, picSizeX)] = ERC_BLOCK_OK;
+            errorVar->yCondition[MBNum2YBlock(j, 3, picSizeX)] = ERC_BLOCK_OK;
             errorVar->uCondition[j] = ERC_BLOCK_OK;
             errorVar->vCondition[j] = ERC_BLOCK_OK;
         }
@@ -171,7 +171,7 @@ static void ercMarkCurrSegmentOK(int picSizeX, ercVariables_t *errorVar)
 }
 
 
-void erc_picture(VideoParameters *p_Vid)
+void erc_picture(VideoParameters* p_Vid)
 {
     storable_picture* dec_picture = p_Vid->dec_picture;
     sps_t* sps = p_Vid->active_sps;
@@ -189,27 +189,27 @@ void erc_picture(VideoParameters *p_Vid)
 
     //! mark the start of the first segment
     if (!dec_picture->slice_headers[0]->header.MbaffFrameFlag) {
-        int i;
-        ercStartSegment(0, ercSegment, 0 , p_Vid->erc_errorVar);
+        int i = 0;
+        ercStartSegment(i, ercSegment, p_Vid->erc_errorVar);
         //! generate the segments according to the macroblock map
         for (i = 1; i < (int) dec_picture->slice_headers[0]->header.PicSizeInMbs; ++i) {
-            if (p_Vid->mb_data[i].ei_flag != p_Vid->mb_data[i-1].ei_flag) {
-                ercStopSegment(i-1, ercSegment, 0, p_Vid->erc_errorVar); //! stop current segment
+            if (p_Vid->mb_data[i].ei_flag != p_Vid->mb_data[i - 1].ei_flag) {
+                ercStopSegment(i - 1, ercSegment, p_Vid->erc_errorVar); //! stop current segment
 
                 //! mark current segment as lost or OK
-                if (p_Vid->mb_data[i-1].ei_flag)
+                if (p_Vid->mb_data[i - 1].ei_flag)
                     ercMarkCurrSegmentLost(dec_picture->size_x, p_Vid->erc_errorVar);
                 else
                     ercMarkCurrSegmentOK(dec_picture->size_x, p_Vid->erc_errorVar);
 
                 ++ercSegment;  //! next segment
-                ercStartSegment(i, ercSegment, 0 , p_Vid->erc_errorVar); //! start new segment
+                ercStartSegment(i, ercSegment, p_Vid->erc_errorVar); //! start new segment
                 ercStartMB = i;//! save start MB for this segment
             }
         }
         //! mark end of the last segment
-        ercStopSegment(dec_picture->slice_headers[0]->header.PicSizeInMbs-1, ercSegment, 0, p_Vid->erc_errorVar);
-        if (p_Vid->mb_data[i-1].ei_flag)
+        ercStopSegment(i - 1, ercSegment, p_Vid->erc_errorVar);
+        if (p_Vid->mb_data[i - 1].ei_flag)
             ercMarkCurrSegmentLost(dec_picture->size_x, p_Vid->erc_errorVar);
         else
             ercMarkCurrSegmentOK(dec_picture->size_x, p_Vid->erc_errorVar);
@@ -228,17 +228,16 @@ void erc_picture(VideoParameters *p_Vid)
 
 void ercWriteMBMODEandMV(mb_t* currMB)
 {
-    VideoParameters *p_Vid = currMB->p_Slice->p_Vid;
+    VideoParameters* p_Vid = currMB->p_Slice->p_Vid;
     int currMBNum = currMB->mbAddrX;
-    storable_picture *dec_picture = p_Vid->dec_picture;
-    int mbx = xPosMB(currMBNum, dec_picture->size_x), mby = yPosMB(currMBNum, dec_picture->size_x);
-    objectBuffer_t *currRegion, *pRegion;
-
-    currRegion = p_Vid->erc_object_list + (currMBNum<<2);
+    storable_picture* dec_picture = p_Vid->dec_picture;
+    int mbx = xPosMB(currMBNum, dec_picture->size_x);
+    int mby = yPosMB(currMBNum, dec_picture->size_x);
+    objectBuffer_t* currRegion = p_Vid->erc_object_list + (currMBNum << 2);
 
     if (p_Vid->type != B_slice) { //non-B frame
         for (int i = 0; i < 4; ++i) {
-            pRegion             = currRegion + i;
+            objectBuffer_t* pRegion = currRegion + i;
             pRegion->regionMode = currMB->mb_type      == I_16x16 ? REGMODE_INTRA :
                                   currMB->SubMbType[i] == I_4x4   ? REGMODE_INTRA_8x8  :
                                   currMB->SubMbType[i] == 0       ? REGMODE_INTER_COPY :
@@ -248,14 +247,17 @@ void ercWriteMBMODEandMV(mb_t* currMB)
                 pRegion->mv[1] = 0;
                 pRegion->mv[2] = 0;
             } else {
-                int ii = 4 * mbx + (i & 0x01) * 2;
-                int jj = 4 * mby + (i >> 1  ) * 2;
+                int ii = 4 * mbx + (i % 2) * 2;
+                int jj = 4 * mby + (i / 2) * 2;
                 if (currMB->SubMbType[i] >= 5 && currMB->SubMbType[i] <= 7) { // SMALL BLOCKS
                     pRegion->mv[0] = (dec_picture->mv_info[jj    ][ii    ].mv[LIST_0].mv_x +
                                       dec_picture->mv_info[jj    ][ii + 1].mv[LIST_0].mv_x +
                                       dec_picture->mv_info[jj + 1][ii    ].mv[LIST_0].mv_x +
                                       dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_x + 2) / 4;
-                    pRegion->mv[1] = (dec_picture->mv_info[jj][ii].mv[LIST_0].mv_y + dec_picture->mv_info[jj][ii + 1].mv[LIST_0].mv_y + dec_picture->mv_info[jj + 1][ii].mv[LIST_0].mv_y + dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_y + 2)/4;
+                    pRegion->mv[1] = (dec_picture->mv_info[jj    ][ii    ].mv[LIST_0].mv_y +
+                                      dec_picture->mv_info[jj    ][ii + 1].mv[LIST_0].mv_y +
+                                      dec_picture->mv_info[jj + 1][ii    ].mv[LIST_0].mv_y +
+                                      dec_picture->mv_info[jj + 1][ii + 1].mv[LIST_0].mv_y + 2)/4;
                 } else { // 16x16, 16x8, 8x16, 8x8
                     pRegion->mv[0] = dec_picture->mv_info[jj][ii].mv[LIST_0].mv_x;
                     pRegion->mv[1] = dec_picture->mv_info[jj][ii].mv[LIST_0].mv_y;
@@ -266,9 +268,7 @@ void ercWriteMBMODEandMV(mb_t* currMB)
         }
     } else { //B-frame
         for (int i = 0; i < 4; ++i) {
-            int ii = 4 * mbx + (i % 2) * 2;
-            int jj = 4 * mby + (i / 2) * 2;
-            pRegion = currRegion + i;
+            objectBuffer_t* pRegion = currRegion + i;
             pRegion->regionMode = currMB->mb_type      == I_16x16 ? REGMODE_INTRA :
                                   currMB->SubMbType[i] == I_4x4   ? REGMODE_INTRA_8x8 : REGMODE_INTER_PRED_8x8;
             if (currMB->mb_type == I_16x16 || currMB->SubMbType[i] == I_4x4) { // INTRA
@@ -276,6 +276,8 @@ void ercWriteMBMODEandMV(mb_t* currMB)
                 pRegion->mv[1] = 0;
                 pRegion->mv[2] = 0;
             } else {
+                int ii = 4 * mbx + (i % 2) * 2;
+                int jj = 4 * mby + (i / 2) * 2;
                 int idx = (dec_picture->mv_info[jj][ii].ref_idx[0] < 0) ? 1 : 0;
                 pRegion->mv[0] = (dec_picture->mv_info[jj    ][ii    ].mv[idx].mv_x + 
                                   dec_picture->mv_info[jj    ][ii + 1].mv[idx].mv_x + 
