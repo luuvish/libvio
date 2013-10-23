@@ -87,10 +87,18 @@ protected:
     void        adaptive_memory_management(storable_picture* p);
     void        sliding_window_memory_management(storable_picture* p);
 
+private:
     void        conceal_non_ref_pics(int diff);
     void        sliding_window_poc_management(storable_picture* p);
     void        write_lost_non_ref_pic(int poc, int p_out);
     void        write_lost_ref_after_idr(int pos);
+
+    storable_picture* get_pic_from_dpb(int missingpoc, unsigned int* pos);
+    void        update_ref_list_for_concealment();
+    void        copy_prev_pic_to_concealed_pic(storable_picture* picture);
+    storable_picture* get_last_ref_pic_from_dpb();
+public:
+    void        init_lists_for_non_reference_loss(int currSliceType, bool field_pic_flag);
 };
 
 using dpb_t = decoded_picture_buffer_t;

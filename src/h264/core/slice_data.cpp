@@ -241,7 +241,7 @@ void init_picture(slice_t* currSlice)
     // here the third parameter should, if perfectly, be equal to the number of slices per frame.
     // using little value is ok, the code will allocate more memory if the slice number is larger
 #if (DISABLE_ERC == 0)
-    p_Vid->erc_errorVar->ercReset(shr.PicSizeInMbs, shr.PicSizeInMbs, dec_picture->size_x);
+    p_Vid->erc_errorVar->reset(shr.PicSizeInMbs, shr.PicSizeInMbs);
 #endif
 
     if (!shr.field_pic_flag)
@@ -398,7 +398,7 @@ void activate_sps(VideoParameters *p_Vid, sps_t *sps)
         if (p_Vid->dec_picture) {
             slice_t& slice = *p_Vid->dec_picture->slice_headers[0];
             shr_t& shr = slice.header;
-            p_Vid->erc_errorVar->ercReset(shr.PicSizeInMbs, shr.PicSizeInMbs, p_Vid->dec_picture->size_x);
+            p_Vid->erc_errorVar->reset(shr.PicSizeInMbs, shr.PicSizeInMbs);
         }
 #endif
     }
@@ -774,7 +774,7 @@ void slice_t::decode()
         }
 
 #if (DISABLE_ERC == 0)
-        mb.p_Slice->p_Vid->erc_errorVar->ercWriteMBMODEandMV(&mb, mb.p_Slice->p_Vid->dec_picture);
+        this->p_Vid->erc_errorVar->ercWriteMBMODEandMV(mb, shr.slice_type, this->p_Vid->dec_picture);
 #endif
 
         end_of_slice = mb.close(*this);

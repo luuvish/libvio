@@ -171,11 +171,9 @@ struct VideoParameters {
 
     // picture error concealment
     int         last_ref_pic_poc;
-    int         conceal_mode;
     int         earlier_missing_poc;
     unsigned    frame_to_conceal;
     int         IDR_concealment_flag;
-    int         conceal_slice_type;
 
     // SEI
     bool        recovery_point;
@@ -208,6 +206,8 @@ struct VideoParameters {
     // picture error concealment
     // concealment_head points to first node in list, concealment_end points to
     // last node in list. Initialize both to NULL, meaning no nodes in list yet
+    int         conceal_mode;
+    int         conceal_slice_type;
     concealment_node* concealment_head;
     concealment_node* concealment_end;
 

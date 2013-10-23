@@ -22,14 +22,6 @@ struct ercSegment_t {
     char        fCorrupted;
 };
 
-//! YUV pixel domain image arrays for a video frame
-struct frame {
-    VideoParameters* p_Vid;
-    px_t*       yptr;
-    px_t*       uptr;
-    px_t*       vptr;
-};
-
 
 /* "block" means an 8x8 pixel area */
 
@@ -73,20 +65,20 @@ threshold, concealByCopy is used, otherwise concealByTrial is used. */
 #define ERC_BLOCK_EMPTY             0
 
 
-#define isSplitted(object_list,currMBNum) \
-    ((object_list+((currMBNum)<<2))->regionMode >= REGMODE_SPLITTED)
+#define isSplitted(object_list, currMBNum) \
+    ((object_list + ((currMBNum) << 2))->regionMode >= REGMODE_SPLITTED)
 
 /* this can be used as isBlock(...,INTRA) or isBlock(...,INTER_COPY) */
-#define isBlock(object_list,currMBNum,comp,regMode) \
-    (isSplitted(object_list,currMBNum) ? \
-     ((object_list+((currMBNum)<<2)+(comp))->regionMode == REGMODE_##regMode##_8x8) : \
-     ((object_list+((currMBNum)<<2))->regionMode == REGMODE_##regMode))
+#define isBlock(object_list, currMBNum, comp, regMode) \
+    (isSplitted(object_list, currMBNum) ? \
+     ((object_list + ((currMBNum) << 2) + (comp))->regionMode == REGMODE_##regMode##_8x8) : \
+     ((object_list + ((currMBNum) << 2))->regionMode == REGMODE_##regMode))
 
 /* this can be used as getParam(...,mv) or getParam(...,xMin) or getParam(...,yMin) */
-#define getParam(object_list,currMBNum,comp,param) \
-    (isSplitted(object_list,currMBNum) ? \
-     ((object_list+((currMBNum)<<2)+(comp))->param) : \
-     ((object_list+((currMBNum)<<2))->param))
+#define getParam(object_list, currMBNum, comp, param) \
+    (isSplitted(object_list, currMBNum) ? \
+     ((object_list + ((currMBNum) << 2) + (comp))->param) : \
+     ((object_list + ((currMBNum) << 2))->param))
 
 
 static const int uv_div[2][4] = { //[x/y][yuv_format]
@@ -96,93 +88,89 @@ static const int uv_div[2][4] = { //[x/y][yuv_format]
 
 //! look up tables for FRExt_chroma support
 static const uint8_t subblk_offset_x[3][8][4] = {
-  { {  0,  4,  0,  4 },
-    {  0,  4,  0,  4 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 } },
-  { {  0,  4,  0,  4 },
-    {  0,  4,  0,  4 },
-    {  0,  4,  0,  4 },
-    {  0,  4,  0,  4 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 } },
-  { {  0,  4,  0,  4 },
-    {  8, 12,  8, 12 },
-    {  0,  4,  0,  4 },
-    {  8, 12,  8, 12 },
-    {  0,  4,  0,  4 },
-    {  8, 12,  8, 12 },
-    {  0,  4,  0,  4 },
-    {  8, 12,  8, 12 } }
+    {{  0,  4,  0,  4 },
+     {  0,  4,  0,  4 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 }},
+    {{  0,  4,  0,  4 },
+     {  0,  4,  0,  4 },
+     {  0,  4,  0,  4 },
+     {  0,  4,  0,  4 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 }},
+    {{  0,  4,  0,  4 },
+     {  8, 12,  8, 12 },
+     {  0,  4,  0,  4 },
+     {  8, 12,  8, 12 },
+     {  0,  4,  0,  4 },
+     {  8, 12,  8, 12 },
+     {  0,  4,  0,  4 },
+     {  8, 12,  8, 12 }}
 };
 
 static const uint8_t subblk_offset_y[3][8][4] = {
-  { {  0,  0,  4,  4 },
-    {  0,  0,  4,  4 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 } },
-  { {  0,  0,  4,  4 },
-    {  8,  8, 12, 12 },
-    {  0,  0,  4,  4 },
-    {  8,  8, 12, 12 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 },
-    {  0,  0,  0,  0 } },
-  { {  0,  0,  4,  4 },
-    {  0,  0,  4,  4 },
-    {  8,  8, 12, 12 },
-    {  8,  8, 12, 12 },
-    {  0,  0,  4,  4 },
-    {  0,  0,  4,  4 },
-    {  8,  8, 12, 12 },
-    {  8,  8, 12, 12 } }
+    {{  0,  0,  4,  4 },
+     {  0,  0,  4,  4 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 }},
+    {{  0,  0,  4,  4 },
+     {  8,  8, 12, 12 },
+     {  0,  0,  4,  4 },
+     {  8,  8, 12, 12 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 },
+     {  0,  0,  0,  0 }},
+    {{  0,  0,  4,  4 },
+     {  0,  0,  4,  4 },
+     {  8,  8, 12, 12 },
+     {  8,  8, 12, 12 },
+     {  0,  0,  4,  4 },
+     {  0,  0,  4,  4 },
+     {  8,  8, 12, 12 },
+     {  8,  8, 12, 12 }}
 };
 
 
-ercVariables_t::ercVariables_t(int pic_sizex, int pic_sizey, int flag)
+ercVariables_t::ercVariables_t(int pic_sizex, int pic_sizey, bool flag)
 {
     // the error concealment instance is allocated
-    this->nOfMBs              = 0;
-    this->segments            = nullptr;
-    this->currSegment         = 0;
-    this->yCondition          = nullptr;
-    this->uCondition          = nullptr;
-    this->vCondition          = nullptr;
-    this->prevFrameYCondition = nullptr;
-    this->concealment         = flag;
+    this->nOfMBs      = 0;
+    this->segments    = nullptr;
+    this->currSegment = 0;
+    this->yCondition  = nullptr;
+    this->uCondition  = nullptr;
+    this->vCondition  = nullptr;
+    this->concealment = flag;
 
-    this->erc_object_list     = new objectBuffer_t[(pic_sizex * pic_sizey) >> 6];
+    this->erc_object_list = new objectBuffer_t[(pic_sizex * pic_sizey) >> 6];
 
-    this->erc_mvperMB         = 0;
+    this->erc_mvperMB = 0;
 }
 
 ercVariables_t::~ercVariables_t()
 {
-    if (this->erc_object_list) {
+    if (this->erc_object_list)
         delete []this->erc_object_list;
-        this->erc_object_list = nullptr;
-    }
     if (this->yCondition) {
         delete []this->segments;
         delete []this->yCondition;
         delete []this->uCondition;
         delete []this->vCondition;
-        delete []this->prevFrameYCondition;
     }
 }
 
-void ercVariables_t::ercReset(int nOfMBs, int numOfSegments, int picSizeX)
+void ercVariables_t::reset(int nOfMBs, int numOfSegments)
 {
     if (this->concealment) {
         // If frame size has been changed
@@ -191,29 +179,21 @@ void ercVariables_t::ercReset(int nOfMBs, int numOfSegments, int picSizeX)
             delete []this->yCondition;
             delete []this->uCondition;
             delete []this->vCondition;
-            delete []this->prevFrameYCondition;
-            this->segments            = nullptr;
-            this->yCondition          = nullptr;
-            this->uCondition          = nullptr;
-            this->vCondition          = nullptr;
-            this->prevFrameYCondition = nullptr;
+            this->segments   = nullptr;
+            this->yCondition = nullptr;
+            this->uCondition = nullptr;
+            this->vCondition = nullptr;
         }
 
         // If the structures are uninitialized (first frame, or frame size is changed)
         if (!this->yCondition) {
-            this->nOfMBs              = nOfMBs;
-            this->segments            = new ercSegment_t[numOfSegments];
-            this->nOfSegments         = numOfSegments;
-            this->yCondition          = new char[4 * nOfMBs];
-            this->uCondition          = new char[nOfMBs];
-            this->vCondition          = new char[nOfMBs];
-            this->prevFrameYCondition = new char[4 * nOfMBs];
+            this->nOfMBs      = nOfMBs;
+            this->segments    = new ercSegment_t[numOfSegments];
+            this->nOfSegments = numOfSegments;
+            this->yCondition  = new char[4 * nOfMBs];
+            this->uCondition  = new char[nOfMBs];
+            this->vCondition  = new char[nOfMBs];
             memset(this->segments, 0, numOfSegments * sizeof(ercSegment_t));
-        } else {
-            // Store the yCondition struct of the previous frame
-            char* tmp = this->prevFrameYCondition;
-            this->prevFrameYCondition = this->yCondition;
-            this->yCondition = tmp;
         }
 
         // Reset tables and parameters
@@ -228,9 +208,9 @@ void ercVariables_t::ercReset(int nOfMBs, int numOfSegments, int picSizeX)
         }
 
         ercSegment_t* segments = this->segments;
-        for (int i = 0; i < this->nOfSegments; i++) {
+        for (int i = 0; i < this->nOfSegments; ++i) {
             segments->startMBPos = 0;
-            segments->endMBPos = (short) (nOfMBs - 1);
+            segments->endMBPos = (short)(nOfMBs - 1);
             (segments++)->fCorrupted = 1; //! mark segments as corrupted
         }
 
@@ -242,28 +222,31 @@ void ercVariables_t::ercReset(int nOfMBs, int numOfSegments, int picSizeX)
 }
 
 
-void ercVariables_t::ercWriteMBMODEandMV(mb_t* currMB, storable_picture* pic)
+void ercVariables_t::ercWriteMBMODEandMV(mb_t& mb, uint8_t slice_type, storable_picture* pic)
 {
-    int currMBNum = currMB->mbAddrX;
-    int mbx = xPosMB(currMBNum, pic->size_x);
-    int mby = yPosMB(currMBNum, pic->size_x);
-    objectBuffer_t* currRegion = this->erc_object_list + (currMBNum << 2);
+    objectBuffer_t* currRegion = this->erc_object_list + (mb.mbAddrX << 2);
+    int mbx = xPosMB(mb.mbAddrX, pic->size_x);
+    int mby = yPosMB(mb.mbAddrX, pic->size_x);
 
-    if (currMB->p_Slice->p_Vid->type != B_slice) { //non-B frame
+    if (slice_type != B_slice) { //non-B frame
         for (int i = 0; i < 4; ++i) {
+            uint8_t mb_type     = mb.mb_type;
+            uint8_t sub_mb_type = mb.SubMbType[i];
+
             objectBuffer_t* pRegion = currRegion + i;
-            pRegion->regionMode = currMB->mb_type      == I_16x16 ? REGMODE_INTRA :
-                                  currMB->SubMbType[i] == I_4x4   ? REGMODE_INTRA_8x8  :
-                                  currMB->SubMbType[i] == 0       ? REGMODE_INTER_COPY :
-                                  currMB->SubMbType[i] == 1       ? REGMODE_INTER_PRED : REGMODE_INTER_PRED_8x8;
-            if (currMB->SubMbType[i] == 0 || currMB->SubMbType[i] == I_4x4) { // INTRA OR COPY
+            pRegion->regionMode = mb_type     == I_16x16 ? REGMODE_INTRA :
+                                  sub_mb_type == I_4x4   ? REGMODE_INTRA_8x8  :
+                                  sub_mb_type == 0       ? REGMODE_INTER_COPY :
+                                  sub_mb_type == 1       ? REGMODE_INTER_PRED :
+                                                           REGMODE_INTER_PRED_8x8;
+            if (sub_mb_type == 0 || sub_mb_type == I_4x4) { // INTRA OR COPY
                 pRegion->mv[0] = 0;
                 pRegion->mv[1] = 0;
                 pRegion->mv[2] = 0;
             } else {
                 int ii = 4 * mbx + (i % 2) * 2;
                 int jj = 4 * mby + (i / 2) * 2;
-                if (currMB->SubMbType[i] >= 5 && currMB->SubMbType[i] <= 7) { // SMALL BLOCKS
+                if (sub_mb_type >= 5 && sub_mb_type <= 7) { // SMALL BLOCKS
                     pRegion->mv[0] = (pic->mv_info[jj    ][ii    ].mv[LIST_0].mv_x +
                                       pic->mv_info[jj    ][ii + 1].mv[LIST_0].mv_x +
                                       pic->mv_info[jj + 1][ii    ].mv[LIST_0].mv_x +
@@ -283,10 +266,14 @@ void ercVariables_t::ercWriteMBMODEandMV(mb_t* currMB, storable_picture* pic)
         }
     } else { //B-frame
         for (int i = 0; i < 4; ++i) {
+            uint8_t mb_type     = mb.mb_type;
+            uint8_t sub_mb_type = mb.SubMbType[i];
+
             objectBuffer_t* pRegion = currRegion + i;
-            pRegion->regionMode = currMB->mb_type      == I_16x16 ? REGMODE_INTRA :
-                                  currMB->SubMbType[i] == I_4x4   ? REGMODE_INTRA_8x8 : REGMODE_INTER_PRED_8x8;
-            if (currMB->mb_type == I_16x16 || currMB->SubMbType[i] == I_4x4) { // INTRA
+            pRegion->regionMode = mb_type     == I_16x16 ? REGMODE_INTRA :
+                                  sub_mb_type == I_4x4   ? REGMODE_INTRA_8x8 :
+                                                           REGMODE_INTER_PRED_8x8;
+            if (mb_type == I_16x16 || sub_mb_type == I_4x4) { // INTRA
                 pRegion->mv[0] = 0;
                 pRegion->mv[1] = 0;
                 pRegion->mv[2] = 0;
@@ -312,55 +299,51 @@ void ercVariables_t::ercWriteMBMODEandMV(mb_t* currMB, storable_picture* pic)
 
 void ercVariables_t::erc_picture(storable_picture* pic)
 {
-    VideoParameters* p_Vid = pic->slice_headers[0]->p_Vid;
-    sps_t* sps = pic->sps;
-    frame recfr;
-    recfr.p_Vid = pic->slice_headers[0]->p_Vid;
-    recfr.yptr = &pic->imgY[0][0];
-    if (sps->chroma_format_idc != YUV400) {
-        recfr.uptr = &pic->imgUV[0][0][0];
-        recfr.vptr = &pic->imgUV[1][0][0];
-    }
+    slice_t& slice = *pic->slice_headers[0];
+    shr_t& shr = slice.header;
+
+    if (shr.MbaffFrameFlag)
+        return;
+
+    VideoParameters* p_Vid = slice.p_Vid;
 
     //! this is always true at the beginning of a picture
     int ercStartMB = 0;
     int ercSegment = 0;
 
     //! mark the start of the first segment
-    if (!pic->slice_headers[0]->header.MbaffFrameFlag) {
-        int i = 0;
-        this->ercStartSegment(i, ercSegment);
-        //! generate the segments according to the macroblock map
-        for (i = 1; i < (int) pic->slice_headers[0]->header.PicSizeInMbs; ++i) {
-            if (p_Vid->mb_data[i].ei_flag != p_Vid->mb_data[i - 1].ei_flag) {
-                this->ercStopSegment(i - 1, ercSegment); //! stop current segment
+    int i = 0;
+    this->ercStartSegment(i, ercSegment);
+    //! generate the segments according to the macroblock map
+    for (i = 1; i < shr.PicSizeInMbs; ++i) {
+        if (p_Vid->mb_data[i].ei_flag != p_Vid->mb_data[i - 1].ei_flag) {
+            this->ercStopSegment(i - 1, ercSegment); //! stop current segment
 
-                //! mark current segment as lost or OK
-                if (p_Vid->mb_data[i - 1].ei_flag)
-                    this->ercMarkCurrSegmentLost(pic->size_x);
-                else
-                    this->ercMarkCurrSegmentOK(pic->size_x);
+            //! mark current segment as lost or OK
+            if (p_Vid->mb_data[i - 1].ei_flag)
+                this->ercMarkCurrSegmentLost(pic->size_x);
+            else
+                this->ercMarkCurrSegmentOK(pic->size_x);
 
-                ++ercSegment;  //! next segment
-                this->ercStartSegment(i, ercSegment); //! start new segment
-                ercStartMB = i;//! save start MB for this segment
-            }
+            ++ercSegment;  //! next segment
+            this->ercStartSegment(i, ercSegment); //! start new segment
+            ercStartMB = i;//! save start MB for this segment
         }
-        //! mark end of the last segment
-        this->ercStopSegment(i - 1, ercSegment);
-        if (p_Vid->mb_data[i - 1].ei_flag)
-            this->ercMarkCurrSegmentLost(pic->size_x);
-        else
-            this->ercMarkCurrSegmentOK(pic->size_x);
-
-        //! call the right error concealment function depending on the frame type.
-        this->erc_mvperMB /= pic->slice_headers[0]->header.PicSizeInMbs;
-
-        if (pic->slice.slice_type == I_slice || pic->slice.slice_type == SI_slice) // I-frame
-            this->ercConcealIntraFrame(&recfr, pic->size_x, pic->size_y);
-        else
-            this->ercConcealInterFrame(&recfr, pic->size_x, pic->size_y, sps->chroma_format_idc);
     }
+    //! mark end of the last segment
+    this->ercStopSegment(i - 1, ercSegment);
+    if (p_Vid->mb_data[i - 1].ei_flag)
+        this->ercMarkCurrSegmentLost(pic->size_x);
+    else
+        this->ercMarkCurrSegmentOK(pic->size_x);
+
+    //! call the right error concealment function depending on the frame type.
+    this->erc_mvperMB /= shr.PicSizeInMbs;
+
+    if (shr.slice_type == I_slice || shr.slice_type == SI_slice) // I-frame
+        this->ercConcealIntraFrame(pic);
+    else
+        this->ercConcealInterFrame(pic);
 }
 
 
@@ -391,7 +374,7 @@ void ercVariables_t::ercMarkCurrSegmentLost(int picSizeX)
             this->currSegmentCorrupted = 1;
         }
 
-        for (int j = this->segments[current_segment].startMBPos; j <= this->segments[current_segment].endMBPos; j++) {
+        for (int j = this->segments[current_segment].startMBPos; j <= this->segments[current_segment].endMBPos; ++j) {
             this->yCondition[MBNum2YBlock(j, 0, picSizeX)] = ERC_BLOCK_CORRUPTED;
             this->yCondition[MBNum2YBlock(j, 1, picSizeX)] = ERC_BLOCK_CORRUPTED;
             this->yCondition[MBNum2YBlock(j, 2, picSizeX)] = ERC_BLOCK_CORRUPTED;
@@ -409,7 +392,7 @@ void ercVariables_t::ercMarkCurrSegmentOK(int picSizeX)
 
     if (this->concealment) {
         // mark all the Blocks belonging to the segment as OK */
-        for (int j = this->segments[current_segment].startMBPos; j <= this->segments[current_segment].endMBPos; j++) {
+        for (int j = this->segments[current_segment].startMBPos; j <= this->segments[current_segment].endMBPos; ++j) {
             this->yCondition[MBNum2YBlock(j, 0, picSizeX)] = ERC_BLOCK_OK;
             this->yCondition[MBNum2YBlock(j, 1, picSizeX)] = ERC_BLOCK_OK;
             this->yCondition[MBNum2YBlock(j, 2, picSizeX)] = ERC_BLOCK_OK;
@@ -422,15 +405,15 @@ void ercVariables_t::ercMarkCurrSegmentOK(int picSizeX)
 }
 
 
-int ercVariables_t::ercConcealIntraFrame(frame* recfr, int picSizeX, int picSizeY)
+int ercVariables_t::ercConcealIntraFrame(storable_picture* pic)
 {
     // if concealment is on
     if (this->concealment) {
         // if there are segments to be concealed
         if (this->nOfCorruptedSegments) {
-            this->concealBlocks((picSizeX >> 3), (picSizeY >> 3), 0, recfr, picSizeX, this->yCondition);
-            this->concealBlocks((picSizeX >> 4), (picSizeY >> 4), 1, recfr, picSizeX, this->uCondition);
-            this->concealBlocks((picSizeX >> 4), (picSizeY >> 4), 2, recfr, picSizeX, this->vCondition);
+            this->concealBlocks(pic, 0);
+            this->concealBlocks(pic, 1);
+            this->concealBlocks(pic, 2);
         }
         return 1;
     }
@@ -438,10 +421,14 @@ int ercVariables_t::ercConcealIntraFrame(frame* recfr, int picSizeX, int picSize
     return 0;
 }
 
-int ercVariables_t::ercConcealInterFrame(frame* recfr, int picSizeX, int picSizeY, int chroma_format_idc)
+int ercVariables_t::ercConcealInterFrame(storable_picture* pic)
 {
-    VideoParameters* p_Vid = recfr->p_Vid;
-    sps_t* sps = p_Vid->active_sps;
+    sps_t* sps = pic->sps;
+    int picSizeX = pic->size_x;
+    int picSizeY = pic->size_y;
+
+    storable_picture* ref_pic = pic->slice_headers[0]->RefPicList[0][0];
+
     int predBlocks[8];
 
     /* if concealment is on */
@@ -449,7 +436,7 @@ int ercVariables_t::ercConcealInterFrame(frame* recfr, int picSizeX, int picSize
         /* if there are segments to be concealed */
         if (this->nOfCorruptedSegments) {
             px_t* predMB;
-            if (chroma_format_idc != YUV400)
+            if (sps->chroma_format_idc != YUV400)
                 predMB = new px_t[256 + sps->MbWidthC * sps->MbHeightC * 2];
             else
                 predMB = new px_t[256];
@@ -481,12 +468,12 @@ int ercVariables_t::ercConcealInterFrame(frame* recfr, int picSizeX, int picSize
                             /* correct only from above */
                             for (int currRow = firstCorruptedRow; currRow < lastRow; ++currRow) {
                                 this->ercCollect8PredBlocks(predBlocks, (currRow << 1), (column << 1),
-                                                      this->yCondition, (lastRow << 1), (lastColumn << 1), 2, 0);
+                                                            this->yCondition, (lastRow << 1), (lastColumn << 1), 2, 0);
 
                                 if (this->erc_mvperMB >= MVPERMB_THR)
-                                    this->concealByTrial(recfr, predMB, currRow * lastColumn + column, predBlocks, picSizeX, picSizeY);
+                                    this->concealByTrial(pic, predMB, currRow * lastColumn + column, predBlocks);
                                 else
-                                    this->concealByCopy(recfr, currRow * lastColumn + column, picSizeX);
+                                    this->concealByCopy(pic, ref_pic, currRow * lastColumn + column);
 
                                 this->ercMarkCurrMBConcealed(currRow * lastColumn + column, -1, picSizeX);
                             }
@@ -496,12 +483,12 @@ int ercVariables_t::ercConcealInterFrame(frame* recfr, int picSizeX, int picSize
                             /* correct only from below */
                             for (int currRow = lastCorruptedRow; currRow >= 0; --currRow) {
                                 this->ercCollect8PredBlocks(predBlocks, (currRow << 1), (column << 1),
-                                                      this->yCondition, (lastRow << 1), (lastColumn << 1), 2, 0);
+                                                            this->yCondition, (lastRow << 1), (lastColumn << 1), 2, 0);
 
                                 if (this->erc_mvperMB >= MVPERMB_THR)
-                                    this->concealByTrial(recfr, predMB, currRow * lastColumn + column, predBlocks, picSizeX, picSizeY);
+                                    this->concealByTrial(pic, predMB, currRow * lastColumn + column, predBlocks);
                                 else
-                                    this->concealByCopy(recfr, currRow * lastColumn + column, picSizeX);
+                                    this->concealByCopy(pic, ref_pic, currRow * lastColumn + column);
 
                                 this->ercMarkCurrMBConcealed(currRow * lastColumn + column, -1, picSizeX);
                             }
@@ -521,12 +508,12 @@ int ercVariables_t::ercConcealInterFrame(frame* recfr, int picSizeX, int picSize
                                     ++firstCorruptedRow;
 
                                 this->ercCollect8PredBlocks(predBlocks, (currRow << 1), (column << 1),
-                                                      this->yCondition, (lastRow << 1), (lastColumn << 1), 2, 0);
+                                                            this->yCondition, (lastRow << 1), (lastColumn << 1), 2, 0);
 
                                 if (this->erc_mvperMB >= MVPERMB_THR)
-                                    this->concealByTrial(recfr, predMB, currRow * lastColumn + column, predBlocks, picSizeX, picSizeY);
+                                    this->concealByTrial(pic, predMB, currRow * lastColumn + column, predBlocks);
                                 else
-                                    this->concealByCopy(recfr, currRow * lastColumn + column, picSizeX);
+                                    this->concealByCopy(pic, ref_pic, currRow * lastColumn + column);
 
                                 this->ercMarkCurrMBConcealed(currRow * lastColumn + column, -1, picSizeX);
                             }
@@ -538,8 +525,9 @@ int ercVariables_t::ercConcealInterFrame(frame* recfr, int picSizeX, int picSize
             delete []predMB;
         }
         return 1;
-    } else
-        return 0;
+    }
+
+    return 0;
 }
 
 
@@ -632,6 +620,25 @@ int ercVariables_t::ercCollect8PredBlocks(int predBlocks[], int currRow, int cur
 }
 
 
+int ercVariables_t::ercCollectColumnBlocks(int predBlocks[], int currRow, int currColumn, char* condition, int maxRow, int maxColumn, int step)
+{
+    int srcCounter = 0, threshold = ERC_BLOCK_CORRUPTED;
+
+    memset(predBlocks, 0, 8 * sizeof(int));
+
+    // in this case, row > 0 and row < 17
+    if (condition[(currRow - 1) * maxColumn + currColumn] > threshold) {
+        predBlocks[4] = 1;
+        srcCounter++;
+    }
+    if (condition[(currRow + step) * maxColumn + currColumn] > threshold) {
+        predBlocks[6] = 1;
+        srcCounter++;
+    }
+
+    return srcCounter;
+}
+
 void ercVariables_t::pixMeanInterpolateBlock(px_t* src[], px_t* block, int blockSize, int frameWidth, int BitDepth)
 {
     int bmax = blockSize - 1;
@@ -643,7 +650,7 @@ void ercVariables_t::pixMeanInterpolateBlock(px_t* src[], px_t* block, int block
             int weight = 0;
             // above
             if (src[4]) {
-                weight = blockSize-row;
+                weight = blockSize - row;
                 tmp += weight * src[4][bmax * frameWidth + column];
                 srcCounter += weight;
             }
@@ -675,8 +682,14 @@ void ercVariables_t::pixMeanInterpolateBlock(px_t* src[], px_t* block, int block
     }
 }
 
-void ercVariables_t::ercPixConcealIMB(px_t* currFrame, int row, int column, int predBlocks[], int frameWidth, int mbWidthInBlocks, int BitDepth)
+void ercVariables_t::ercPixConcealIMB(storable_picture* pic, int comp, int row, int column, int predBlocks[])
 {
+    sps_t* sps = pic->sps;
+    px_t* currFrame     = comp == 0 ? &pic->imgY[0][0] : comp == 1 ? &pic->imgUV[0][0][0] : &pic->imgUV[1][0][0];
+    int frameWidth      = comp == 0 ? pic->size_x : pic->size_x >> 1;
+    int mbWidthInBlocks = comp == 0 ? 2 : 1;
+    int BitDepth        = comp == 0 ? sps->BitDepthY : sps->BitDepthC;
+
     px_t* src[8] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
     px_t* currBlock = NULL;
 
@@ -702,28 +715,12 @@ void ercVariables_t::ercPixConcealIMB(px_t* currFrame, int row, int column, int 
     this->pixMeanInterpolateBlock(src, currBlock, mbWidthInBlocks * 8, frameWidth, BitDepth);
 }
 
-int ercVariables_t::ercCollectColumnBlocks(int predBlocks[], int currRow, int currColumn, char* condition, int maxRow, int maxColumn, int step)
+void ercVariables_t::concealBlocks(storable_picture* pic, int comp)
 {
-    int srcCounter = 0, threshold = ERC_BLOCK_CORRUPTED;
+    int lastColumn  = comp == 0 ? pic->size_x >> 3 : pic->size_x >> 4;
+    int lastRow     = comp == 0 ? pic->size_y >> 3 : pic->size_y >> 4;
+    char* condition = comp == 0 ? this->yCondition : comp == 1 ? this->uCondition : this->vCondition;
 
-    memset(predBlocks, 0, 8 * sizeof(int));
-
-    // in this case, row > 0 and row < 17
-    if (condition[(currRow - 1) * maxColumn + currColumn] > threshold) {
-        predBlocks[4] = 1;
-        srcCounter++;
-    }
-    if (condition[(currRow + step) * maxColumn + currColumn] > threshold) {
-        predBlocks[6] = 1;
-        srcCounter++;
-    }
-
-    return srcCounter;
-}
-
-void ercVariables_t::concealBlocks(int lastColumn, int lastRow, int comp, frame* recfr, int picSizeX, char* condition)
-{
-    sps_t* sps = recfr->p_Vid->active_sps;
     int predBlocks[8];
 
     // in the Y component do the concealment MB-wise (not block-wise):
@@ -752,18 +749,7 @@ void ercVariables_t::concealBlocks(int lastColumn, int lastRow, int comp, frame*
 
                     for (int currRow = firstCorruptedRow; currRow < lastRow; currRow += step) {
                         this->ercCollect8PredBlocks(predBlocks, currRow, column, condition, lastRow, lastColumn, step, 1);
-
-                        switch (comp) {
-                        case 0:
-                            this->ercPixConcealIMB(recfr->yptr, currRow, column, predBlocks, picSizeX, 2, sps->BitDepthY);
-                            break;
-                        case 1:
-                            this->ercPixConcealIMB(recfr->uptr, currRow, column, predBlocks, (picSizeX >> 1), 1, sps->BitDepthC);
-                            break;
-                        case 2 :
-                            this->ercPixConcealIMB(recfr->vptr, currRow, column, predBlocks, (picSizeX >> 1), 1, sps->BitDepthC);
-                            break;
-                        }
+                        this->ercPixConcealIMB(pic, comp, currRow, column, predBlocks);
 
                         if (comp == 0) {
                             condition[currRow * lastColumn + column                 ] = ERC_BLOCK_CONCEALED;
@@ -779,26 +765,14 @@ void ercVariables_t::concealBlocks(int lastColumn, int lastRow, int comp, frame*
 
                     for (int currRow = lastCorruptedRow; currRow >= 0; currRow -= step) {
                         this->ercCollect8PredBlocks(predBlocks, currRow, column, condition, lastRow, lastColumn, step, 1);
+                        this->ercPixConcealIMB(pic, comp, currRow, column, predBlocks);
 
-                        switch (comp) {
-                        case 0:
-                            this->ercPixConcealIMB(recfr->yptr, currRow, column, predBlocks, picSizeX, 2, sps->BitDepthY);
-                            break;
-                        case 1:
-                            this->ercPixConcealIMB(recfr->uptr, currRow, column, predBlocks, (picSizeX >> 1), 1, sps->BitDepthC);
-                            break;
-                        case 2:
-                            this->ercPixConcealIMB(recfr->vptr, currRow, column, predBlocks, (picSizeX >> 1), 1, sps->BitDepthC);
-                            break;
-                        }
-
+                        condition[currRow * lastColumn + column] = ERC_BLOCK_CONCEALED;
                         if (comp == 0) {
-                            condition[currRow * lastColumn + column                 ] = ERC_BLOCK_CONCEALED;
                             condition[currRow * lastColumn + column              + 1] = ERC_BLOCK_CONCEALED;
                             condition[currRow * lastColumn + column + lastColumn    ] = ERC_BLOCK_CONCEALED;
                             condition[currRow * lastColumn + column + lastColumn + 1] = ERC_BLOCK_CONCEALED;
-                        } else
-                            condition[currRow * lastColumn + column] = ERC_BLOCK_CONCEALED;
+                        }
                     }
                 } else {
                     // correct bi-directionally
@@ -819,55 +793,40 @@ void ercVariables_t::concealBlocks(int lastColumn, int lastRow, int comp, frame*
                             this->ercCollectColumnBlocks(predBlocks, currRow, column, condition, lastRow, lastColumn, step);
                         else
                             this->ercCollect8PredBlocks(predBlocks, currRow, column, condition, lastRow, lastColumn, step, 1);
+                        this->ercPixConcealIMB(pic, comp, currRow, column, predBlocks);
 
-                        switch (comp) {
-                        case 0:
-                            this->ercPixConcealIMB(recfr->yptr, currRow, column, predBlocks, picSizeX, 2, sps->BitDepthY);
-                            break;
-                        case 1:
-                            this->ercPixConcealIMB(recfr->uptr, currRow, column, predBlocks, (picSizeX >> 1), 1, sps->BitDepthC);
-                            break;
-                        case 2:
-                            this->ercPixConcealIMB(recfr->vptr, currRow, column, predBlocks, (picSizeX >> 1), 1, sps->BitDepthC);
-                            break;
-                        }
-
+                        condition[currRow * lastColumn + column] = ERC_BLOCK_CONCEALED;
                         if (comp == 0) {
-                            condition[currRow * lastColumn + column                 ] = ERC_BLOCK_CONCEALED;
                             condition[currRow * lastColumn + column              + 1] = ERC_BLOCK_CONCEALED;
                             condition[currRow * lastColumn + column + lastColumn    ] = ERC_BLOCK_CONCEALED;
                             condition[currRow * lastColumn + column + lastColumn + 1] = ERC_BLOCK_CONCEALED;
-                        } else
-                            condition[currRow * lastColumn + column] = ERC_BLOCK_CONCEALED;
+                        }
                     }
                 }
-
-                lastCorruptedRow = -1;
-                firstCorruptedRow = -1;
             }
         }
     }
 }
 
 
-void ercVariables_t::buildPredRegionYUV(VideoParameters* p_Vid, int* mv, int x, int y, px_t* predMB)
+void ercVariables_t::buildPredRegionYUV(storable_picture* pic, int* mv, int x, int y, px_t* predMB)
 {
-    storable_picture* dec_picture = p_Vid->dec_picture;
-
-    sps_t* sps = p_Vid->active_sps;
+    sps_t* sps = pic->sps;
     int yuv = sps->chroma_format_idc - 1;
     int ref_frame = max(mv[2], 0); // !!KS: quick fix, we sometimes seem to get negative ref_pic here, so restrict to zero and above
     int mb_nr = (y / 16) * (sps->PicWidthInMbs) + (x / 16);
-  
+
     // This should be allocated only once. 
     px_t tmp_block[16][16];
 
     /* Update coordinates of the current concealed macroblock */
-    mb_t* currMB = &p_Vid->mb_data[mb_nr];   // intialization code deleted, see below, StW  
-    currMB->mb.x = (short)(x / 16);
-    currMB->mb.y = (short)(y / 16);
-    slice_t* currSlice = currMB->p_Slice;
-
+    VideoParameters* p_Vid = pic->slice_headers[0]->p_Vid;
+    mb_t& mb = p_Vid->mb_data[mb_nr];   // intialization code deleted, see below, StW  
+    mb.mb.x = (short)(x / 16);
+    mb.mb.y = (short)(y / 16);
+    slice_t& slice = *mb.p_Slice;
+    auto ref_pic = slice.RefPicList[0][ref_frame];
+  
     int mv_mul = 4;
 
     int num_uv_blocks;
@@ -879,22 +838,22 @@ void ercVariables_t::buildPredRegionYUV(VideoParameters* p_Vid, int* mv, int x, 
     // luma *******************************************************
     for (int j = 0; j < 16/4; ++j) {
         int joff = j * 4;
-        int j4 = currMB->mb.y * 4 + j;
+        int j4 = mb.mb.y * 4 + j;
         for (int i = 0; i < 16/4; i++) {
             int ioff = i * 4;
-            int i4 = currMB->mb.x * 4 + i;
+            int i4 = mb.mb.x * 4 + i;
 
             int vec1_x = i4 * 4 * mv_mul + mv[0];
             int vec1_y = j4 * 4 * mv_mul + mv[1];
 
-            currSlice->decoder.get_block_luma(currSlice->RefPicList[0][ref_frame],
-                vec1_x, vec1_y, 4, 4, tmp_block, dec_picture->iLumaStride, dec_picture->size_x - 1,
-                currMB->mb_field_decoding_flag ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y - 1,
-                PLANE_Y, currMB);
+            slice.decoder.get_block_luma(ref_pic,
+                vec1_x, vec1_y, 4, 4, tmp_block, pic->iLumaStride, pic->size_x - 1,
+                mb.mb_field_decoding_flag ? (pic->size_y >> 1) - 1 : pic->size_y - 1,
+                PLANE_Y, &mb);
 
             for (int ii = 0; ii < 4; ++ii) {
                 for (int jj = 0; jj < 16/4; ++jj)
-                    currSlice->mb_pred[PLANE_Y][jj + joff][ii + ioff] = tmp_block[jj][ii];
+                    slice.mb_pred[PLANE_Y][jj + joff][ii + ioff] = tmp_block[jj][ii];
             }
         }
     }
@@ -902,7 +861,7 @@ void ercVariables_t::buildPredRegionYUV(VideoParameters* p_Vid, int* mv, int x, 
     px_t* pMB = predMB;
     for (int j = 0; j < 16; ++j) {
         for (int i = 0; i < 16; ++i)
-            pMB[j * 16 + i] = currSlice->mb_pred[PLANE_Y][j][i];
+            pMB[j * 16 + i] = slice.mb_pred[PLANE_Y][j][i];
     }
     pMB += 256;
 
@@ -921,30 +880,30 @@ void ercVariables_t::buildPredRegionYUV(VideoParameters* p_Vid, int* mv, int x, 
             for (int b8 = 0; b8 < num_uv_blocks; ++b8) {
                 for (int b4 = 0; b4 < 4; ++b4) {
                     int joff = subblk_offset_y[yuv][b8][b4];
-                    int j4   = currMB->mb.y * sps->MbHeightC + joff;
+                    int j4   = mb.mb.y * sps->MbHeightC + joff;
                     int ioff = subblk_offset_x[yuv][b8][b4];
-                    int i4   = currMB->mb.x * sps->MbWidthC + ioff;
+                    int i4   = mb.mb.x * sps->MbWidthC + ioff;
 
                     for (int jj = 0; jj < 4; ++jj) {
                         for (int ii = 0; ii < 4; ++ii) {
                             int i1 = (i4 + ii) * f1_x + mv[0];
                             int j1 = (j4 + jj) * f1_y + mv[1];
 
-                            int ii0 = clip3(0, dec_picture->size_x_cr - 1, i1 / f1_x);
-                            int jj0 = clip3(0, dec_picture->size_y_cr - 1, j1 / f1_y);
-                            int ii1 = clip3(0, dec_picture->size_x_cr - 1, (i1 + f2_x) / f1_x);
-                            int jj1 = clip3(0, dec_picture->size_y_cr - 1, (j1 + f2_y) / f1_y);
+                            int ii0 = clip3(0, pic->size_x_cr - 1, i1 / f1_x);
+                            int jj0 = clip3(0, pic->size_y_cr - 1, j1 / f1_y);
+                            int ii1 = clip3(0, pic->size_x_cr - 1, (i1 + f2_x) / f1_x);
+                            int jj1 = clip3(0, pic->size_y_cr - 1, (j1 + f2_y) / f1_y);
 
                             int if1 = (i1 & f2_x);
                             int jf1 = (j1 & f2_y);
                             int if0 = (f1_x - if1);
                             int jf0 = (f1_y - jf1);
 
-                            currSlice->mb_pred[uv + 1][jj+joff][ii+ioff] = (px_t) 
-                                ((if0*jf0*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj0][ii0]+
-                                  if1*jf0*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj0][ii1]+
-                                  if0*jf1*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj1][ii0]+
-                                  if1*jf1*currSlice->RefPicList[0][ref_frame]->imgUV[uv][jj1][ii1]+f4)/f3);
+                            slice.mb_pred[uv + 1][jj + joff][ii + ioff] = (px_t) 
+                                ((if0 * jf0 * ref_pic->imgUV[uv][jj0][ii0] +
+                                  if1 * jf0 * ref_pic->imgUV[uv][jj0][ii1] +
+                                  if0 * jf1 * ref_pic->imgUV[uv][jj1][ii0] +
+                                  if1 * jf1 * ref_pic->imgUV[uv][jj1][ii1] + f4) / f3);
                         }
                     }
                 }
@@ -952,15 +911,18 @@ void ercVariables_t::buildPredRegionYUV(VideoParameters* p_Vid, int* mv, int x, 
 
             for (int j = 0; j < 8; ++j) {
                 for (int i = 0; i < 8; ++i)
-                    pMB[j * 8 + i] = currSlice->mb_pred[uv + 1][j][i];
+                    pMB[j * 8 + i] = slice.mb_pred[uv + 1][j][i];
             }
             pMB += 64;
         }
     }
 }
 
-int ercVariables_t::edgeDistortion(int predBlocks[], int currYBlockNum, px_t* predMB, px_t *recY, int picSizeX, int regionSize)
+int ercVariables_t::edgeDistortion(storable_picture* pic, int predBlocks[], int currYBlockNum, px_t* predMB, int regionSize)
 {
+    px_t* recY = &pic->imgY[0][0];
+    int picSizeX = pic->size_x;
+
     int threshold = ERC_BLOCK_OK;
     px_t* currBlock = recY + (yPosYBlock(currYBlockNum,picSizeX) << 3) * picSizeX +
                              (xPosYBlock(currYBlockNum,picSizeX) << 3);
@@ -1015,11 +977,10 @@ int ercVariables_t::edgeDistortion(int predBlocks[], int currYBlockNum, px_t* pr
     return (distortion / numOfPredBlocks);
 }
 
-void ercVariables_t::copyPredMB(int currYBlockNum, px_t* predMB, frame* recfr, int picSizeX, int regionSize)
+void ercVariables_t::copyPredMB(storable_picture* pic, int currYBlockNum, px_t* predMB, int regionSize)
 {
-    VideoParameters* p_Vid = recfr->p_Vid;
-    sps_t* sps = p_Vid->active_sps;
-    storable_picture* dec_picture = p_Vid->dec_picture;
+    int picSizeX = pic->size_x;
+    sps_t* sps = pic->sps;
 
     int uv_x = uv_div[0][sps->chroma_format_idc];
     int uv_y = uv_div[1][sps->chroma_format_idc];
@@ -1032,7 +993,7 @@ void ercVariables_t::copyPredMB(int currYBlockNum, px_t* predMB, frame* recfr, i
     for (int j = ymin; j <= ymax; ++j) {
         for (int k = xmin; k <= xmax; ++k) {
             int locationTmp = (j - ymin) * 16 + (k - xmin);
-            dec_picture->imgY[j][k] = predMB[locationTmp];
+            pic->imgY[j][k] = predMB[locationTmp];
         }
     }
 
@@ -1040,19 +1001,19 @@ void ercVariables_t::copyPredMB(int currYBlockNum, px_t* predMB, frame* recfr, i
         for (int j = (ymin >> uv_y); j <= (ymax >> uv_y); ++j) {
             for (int k = (xmin >> uv_x); k <= (xmax >> uv_x); ++k) {
                 int locationTmp = (j - (ymin >> uv_y)) * sps->MbWidthC + (k - (xmin >> 1)) + 256;
-                dec_picture->imgUV[0][j][k] = predMB[locationTmp];
+                pic->imgUV[0][j][k] = predMB[locationTmp];
 
                 locationTmp += 64;
 
-                dec_picture->imgUV[1][j][k] = predMB[locationTmp];
+                pic->imgUV[1][j][k] = predMB[locationTmp];
             }
         }
     }
 }
 
-int ercVariables_t::concealByTrial(frame* recfr, px_t* predMB, int currMBNum, int predBlocks[], int picSizeX, int picSizeY)
+int ercVariables_t::concealByTrial(storable_picture* pic, px_t* predMB, int currMBNum, int predBlocks[])
 {
-    VideoParameters* p_Vid = recfr->p_Vid;
+    int picSizeX = pic->size_x;
 
     int compLeft = 1;
     int threshold = ERC_BLOCK_OK;
@@ -1127,9 +1088,9 @@ int ercVariables_t::concealByTrial(frame* recfr, px_t* predMB, int currMBNum, in
                                     fZeroMotionChecked = 1;
                                     mvPred[0] = mvPred[1] = mvPred[2] = 0;
 
-                                    this->buildPredRegionYUV(p_Vid, mvPred, currRegion->xMin, currRegion->yMin, predMB);
+                                    this->buildPredRegionYUV(pic, mvPred, currRegion->xMin, currRegion->yMin, predMB);
                                 }
-                            } else if (isBlock(this->erc_object_list,predMBNum,compPred,INTRA))
+                            } else if (isBlock(this->erc_object_list, predMBNum, compPred, INTRA))
                                 /* build motion using the neighbour's Motion Parameters */
                                 continue;
                             else {
@@ -1139,12 +1100,12 @@ int ercVariables_t::concealByTrial(frame* recfr, px_t* predMB, int currMBNum, in
                                 mvPred[1] = mvptr[1];
                                 mvPred[2] = mvptr[2];
 
-                                this->buildPredRegionYUV(p_Vid, mvPred, currRegion->xMin, currRegion->yMin, predMB);
+                                this->buildPredRegionYUV(pic, mvPred, currRegion->xMin, currRegion->yMin, predMB);
                             }
 
                             /* measure absolute boundary pixel difference */
-                            int currDist = this->edgeDistortion(predBlocks,
-                                MBNum2YBlock(currMBNum, comp, picSizeX), predMB, recfr->yptr, picSizeX, regionSize);
+                            int currDist = this->edgeDistortion(pic, predBlocks,
+                                MBNum2YBlock(currMBNum, comp, picSizeX), predMB, regionSize);
 
                             /* if so far best -> store the pixels as the best concealment */
                             if (currDist < minDist || !fInterNeighborExists) {
@@ -1156,7 +1117,7 @@ int ercVariables_t::concealByTrial(frame* recfr, px_t* predMB, int currMBNum, in
                                     (regionSize == 16 ? REGMODE_INTER_COPY : REGMODE_INTER_COPY_8x8) :
                                     (regionSize == 16 ? REGMODE_INTER_PRED : REGMODE_INTER_PRED_8x8);
 
-                                this->copyPredMB(MBNum2YBlock(currMBNum, comp, picSizeX), predMB, recfr, picSizeX, regionSize);
+                                this->copyPredMB(pic, MBNum2YBlock(currMBNum, comp, picSizeX), predMB, regionSize);
                             }
 
                             fInterNeighborExists = 1;
@@ -1173,10 +1134,10 @@ int ercVariables_t::concealByTrial(frame* recfr, px_t* predMB, int currMBNum, in
         if (!fZeroMotionChecked) {
             mvPred[0] = mvPred[1] = mvPred[2] = 0;
 
-            this->buildPredRegionYUV(p_Vid, mvPred, currRegion->xMin, currRegion->yMin, predMB);
+            this->buildPredRegionYUV(pic, mvPred, currRegion->xMin, currRegion->yMin, predMB);
 
-            int currDist = this->edgeDistortion(predBlocks,
-                MBNum2YBlock(currMBNum, comp, picSizeX), predMB, recfr->yptr, picSizeX, regionSize);
+            int currDist = this->edgeDistortion(pic, predBlocks,
+                MBNum2YBlock(currMBNum, comp, picSizeX), predMB, regionSize);
 
             if (currDist < minDist || !fInterNeighborExists) {
                 minDist = currDist;
@@ -1185,7 +1146,7 @@ int ercVariables_t::concealByTrial(frame* recfr, px_t* predMB, int currMBNum, in
 
                 currRegion->regionMode = (regionSize == 16 ? REGMODE_INTER_COPY : REGMODE_INTER_COPY_8x8);
 
-                this->copyPredMB(MBNum2YBlock(currMBNum, comp, picSizeX), predMB, recfr, picSizeX, regionSize);
+                this->copyPredMB(pic, MBNum2YBlock(currMBNum, comp, picSizeX), predMB, regionSize);
             }
         }
 
@@ -1202,11 +1163,13 @@ int ercVariables_t::concealByTrial(frame* recfr, px_t* predMB, int currMBNum, in
     return 0;
 }
 
-void ercVariables_t::copyBetweenFrames(frame* recfr, int currYBlockNum, int picSizeX, int regionSize)
+void ercVariables_t::copyBetweenFrames(storable_picture* dec_pic, storable_picture* ref_pic, int currYBlockNum, int regionSize)
 {
-    VideoParameters* p_Vid = recfr->p_Vid;
-    sps_t* sps = p_Vid->active_sps;
-    storable_picture* refPic = p_Vid->ppSliceList[0]->RefPicList[0][0];
+    int picSizeX = dec_pic->size_x;
+    sps_t* sps = dec_pic->sps;
+    px_t* yptr = &dec_pic->imgY[0][0];
+    px_t* uptr = &dec_pic->imgUV[0][0][0];
+    px_t* vptr = &dec_pic->imgUV[1][0][0];
 
     /* set the position of the region to be copied */
     int xmin = (xPosYBlock(currYBlockNum, picSizeX) << 3);
@@ -1214,8 +1177,8 @@ void ercVariables_t::copyBetweenFrames(frame* recfr, int currYBlockNum, int picS
 
     for (int j = ymin; j < ymin + regionSize; ++j) {
         for (int k = xmin; k < xmin + regionSize; ++k) {
-            int location = j * picSizeX + k;
-            recfr->yptr[location] = refPic->imgY[j][k];
+            int location   = j * picSizeX + k;
+            yptr[location] = ref_pic->imgY[j][k];
         }
     }
 
@@ -1223,23 +1186,23 @@ void ercVariables_t::copyBetweenFrames(frame* recfr, int currYBlockNum, int picS
          j < (ymin + regionSize) >> uv_div[1][sps->chroma_format_idc]; ++j) {
         for (int k = xmin >> uv_div[0][sps->chroma_format_idc];
              k < (xmin + regionSize) >> uv_div[0][sps->chroma_format_idc]; ++k) {
-            int location = ((j * picSizeX) >> uv_div[0][sps->chroma_format_idc]) + k;
-
-            recfr->uptr[location] = refPic->imgUV[0][j][k];
-            recfr->vptr[location] = refPic->imgUV[1][j][k];
+            int location   = ((j * picSizeX) >> uv_div[0][sps->chroma_format_idc]) + k;
+            uptr[location] = ref_pic->imgUV[0][j][k];
+            vptr[location] = ref_pic->imgUV[1][j][k];
         }
     }
 }
 
-int ercVariables_t::concealByCopy(frame* recfr, int currMBNum, int picSizeX)
+int ercVariables_t::concealByCopy(storable_picture* dec_pic, storable_picture* ref_pic, int currMBNum)
 {
+    int picSizeX = dec_pic->size_x;
     objectBuffer_t* currRegion = this->erc_object_list + (currMBNum << 2);
 
     currRegion->regionMode = REGMODE_INTER_COPY;
-    currRegion->xMin       = (xPosMB(currMBNum,picSizeX) << 4);
-    currRegion->yMin       = (yPosMB(currMBNum,picSizeX) << 4);
+    currRegion->xMin       = (xPosMB(currMBNum, picSizeX) << 4);
+    currRegion->yMin       = (yPosMB(currMBNum, picSizeX) << 4);
 
-    this->copyBetweenFrames(recfr, MBNum2YBlock(currMBNum, 0, picSizeX), picSizeX, 16);
+    this->copyBetweenFrames(dec_pic, ref_pic, MBNum2YBlock(currMBNum, 0, picSizeX), 16);
 
     return 0;
 }
