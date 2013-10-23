@@ -174,7 +174,6 @@ struct slice_t {
 
     // for signalling to the neighbour logic that this is a deblocker call
 
-    int           erc_mvperMB;
     storable_picture* dec_picture;
 
     slice_t();

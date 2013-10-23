@@ -102,6 +102,8 @@ VideoParameters::VideoParameters()
     this->previous_frame_num    = 0;
 
     this->last_dec_layer_id     = -1;
+
+    this->erc_errorVar          = nullptr;
 }
 
 VideoParameters::~VideoParameters()
@@ -294,7 +296,8 @@ void DecoderParams::CloseDecoder()
         close(this->p_Vid->p_ref);
 
 #if (DISABLE_ERC == 0)
-    ercClose(this->p_Vid, this->p_Vid->erc_errorVar);
+    if (this->p_Vid->erc_errorVar)
+        delete this->p_Vid->erc_errorVar;
 #endif
 
     for (int i = 0; i < MAX_NUM_DPB_LAYERS; i++)

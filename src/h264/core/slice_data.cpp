@@ -241,9 +241,8 @@ void init_picture(slice_t* currSlice)
     // here the third parameter should, if perfectly, be equal to the number of slices per frame.
     // using little value is ok, the code will allocate more memory if the slice number is larger
 #if (DISABLE_ERC == 0)
-    ercReset(p_Vid->erc_errorVar, shr.PicSizeInMbs, shr.PicSizeInMbs, dec_picture->size_x);
+    p_Vid->erc_errorVar->ercReset(shr.PicSizeInMbs, shr.PicSizeInMbs, dec_picture->size_x);
 #endif
-    p_Vid->erc_mvperMB = 0;
 
     if (!shr.field_pic_flag)
         dec_picture->poc = shr.PicOrderCnt;
@@ -392,12 +391,14 @@ void activate_sps(VideoParameters *p_Vid, sps_t *sps)
 #endif
 
 #if (DISABLE_ERC == 0)
-        ercInit(p_Vid, sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16, 1);
+        if (p_Vid->erc_errorVar)
+            delete p_Vid->erc_errorVar;
+        p_Vid->erc_errorVar = new ercVariables_t(sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16, 1);
+        //ercInit(p_Vid, sps->PicWidthInMbs * 16, sps->FrameHeightInMbs * 16, 1);
         if (p_Vid->dec_picture) {
             slice_t& slice = *p_Vid->dec_picture->slice_headers[0];
             shr_t& shr = slice.header;
-            ercReset(p_Vid->erc_errorVar, shr.PicSizeInMbs, shr.PicSizeInMbs, p_Vid->dec_picture->size_x);
-            p_Vid->erc_mvperMB = 0;
+            p_Vid->erc_errorVar->ercReset(shr.PicSizeInMbs, shr.PicSizeInMbs, p_Vid->dec_picture->size_x);
         }
 #endif
     }
@@ -545,7 +546,7 @@ void exit_picture(VideoParameters *p_Vid)
         return;
 
 #if (DISABLE_ERC == 0)
-    erc_picture(p_Vid);
+    p_Vid->erc_errorVar->erc_picture(p_Vid->dec_picture);
 #endif
 
     currSlice->decoder.deblock_filter(*currSlice);
@@ -773,7 +774,7 @@ void slice_t::decode()
         }
 
 #if (DISABLE_ERC == 0)
-        ercWriteMBMODEandMV(&mb);
+        mb.p_Slice->p_Vid->erc_errorVar->ercWriteMBMODEandMV(&mb, mb.p_Slice->p_Vid->dec_picture);
 #endif
 
         end_of_slice = mb.close(*this);
@@ -792,7 +793,6 @@ void DecoderParams::decode_slice_datas()
         slice->init();
         slice->decode();
 
-        p_Vid->num_dec_mb  += slice->num_dec_mb;
-        p_Vid->erc_mvperMB += slice->erc_mvperMB;
+        p_Vid->num_dec_mb += slice->num_dec_mb;
     }
 }

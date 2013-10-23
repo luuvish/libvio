@@ -74,16 +74,19 @@ struct decoded_reference_picture_marking_t;
 using drpm_t = decoded_reference_picture_marking_t;
 
 struct slice_header_t;
+namespace vio { namespace h264 {
 struct macroblock_t;
+}}
+using mb_t = vio::h264::macroblock_t;
 
 
 struct storable_picture {
-    sps_t*                     sps;
-    pps_t*                     pps;
-    std::vector<slice_t*>      slice_headers;
-    std::vector<macroblock_t*> mbs;
-    pic_motion_params**        mv_infos;
-    px_t**                     pixels[3];
+    sps_t*                sps;
+    pps_t*                pps;
+    std::vector<slice_t*> slice_headers;
+    std::vector<mb_t*>    mbs;
+    pic_motion_params**   mv_infos;
+    px_t**                pixels[3];
 
     int         poc;
     int         top_poc;

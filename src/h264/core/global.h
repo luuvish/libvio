@@ -76,7 +76,6 @@ struct storable_picture;
 struct sei_params;
 
 struct concealment_node;
-struct objectBuffer_t;
 struct ercVariables_t;
 
 struct CodingParameters {
@@ -205,16 +204,12 @@ struct VideoParameters {
     storable_picture* no_reference_picture; //!< dummy storable picture for recovery point
 
     // Error parameters
-    objectBuffer_t* erc_object_list;
     ercVariables_t* erc_errorVar;
     // picture error concealment
     // concealment_head points to first node in list, concealment_end points to
     // last node in list. Initialize both to NULL, meaning no nodes in list yet
     concealment_node* concealment_head;
     concealment_node* concealment_end;
-
-    int         erc_mvperMB;
-    VideoParameters* erc_img;
 
     ImageData   tempData3;
     //control;
