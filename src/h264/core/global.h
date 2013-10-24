@@ -171,8 +171,6 @@ struct VideoParameters {
 
     // picture error concealment
     int         last_ref_pic_poc;
-    int         earlier_missing_poc;
-    unsigned    frame_to_conceal;
     int         IDR_concealment_flag;
 
     // SEI
@@ -208,6 +206,8 @@ struct VideoParameters {
     // last node in list. Initialize both to NULL, meaning no nodes in list yet
     int         conceal_mode;
     int         conceal_slice_type;
+    int         earlier_missing_poc;
+    unsigned    frame_to_conceal;
     concealment_node* concealment_head;
     concealment_node* concealment_end;
 

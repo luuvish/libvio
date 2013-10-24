@@ -5,7 +5,7 @@
 #include "memalloc.h"
 
 
-using vio::h264::data_partition_t;
+using vio::h264::Interpreter;
 
 
 bool slice_t::operator!=(const slice_t& slice)
@@ -55,7 +55,7 @@ bool slice_t::operator!=(const slice_t& slice)
 
 // 7.3.3 Slice header syntax
 
-void data_partition_t::slice_header(slice_t& slice)
+void Interpreter::slice_header(slice_t& slice)
 {
     shr_t& shr = slice.header;
 
@@ -211,7 +211,7 @@ void data_partition_t::slice_header(slice_t& slice)
 
 // 7.3.3.1 Reference picture list modification syntax
 
-void data_partition_t::ref_pic_list_modification(slice_t& slice)
+void Interpreter::ref_pic_list_modification(slice_t& slice)
 {
     shr_t& shr = slice.header;
 
@@ -262,7 +262,7 @@ void data_partition_t::ref_pic_list_modification(slice_t& slice)
 
 // H.7.3.3.1.1 Reference picture list MVC modification syntax
 
-void data_partition_t::ref_pic_list_mvc_modification(slice_t& slice)
+void Interpreter::ref_pic_list_mvc_modification(slice_t& slice)
 {
     shr_t& shr = slice.header;
 
@@ -319,7 +319,7 @@ void data_partition_t::ref_pic_list_mvc_modification(slice_t& slice)
 
 // 7.3.3.2 Prediction weight table syntax
 
-void data_partition_t::pred_weight_table(slice_t& slice)
+void Interpreter::pred_weight_table(slice_t& slice)
 {
     sps_t& sps = *slice.active_sps;
     shr_t& shr = slice.header;
@@ -400,7 +400,7 @@ void data_partition_t::pred_weight_table(slice_t& slice)
 
 // 7.3.3.3 Decoded reference picture marking syntax
 
-void data_partition_t::dec_ref_pic_marking(slice_t& slice)
+void Interpreter::dec_ref_pic_marking(slice_t& slice)
 {
     sps_t& sps = *slice.active_sps;
     shr_t& shr = slice.header;
@@ -441,7 +441,7 @@ void data_partition_t::dec_ref_pic_marking(slice_t& slice)
 
 // 7.3.4 Slice data syntax
 
-void data_partition_t::slice_data()
+void Interpreter::slice_data()
 {
     
 }

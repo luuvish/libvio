@@ -83,7 +83,7 @@ static const uint8_t renorm_table_32[32] = {
 };
 
 
-void cabac_engine_t::init(data_partition_t* dp)
+void cabac_engine_t::init(Interpreter* dp)
 {
     if (dp->frame_bitoffset & 7)
         dp->f(8 - (dp->frame_bitoffset & 7));
@@ -211,12 +211,12 @@ uint32_t cabac_engine_t::fl(cabac_context_t* ctx, uint8_t* ctxIdxIncs, uint8_t m
 
 
 
-data_partition_t::data_partition_t(uint32_t size) :
+Interpreter::Interpreter(uint32_t size) :
     nal_unit_t { size }
 {
 }
 
-data_partition_t::data_partition_t(const nal_unit_t& nal) :
+Interpreter::Interpreter(const nal_unit_t& nal) :
     nal_unit_t { nal.max_size }
 {
     int nalUnitHeaderBytes = 1;
@@ -228,7 +228,7 @@ data_partition_t::data_partition_t(const nal_unit_t& nal) :
     this->frame_bitoffset = 0;
 }
 
-data_partition_t& data_partition_t::operator=(const nal_unit_t& nal)
+Interpreter& Interpreter::operator=(const nal_unit_t& nal)
 {
     int nalUnitHeaderBytes = 1;
     if (nal.nal_unit_type == 14 || nal.nal_unit_type == 20 || nal.nal_unit_type == 21)
@@ -240,12 +240,12 @@ data_partition_t& data_partition_t::operator=(const nal_unit_t& nal)
     return *this;
 }
 
-bool data_partition_t::byte_aligned(void)
+bool Interpreter::byte_aligned(void)
 {
     return this->frame_bitoffset & 7 ? false : true;
 }
 
-bool data_partition_t::more_rbsp_data(void)
+bool Interpreter::more_rbsp_data(void)
 {
     uint8_t* buffer       = this->rbsp_byte;
     int      totbitoffset = this->frame_bitoffset;
@@ -269,7 +269,7 @@ bool data_partition_t::more_rbsp_data(void)
     return cnt ? true : false;
 }
 
-uint32_t data_partition_t::next_bits(uint8_t n)
+uint32_t Interpreter::next_bits(uint8_t n)
 {
     uint8_t* buffer       = this->rbsp_byte;
     int      totbitoffset = this->frame_bitoffset;
@@ -295,35 +295,35 @@ uint32_t data_partition_t::next_bits(uint8_t n)
     return inf;
 }
 
-uint32_t data_partition_t::read_bits(uint8_t n)
+uint32_t Interpreter::read_bits(uint8_t n)
 {
     uint32_t value = this->next_bits(n);
     this->frame_bitoffset += n;
     return value;
 }
 
-uint32_t data_partition_t::u(uint8_t n, const char* name)
+uint32_t Interpreter::u(uint8_t n, const char* name)
 {
     return this->read_bits(n);
 }
 
-int32_t data_partition_t::i(uint8_t n, const char* name)
+int32_t Interpreter::i(uint8_t n, const char* name)
 {
     uint32_t value = this->read_bits(n);
     return -(value & (1 << (n - 1))) | value;
 }
 
-uint32_t data_partition_t::f(uint8_t n, const char* name)
+uint32_t Interpreter::f(uint8_t n, const char* name)
 {
     return this->read_bits(n);
 }
 
-uint32_t data_partition_t::b(uint8_t n, const char* name)
+uint32_t Interpreter::b(uint8_t n, const char* name)
 {
     return this->read_bits(n);
 }
 
-uint32_t data_partition_t::ue(const char* name)
+uint32_t Interpreter::ue(const char* name)
 {
     int leadingZeroBits = -1;
     uint32_t b;
@@ -336,28 +336,28 @@ uint32_t data_partition_t::ue(const char* name)
     return codeNum;
 }
 
-int32_t data_partition_t::se(const char* name)
+int32_t Interpreter::se(const char* name)
 {
     uint32_t codeNum = this->ue();
     return (codeNum % 2 ? 1 : -1) * ((codeNum + 1) / 2);
 }
 
-uint32_t data_partition_t::ae(const char* name)
+uint32_t Interpreter::ae(const char* name)
 {
     return 0;
 }
 
-uint32_t data_partition_t::ce(const char* name)
+uint32_t Interpreter::ce(const char* name)
 {
     return 0;
 }
 
-uint32_t data_partition_t::me(const char* name)
+uint32_t Interpreter::me(const char* name)
 {
     return 0;
 }
 
-uint32_t data_partition_t::te(const char* name)
+uint32_t Interpreter::te(const char* name)
 {
     return 0;
 }

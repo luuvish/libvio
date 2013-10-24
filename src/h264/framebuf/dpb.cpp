@@ -985,7 +985,7 @@ void decoded_picture_buffer_t::store_picture(storable_picture* p)
     this->used_size++;
 
     if (p_Vid->conceal_mode != 0)
-        p_Vid->pocs_in_dpb[this->used_size-1] = p->poc;
+        p_Vid->pocs_in_dpb[this->used_size - 1] = p->poc;
 
     this->update_ref_list();
     this->update_ltref_list();

@@ -35,14 +35,16 @@ namespace vio  {
 namespace h264 {
 
 
-struct data_partition_t : public nal_unit_t {
+class Interpreter : public nal_unit_t {
+public:
     int         frame_bitoffset;
 
-                data_partition_t(uint32_t size=MAX_NAL_UNIT_SIZE);
-                data_partition_t(const nal_unit_t& nal);
+    Interpreter(uint32_t size=MAX_NAL_UNIT_SIZE);
+    Interpreter(const nal_unit_t& nal);
 
-    data_partition_t& operator=(const nal_unit_t& nal);
+    Interpreter& operator=(const nal_unit_t& nal);
 
+public:
     bool        byte_aligned            (void);
     bool        more_data_in_byte_stream(void);
     bool        more_rbsp_data          (void);
@@ -63,7 +65,7 @@ struct data_partition_t : public nal_unit_t {
     uint32_t    me(const char* name="");
     uint32_t    te(const char* name="");
 
-
+public:
     void        seq_parameter_set_rbsp(sps_t& sps);
     void        seq_parameter_set_data(sps_t& sps);
     void        scaling_list(int* scalingList, int sizeOfScalingList,
@@ -109,11 +111,11 @@ struct data_partition_t : public nal_unit_t {
 struct cabac_context_t;
 
 struct cabac_engine_t {
-    data_partition_t* dp;
+    Interpreter* dp;
     uint16_t    codIRange;
     uint16_t    codIOffset;
 
-    void        init(data_partition_t* dp);
+    void        init(Interpreter* dp);
 
     bool        decode_decision (cabac_context_t* ctx);
     bool        decode_bypass   ();
@@ -147,7 +149,7 @@ public:
 
     int         dp_mode;
 
-    data_partition_t partArr[3];
+    Interpreter partArr[3];
     cabac_engine_t   cabac[3];
     cabac_contexts_t mot_ctx;
 
@@ -205,7 +207,7 @@ protected:
 
         CtxIdxInc ctxidx;
 
-        data_partition_t& cavlc;
+        Interpreter& cavlc;
         cabac_engine_t&   cabac;
         cabac_contexts_t& contexts;
     };

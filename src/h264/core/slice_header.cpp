@@ -278,7 +278,7 @@ static int parse_dpa(slice_t *currSlice)
 
     if (nal_unit_t::NALU_TYPE_DPB == nal.nal_unit_type) {
         // we got a DPB
-        data_partition_t& dp1 = currSlice->parser.partArr[1];
+        Interpreter& dp1 = currSlice->parser.partArr[1];
         dp1 = nal;
 
         slice_id_b = dp1.ue("NALU: DP_B slice_id");
@@ -303,7 +303,7 @@ static int parse_dpa(slice_t *currSlice)
 
     // check if we got DP_C
     if (nal_unit_t::NALU_TYPE_DPC == nal.nal_unit_type) {
-        data_partition_t& dp2 = currSlice->parser.partArr[2];
+        Interpreter& dp2 = currSlice->parser.partArr[2];
         dp2 = nal;
 
         currSlice->dpC_NotPresent = 0;
@@ -376,7 +376,7 @@ process_nalu:
 
         case nal_unit_t::NALU_TYPE_PPS:
             {
-                data_partition_t* dp = new data_partition_t { nal };
+                Interpreter* dp = new Interpreter { nal };
                 pps_t* pps = new pps_t;
 
                 dp->pic_parameter_set_rbsp(p_Vid, *pps);
@@ -400,7 +400,7 @@ process_nalu:
 
         case nal_unit_t::NALU_TYPE_SPS:
             {  
-                data_partition_t* dp = new data_partition_t { nal };
+                Interpreter* dp = new Interpreter { nal };
                 sps_t* sps = new sps_t;
 
                 dp->seq_parameter_set_rbsp(*sps);
@@ -439,7 +439,7 @@ process_nalu:
 
         case nal_unit_t::NALU_TYPE_SPS_EXT:
             {
-                data_partition_t* dp = new data_partition_t { nal };
+                Interpreter* dp = new Interpreter { nal };
                 sps_ext_t* sps_ext = new sps_ext_t;
                 dp->seq_parameter_set_extension_rbsp(*sps_ext);
                 delete sps_ext;
@@ -453,7 +453,7 @@ process_nalu:
 
         case nal_unit_t::NALU_TYPE_PREFIX:
             {
-                data_partition_t* dp = new data_partition_t { nal };
+                Interpreter* dp = new Interpreter { nal };
                 dp->prefix_nal_unit_rbsp();
                 delete dp;
             }
@@ -461,7 +461,7 @@ process_nalu:
 
         case nal_unit_t::NALU_TYPE_SUB_SPS:
             if (p_Inp->DecodeAllLayers == 1) {
-                data_partition_t* dp = new data_partition_t { nal };
+                Interpreter* dp = new Interpreter { nal };
                 sub_sps_t* sub_sps = new sub_sps_t;
 
                 dp->subset_seq_parameter_set_rbsp(*sub_sps);

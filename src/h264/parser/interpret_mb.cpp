@@ -12,7 +12,7 @@
  *
  * ===========================================================================
  *
- *  File      : parser_mb.cpp
+ *  File      : interpret_mb.cpp
  *  Author(s) : Luuvish
  *  Version   : 1.0
  *  Revision  :
@@ -454,7 +454,7 @@ void Parser::Macroblock::parse_i_pcm()
             }
         }
     } else {
-        data_partition_t* dp = &slice.parser.partArr[slice.parser.dp_mode ? 1 : 0];
+        Interpreter* dp = &slice.parser.partArr[slice.parser.dp_mode ? 1 : 0];
 
         if (dp->frame_bitoffset & 7)
             dp->f(8 - (dp->frame_bitoffset & 7));

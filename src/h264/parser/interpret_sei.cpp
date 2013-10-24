@@ -28,7 +28,7 @@
 #include "sets.h"
 
 
-using vio::h264::data_partition_t;
+using vio::h264::Interpreter;
 using vio::h264::vui_t;
 using vio::h264::hrd_t;
 
@@ -113,7 +113,7 @@ struct tone_mapping_t {
 
 void buffering_period(byte* payload, int size, VideoParameters* p_Vid)
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -153,7 +153,7 @@ void pic_timing(byte* payload, int size, VideoParameters* p_Vid)
         return;
     }
 
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -240,7 +240,7 @@ void pic_timing(byte* payload, int size, VideoParameters* p_Vid)
 
 void pan_scan_rect(byte* payload, int size, VideoParameters *p_Vid)
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -268,7 +268,7 @@ void pan_scan_rect(byte* payload, int size, VideoParameters *p_Vid)
 
 void filler_payload( byte* payload, int payloadSize, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = payloadSize;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -282,7 +282,7 @@ void filler_payload( byte* payload, int payloadSize, VideoParameters *p_Vid )
 
 void user_data_registered_itu_t_t35( byte* payload, int payloadSize, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = payloadSize;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -310,7 +310,7 @@ void user_data_registered_itu_t_t35( byte* payload, int payloadSize, VideoParame
 
 void user_data_unregistered( byte* payload, int payloadSize, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = payloadSize;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -328,7 +328,7 @@ void user_data_unregistered( byte* payload, int payloadSize, VideoParameters *p_
 
 void recovery_point( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -350,7 +350,7 @@ void recovery_point( byte* payload, int size, VideoParameters *p_Vid )
 
 void dec_ref_pic_marking_repetition( byte* payload, int size, VideoParameters *p_Vid, slice_t *pSlice )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -396,7 +396,7 @@ void dec_ref_pic_marking_repetition( byte* payload, int size, VideoParameters *p
 
 void spare_pic( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -521,7 +521,7 @@ void spare_pic( byte* payload, int size, VideoParameters *p_Vid )
 
 void scene_info( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -542,7 +542,7 @@ void scene_info( byte* payload, int size, VideoParameters *p_Vid )
 
 void sub_seq_info( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -566,7 +566,7 @@ void sub_seq_info( byte* payload, int size, VideoParameters *p_Vid )
 
 void sub_seq_layer_characteristics( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -586,7 +586,7 @@ void sub_seq_layer_characteristics( byte* payload, int size, VideoParameters *p_
 
 void sub_seq_characteristics( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -626,7 +626,7 @@ void sub_seq_characteristics( byte* payload, int size, VideoParameters *p_Vid )
 
 void full_frame_freeze( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -643,7 +643,7 @@ void full_frame_freeze_release( byte* payload, int size, VideoParameters *p_Vid 
 
 void full_frame_snapshot( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -656,7 +656,7 @@ void full_frame_snapshot( byte* payload, int size, VideoParameters *p_Vid )
 
 void progressive_refinement_segment_start( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -671,7 +671,7 @@ void progressive_refinement_segment_start( byte* payload, int size, VideoParamet
 
 void progressive_refinement_segment_end( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -684,7 +684,7 @@ void progressive_refinement_segment_end( byte* payload, int size, VideoParameter
 
 void motion_constrained_slice_group_set( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -709,7 +709,7 @@ void motion_constrained_slice_group_set( byte* payload, int size, VideoParameter
 
 void film_grain_characteristics( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -768,7 +768,7 @@ void film_grain_characteristics( byte* payload, int size, VideoParameters *p_Vid
 
 void deblocking_filter_display_preference( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -788,7 +788,7 @@ void deblocking_filter_display_preference( byte* payload, int size, VideoParamet
 
 void stereo_video_info( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -816,7 +816,7 @@ void stereo_video_info( byte* payload, int size, VideoParameters *p_Vid )
 
 void post_filter_hints( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -847,7 +847,7 @@ void tone_mapping_info( byte* payload, int size, VideoParameters *p_Vid )
     tone_mapping_t seiToneMappingTmp {};
     int i = 0, max_coded_num, max_output_num;
 
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -940,7 +940,7 @@ void tone_mapping_info( byte* payload, int size, VideoParameters *p_Vid )
 
 void frame_packing_arrangement( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -992,7 +992,7 @@ void frame_packing_arrangement( byte* payload, int size, VideoParameters *p_Vid 
 
 void display_orientation( byte* payload, int size, VideoParameters *p_Vid )
 {
-    data_partition_t* buf = new data_partition_t;
+    Interpreter* buf = new Interpreter;
     buf->num_bytes_in_rbsp = size;
     buf->rbsp_byte = payload;
     buf->frame_bitoffset = 0;
@@ -1211,7 +1211,7 @@ void parse_sei(byte *msg, int size, VideoParameters *p_Vid, slice_t *pSlice)
 
 // 7.3.2.3 Supplemental enhancement information RBSP syntax
 
-void data_partition_t::sei_rbsp(void)
+void Interpreter::sei_rbsp(void)
 {
     do {
         this->sei_message();
@@ -1222,7 +1222,7 @@ void data_partition_t::sei_rbsp(void)
 
 // 7.3.2.3.1 Supplemental enhancement information message syntax
 
-void data_partition_t::sei_message()
+void Interpreter::sei_message()
 {
 
 }
