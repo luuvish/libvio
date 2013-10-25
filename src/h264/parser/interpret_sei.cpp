@@ -54,6 +54,36 @@ struct tone_mapping_t {
     uint32_t target_pivot_value[MAX_NUM_PIVOTS];
 };
 
+// tone map using the look-up-table generated according to SEI tone mapping message
+void tone_map (px_t** imgX, px_t* lut, int size_x, int size_y)
+{
+    for (int i = 0; i < size_y; ++i) {
+        for (int j = 0; j < size_x; ++j)
+            imgX[i][j] = (px_t)lut[imgX[i][j]];
+    }
+}
+
+void init_tone_mapping_sei(ToneMappingSEI *seiToneMapping) 
+{
+    seiToneMapping->seiHasTone_mapping = 0;
+    seiToneMapping->count = 0;
+}
+
+void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping) 
+{
+    if (seiToneMapping->tone_map_repetition_period == 0) {
+        seiToneMapping->seiHasTone_mapping = 0;
+        seiToneMapping->count = 0;
+    } else if (seiToneMapping->tone_map_repetition_period > 1) {
+        seiToneMapping->count++;
+        if (seiToneMapping->count>=seiToneMapping->tone_map_repetition_period) {
+            seiToneMapping->seiHasTone_mapping = 0;
+            seiToneMapping->count = 0;
+        }
+    }
+}
+
+
 enum {
     SEI_BUFFERING_PERIOD = 0,
     SEI_PIC_TIMING,
@@ -244,6 +274,8 @@ void InterpreterSEI::sei_payload(uint32_t payloadType, uint32_t payloadSize)
     }
 }
 
+// D.1.1 Buffering period SEI message syntax
+
 void InterpreterSEI::buffering_period(uint32_t payloadSize)
 {
     uint8_t seq_parameter_set_id = this->ue("SEI: seq_parameter_set_id");
@@ -272,6 +304,8 @@ void InterpreterSEI::buffering_period(uint32_t payloadSize)
         }
     }
 }
+
+// D.1.2 Picture timing SEI message syntax
 
 void InterpreterSEI::pic_timing(uint32_t payloadSize)
 {
@@ -358,6 +392,8 @@ void InterpreterSEI::pic_timing(uint32_t payloadSize)
     }
 }
 
+// D.1.3 Pan-scan rectangle SEI message syntax
+
 void InterpreterSEI::pan_scan_rect(uint32_t payloadSize)
 {
     uint32_t pan_scan_rect_id;
@@ -379,12 +415,16 @@ void InterpreterSEI::pan_scan_rect(uint32_t payloadSize)
     }
 }
 
+// D.1.4 Filler payload SEI message syntax
+
 void InterpreterSEI::filler_payload(uint32_t payloadSize)
 {
     uint8_t ff_byte;
     for (int k = 0; k < payloadSize; ++k)
         ff_byte = this->f(8); // equal to 0xFF
 }
+
+// D.1.5 User data registered by Rec. ITU-T T.35 SEI message syntax
 
 void InterpreterSEI::user_data_registered_itu_t_t35(uint32_t payloadSize)
 {
@@ -407,6 +447,8 @@ void InterpreterSEI::user_data_registered_itu_t_t35(uint32_t payloadSize)
     } while (i < payloadSize);
 }
 
+// D.1.6 User data unregistered SEI message syntax
+
 void InterpreterSEI::user_data_unregistered(uint32_t payloadSize)
 {
     uint8_t uuid_iso_iec_11578[16];
@@ -417,6 +459,8 @@ void InterpreterSEI::user_data_unregistered(uint32_t payloadSize)
     for (int i = 16; i < payloadSize; ++i)
         user_data_payload_byte = this->b(8);
 }
+
+// D.1.7 Recovery point SEI message syntax
 
 void InterpreterSEI::recovery_point(uint32_t payloadSize)
 {
@@ -432,6 +476,8 @@ void InterpreterSEI::recovery_point(uint32_t payloadSize)
     p_Vid->recovery_point     = true;
     p_Vid->recovery_frame_cnt = recovery_frame_cnt;
 }
+
+// D.1.8 Decoded reference picture marking repetition SEI message syntax
 
 void InterpreterSEI::dec_ref_pic_marking_repetition(uint32_t payloadSize)
 {
@@ -471,6 +517,8 @@ void InterpreterSEI::dec_ref_pic_marking_repetition(uint32_t payloadSize)
 
     p_Vid->no_output_of_prior_pics_flag = shr.no_output_of_prior_pics_flag;
 }
+
+// D.1.9 Spare picture SEI message syntax
 
 void InterpreterSEI::spare_pic(uint32_t payloadSize)
 {
@@ -591,6 +639,8 @@ void InterpreterSEI::spare_pic(uint32_t payloadSize)
     delete []map;
 }
 
+// D.1.10 Scene information SEI message syntax
+
 void InterpreterSEI::scene_info(uint32_t payloadSize)
 {
     bool scene_info_present_flag = this->u(1, "SEI: scene_info_present_flag");
@@ -604,6 +654,8 @@ void InterpreterSEI::scene_info(uint32_t payloadSize)
             second_scene_id = this->ue("SEI: second_scene_id");
     }
 }
+
+// D.1.11 Sub-sequence information SEI message syntax
 
 void InterpreterSEI::sub_seq_info(uint32_t payloadSize)
 {
@@ -622,6 +674,8 @@ void InterpreterSEI::sub_seq_info(uint32_t payloadSize)
         sub_seq_frame_num    = this->ue("SEI: sub_seq_frame_num");
 }
 
+// D.1.12 Sub-sequence layer characterictics SEI message syntax
+
 void InterpreterSEI::sub_seq_layer_characteristics(uint32_t payloadSize)
 {
     bool     accurate_statistics_flag;
@@ -634,6 +688,8 @@ void InterpreterSEI::sub_seq_layer_characteristics(uint32_t payloadSize)
         average_frame_rate       = this->u(16, "SEI: average_frame_rate");
     }
 }
+
+// D.1.13 Sub-sequence characteristics SEI message syntax
 
 void InterpreterSEI::sub_seq_characteristics(uint32_t payloadSize)
 {
@@ -668,21 +724,29 @@ void InterpreterSEI::sub_seq_characteristics(uint32_t payloadSize)
     }
 }
 
+// D.1.14 Full-frame freeze SEI message syntax
+
 void InterpreterSEI::full_frame_freeze(uint32_t payloadSize)
 {
     uint32_t full_frame_freeze_repetition_period;
     full_frame_freeze_repetition_period = this->ue("SEI: full_frame_freeze_repetition_period");
 }
 
+// D.1.15 Full-frame freeze release SEI message syntax
+
 void InterpreterSEI::full_frame_freeze_release(uint32_t payloadSize)
 {
 }
+
+// D.1.16 Full-frame snapshot SEI message syntax
 
 void InterpreterSEI::full_frame_snapshot(uint32_t payloadSize)
 {
     uint32_t snapshot_id;
     snapshot_id = this->ue("SEI: snapshot_id");
 }
+
+// D.1.17 Progressive refinement segment start SEI message syntax
 
 void InterpreterSEI::progressive_refinement_segment_start(uint32_t payloadSize)
 {
@@ -692,11 +756,15 @@ void InterpreterSEI::progressive_refinement_segment_start(uint32_t payloadSize)
     num_refinement_steps_minus1 = this->ue("SEI: num_refinement_steps_minus1");
 }
 
+// D.1.18 Progressive refinement segment end SEI message syntax
+
 void InterpreterSEI::progressive_refinement_segment_end(uint32_t payloadSize)
 {
     uint32_t progressive_refinement_id;
     progressive_refinement_id = this->ue("SEI: progressive_refinement_id");
 }
+
+// D.1.19 Motion-constrained slice group set SEI message syntax
 
 void InterpreterSEI::motion_constrained_slice_group_set(uint32_t payloadSize)
 {
@@ -715,6 +783,8 @@ void InterpreterSEI::motion_constrained_slice_group_set(uint32_t payloadSize)
     if (pan_scan_rect_flag)
         pan_scan_rect_id = this->ue("SEI: pan_scan_rect_id");
 }
+
+// D.1.20 Film grain characteristics SEI message syntax
 
 void InterpreterSEI::film_grain_characteristics(uint32_t payloadSize)
 {
@@ -768,6 +838,8 @@ void InterpreterSEI::film_grain_characteristics(uint32_t payloadSize)
     }
 }
 
+// D.1.21 Deblocking filter display preference SEI message syntax
+
 void InterpreterSEI::deblocking_filter_display_preference(uint32_t payloadSize)
 {
     bool     display_prior_to_deblocking_preferred_flag;
@@ -780,6 +852,8 @@ void InterpreterSEI::deblocking_filter_display_preference(uint32_t payloadSize)
         deblocking_display_preference_repetition_period = this->ue("SEI: deblocking_display_preference_repetition_period");
     }
 }
+
+// D.1.22 Stereo video information SEI message syntax
 
 void InterpreterSEI::stereo_video_info(uint32_t payloadSize)
 {
@@ -802,6 +876,8 @@ void InterpreterSEI::stereo_video_info(uint32_t payloadSize)
     right_view_self_contained_flag = this->u(1, "SEI: right_view_self_contained_flag");
 }
 
+// D.1.23 Post-filter hint SEI message syntax
+
 void InterpreterSEI::post_filter_hint(uint32_t payloadSize)
 {
     uint32_t filter_hint_size_y;
@@ -822,6 +898,8 @@ void InterpreterSEI::post_filter_hint(uint32_t payloadSize)
 
     additional_extension_flag = this->u(1, "SEI: additional_extension_flag");
 }
+
+// D.1.24 Tone mapping information SEI message syntax
 
 void InterpreterSEI::tone_mapping_info(uint32_t payloadSize)
 {
@@ -912,6 +990,8 @@ void InterpreterSEI::tone_mapping_info(uint32_t payloadSize)
     }
 }
 
+// D.1.25 Frame packing arrangement SEI message syntax
+
 void InterpreterSEI::frame_packing_arrangement(uint32_t payloadSize)
 {
     uint32_t frame_packing_arrangement_id;
@@ -957,6 +1037,8 @@ void InterpreterSEI::frame_packing_arrangement(uint32_t payloadSize)
     frame_packing_arrangement_extension_flag = this->u(1, "SEI: frame_packing_arrangement_extension_flag");
 }
 
+// D.1.26 Display orientation SEI message syntax
+
 void InterpreterSEI::display_orientation(uint32_t payloadSize)
 {
     bool display_orientation_cancel_flag = this->u(1, "SEI: display_orientation_cancel_flag");
@@ -980,38 +1062,4 @@ void InterpreterSEI::reserved_sei_message(uint32_t payloadSize)
     uint8_t reserved_sei_message_payload_byte;
     for (int i = 0; i < payloadSize; ++i)
         reserved_sei_message_payload_byte = this->b(8);
-}
-
-
-
-
-
-
-// tone map using the look-up-table generated according to SEI tone mapping message
-void tone_map (px_t** imgX, px_t* lut, int size_x, int size_y)
-{
-    for (int i = 0; i < size_y; ++i) {
-        for (int j = 0; j < size_x; ++j)
-            imgX[i][j] = (px_t)lut[imgX[i][j]];
-    }
-}
-
-void init_tone_mapping_sei(ToneMappingSEI *seiToneMapping) 
-{
-    seiToneMapping->seiHasTone_mapping = 0;
-    seiToneMapping->count = 0;
-}
-
-void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping) 
-{
-    if (seiToneMapping->tone_map_repetition_period == 0) {
-        seiToneMapping->seiHasTone_mapping = 0;
-        seiToneMapping->count = 0;
-    } else if (seiToneMapping->tone_map_repetition_period > 1) {
-        seiToneMapping->count++;
-        if (seiToneMapping->count>=seiToneMapping->tone_map_repetition_period) {
-            seiToneMapping->seiHasTone_mapping = 0;
-            seiToneMapping->count = 0;
-        }
-    }
 }

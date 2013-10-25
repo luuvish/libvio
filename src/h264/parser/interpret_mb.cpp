@@ -456,8 +456,8 @@ void Parser::Macroblock::parse_i_pcm()
     } else {
         InterpreterRbsp* dp = &slice.parser.partArr[slice.parser.dp_mode ? 1 : 0];
 
-        if (dp->frame_bitoffset & 7)
-            dp->f(8 - (dp->frame_bitoffset & 7));
+        while (!dp->byte_aligned())
+            dp->f(1);
 
         for (int y = 0; y < 16; y++) {
             for (int x = 0; x < 16; x++)

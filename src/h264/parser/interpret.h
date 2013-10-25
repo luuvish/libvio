@@ -130,15 +130,15 @@ public:
 public:
     void        sei_payload(uint32_t payloadType, uint32_t payloadSize);
 
-    void        buffering_period                        (uint32_t payloadSize);
-    void        pic_timing                              (uint32_t payloadSize);
+    void        buffering_period                        (uint32_t payloadSize); //
+    void        pic_timing                              (uint32_t payloadSize); //
     void        pan_scan_rect                           (uint32_t payloadSize);
     void        filler_payload                          (uint32_t payloadSize);
     void        user_data_registered_itu_t_t35          (uint32_t payloadSize);
     void        user_data_unregistered                  (uint32_t payloadSize);
-    void        recovery_point                          (uint32_t payloadSize);
-    void        dec_ref_pic_marking_repetition          (uint32_t payloadSize);
-    void        spare_pic                               (uint32_t payloadSize);
+    void        recovery_point                          (uint32_t payloadSize); //
+    void        dec_ref_pic_marking_repetition          (uint32_t payloadSize); //
+    void        spare_pic                               (uint32_t payloadSize); //
     void        scene_info                              (uint32_t payloadSize);
     void        sub_seq_info                            (uint32_t payloadSize);
     void        sub_seq_layer_characteristics           (uint32_t payloadSize);
@@ -153,7 +153,7 @@ public:
     void        deblocking_filter_display_preference    (uint32_t payloadSize);
     void        stereo_video_info                       (uint32_t payloadSize);
     void        post_filter_hint                        (uint32_t payloadSize);
-    void        tone_mapping_info                       (uint32_t payloadSize);
+    void        tone_mapping_info                       (uint32_t payloadSize); //
     void        scalability_info                        (uint32_t payloadSize);
     void        sub_pic_scalable_layer                  (uint32_t payloadSize);
     void        non_required_layer_rep                  (uint32_t payloadSize);

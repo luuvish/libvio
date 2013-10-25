@@ -594,3 +594,188 @@ int DecoderParams::decode_slice_headers()
     
     return current_header;
 }
+
+
+namespace vio { namespace h264 {
+
+bool operator==(const sps_t& l, const sps_t& r)
+{
+    if (!l.Valid || !r.Valid)
+        return false;
+
+    bool equal = true;
+
+    equal &= (l.profile_idc               == r.profile_idc);
+    equal &= (l.constraint_set0_flag      == r.constraint_set0_flag);
+    equal &= (l.constraint_set1_flag      == r.constraint_set1_flag);
+    equal &= (l.constraint_set2_flag      == r.constraint_set2_flag);
+    equal &= (l.level_idc                 == r.level_idc);
+    equal &= (l.seq_parameter_set_id      == r.seq_parameter_set_id);
+    equal &= (l.log2_max_frame_num_minus4 == r.log2_max_frame_num_minus4);
+    equal &= (l.pic_order_cnt_type        == r.pic_order_cnt_type);
+    if (!equal)
+        return false;
+
+    if (l.pic_order_cnt_type == 0)
+        equal &= (l.log2_max_pic_order_cnt_lsb_minus4 == r.log2_max_pic_order_cnt_lsb_minus4);
+    else if (l.pic_order_cnt_type == 1) {
+        equal &= (l.delta_pic_order_always_zero_flag == r.delta_pic_order_always_zero_flag);
+        equal &= (l.offset_for_non_ref_pic == r.offset_for_non_ref_pic);
+        equal &= (l.offset_for_top_to_bottom_field == r.offset_for_top_to_bottom_field);
+        equal &= (l.num_ref_frames_in_pic_order_cnt_cycle == r.num_ref_frames_in_pic_order_cnt_cycle);
+        if (!equal)
+            return false;
+
+        for (int i = 0; i < l.num_ref_frames_in_pic_order_cnt_cycle; ++i)
+            equal &= (l.offset_for_ref_frame[i] == r.offset_for_ref_frame[i]);
+    }
+
+    equal &= (l.max_num_ref_frames                   == r.max_num_ref_frames);
+    equal &= (l.gaps_in_frame_num_value_allowed_flag == r.gaps_in_frame_num_value_allowed_flag);
+    equal &= (l.pic_width_in_mbs_minus1              == r.pic_width_in_mbs_minus1);
+    equal &= (l.pic_height_in_map_units_minus1       == r.pic_height_in_map_units_minus1);
+    equal &= (l.frame_mbs_only_flag                  == r.frame_mbs_only_flag);
+    if (!equal)
+        return false;
+  
+    if (!l.frame_mbs_only_flag)
+        equal &= (l.mb_adaptive_frame_field_flag == r.mb_adaptive_frame_field_flag);
+
+    equal &= (l.direct_8x8_inference_flag == r.direct_8x8_inference_flag);
+    equal &= (l.frame_cropping_flag       == r.frame_cropping_flag);
+    if (!equal)
+        return false;
+
+    if (l.frame_cropping_flag) {
+        equal &= (l.frame_crop_left_offset   == r.frame_crop_left_offset);
+        equal &= (l.frame_crop_right_offset  == r.frame_crop_right_offset);
+        equal &= (l.frame_crop_top_offset    == r.frame_crop_top_offset);
+        equal &= (l.frame_crop_bottom_offset == r.frame_crop_bottom_offset);
+    }
+    equal &= (l.vui_parameters_present_flag == r.vui_parameters_present_flag);
+
+    return equal;
+}
+
+bool operator==(const pps_t& l, const pps_t& r)
+{
+    if (!l.Valid || !r.Valid)
+        return false;
+
+    bool equal = true;
+
+    equal &= (l.pic_parameter_set_id     == r.pic_parameter_set_id);
+    equal &= (l.seq_parameter_set_id     == r.seq_parameter_set_id);
+    equal &= (l.entropy_coding_mode_flag == r.entropy_coding_mode_flag);
+    equal &= (l.bottom_field_pic_order_in_frame_present_flag == r.bottom_field_pic_order_in_frame_present_flag);
+    equal &= (l.num_slice_groups_minus1  == r.num_slice_groups_minus1);
+
+    if (!equal)
+        return false;
+
+    if (l.num_slice_groups_minus1 > 0) {
+        equal &= (l.slice_group_map_type == r.slice_group_map_type);
+        if (!equal)
+            return false;
+
+        if (l.slice_group_map_type == 0) {
+            for (int i = 0; i <= l.num_slice_groups_minus1; ++i)
+                equal &= (l.slice_groups[i].run_length_minus1 == r.slice_groups[i].run_length_minus1);
+        } else if (l.slice_group_map_type == 2) {
+            for (int i = 0; i < l.num_slice_groups_minus1; ++i) {
+                equal &= (l.slice_groups[i].top_left     == r.slice_groups[i].top_left);
+                equal &= (l.slice_groups[i].bottom_right == r.slice_groups[i].bottom_right);
+            }
+        } else if (l.slice_group_map_type == 3 || l.slice_group_map_type == 4 || l.slice_group_map_type == 5) {
+            equal &= (l.slice_group_change_direction_flag == r.slice_group_change_direction_flag);
+            equal &= (l.slice_group_change_rate_minus1 == r.slice_group_change_rate_minus1);
+        } else if (l.slice_group_map_type == 6) {
+            equal &= (l.pic_size_in_map_units_minus1 == r.pic_size_in_map_units_minus1);
+            if (!equal)
+                return false;
+
+            for (int i = 0; i <= l.pic_size_in_map_units_minus1; ++i)
+                equal &= (l.slice_group_id[i] == r.slice_group_id[i]);
+        }
+    }
+
+    equal &= (l.num_ref_idx_l0_default_active_minus1 == r.num_ref_idx_l0_default_active_minus1);
+    equal &= (l.num_ref_idx_l1_default_active_minus1 == r.num_ref_idx_l1_default_active_minus1);
+    equal &= (l.weighted_pred_flag     == r.weighted_pred_flag);
+    equal &= (l.weighted_bipred_idc    == r.weighted_bipred_idc);
+    equal &= (l.pic_init_qp_minus26    == r.pic_init_qp_minus26);
+    equal &= (l.pic_init_qs_minus26    == r.pic_init_qs_minus26);
+    equal &= (l.chroma_qp_index_offset == r.chroma_qp_index_offset);
+    equal &= (l.deblocking_filter_control_present_flag == r.deblocking_filter_control_present_flag);
+    equal &= (l.constrained_intra_pred_flag == r.constrained_intra_pred_flag);
+    equal &= (l.redundant_pic_cnt_present_flag == r.redundant_pic_cnt_present_flag);
+    if (!equal)
+        return false;
+
+    //Fidelity Range Extensions Stuff
+    //It is initialized to zero, so should be ok to check all the time.
+    equal &= (l.transform_8x8_mode_flag == r.transform_8x8_mode_flag);
+    equal &= (l.pic_scaling_matrix_present_flag == r.pic_scaling_matrix_present_flag);
+    if (l.pic_scaling_matrix_present_flag) {
+        for (int i = 0; i < 6 + (l.transform_8x8_mode_flag << 1); ++i) {
+            equal &= (l.pic_scaling_list_present_flag[i] == r.pic_scaling_list_present_flag[i]);
+            if (l.pic_scaling_list_present_flag[i]) {
+                if (i < 6) {
+                    for (int j = 0; j < 16; ++j)
+                        equal &= (l.ScalingList4x4[i][j] == r.ScalingList4x4[i][j]);
+                } else {
+                    for (int j = 0; j < 64; ++j)
+                        equal &= (l.ScalingList8x8[i - 6][j] == r.ScalingList8x8[i - 6][j]);
+                }
+            }
+        }
+    }
+    equal &= (l.second_chroma_qp_index_offset == r.second_chroma_qp_index_offset);
+    return equal;
+}
+
+} }
+
+bool slice_t::operator!=(const slice_t& slice)
+{
+    const sps_t& sps = *slice.active_sps;
+    const pps_t& pps = *slice.active_pps;
+    const shr_t& shr = slice.header;
+
+    bool result = false;
+
+    result |= this->header.pic_parameter_set_id != shr.pic_parameter_set_id;
+    result |= this->header.frame_num            != shr.frame_num;
+    result |= this->header.field_pic_flag       != shr.field_pic_flag;
+
+    if (shr.field_pic_flag && this->header.field_pic_flag)
+        result |= this->header.bottom_field_flag != shr.bottom_field_flag;
+
+    result |= this->nal_ref_idc != slice.nal_ref_idc && (this->nal_ref_idc == 0 || slice.nal_ref_idc == 0);
+    result |= this->IdrPicFlag  != slice.IdrPicFlag;
+
+    if (slice.IdrPicFlag && this->IdrPicFlag)
+        result |= this->header.idr_pic_id != shr.idr_pic_id;
+
+    if (sps.pic_order_cnt_type == 0) {
+        result |= this->header.pic_order_cnt_lsb != shr.pic_order_cnt_lsb;
+        if (pps.bottom_field_pic_order_in_frame_present_flag && !shr.field_pic_flag)
+            result |= this->header.delta_pic_order_cnt_bottom != shr.delta_pic_order_cnt_bottom;
+    }
+    if (sps.pic_order_cnt_type == 1) {
+        if (!sps.delta_pic_order_always_zero_flag) {
+            result |= this->header.delta_pic_order_cnt[0] != shr.delta_pic_order_cnt[0];
+            if (pps.bottom_field_pic_order_in_frame_present_flag && !shr.field_pic_flag)
+                result |= this->header.delta_pic_order_cnt[1] != shr.delta_pic_order_cnt[1];
+        }
+    }
+
+#if (MVC_EXTENSION_ENABLE)
+    result |= this->view_id         != slice.view_id;
+    result |= this->inter_view_flag != slice.inter_view_flag;
+    result |= this->anchor_pic_flag != slice.anchor_pic_flag;
+#endif
+    result |= this->layer_id        != slice.layer_id;
+
+    return result;
+}
