@@ -278,7 +278,7 @@ static int parse_dpa(slice_t *currSlice)
 
     if (nal_unit_t::NALU_TYPE_DPB == nal.nal_unit_type) {
         // we got a DPB
-        Interpreter& dp1 = currSlice->parser.partArr[1];
+        InterpreterRbsp& dp1 = currSlice->parser.partArr[1];
         dp1 = nal;
 
         slice_id_b = dp1.ue("NALU: DP_B slice_id");
@@ -303,7 +303,7 @@ static int parse_dpa(slice_t *currSlice)
 
     // check if we got DP_C
     if (nal_unit_t::NALU_TYPE_DPC == nal.nal_unit_type) {
-        Interpreter& dp2 = currSlice->parser.partArr[2];
+        InterpreterRbsp& dp2 = currSlice->parser.partArr[2];
         dp2 = nal;
 
         currSlice->dpC_NotPresent = 0;
@@ -371,12 +371,20 @@ process_nalu:
             break;
 
         case nal_unit_t::NALU_TYPE_SEI:
-            parse_sei(nal.rbsp_byte, nal.num_bytes_in_rbsp, p_Vid, currSlice);
+            {
+                InterpreterRbsp* dp = new InterpreterRbsp { nal };
+                dp->p_Vid = p_Vid;
+                dp->slice = currSlice;
+
+                dp->sei_rbsp();
+
+                delete dp;
+            }
             break;
 
         case nal_unit_t::NALU_TYPE_PPS:
             {
-                Interpreter* dp = new Interpreter { nal };
+                InterpreterRbsp* dp = new InterpreterRbsp { nal };
                 pps_t* pps = new pps_t;
 
                 dp->pic_parameter_set_rbsp(p_Vid, *pps);
@@ -400,7 +408,7 @@ process_nalu:
 
         case nal_unit_t::NALU_TYPE_SPS:
             {  
-                Interpreter* dp = new Interpreter { nal };
+                InterpreterRbsp* dp = new InterpreterRbsp { nal };
                 sps_t* sps = new sps_t;
 
                 dp->seq_parameter_set_rbsp(*sps);
@@ -439,7 +447,7 @@ process_nalu:
 
         case nal_unit_t::NALU_TYPE_SPS_EXT:
             {
-                Interpreter* dp = new Interpreter { nal };
+                InterpreterRbsp* dp = new InterpreterRbsp { nal };
                 sps_ext_t* sps_ext = new sps_ext_t;
                 dp->seq_parameter_set_extension_rbsp(*sps_ext);
                 delete sps_ext;
@@ -453,7 +461,7 @@ process_nalu:
 
         case nal_unit_t::NALU_TYPE_PREFIX:
             {
-                Interpreter* dp = new Interpreter { nal };
+                InterpreterRbsp* dp = new InterpreterRbsp { nal };
                 dp->prefix_nal_unit_rbsp();
                 delete dp;
             }
@@ -461,7 +469,7 @@ process_nalu:
 
         case nal_unit_t::NALU_TYPE_SUB_SPS:
             if (p_Inp->DecodeAllLayers == 1) {
-                Interpreter* dp = new Interpreter { nal };
+                InterpreterRbsp* dp = new InterpreterRbsp { nal };
                 sub_sps_t* sub_sps = new sub_sps_t;
 
                 dp->subset_seq_parameter_set_rbsp(*sub_sps);

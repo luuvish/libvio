@@ -21,8 +21,6 @@ typedef struct tone_mapping_struct_s {
 
 struct slice_t;
 
-void parse_sei(byte *payload, int size, VideoParameters *p_Vid, struct slice_t *pSlice);
-
 void tone_map               (px_t **imgX, px_t *lut, int size_x, int size_y);
 void init_tone_mapping_sei  (ToneMappingSEI *seiToneMapping);
 void update_tone_mapping_sei(ToneMappingSEI *seiToneMapping);

@@ -42,7 +42,7 @@ static const int MaxDpbMbs[15] = {
 
 // 7.3.2.1 Sequence parameter set data syntax
 
-void Interpreter::seq_parameter_set_rbsp(sps_t& sps)
+void InterpreterRbsp::seq_parameter_set_rbsp(sps_t& sps)
 {
     this->seq_parameter_set_data(sps);
     this->rbsp_trailing_bits();
@@ -50,7 +50,7 @@ void Interpreter::seq_parameter_set_rbsp(sps_t& sps)
 
 // 7.3.2.1.1 Sequence parameter set data syntax
 
-void Interpreter::seq_parameter_set_data(sps_t& sps)
+void InterpreterRbsp::seq_parameter_set_data(sps_t& sps)
 {
     #define MAX_NUM_REF_FRAMES_IN_POC_CYCLE 256
 
@@ -269,7 +269,7 @@ static const uint8_t ZZ_SCAN_8x8[64] = {
 
 // 7.3.2.1.1.1 Scaling list syntax
 
-void Interpreter::scaling_list(int* scalingList, int sizeOfScalingList, bool& useDefaultScalingMatrixFlag)
+void InterpreterRbsp::scaling_list(int* scalingList, int sizeOfScalingList, bool& useDefaultScalingMatrixFlag)
 {
     int lastScale = 8;
     int nextScale = 8;
@@ -288,7 +288,7 @@ void Interpreter::scaling_list(int* scalingList, int sizeOfScalingList, bool& us
 
 // 7.3.2.1.2 Sequence parameter set extension RBSP syntax
 
-void Interpreter::seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext)
+void InterpreterRbsp::seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext)
 {
     sps_ext.seq_parameter_set_id = this->ue("SPS_EXT: seq_parameter_set_id");
     sps_ext.aux_format_idc       = this->ue("SPS_EXT: aux_format_idc");
@@ -314,7 +314,7 @@ void Interpreter::seq_parameter_set_extension_rbsp(sps_ext_t& sps_ext)
 
 // 7.3.2.1.3 Subset sequence parameter set RBSP syntax
 
-void Interpreter::subset_seq_parameter_set_rbsp(sub_sps_t& sub_sps)
+void InterpreterRbsp::subset_seq_parameter_set_rbsp(sub_sps_t& sub_sps)
 {
     this->seq_parameter_set_data(sub_sps.sps);
 
@@ -350,7 +350,7 @@ void Interpreter::subset_seq_parameter_set_rbsp(sub_sps_t& sub_sps)
 
 // 7.3.2.2 Picture parameter set RBSP syntax
 
-void Interpreter::pic_parameter_set_rbsp(VideoParameters* p_Vid, pps_t& pps)
+void InterpreterRbsp::pic_parameter_set_rbsp(VideoParameters* p_Vid, pps_t& pps)
 {
     pps.pic_parameter_set_id                         = this->ue("PPS: pic_parameter_set_id");
     pps.seq_parameter_set_id                         = this->ue("PPS: seq_parameter_set_id");
@@ -469,9 +469,48 @@ void Interpreter::pic_parameter_set_rbsp(VideoParameters* p_Vid, pps_t& pps)
     pps.Valid = true;
 }
 
+
+// 7.3.2.3 Supplemental enhancement information RBSP syntax
+
+void InterpreterRbsp::sei_rbsp(void)
+{
+    do {
+        this->sei_message();
+    } while (this->more_rbsp_data());
+
+    this->rbsp_trailing_bits();
+}
+
+// 7.3.2.3.1 Supplemental enhancement information message syntax
+
+void InterpreterRbsp::sei_message(void)
+{
+    uint8_t ff_byte;
+
+    uint32_t payloadType = 0;
+    while (this->next_bits(8) == 0xFF) {
+        ff_byte = this->f(8);
+        payloadType += 255;
+    }
+    uint8_t last_payload_type_byte = this->u(8);
+    payloadType += last_payload_type_byte;
+
+    uint32_t payloadSize = 0;
+    while (this->next_bits(8) == 0xFF) {
+        ff_byte = this->f(8);
+        payloadSize += 255;
+    }
+    uint8_t last_payload_size_byte = this->u(8);
+    payloadSize += last_payload_size_byte;
+
+    InterpreterSEI sei { *this };
+    sei.sei_payload(payloadType, payloadSize);
+    this->frame_bitoffset += payloadSize * 8;
+}
+
 // 7.3.2.4 Access unit delimiter RBSP syntax
 
-void Interpreter::access_unit_delimiter_rbsp(void)
+void InterpreterRbsp::access_unit_delimiter_rbsp(void)
 {
     uint8_t primary_pic_type;
     primary_pic_type = this->u(3);
@@ -481,19 +520,19 @@ void Interpreter::access_unit_delimiter_rbsp(void)
 
 // 7.3.2.5 End of sequence RBSP syntax
 
-void Interpreter::end_of_seq_rbsp(void)
+void InterpreterRbsp::end_of_seq_rbsp(void)
 {
 }
 
 // 7.3.2.6 End of stream RBSP syntax
 
-void Interpreter::end_of_stream_rbsp(void)
+void InterpreterRbsp::end_of_stream_rbsp(void)
 {
 }
 
 // 7.3.2.7 Filler data RBSP syntax
 
-void Interpreter::filler_data_rbsp(void)
+void InterpreterRbsp::filler_data_rbsp(void)
 {
     uint8_t ff_byte;
     while (this->next_bits(8) == 0xFF)
@@ -504,7 +543,7 @@ void Interpreter::filler_data_rbsp(void)
 
 // 7.3.2.8 Slice layer without partitioning RBSP syntax
 
-void Interpreter::slice_layer_without_partitioning_rbsp(void)
+void InterpreterRbsp::slice_layer_without_partitioning_rbsp(void)
 {
     slice_t slice;
     this->slice_header(slice);
@@ -514,7 +553,7 @@ void Interpreter::slice_layer_without_partitioning_rbsp(void)
 
 // 7.3.2.9.1 Slice data partition A RBSP syntax
 
-void Interpreter::slice_data_partition_a_layer_rbsp(void)
+void InterpreterRbsp::slice_data_partition_a_layer_rbsp(void)
 {
     slice_t slice;
     this->slice_header(slice);
@@ -525,7 +564,7 @@ void Interpreter::slice_data_partition_a_layer_rbsp(void)
 
 // 7.3.2.9.2 Slice data partition B RBSP syntax
 
-void Interpreter::slice_data_partition_b_layer_rbsp(void)
+void InterpreterRbsp::slice_data_partition_b_layer_rbsp(void)
 {
 //    uint32_t slice_id = this->ue();
 //    if (slice.seperate_colour_plane_flag)
@@ -538,7 +577,7 @@ void Interpreter::slice_data_partition_b_layer_rbsp(void)
 
 // 7.3.2.9.3 Slice data partition C RBSP syntax
 
-void Interpreter::slice_data_partition_c_layer_rbsp(void)
+void InterpreterRbsp::slice_data_partition_c_layer_rbsp(void)
 {
 //    uint32_t slice_id = this->ue();
 //    if (slice.seperate_colour_plane_flag)
@@ -551,7 +590,7 @@ void Interpreter::slice_data_partition_c_layer_rbsp(void)
 
 // 7.3.2.10 RBSP slice trailing bits syntax
 
-void Interpreter::rbsp_slice_trailing_bits(void)
+void InterpreterRbsp::rbsp_slice_trailing_bits(void)
 {
     this->rbsp_trailing_bits();
 
@@ -563,7 +602,7 @@ void Interpreter::rbsp_slice_trailing_bits(void)
 
 // 7.3.2.11 RBSP trailing bits syntax
 
-void Interpreter::rbsp_trailing_bits(void)
+void InterpreterRbsp::rbsp_trailing_bits(void)
 {
     bool rbsp_stop_one_bit;
     bool rbsp_alignment_zero_bit;
@@ -575,7 +614,7 @@ void Interpreter::rbsp_trailing_bits(void)
 
 // 7.3.2.12 Prefix NAL unit RBSP syntax
 
-void Interpreter::prefix_nal_unit_rbsp(void)
+void InterpreterRbsp::prefix_nal_unit_rbsp(void)
 {
     //to be implemented for Annex G;
 }
@@ -583,7 +622,7 @@ void Interpreter::prefix_nal_unit_rbsp(void)
 
 // E.1.1 VUI parameter syntax
 
-void Interpreter::vui_parameters(vui_t& vui)
+void InterpreterRbsp::vui_parameters(vui_t& vui)
 {
     #define Extended_SAR 255
 
@@ -681,7 +720,7 @@ void Interpreter::vui_parameters(vui_t& vui)
 
 // E.1.2 HRD parameters syntax
 
-void Interpreter::hrd_parameters(hrd_t& hrd)
+void InterpreterRbsp::hrd_parameters(hrd_t& hrd)
 {
     #define MAX_NUM_HRD_CPB 32
 
@@ -720,14 +759,14 @@ void Interpreter::hrd_parameters(hrd_t& hrd)
 
 // G.7.3.1.4 Sequence parameter set SVC extension syntax
 
-void Interpreter::seq_parameter_set_svc_extension(sps_svc_t& sps_svc)
+void InterpreterRbsp::seq_parameter_set_svc_extension(sps_svc_t& sps_svc)
 {
     //to be implemented for Annex G;
 }
 
 // G.14.1 SVC VUI parameters extension syntax
 
-void Interpreter::svc_vui_parameters_extension(svc_vui_t& svc_vui)
+void InterpreterRbsp::svc_vui_parameters_extension(svc_vui_t& svc_vui)
 {
     //to be implemented for Annex G;
     #define MAX_NUM_SVC_VUI_ENTRIES 1024
@@ -735,7 +774,7 @@ void Interpreter::svc_vui_parameters_extension(svc_vui_t& svc_vui)
 
 // H.7.3.2.1.4 Sequence parameter set MVC extension syntax
 
-void Interpreter::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
+void InterpreterRbsp::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
 {
     #define MAX_NUM_SPS_MVC_VIEWS                     1024
     #define MAX_NUM_SPS_MVC_ANCHOR                      16
@@ -832,7 +871,7 @@ void Interpreter::seq_parameter_set_mvc_extension(sps_mvc_t& sps_mvc)
 
 // H.14.1 MVC VUI parameters extension syntax
 
-void Interpreter::mvc_vui_parameters_extension(mvc_vui_t& mvc_vui)
+void InterpreterRbsp::mvc_vui_parameters_extension(mvc_vui_t& mvc_vui)
 {
     #define MAX_NUM_MVC_VUI_OPS   1024
     #define MAX_NUM_MVC_VUI_VIEWS 1024
@@ -876,7 +915,7 @@ void Interpreter::mvc_vui_parameters_extension(mvc_vui_t& mvc_vui)
 
 // I.7.3.2.1.5 Sequence parameter set MVCD extension syntax
 
-void Interpreter::seq_parameter_set_mvcd_extension(sps_mvcd_t& sps_mvcd)
+void InterpreterRbsp::seq_parameter_set_mvcd_extension(sps_mvcd_t& sps_mvcd)
 {
     //to be implemented for Annex I;
 }

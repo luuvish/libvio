@@ -454,7 +454,7 @@ void Parser::Macroblock::parse_i_pcm()
             }
         }
     } else {
-        Interpreter* dp = &slice.parser.partArr[slice.parser.dp_mode ? 1 : 0];
+        InterpreterRbsp* dp = &slice.parser.partArr[slice.parser.dp_mode ? 1 : 0];
 
         if (dp->frame_bitoffset & 7)
             dp->f(8 - (dp->frame_bitoffset & 7));

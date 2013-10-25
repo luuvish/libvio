@@ -26,7 +26,7 @@ Parser::Residual::~Residual()
 
 
 /*
-static int16_t parse_level(Interpreter *currStream, uint8_t level_prefix, uint8_t suffixLength)
+static int16_t parse_level(InterpreterRbsp *currStream, uint8_t level_prefix, uint8_t suffixLength)
 {
     int level, sign;
 
@@ -64,7 +64,7 @@ static int16_t parse_level(Interpreter *currStream, uint8_t level_prefix, uint8_
 void Parser::Residual::residual_block_cavlc(uint8_t ctxBlockCat, uint8_t startIdx, uint8_t endIdx, uint8_t maxNumCoeff,
                                             ColorPlane pl, bool chroma, bool ac, int blkIdx)
 {
-    Interpreter* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    InterpreterRbsp* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int i = chroma ? blkIdx % 2 : ((blkIdx / 4) % 2) * 2 + (blkIdx % 4) % 2;
     int j = chroma ? blkIdx / 2 : ((blkIdx / 4) / 2) * 2 + (blkIdx % 4) / 2;

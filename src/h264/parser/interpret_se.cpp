@@ -605,7 +605,7 @@ static const uint8_t run_before_code[15][16] = {
 
 uint8_t Parser::SyntaxElement::coeff_token(int nC)
 {
-    Interpreter* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    InterpreterRbsp* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     if (nC >= 8) {
         int code = dp->read_bits(6);
@@ -637,7 +637,7 @@ uint8_t Parser::SyntaxElement::coeff_token(int nC)
 
 uint8_t Parser::SyntaxElement::total_zeros(int yuv, int tzVlcIndex)
 {
-    Interpreter* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    InterpreterRbsp* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int tab = tzVlcIndex - 1;
 
@@ -656,7 +656,7 @@ uint8_t Parser::SyntaxElement::total_zeros(int yuv, int tzVlcIndex)
 
 uint8_t Parser::SyntaxElement::run_before(uint8_t zerosLeft)
 {
-    Interpreter* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
+    InterpreterRbsp* dp = &slice.parser.partArr[slice.parser.dp_mode ? (mb.is_intra_block ? 1 : 2) : 0];
 
     int tab = min<int>(zerosLeft, 7) - 1;
 

@@ -37,8 +37,6 @@ namespace h264 {
 
 class Interpreter : public nal_unit_t {
 public:
-    int         frame_bitoffset;
-
     Interpreter(uint32_t size=MAX_NAL_UNIT_SIZE);
     Interpreter(const nal_unit_t& nal);
 
@@ -64,6 +62,23 @@ public:
     uint32_t    ce(const char* name="");
     uint32_t    me(const char* name="");
     uint32_t    te(const char* name="");
+
+public:
+    int         frame_bitoffset;
+private:
+    nal_unit_t  nal;
+
+public:
+    VideoParameters *p_Vid;
+    slice_t*         slice;
+};
+
+class InterpreterRbsp : public Interpreter {
+public:
+    InterpreterRbsp(uint32_t size=MAX_NAL_UNIT_SIZE);
+    InterpreterRbsp(const nal_unit_t& nal);
+
+    InterpreterRbsp& operator=(const nal_unit_t& nal);
 
 public:
     void        seq_parameter_set_rbsp(sps_t& sps);
@@ -107,15 +122,80 @@ public:
     void        seq_parameter_set_mvcd_extension(sps_mvcd_t& sps_mvcd);
 };
 
+class InterpreterSEI : public InterpreterRbsp {
+public:
+    InterpreterSEI(const InterpreterRbsp& rbsp);
+    ~InterpreterSEI();
+
+public:
+    void        sei_payload(uint32_t payloadType, uint32_t payloadSize);
+
+    void        buffering_period                        (uint32_t payloadSize);
+    void        pic_timing                              (uint32_t payloadSize);
+    void        pan_scan_rect                           (uint32_t payloadSize);
+    void        filler_payload                          (uint32_t payloadSize);
+    void        user_data_registered_itu_t_t35          (uint32_t payloadSize);
+    void        user_data_unregistered                  (uint32_t payloadSize);
+    void        recovery_point                          (uint32_t payloadSize);
+    void        dec_ref_pic_marking_repetition          (uint32_t payloadSize);
+    void        spare_pic                               (uint32_t payloadSize);
+    void        scene_info                              (uint32_t payloadSize);
+    void        sub_seq_info                            (uint32_t payloadSize);
+    void        sub_seq_layer_characteristics           (uint32_t payloadSize);
+    void        sub_seq_characteristics                 (uint32_t payloadSize);
+    void        full_frame_freeze                       (uint32_t payloadSize);
+    void        full_frame_freeze_release               (uint32_t payloadSize);
+    void        full_frame_snapshot                     (uint32_t payloadSize);
+    void        progressive_refinement_segment_start    (uint32_t payloadSize);
+    void        progressive_refinement_segment_end      (uint32_t payloadSize);
+    void        motion_constrained_slice_group_set      (uint32_t payloadSize);
+    void        film_grain_characteristics              (uint32_t payloadSize);
+    void        deblocking_filter_display_preference    (uint32_t payloadSize);
+    void        stereo_video_info                       (uint32_t payloadSize);
+    void        post_filter_hint                        (uint32_t payloadSize);
+    void        tone_mapping_info                       (uint32_t payloadSize);
+    void        scalability_info                        (uint32_t payloadSize);
+    void        sub_pic_scalable_layer                  (uint32_t payloadSize);
+    void        non_required_layer_rep                  (uint32_t payloadSize);
+    void        priority_layer_info                     (uint32_t payloadSize);
+    void        layers_not_present                      (uint32_t payloadSize);
+    void        layer_dependency_change                 (uint32_t payloadSize);
+    void        scalable_nesting                        (uint32_t payloadSize);
+    void        base_layer_temporal_hrd                 (uint32_t payloadSize);
+    void        quality_layer_integrity_check           (uint32_t payloadSize);
+    void        redundant_pic_property                  (uint32_t payloadSize);
+    void        tl0_dep_rep_index                       (uint32_t payloadSize);
+    void        tl_switching_point                      (uint32_t payloadSize);
+    void        parallel_decoding_info                  (uint32_t payloadSize);
+    void        mvc_scalable_nesting                    (uint32_t payloadSize);
+    void        view_scalability_info                   (uint32_t payloadSize);
+    void        multiview_scene_info                    (uint32_t payloadSize);
+    void        multiview_acquisition_info              (uint32_t payloadSize);
+    void        non_required_view_component             (uint32_t payloadSize);
+    void        view_dependency_change                  (uint32_t payloadSize);
+    void        operation_points_not_present            (uint32_t payloadSize);
+    void        base_view_temporal_hrd                  (uint32_t payloadSize);
+    void        frame_packing_arrangement               (uint32_t payloadSize);
+    void        multiview_view_position                 (uint32_t payloadSize);
+    void        display_orientation                     (uint32_t payloadSize);
+    void        mvcd_scalable_nesting                   (uint32_t payloadSize);
+    void        mvcd_view_scalability_info              (uint32_t payloadSize);
+    void        depth_representation_info               (uint32_t payloadSize);
+    void        three_dimensional_reference_display_info(uint32_t payloadSize);
+    void        depth_timing                            (uint32_t payloadSize);
+    void        depth_sampling_info                     (uint32_t payloadSize);
+    void        reserved_sei_message                    (uint32_t payloadSize);
+};
+
 
 struct cabac_context_t;
 
 struct cabac_engine_t {
-    Interpreter* dp;
+    InterpreterRbsp* dp;
     uint16_t    codIRange;
     uint16_t    codIOffset;
 
-    void        init(Interpreter* dp);
+    void        init(InterpreterRbsp* dp);
 
     bool        decode_decision (cabac_context_t* ctx);
     bool        decode_bypass   ();
@@ -149,7 +229,7 @@ public:
 
     int         dp_mode;
 
-    Interpreter partArr[3];
+    InterpreterRbsp partArr[3];
     cabac_engine_t   cabac[3];
     cabac_contexts_t mot_ctx;
 
