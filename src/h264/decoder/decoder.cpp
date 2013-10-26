@@ -1,5 +1,5 @@
 /*
- * ===========================================================================
+ * =============================================================================
  *
  *   This confidential and proprietary software may be used only
  *  as authorized by a licensing agreement from Thumb o'Cat Inc.
@@ -10,7 +10,7 @@
  * 
  *   The entire notice above must be reproduced on all authorized copies.
  *
- * ===========================================================================
+ * =============================================================================
  *
  *  File      : decoder.cpp
  *  Author(s) : Luuvish
@@ -18,19 +18,14 @@
  *  Revision  :
  *      1.0 June 16, 2013    first release
  *
- * ===========================================================================
+ * =============================================================================
  */
 
 #include "global.h"
 #include "dpb.h"
 #include "slice.h"
 #include "macroblock.h"
-
 #include "decoder.h"
-#include "intra_prediction.h"
-#include "inter_prediction.h"
-#include "transform.h"
-#include "deblock.h"
 
 
 namespace vio  {
@@ -132,8 +127,8 @@ void Decoder::decode_one_component(mb_t& mb, ColorPlane curr_plane)
         if (!mb.is_intra_block) {
             storable_picture *vidref = p_Vid->no_reference_picture;
             int noref = shr.PicOrderCnt < p_Vid->recovery_poc;
-            for (int j = 0; j < 2; j++) {
-                for (int i = 0; i < slice.RefPicSize[j] ; i++) {
+            for (int j = 0; j < 2; ++j) {
+                for (int i = 0; i < slice.RefPicSize[j]; ++i) {
                     storable_picture *curr_ref = slice.RefPicList[j][i];
                     if (curr_ref) {
                         curr_ref->no_ref = noref && (curr_ref == vidref);
@@ -201,7 +196,7 @@ void Decoder::mb_pred_intra(mb_t& mb, ColorPlane curr_plane)
     if (mb.mb_type == I_16x16 || mb.CodedBlockPatternLuma != 0 || mb.CodedBlockPatternChroma != 0)
         slice.parser.is_reset_coeff = false;
 
-    if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
+    if (sps.chroma_format_idc != CHROMA_FORMAT_400 && sps.chroma_format_idc != CHROMA_FORMAT_444) {
         this->intra_prediction->intra_pred_chroma(&mb);
 
         for (int uv = 0; uv < 2; uv++)

@@ -436,7 +436,7 @@ int ercVariables_t::ercConcealInterFrame(storable_picture* pic)
         /* if there are segments to be concealed */
         if (this->nOfCorruptedSegments) {
             px_t* predMB;
-            if (sps->chroma_format_idc != YUV400)
+            if (sps->chroma_format_idc != CHROMA_FORMAT_400)
                 predMB = new px_t[256 + sps->MbWidthC * sps->MbHeightC * 2];
             else
                 predMB = new px_t[256];
@@ -830,7 +830,7 @@ void ercVariables_t::buildPredRegionYUV(storable_picture* pic, int* mv, int x, i
     int mv_mul = 4;
 
     int num_uv_blocks;
-    if (sps->chroma_format_idc != YUV400)
+    if (sps->chroma_format_idc != CHROMA_FORMAT_400)
         num_uv_blocks = (((1 << sps->chroma_format_idc) & (~0x1)) >> 1);
     else
         num_uv_blocks = 0;
@@ -865,7 +865,7 @@ void ercVariables_t::buildPredRegionYUV(storable_picture* pic, int* mv, int x, i
     }
     pMB += 256;
 
-    if (sps->chroma_format_idc != YUV400) {
+    if (sps->chroma_format_idc != CHROMA_FORMAT_400) {
         // chroma *******************************************************
         int f1_x = 64 / sps->MbWidthC;
         int f2_x = f1_x - 1;
@@ -997,7 +997,7 @@ void ercVariables_t::copyPredMB(storable_picture* pic, int currYBlockNum, px_t* 
         }
     }
 
-    if (sps->chroma_format_idc != YUV400) {
+    if (sps->chroma_format_idc != CHROMA_FORMAT_400) {
         for (int j = (ymin >> uv_y); j <= (ymax >> uv_y); ++j) {
             for (int k = (xmin >> uv_x); k <= (xmax >> uv_x); ++k) {
                 int locationTmp = (j - (ymin >> uv_y)) * sps->MbWidthC + (k - (xmin >> 1)) + 256;

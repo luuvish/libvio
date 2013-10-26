@@ -1,5 +1,5 @@
 /*
- * ===========================================================================
+ * =============================================================================
  *
  *   This confidential and proprietary software may be used only
  *  as authorized by a licensing agreement from Thumb o'Cat Inc.
@@ -10,7 +10,7 @@
  * 
  *   The entire notice above must be reproduced on all authorized copies.
  *
- * ===========================================================================
+ * =============================================================================
  *
  *  File      : deblock.cpp
  *  Author(s) : Luuvish
@@ -18,14 +18,14 @@
  *  Revision  :
  *      1.0 June 16, 2013    first release
  *
- * ===========================================================================
+ * =============================================================================
  */
 
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
 #include "neighbour.h"
-#include "deblock.h"
+#include "decoder.h"
 
 
 namespace vio  {
@@ -608,7 +608,7 @@ static void MbAffPostProc(storable_picture& pic)
             loc_t loc = first_slice.neighbour.get_location(&first_slice, false, mbAddr);
             update_mbaff_macroblock_data(imgY + loc.y, temp_buffer, loc.x, 16, 16);
 
-            if (sps.chroma_format_idc != YUV400) {
+            if (sps.chroma_format_idc != CHROMA_FORMAT_400) {
                 loc.x = (short) ((loc.x * sps.MbWidthC ) >> 4);
                 loc.y = (short) ((loc.y * sps.MbHeightC) >> 4);
 

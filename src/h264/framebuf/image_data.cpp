@@ -1,6 +1,9 @@
 #include "global.h"
 #include "memalloc.h"
 #include "slice.h"
+#include "sets.h"
+
+using namespace vio::h264;
 
 
 static int init_top_bot_planes(px_t **imgFrame, int dim0, px_t ***imgTopField, px_t ***imgBotField)
@@ -43,7 +46,7 @@ static void init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *s
     } else {
         get_mem2Dpel(&(p_ImgData->frm_data[0]), sps->FrameHeightInMbs * 16, sps->PicWidthInMbs * 16);
 
-        if (sps->chroma_format_idc != YUV400) {
+        if (sps->chroma_format_idc != CHROMA_FORMAT_400) {
             get_mem2Dpel(&(p_ImgData->frm_data[1]), sps->FrameHeightInMbs * sps->MbHeightC, sps->PicWidthInMbs * sps->MbWidthC);
             get_mem2Dpel(&(p_ImgData->frm_data[2]), sps->FrameHeightInMbs * sps->MbHeightC, sps->PicWidthInMbs * sps->MbWidthC);
 
@@ -66,7 +69,7 @@ static void init_img_data(VideoParameters *p_Vid, ImageData *p_ImgData, sps_t *s
         // allocate memory for field reference frame buffers
         init_top_bot_planes(p_ImgData->frm_data[0], sps->FrameHeightInMbs * 16, &(p_ImgData->top_data[0]), &(p_ImgData->bot_data[0]));
 
-        if (sps->chroma_format_idc != YUV400) {
+        if (sps->chroma_format_idc != CHROMA_FORMAT_400) {
             init_top_bot_planes(p_ImgData->frm_data[1], sps->FrameHeightInMbs * sps->MbHeightC, &(p_ImgData->top_data[1]), &(p_ImgData->bot_data[1]));
             init_top_bot_planes(p_ImgData->frm_data[2], sps->FrameHeightInMbs * sps->MbHeightC, &(p_ImgData->top_data[2]), &(p_ImgData->bot_data[2]));
         }
@@ -88,7 +91,7 @@ void free_img_data(VideoParameters *p_Vid, ImageData *p_ImgData)
             p_ImgData->frm_data[0] = NULL;
         }
     
-        if (p_ImgData->yuv_format != YUV400) {
+        if (p_ImgData->yuv_format != CHROMA_FORMAT_400) {
             if (p_ImgData->frm_data[1]) {
                 free_mem2Dpel(p_ImgData->frm_data[1]);
                 p_ImgData->frm_data[1] = NULL;
@@ -103,7 +106,7 @@ void free_img_data(VideoParameters *p_Vid, ImageData *p_ImgData)
     if (!p_Vid->active_sps->frame_mbs_only_flag) {
         free_top_bot_planes(p_ImgData->top_data[0], p_ImgData->bot_data[0]);
 
-        if (p_ImgData->yuv_format != YUV400) {
+        if (p_ImgData->yuv_format != CHROMA_FORMAT_400) {
             free_top_bot_planes(p_ImgData->top_data[1], p_ImgData->bot_data[1]);
             free_top_bot_planes(p_ImgData->top_data[2], p_ImgData->bot_data[2]);
         }
@@ -138,7 +141,7 @@ static void process_picture_in_dpb_s(VideoParameters* p_Vid, storable_picture* p
 
     for (int i = 0; i < p_pic->size_y; i++)
         memcpy(d_img[0][i], p_pic->imgY[i], p_pic->size_x*sizeof(px_t));
-    if (p_Vid->active_sps->chroma_format_idc != YUV400) {
+    if (p_Vid->active_sps->chroma_format_idc != CHROMA_FORMAT_400) {
         for (int i = 0; i < p_pic->size_y_cr; i++)
             memcpy(d_img[1][i], p_pic->imgUV[0][i], p_pic->size_x_cr * sizeof(px_t));
         for (int i = 0; i < p_pic->size_y_cr; i++)
@@ -162,9 +165,9 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
 
     int iChromaPadX = MCBUF_CHROMA_PAD_X;
     int iChromaPadY = MCBUF_CHROMA_PAD_Y;
-    if (sps->chroma_format_idc == YUV422)
+    if (sps->chroma_format_idc == CHROMA_FORMAT_422)
         iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
-    else if (sps->chroma_format_idc == YUV444) {
+    else if (sps->chroma_format_idc == CHROMA_FORMAT_444) {
         iChromaPadX = MCBUF_LUMA_PAD_X;
         iChromaPadY = MCBUF_LUMA_PAD_Y;
     }
@@ -216,7 +219,7 @@ static storable_picture* clone_storable_picture(VideoParameters* p_Vid, storable
 
     pad_buf(*p_stored_pic->imgY, p_stored_pic->size_x, p_stored_pic->size_y, p_stored_pic->iLumaStride, MCBUF_LUMA_PAD_X, MCBUF_LUMA_PAD_Y);
 
-    if (p_Vid->active_sps->chroma_format_idc != YUV400) {    
+    if (p_Vid->active_sps->chroma_format_idc != CHROMA_FORMAT_400) {    
         copy_img_data(&p_stored_pic->imgUV[0][0][0], &img_in[1][0][0], ostride[1], istride[1], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(px_t));
         pad_buf(*p_stored_pic->imgUV[0], p_stored_pic->size_x_cr, p_stored_pic->size_y_cr, p_stored_pic->iChromaStride, iChromaPadX, iChromaPadY);
         copy_img_data(&p_stored_pic->imgUV[1][0][0], &img_in[2][0][0], ostride[1], istride[2], p_pic->size_y_cr, p_pic->size_x_cr*sizeof(px_t));

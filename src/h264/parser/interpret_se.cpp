@@ -426,7 +426,7 @@ uint8_t Parser::SyntaxElement::coded_block_pattern()
             }
         }
 
-        if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
+        if (sps.chroma_format_idc != CHROMA_FORMAT_400 && sps.chroma_format_idc != CHROMA_FORMAT_444) {
             cabac_context_t* ctx = contexts.cbp_c_contexts;
             int inc = ctxidx.coded_block_pattern_chroma();
             int ctxIdxInc[2] = { inc & 3, (inc >> 2) & 7 };
@@ -520,11 +520,11 @@ static const uint8_t coeff_token_code[5][4][17] = {
 // Table 9-8 total_zeros tables for 4x4 blocks with tzVlcIndex 8 to 15
 // Table 9-9 total_zeros tables for chroma DC 2x2 and 2x4 blocks
 static const uint8_t total_zeros_length[3][15][16] = {
-    // YUV420
+    // CHROMA_FORMAT_420
     {{ 1, 2, 3, 3 },
      { 1, 2, 2 },
      { 1, 1 }},
-    // YUV422
+    // CHROMA_FORMAT_422
     {{ 1, 3, 3, 4, 4, 4, 5, 5 },
      { 3, 2, 3, 3, 3, 3, 3 },
      { 3, 3, 2, 2, 3, 3 },
@@ -532,7 +532,7 @@ static const uint8_t total_zeros_length[3][15][16] = {
      { 2, 2, 2, 2 },
      { 2, 2, 1 },
      { 1, 1 }},
-    // YUV444
+    // CHROMA_FORMAT_444
     {{ 1, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 9 },
      { 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 6, 6, 6, 6 },
      { 4, 3, 3, 3, 4, 4, 3, 3, 4, 5, 5, 6, 5, 6 },
@@ -551,11 +551,11 @@ static const uint8_t total_zeros_length[3][15][16] = {
 };
 
 static const uint8_t total_zeros_code[3][15][16] = {
-    // YUV420
+    // CHROMA_FORMAT_420
     {{ 1, 1 , 1 , 0 },
      { 1, 1 , 0 },
      { 1, 0 }},
-    // YUV422
+    // CHROMA_FORMAT_422
     {{ 1, 2, 3, 2, 3, 1, 1, 0 },
      { 0, 1, 1, 4, 5, 6, 7 },
      { 0, 1, 1, 2, 6, 7 },
@@ -563,7 +563,7 @@ static const uint8_t total_zeros_code[3][15][16] = {
      { 0, 1, 2, 3 },
      { 0, 1, 1 },
      { 0, 1 }},
-    // YUV444
+    // CHROMA_FORMAT_444
     {{ 1, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 1 },
      { 7, 6, 5, 4, 3, 5, 4, 3, 2, 3, 2, 3, 2, 1, 0 },
      { 5, 7, 6, 5, 4, 3, 4, 3, 2, 3, 2, 1, 1, 0 },

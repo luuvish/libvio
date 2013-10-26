@@ -213,12 +213,10 @@ int DecoderParams::DecodeOneFrame()
 {
     int iRet = this->decode_slice_headers();
 
-    //init_picture(p_Vid->ppSliceList[0]);
-    init_picture_decoding(this->p_Vid);
-
-    this->decode_slice_datas();
-
-    exit_picture(this->p_Vid);
+    if (this->p_Vid->dec_picture) {
+        this->p_Vid->dec_picture->decode_slice_datas();
+        exit_picture(this->p_Vid);
+    }
     this->p_Vid->previous_frame_num = this->p_Vid->ppSliceList[0]->header.frame_num;
 
     if (iRet == SOP)

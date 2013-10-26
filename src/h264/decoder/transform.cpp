@@ -1,5 +1,5 @@
 /*
- * ===========================================================================
+ * =============================================================================
  *
  *   This confidential and proprietary software may be used only
  *  as authorized by a licensing agreement from Thumb o'Cat Inc.
@@ -10,7 +10,7 @@
  * 
  *   The entire notice above must be reproduced on all authorized copies.
  *
- * ===========================================================================
+ * =============================================================================
  *
  *  File      : transform.cpp
  *  Author(s) : Luuvish
@@ -18,15 +18,13 @@
  *  Revision  :
  *      1.0 June 16, 2013    first release
  *
- * ===========================================================================
+ * =============================================================================
  */
 
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
-#include "transform.h"
-
-#include "intra_prediction.h"
+#include "decoder.h"
 
 
 namespace vio  {
@@ -181,7 +179,7 @@ void Transform::init(slice_t& slice)
         for (int i = 0; i < 12; i++)
             this->qmatrix[i] = (i < 6) ? Flat_4x4_16 : Flat_8x8_16;
     } else {
-        int n_ScalingList = (sps.chroma_format_idc != YUV444) ? 8 : 12;
+        int n_ScalingList = (sps.chroma_format_idc != CHROMA_FORMAT_444) ? 8 : 12;
         if (sps.seq_scaling_matrix_present_flag) { // check sps first
             for (int i = 0; i < n_ScalingList; i++) {
                 if (i < 6) {
@@ -1077,7 +1075,7 @@ void Transform::inverse_transform_inter(mb_t* mb, ColorPlane pl)
     if (mb->CodedBlockPatternLuma)
         slice->parser.is_reset_coeff = false;
 
-    if (sps->chroma_format_idc == YUV400 || sps->chroma_format_idc == YUV444)
+    if (sps->chroma_format_idc == CHROMA_FORMAT_400 || sps->chroma_format_idc == CHROMA_FORMAT_444)
         return;
 
     for (int uv = 0; uv < 2; ++uv) {
@@ -1290,7 +1288,7 @@ void Transform::inverse_transform_sp(mb_t* mb, ColorPlane pl)
 
     slice->parser.is_reset_coeff = false;
 
-    if (sps->chroma_format_idc == YUV400 || sps->chroma_format_idc == YUV444)
+    if (sps->chroma_format_idc == CHROMA_FORMAT_400 || sps->chroma_format_idc == CHROMA_FORMAT_444)
         return;
 
     for (int uv = 0; uv < 2; ++uv) {

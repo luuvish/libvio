@@ -14,7 +14,7 @@
 #include "memalloc.h"
 #include "macroblock.h"
 #include "neighbour.h"
-#include "transform.h"
+#include "decoder.h"
 
 using vio::h264::mb_t;
 
@@ -447,129 +447,6 @@ void UseParameterSet(slice_t *currSlice)
     p_Vid->type = currSlice->header.slice_type;
 }
 
-void init_picture_decoding(VideoParameters *p_Vid)
-{
-    slice_t *pSlice = p_Vid->ppSliceList[0];
-    shr_t& shr = pSlice->header;
-
-    if (p_Vid->pNextPPS->Valid && p_Vid->pNextPPS->pic_parameter_set_id == shr.pic_parameter_set_id) {
-        pps_t tmpPPS = p_Vid->PicParSet[shr.pic_parameter_set_id];
-        p_Vid->PicParSet[p_Vid->pNextPPS->pic_parameter_set_id] = *(p_Vid->pNextPPS);
-        *(p_Vid->pNextPPS) = tmpPPS;
-    }
-
-    UseParameterSet(pSlice);
-    if (pSlice->IdrPicFlag)
-        p_Vid->number = 0;
-
-    p_Vid->structure = shr.structure;
-
-    pSlice->init_slice_group_map();
-
-#if (MVC_EXTENSION_ENABLE)
-    if (pSlice->layer_id > 0 && pSlice->mvc_extension_flag && pSlice->non_idr_flag == 0)
-        p_Vid->p_Dpb_layer[pSlice->layer_id]->idr_memory_management(p_Vid->dec_picture);
-    p_Vid->p_Dpb_layer[pSlice->view_id]->update_ref_list();
-    p_Vid->p_Dpb_layer[pSlice->view_id]->update_ltref_list();
-    p_Vid->p_Dpb_layer[pSlice->view_id]->init_picture_number(*pSlice);
-#endif
-}
-
-
-void pad_buf(px_t *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, int iPadY)
-{
-    int j;
-    px_t *pLine0 = pImgBuf - iPadX, *pLine;
-    int i;
-    for (i = -iPadX; i < 0; i++)
-        pImgBuf[i] = *pImgBuf;
-    for (i = 0; i < iPadX; i++)
-        pImgBuf[i+iWidth] = *(pImgBuf+iWidth-1);
-
-    for (j = -iPadY; j < 0; j++)
-        memcpy(pLine0+j*iStride, pLine0, iStride*sizeof(px_t));
-    for (j = 1; j < iHeight; j++) {
-        pLine = pLine0 + j*iStride;
-        for (i = 0; i < iPadX; i++)
-            pLine[i] = pLine[iPadX];
-        pLine += iPadX+iWidth-1;
-        for (i = 1; i < iPadX + 1; i++)
-            pLine[i] = *pLine;
-    }
-    pLine = pLine0 + (iHeight - 1) * iStride;
-    for (j = iHeight; j < iHeight + iPadY; j++)
-        memcpy(pLine0+j*iStride,  pLine, iStride*sizeof(px_t));
-}
-
-void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture)
-{
-    sps_t* sps = p_Vid->active_sps;
-
-    int iPadX = MCBUF_LUMA_PAD_X;
-    int iPadY = MCBUF_LUMA_PAD_Y;
-    int iWidth = dec_picture->size_x;
-    int iHeight = dec_picture->size_y;
-    int iStride = dec_picture->iLumaStride;
-
-    int iChromaPadX = MCBUF_CHROMA_PAD_X;
-    int iChromaPadY = MCBUF_CHROMA_PAD_Y;
-    if (sps->chroma_format_idc == YUV422)
-        iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
-    else if (sps->chroma_format_idc == YUV444) {
-        iChromaPadX = MCBUF_LUMA_PAD_X;
-        iChromaPadY = MCBUF_LUMA_PAD_Y;
-    }
-
-    pad_buf(*dec_picture->imgY, iWidth, iHeight, iStride, iPadX, iPadY);
-
-    if (sps->chroma_format_idc != YUV400) {
-        iPadX   = iChromaPadX;
-        iPadY   = iChromaPadY;
-        iWidth  = dec_picture->size_x_cr;
-        iHeight = dec_picture->size_y_cr;
-        iStride = dec_picture->iChromaStride;
-        pad_buf(*dec_picture->imgUV[0], iWidth, iHeight, iStride, iPadX, iPadY);
-        pad_buf(*dec_picture->imgUV[1], iWidth, iHeight, iStride, iPadX, iPadY);
-    }
-}
-
-void exit_picture(VideoParameters *p_Vid)
-{
-    slice_t *currSlice = p_Vid->ppSliceList[0];
-    sps_t& sps = *p_Vid->active_sps;
-    shr_t& shr = currSlice->header;
-
-    // return if the last picture has already been finished
-    if (!p_Vid->dec_picture ||
-        (p_Vid->num_dec_mb != shr.PicSizeInMbs &&
-         (sps.chroma_format_idc != YUV444 || !sps.separate_colour_plane_flag)))
-        return;
-
-#if (DISABLE_ERC == 0)
-    p_Vid->erc_errorVar->erc_picture(p_Vid->dec_picture);
-#endif
-
-    currSlice->decoder.deblock_filter(*currSlice);
-
-    if (p_Vid->structure != FRAME)
-        p_Vid->number /= 2;
-#if (MVC_EXTENSION_ENABLE)
-    if (p_Vid->dec_picture->used_for_reference || p_Vid->dec_picture->slice.inter_view_flag == 1)
-        pad_dec_picture(p_Vid, p_Vid->dec_picture);
-#endif
-#if MVC_EXTENSION_ENABLE
-    p_Vid->p_Dpb_layer[p_Vid->dec_picture->slice.view_id]->store_picture(p_Vid->dec_picture);
-#endif
-
-    if (p_Vid->last_has_mmco_5)
-        p_Vid->PrevRefFrameNum = 0;
-
-    p_Vid->status(&p_Vid->dec_picture);
-
-    p_Vid->dec_picture = nullptr;
-}
-
-
 
 namespace vio  {
 namespace h264 {
@@ -780,19 +657,5 @@ void slice_t::decode()
         end_of_slice = mb.close(*this);
 
         ++this->num_dec_mb;
-    }
-}
-
-void DecoderParams::decode_slice_datas()
-{
-    VideoParameters* p_Vid = this->p_Vid;
-
-    p_Vid->num_dec_mb = 0;
-
-    for (slice_t* slice : p_Vid->dec_picture->slice_headers) {
-        slice->init();
-        slice->decode();
-
-        p_Vid->num_dec_mb += slice->num_dec_mb;
     }
 }

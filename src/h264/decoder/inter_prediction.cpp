@@ -1,5 +1,5 @@
 /*
- * ===========================================================================
+ * =============================================================================
  *
  *   This confidential and proprietary software may be used only
  *  as authorized by a licensing agreement from Thumb o'Cat Inc.
@@ -10,7 +10,7 @@
  * 
  *   The entire notice above must be reproduced on all authorized copies.
  *
- * ===========================================================================
+ * =============================================================================
  *
  *  File      : inter_prediction.cpp
  *  Author(s) : Luuvish
@@ -18,14 +18,14 @@
  *  Revision  :
  *      1.0 June 16, 2013    first release
  *
- * ===========================================================================
+ * =============================================================================
  */
 
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
 #include "dpb.h"
-#include "inter_prediction.h"
+#include "decoder.h"
 
 
 namespace vio  {
@@ -302,22 +302,22 @@ void InterPrediction::get_block_chroma(
     sps_t* sps = slice->active_sps;
     px_t no_ref_value = (px_t)(1 << (sps->BitDepthC - 1));
 
-    int shiftpel_x = sps->chroma_format_idc == YUV400 ? 0 :
-                     sps->chroma_format_idc == YUV444 ? 2 : 3;
-    int shiftpel_y = sps->chroma_format_idc == YUV400 ? 0 :
-                     sps->chroma_format_idc == YUV420 ? 3 : 2;
+    int shiftpel_x = sps->chroma_format_idc == CHROMA_FORMAT_400 ? 0 :
+                     sps->chroma_format_idc == CHROMA_FORMAT_444 ? 2 : 3;
+    int shiftpel_y = sps->chroma_format_idc == CHROMA_FORMAT_400 ? 0 :
+                     sps->chroma_format_idc == CHROMA_FORMAT_420 ? 3 : 2;
     int total_scale = shiftpel_x + shiftpel_y;
 
-    int subpel_x = sps->chroma_format_idc == YUV400 ? 0 :
-                   sps->chroma_format_idc == YUV444 ? 3 : 7;
-    int subpel_y = sps->chroma_format_idc == YUV400 ? 0 :
-                   sps->chroma_format_idc == YUV420 ? 7 : 3;
+    int subpel_x = sps->chroma_format_idc == CHROMA_FORMAT_400 ? 0 :
+                   sps->chroma_format_idc == CHROMA_FORMAT_444 ? 3 : 7;
+    int subpel_y = sps->chroma_format_idc == CHROMA_FORMAT_400 ? 0 :
+                   sps->chroma_format_idc == CHROMA_FORMAT_420 ? 7 : 3;
 
     int iChromaPadX = MCBUF_CHROMA_PAD_X;
     int iChromaPadY = MCBUF_CHROMA_PAD_Y;
-    if (sps->chroma_format_idc == YUV422)
+    if (sps->chroma_format_idc == CHROMA_FORMAT_422)
         iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
-    else if (sps->chroma_format_idc == YUV444) {
+    else if (sps->chroma_format_idc == CHROMA_FORMAT_444) {
         iChromaPadX = MCBUF_LUMA_PAD_X;
         iChromaPadY = MCBUF_LUMA_PAD_Y;
     }
@@ -518,7 +518,7 @@ void InterPrediction::perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, i
                       tmp_block_l0, tmp_block_l1, block_size_y, block_size_x,
                       mb, pl, l0_refframe, l1_refframe);
 
-    if (sps.chroma_format_idc != YUV400 && sps.chroma_format_idc != YUV444) {
+    if (sps.chroma_format_idc != CHROMA_FORMAT_400 && sps.chroma_format_idc != CHROMA_FORMAT_444) {
         int maxold_x = dec_picture->size_x_cr - 1;
         int maxold_y = mb->mb_field_decoding_flag ? (dec_picture->size_y_cr >> 1) - 1 : dec_picture->size_y_cr - 1;
 

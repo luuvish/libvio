@@ -44,13 +44,6 @@ enum ColorPlane {
     PLANE_V = 2
 };
 
-enum ColorFormat {
-    YUV400 = 0,
-    YUV420 = 1,
-    YUV422 = 2,
-    YUV444 = 3
-};
-
 enum PictureStructure {
     FRAME,
     TOP_FIELD,
@@ -222,7 +215,7 @@ struct VideoParameters {
     void OpenOutputFiles(int view0_id, int view1_id);
 
     void calculate_frame_no(storable_picture *p);
-    void status(storable_picture** dec_picture);
+    void status(storable_picture* dec_picture);
     void report();
 };
 
@@ -233,7 +226,6 @@ extern void free_layer_buffers(VideoParameters *p_Vid, int layer_id);
 
 
 void init_picture(slice_t* currSlice);
-void init_picture_decoding(VideoParameters *p_Vid);
 void exit_picture(VideoParameters *p_Vid);
 
 #if (MVC_EXTENSION_ENABLE)

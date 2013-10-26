@@ -1,10 +1,14 @@
 #include "global.h"
 #include "input_parameters.h"
+#include "sets.h"
 #include "slice.h"
 #include "dpb.h"
 #include "memalloc.h"
 #include "macroblock.h"
 #include "output.h"
+
+
+using vio::h264::CHROMA_FORMAT_400;
 
 
 /* Thomson APIs for concealing entire frame loss */
@@ -114,7 +118,7 @@ static void buildPredblockRegionYUV(VideoParameters* p_Vid, int* mv,
     }
     pMB += 16;
 
-    if (sps.chroma_format_idc != YUV400) {
+    if (sps.chroma_format_idc != CHROMA_FORMAT_400) {
         // chroma *******************************************************
         int f1_x = 64 / sps.MbWidthC;
         int f2_x = f1_x - 1;
@@ -206,7 +210,7 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
     // Conceals the missing frame by motion vector copy concealment
     if (p_Vid->conceal_mode == 2) {
         px_t* storeYUV;
-        if (sps->chroma_format_idc != YUV400)
+        if (sps->chroma_format_idc != CHROMA_FORMAT_400)
             storeYUV = new px_t[16 + sps->MbWidthC * sps->MbHeightC * 2 / 16];
         else
             storeYUV = new px_t[16];
@@ -257,7 +261,7 @@ static void copy_to_conceal(storable_picture *src, storable_picture *dst, VideoP
 
                 predMB += (multiplier * multiplier);
 
-                if (sps->chroma_format_idc != YUV400) {
+                if (sps->chroma_format_idc != CHROMA_FORMAT_400) {
                     for (int uv = 0; uv < 2; ++uv) {
                         for (int ii = 0; ii < multiplier / 2; ++ii) {
                             for (int jj = 0; jj < multiplier / 2; ++jj)

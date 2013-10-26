@@ -24,7 +24,7 @@ void VideoParameters::calculate_frame_no(storable_picture *p)
     this->snr->frame_no = this->snr->idr_psnr_number + psnrPOC;
 }
 
-void VideoParameters::status(storable_picture** dec_picture)
+void VideoParameters::status(storable_picture* dec_picture)
 {
     InputParameters *p_Inp = this->p_Inp;
     SNRParameters   *snr   = this->snr;
@@ -32,14 +32,14 @@ void VideoParameters::status(storable_picture** dec_picture)
     char yuv_types[4][6]= {"4:0:0","4:2:0","4:2:2","4:4:4"};
     char yuvFormat[10];
 
-    int structure         = (*dec_picture)->slice.structure;
-    int slice_type        = (*dec_picture)->slice.slice_type;
-    int frame_poc         = (*dec_picture)->frame_poc;  
-    int refpic            = (*dec_picture)->used_for_reference;
+    int structure         = dec_picture->slice.structure;
+    int slice_type        = dec_picture->slice.slice_type;
+    int frame_poc         = dec_picture->frame_poc;  
+    int refpic            = dec_picture->used_for_reference;
     int qp                = 0;
-    int pic_num           = (*dec_picture)->PicNum;
-    int is_idr            = (*dec_picture)->slice.idr_flag;
-    int chroma_format_idc = (*dec_picture)->sps->chroma_format_idc;
+    int pic_num           = dec_picture->PicNum;
+    int is_idr            = dec_picture->slice.idr_flag;
+    int chroma_format_idc = dec_picture->sps->chroma_format_idc;
 
     // report
     static char cslice_type[9] = { 0 };  
@@ -102,7 +102,7 @@ void VideoParameters::status(storable_picture** dec_picture)
 
         if (slice_type == I_slice || slice_type == SI_slice || slice_type == P_slice || refpic) { // I or P pictures
 #if (MVC_EXTENSION_ENABLE)
-            if ((*dec_picture)->slice_headers[0]->view_id != 0)
+            if (dec_picture->slice_headers[0]->view_id != 0)
 #endif
                 ++(this->number);
         } else
@@ -110,7 +110,7 @@ void VideoParameters::status(storable_picture** dec_picture)
         ++(snr->frame_ctr);
 
 #if (MVC_EXTENSION_ENABLE)
-        if (((*dec_picture)->slice_headers[0])->view_id != 0)
+        if (dec_picture->slice_headers[0]->view_id != 0)
 #endif
             ++(snr->g_nFrame);   
     }

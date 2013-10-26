@@ -1,5 +1,5 @@
 /*
- * ===========================================================================
+ * =============================================================================
  *
  *   This confidential and proprietary software may be used only
  *  as authorized by a licensing agreement from Thumb o'Cat Inc.
@@ -10,7 +10,7 @@
  * 
  *   The entire notice above must be reproduced on all authorized copies.
  *
- * ===========================================================================
+ * =============================================================================
  *
  *  File      : intra_prediction.cpp
  *  Author(s) : Luuvish
@@ -18,14 +18,13 @@
  *  Revision  :
  *      1.0 June 16, 2013    first release
  *
- * ===========================================================================
+ * =============================================================================
  */
 
 #include "global.h"
 #include "slice.h"
 #include "macroblock.h"
-
-#include "intra_prediction.h"
+#include "decoder.h"
 
 
 namespace vio  {

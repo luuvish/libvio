@@ -339,7 +339,7 @@ void Parser::Residual::residual_block_cabac(uint8_t ctxBlockCat, uint8_t startId
     }
 
     int coded_block_flag = 1; // always one for 8x8 mode
-    if (sps.chroma_format_idc == YUV444 || context != LUMA_8x8) {
+    if (sps.chroma_format_idc == CHROMA_FORMAT_444 || context != LUMA_8x8) {
         cabac_context_t* ctx = slice.parser.mot_ctx.bcbp_contexts + type2ctx_bcbp[context];
         int ctxIdxInc = coded_block_flag_ctxIdxInc(mb, pl, chroma, ac, blkIdx);
 

@@ -3,6 +3,7 @@
 #include "h264decoder.h"
 #include "dpb.h"
 #include "picture.h"
+#include "sets.h"
 #include "memalloc.h"
 #include "sei.h"
 #include "output.h"
@@ -11,6 +12,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
+
+using namespace vio::h264;
 
 
 static int testEndian(void)
@@ -187,7 +190,7 @@ static void write_out_picture(VideoParameters *p_Vid, storable_picture *p, int p
     if (iLumaSize != write(p_out, p_Vid->pDecOuputPic.pY, iLumaSize))
         error(500, "write_out_picture: error writing to YUV file");
 
-    if (sps.chroma_format_idc != YUV400) {
+    if (sps.chroma_format_idc != CHROMA_FORMAT_400) {
         img2buf(p->imgUV[0], p_Vid->pDecOuputPic.pU, size_x_c, size_y_c, symbol_size_in_bytes,
                 crop_left_c, crop_right_c, crop_top_c, crop_bottom_c, iChromaSizeX * symbol_size_in_bytes);
         if (iChromaSize != write(p_out, p_Vid->pDecOuputPic.pU, iChromaSize))

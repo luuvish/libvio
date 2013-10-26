@@ -25,8 +25,7 @@
 #include "slice.h"
 #include "macroblock.h"
 #include "interpret.h"
-#include "intra_prediction.h"
-#include "transform.h"
+#include "decoder.h"
 
 
 namespace vio  {
@@ -445,7 +444,7 @@ void Parser::Macroblock::parse_i_pcm()
                 slice.decoder.transform->cof[0][y][x] = 1 << (sps.BitDepthY - 1);
         }
 
-        if (sps.chroma_format_idc != YUV400 && !sps.separate_colour_plane_flag) {
+        if (sps.chroma_format_idc != CHROMA_FORMAT_400 && !sps.separate_colour_plane_flag) {
             for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
                 for (int y = 0; y < sps.MbHeightC; y++) {
                     for (int x = 0; x < sps.MbWidthC; x++)
@@ -464,7 +463,7 @@ void Parser::Macroblock::parse_i_pcm()
                 slice.decoder.transform->cof[0][y][x] = dp->f(sps.BitDepthY);
         }
 
-        if (sps.chroma_format_idc != YUV400 && !sps.separate_colour_plane_flag) {
+        if (sps.chroma_format_idc != CHROMA_FORMAT_400 && !sps.separate_colour_plane_flag) {
             for (int iCbCr = 0; iCbCr < 2; iCbCr++) {
                 for (int y = 0; y < sps.MbHeightC; y++) {
                     for (int x = 0; x < sps.MbWidthC; x++)

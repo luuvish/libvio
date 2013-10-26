@@ -154,6 +154,8 @@ struct storable_picture {
 
     storable_picture(VideoParameters *p_Vid, PictureStructure type, int size_x, int size_y, int size_x_cr, int size_y_cr, int is_output);
     ~storable_picture();
+
+    void decode_slice_datas();
 };
 
 struct picture_t {

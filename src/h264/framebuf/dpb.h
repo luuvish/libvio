@@ -105,7 +105,6 @@ using dpb_t = decoded_picture_buffer_t;
 
 
 extern void fill_frame_num_gap(VideoParameters *p_Vid, slice_t *pSlice);
-extern void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture);
 extern void pad_buf(px_t *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, int iPadY);
 
 

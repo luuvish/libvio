@@ -22,7 +22,6 @@ struct DecoderParams {
 
 protected:
     int  decode_slice_headers();
-    void decode_slice_datas();
 };
 
 

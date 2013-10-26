@@ -26,7 +26,7 @@
 #include "macroblock.h"
 #include "neighbour.h"
 
-#include "intra_prediction.h"
+#include "decoder.h"
 
 
 namespace vio  {

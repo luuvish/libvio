@@ -1,7 +1,11 @@
-
+#include "global.h"
 #include "picture.h"
 #include "memalloc.h"
+#include "sets.h"
 #include "slice.h"
+#include "erc_api.h"
+
+using namespace vio::h264;
 
 
 static inline int RSD(int x)
@@ -20,14 +24,14 @@ storable_picture::storable_picture(VideoParameters *p_Vid, PictureStructure stru
         size_y_cr /= 2;
     }
 
-    this->iChromaPadX = sps->chroma_format_idc == YUV444 ? MCBUF_LUMA_PAD_X : MCBUF_CHROMA_PAD_X;
-    this->iChromaPadY = sps->chroma_format_idc == YUV444 ? MCBUF_LUMA_PAD_Y :
-                        sps->chroma_format_idc == YUV422 ? MCBUF_CHROMA_PAD_Y * 2 : MCBUF_CHROMA_PAD_Y;
+    this->iChromaPadX = sps->chroma_format_idc == CHROMA_FORMAT_444 ? MCBUF_LUMA_PAD_X : MCBUF_CHROMA_PAD_X;
+    this->iChromaPadY = sps->chroma_format_idc == CHROMA_FORMAT_444 ? MCBUF_LUMA_PAD_Y :
+                        sps->chroma_format_idc == CHROMA_FORMAT_422 ? MCBUF_CHROMA_PAD_Y * 2 : MCBUF_CHROMA_PAD_Y;
     this->iLumaStride   = size_x    + 2 * MCBUF_LUMA_PAD_X;
     this->iChromaStride = size_x_cr + 2 * this->iChromaPadX;
 
     get_mem2Dpel_pad(&this->imgY, size_y, size_x, MCBUF_LUMA_PAD_Y, MCBUF_LUMA_PAD_X);
-    if (sps->chroma_format_idc != YUV400) {
+    if (sps->chroma_format_idc != CHROMA_FORMAT_400) {
         get_mem2Dpel_pad(&this->imgUV[0], size_y_cr, size_x_cr, this->iChromaPadY, this->iChromaPadX);
         get_mem2Dpel_pad(&this->imgUV[1], size_y_cr, size_x_cr, this->iChromaPadY, this->iChromaPadX);
     }
@@ -137,6 +141,133 @@ void storable_picture::clear()
             this->imgUV[1][i][j] = (px_t) (1 << (this->sps->BitDepthC - 1));
     }
 }
+
+void storable_picture::decode_slice_datas()
+{
+    slice_t& first_slice = *this->slice_headers[0];
+    shr_t& shr = first_slice.header;
+    VideoParameters* p_Vid = first_slice.p_Vid;
+
+    if (p_Vid->pNextPPS->Valid && p_Vid->pNextPPS->pic_parameter_set_id == shr.pic_parameter_set_id) {
+        pps_t tmpPPS = p_Vid->PicParSet[shr.pic_parameter_set_id];
+        p_Vid->PicParSet[p_Vid->pNextPPS->pic_parameter_set_id] = *(p_Vid->pNextPPS);
+        *(p_Vid->pNextPPS) = tmpPPS;
+    }
+
+    UseParameterSet(&first_slice);
+
+    if (first_slice.IdrPicFlag)
+        p_Vid->number = 0;
+    p_Vid->structure = shr.structure;
+    p_Vid->num_dec_mb = 0;
+
+    first_slice.init_slice_group_map();
+
+#if (MVC_EXTENSION_ENABLE)
+    if (first_slice.layer_id > 0 && first_slice.mvc_extension_flag && first_slice.non_idr_flag == 0)
+        p_Vid->p_Dpb_layer[first_slice.layer_id]->idr_memory_management(this);
+    p_Vid->p_Dpb_layer[first_slice.view_id]->update_ref_list();
+    p_Vid->p_Dpb_layer[first_slice.view_id]->update_ltref_list();
+    p_Vid->p_Dpb_layer[first_slice.view_id]->init_picture_number(first_slice);
+#endif
+
+    for (slice_t* slice : this->slice_headers) {
+        slice->init();
+        slice->decode();
+
+        p_Vid->num_dec_mb += slice->num_dec_mb;
+    }
+}
+
+void pad_buf(px_t *pImgBuf, int iWidth, int iHeight, int iStride, int iPadX, int iPadY)
+{
+    int j;
+    px_t *pLine0 = pImgBuf - iPadX, *pLine;
+    int i;
+    for (i = -iPadX; i < 0; i++)
+        pImgBuf[i] = *pImgBuf;
+    for (i = 0; i < iPadX; i++)
+        pImgBuf[i+iWidth] = *(pImgBuf+iWidth-1);
+
+    for (j = -iPadY; j < 0; j++)
+        memcpy(pLine0+j*iStride, pLine0, iStride*sizeof(px_t));
+    for (j = 1; j < iHeight; j++) {
+        pLine = pLine0 + j*iStride;
+        for (i = 0; i < iPadX; i++)
+            pLine[i] = pLine[iPadX];
+        pLine += iPadX+iWidth-1;
+        for (i = 1; i < iPadX + 1; i++)
+            pLine[i] = *pLine;
+    }
+    pLine = pLine0 + (iHeight - 1) * iStride;
+    for (j = iHeight; j < iHeight + iPadY; j++)
+        memcpy(pLine0+j*iStride,  pLine, iStride*sizeof(px_t));
+}
+
+static void pad_dec_picture(VideoParameters *p_Vid, storable_picture *dec_picture)
+{
+    sps_t* sps = p_Vid->active_sps;
+
+    int iPadX = MCBUF_LUMA_PAD_X;
+    int iPadY = MCBUF_LUMA_PAD_Y;
+    int iWidth = dec_picture->size_x;
+    int iHeight = dec_picture->size_y;
+    int iStride = dec_picture->iLumaStride;
+
+    int iChromaPadX = MCBUF_CHROMA_PAD_X;
+    int iChromaPadY = MCBUF_CHROMA_PAD_Y;
+    if (sps->chroma_format_idc == CHROMA_FORMAT_422)
+        iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
+    else if (sps->chroma_format_idc == CHROMA_FORMAT_444) {
+        iChromaPadX = MCBUF_LUMA_PAD_X;
+        iChromaPadY = MCBUF_LUMA_PAD_Y;
+    }
+
+    pad_buf(*dec_picture->imgY, iWidth, iHeight, iStride, iPadX, iPadY);
+
+    if (sps->chroma_format_idc != CHROMA_FORMAT_400) {
+        iPadX   = iChromaPadX;
+        iPadY   = iChromaPadY;
+        iWidth  = dec_picture->size_x_cr;
+        iHeight = dec_picture->size_y_cr;
+        iStride = dec_picture->iChromaStride;
+        pad_buf(*dec_picture->imgUV[0], iWidth, iHeight, iStride, iPadX, iPadY);
+        pad_buf(*dec_picture->imgUV[1], iWidth, iHeight, iStride, iPadX, iPadY);
+    }
+}
+
+void exit_picture(VideoParameters *p_Vid)
+{
+    slice_t& first_slice = *p_Vid->dec_picture->slice_headers[0];
+    sps_t& sps = *p_Vid->dec_picture->sps;
+    shr_t& shr = first_slice.header;
+
+    if (p_Vid->num_dec_mb != shr.PicSizeInMbs &&
+        (sps.chroma_format_idc != CHROMA_FORMAT_444 || !sps.separate_colour_plane_flag))
+        return;
+
+#if (DISABLE_ERC == 0)
+    p_Vid->erc_errorVar->erc_picture(p_Vid->dec_picture);
+#endif
+
+    first_slice.decoder.deblock_filter(first_slice);
+
+    if (p_Vid->structure != FRAME)
+        p_Vid->number /= 2;
+#if (MVC_EXTENSION_ENABLE)
+    if (p_Vid->dec_picture->used_for_reference || p_Vid->dec_picture->slice.inter_view_flag == 1)
+        pad_dec_picture(p_Vid, p_Vid->dec_picture);
+    p_Vid->p_Dpb_layer[p_Vid->dec_picture->slice.view_id]->store_picture(p_Vid->dec_picture);
+#endif
+
+    if (p_Vid->last_has_mmco_5)
+        p_Vid->PrevRefFrameNum = 0;
+
+    p_Vid->status(p_Vid->dec_picture);
+
+    p_Vid->dec_picture = nullptr;
+}
+
 
 
 picture_t::~picture_t()
