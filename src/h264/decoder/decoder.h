@@ -63,10 +63,125 @@ public:
         Intra_Chroma_Plane
     };
 
-    void intra_pred_4x4   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-    void intra_pred_8x8   (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-    void intra_pred_16x16 (macroblock_t* mb, ColorPlane pl, int ioff, int joff);
-    void intra_pred_chroma(macroblock_t* mb);
+    void init(slice_t& slice);
+
+    void intra_pred_4x4   (mb_t& mb, ColorPlane pl, int xO, int yO);
+    void intra_pred_8x8   (mb_t& mb, ColorPlane pl, int xO, int yO);
+    void intra_pred_16x16 (mb_t& mb, ColorPlane pl);
+    void intra_pred_chroma(mb_t& mb, ColorPlane pl);
+
+protected:
+    class Intra4x4 {
+    public:
+        Intra4x4(mb_t& mb, ColorPlane pl, int xO, int yO);
+
+        void vertical           (px_t* pred);
+        void horizontal         (px_t* pred);
+        void dc                 (px_t* pred);
+        void diagonal_down_left (px_t* pred);
+        void diagonal_down_right(px_t* pred);
+        void vertical_right     (px_t* pred);
+        void horizontal_down    (px_t* pred);
+        void vertical_left      (px_t* pred);
+        void horizontal_up      (px_t* pred);
+
+    protected:
+        inline px_t& pred4x4L(int x, int y, px_t* pred);
+        inline px_t& p       (int x, int y);
+
+    private:
+        bool available[4];
+        px_t samples[9 * 9];
+
+        storable_picture* pic;
+        sps_t*            sps;
+        pps_t*            pps;
+        slice_t*          slice;
+    };
+
+    class Intra8x8 {
+    public:
+        Intra8x8(mb_t& mb, ColorPlane pl, int xO, int yO);
+
+        void vertical           (px_t* pred);
+        void horizontal         (px_t* pred);
+        void dc                 (px_t* pred);
+        void diagonal_down_left (px_t* pred);
+        void diagonal_down_right(px_t* pred);
+        void vertical_right     (px_t* pred);
+        void horizontal_down    (px_t* pred);
+        void vertical_left      (px_t* pred);
+        void horizontal_up      (px_t* pred);
+
+    protected:
+        inline px_t& pred8x8L(int x, int y, px_t* pred);
+        inline px_t& po      (int x, int y);
+        inline px_t& p       (int x, int y);
+        void filtering();
+
+    private:
+        bool available[4];
+        px_t samples_lf[17 * 17];
+        px_t samples[17 * 17];
+
+        storable_picture* pic;
+        sps_t*            sps;
+        pps_t*            pps;
+        slice_t*          slice;
+    };
+
+    class Intra16x16 {
+    public:
+        Intra16x16(mb_t& mb, ColorPlane pl, int xO, int yO);
+
+        void vertical           (px_t* pred);
+        void horizontal         (px_t* pred);
+        void dc                 (px_t* pred);
+        void plane              (px_t* pred);
+
+    protected:
+        inline px_t& predL(int x, int y, px_t* pred);
+        inline px_t& p    (int x, int y);
+
+    private:
+        bool available[4];
+        px_t samples[17 * 17];
+
+        storable_picture* pic;
+        sps_t*            sps;
+        pps_t*            pps;
+        slice_t*          slice;
+    };
+
+    class Chroma {
+    public:
+        Chroma(mb_t& mb, ColorPlane pl, int xO, int yO);
+
+        void dc4x4              (px_t* pred, bool* available, int xO, int yO);
+        void dc                 (px_t* pred);
+        void horizontal         (px_t* pred);
+        void vertical           (px_t* pred);
+        void plane              (px_t* pred);
+
+    protected:
+        inline px_t& predC(int x, int y, px_t* pred);
+        inline px_t& p    (int x, int y);
+
+    private:
+        bool available[4];
+        px_t samples[17 * 17];
+
+        storable_picture* pic;
+        sps_t*            sps;
+        pps_t*            pps;
+        slice_t*          slice;
+    };
+
+private:
+    storable_picture* pic;
+    sps_t*            sps;
+    pps_t*            pps;
+    slice_t*          slice;
 };
 
 class InterPrediction {

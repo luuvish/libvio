@@ -51,6 +51,7 @@ Decoder::~Decoder()
 
 void Decoder::init(slice_t& slice)
 {
+    this->intra_prediction->init(slice);
     this->inter_prediction->init(slice);
     //this->transform->init(slice);
 }
@@ -179,11 +180,11 @@ void Decoder::mb_pred_intra(mb_t& mb, ColorPlane curr_plane)
         int joff = ((block4x4 / 4) / 2) * 8 + ((block4x4 % 4) / 2) * 4;
 
         if (mb.mb_type == I_4x4)
-            this->intra_prediction->intra_pred_4x4(&mb, curr_plane, ioff, joff);
+            this->intra_prediction->intra_pred_4x4(mb, curr_plane, ioff, joff);
         else if (mb.mb_type == I_8x8)
-            this->intra_prediction->intra_pred_8x8(&mb, curr_plane, ioff, joff);
+            this->intra_prediction->intra_pred_8x8(mb, curr_plane, ioff, joff);
         else if (mb.mb_type == I_16x16)
-            this->intra_prediction->intra_pred_16x16(&mb, curr_plane, ioff, joff);
+            this->intra_prediction->intra_pred_16x16(mb, curr_plane);
 
         if (mb.mb_type == I_4x4)
             this->transform->inverse_transform_4x4(&mb, curr_plane, ioff, joff);
@@ -197,7 +198,8 @@ void Decoder::mb_pred_intra(mb_t& mb, ColorPlane curr_plane)
         slice.parser.is_reset_coeff = false;
 
     if (sps.chroma_format_idc != CHROMA_FORMAT_400 && sps.chroma_format_idc != CHROMA_FORMAT_444) {
-        this->intra_prediction->intra_pred_chroma(&mb);
+        this->intra_prediction->intra_pred_chroma(mb, PLANE_U);
+        this->intra_prediction->intra_pred_chroma(mb, PLANE_V);
 
         for (int uv = 0; uv < 2; uv++)
             this->transform->inverse_transform_chroma(&mb, (ColorPlane)(uv + 1));
