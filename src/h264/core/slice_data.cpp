@@ -605,18 +605,18 @@ void slice_t::init()
 
     this->num_dec_mb = 0;
 
-    this->init_ref_lists();
-
-    this->parser.init(*this);
-    this->decoder.init(*this);
-    //this->decoder.assign_quant_params(*this);
-
     if (this->active_sps->separate_colour_plane_flag) {
         p_Vid->mb_data     = p_Vid->mb_data_JV    [shr.colour_plane_id];
         p_Vid->dec_picture = p_Vid->dec_picture_JV[shr.colour_plane_id];
     }
     this->neighbour.mb_data = p_Vid->mb_data;
     this->dec_picture = p_Vid->dec_picture;
+
+    this->init_ref_lists();
+
+    this->parser.init(*this);
+    this->decoder.init(*this);
+    //this->decoder.assign_quant_params(*this);
 
     if (shr.slice_type != I_slice && shr.slice_type != SI_slice) {
         if (!this->active_sps->separate_colour_plane_flag || shr.colour_plane_id == 0) {

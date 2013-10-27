@@ -101,10 +101,7 @@ static void buildPredblockRegionYUV(VideoParameters* p_Vid, int* mv,
     px_t tmp_block[16][16];
     int vec1_x = x * mv_mul + mv[0];
     int vec1_y = y * mv_mul + mv[1];
-    slice.decoder.get_block_luma(ref_pic,
-        vec1_x, vec1_y, 4, 4, tmp_block,
-        dec_picture->iLumaStride, dec_picture->size_x - 1,
-        mb.mb_field_decoding_flag ? (dec_picture->size_y >> 1) - 1 : dec_picture->size_y - 1, PLANE_Y, &mb);
+    slice.decoder.get_block_luma(ref_pic, vec1_x, vec1_y, 4, 4, tmp_block, PLANE_Y, mb);
 
     for (int jj = 0; jj < 16/4; ++jj) {
         for (int ii = 0; ii < 4; ++ii)

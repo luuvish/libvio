@@ -109,11 +109,10 @@ void Decoder::deblock_filter(slice_t& slice)
     this->deblock->deblock(slice.p_Vid);
 }
 
-void Decoder::get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y, px_t block[16][16],
-                             int shift_x,int maxold_x, int maxold_y, ColorPlane pl, mb_t* mb)
+void Decoder::get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
+                             px_t block[16][16], int pl, mb_t& mb)
 {
-    this->inter_prediction->get_block_luma(curr_ref, x_pos, y_pos, block_size_x, block_size_y, block,
-                                           shift_x, maxold_x, maxold_y, pl, mb);
+    this->inter_prediction->get_block_luma(curr_ref, x_pos, y_pos, block_size_x, block_size_y, block, pl, mb);
 }
 
 void Decoder::decode_one_component(mb_t& mb, ColorPlane curr_plane)
@@ -249,7 +248,7 @@ void Decoder::mb_pred_inter(mb_t& mb, ColorPlane curr_plane)
 
             for (int j = j0; j < j0 + step_v0; j += step_v4) {
                 for (int i = i0; i < i0 + step_h0; i += step_h4)
-                    this->inter_prediction->perform_mc(&mb, curr_plane, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
+                    this->inter_prediction->inter_pred(mb, curr_plane, pred_dir, i, j, step_h4 * 4, step_v4 * 4);
             }
         }
     }

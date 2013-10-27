@@ -65,15 +65,22 @@ public:
 
     void init(slice_t& slice);
 
-    void intra_pred_4x4   (mb_t& mb, ColorPlane pl, int xO, int yO);
-    void intra_pred_8x8   (mb_t& mb, ColorPlane pl, int xO, int yO);
-    void intra_pred_16x16 (mb_t& mb, ColorPlane pl);
-    void intra_pred_chroma(mb_t& mb, ColorPlane pl);
+    void intra_pred_4x4   (mb_t& mb, int comp, int xO, int yO);
+    void intra_pred_8x8   (mb_t& mb, int comp, int xO, int yO);
+    void intra_pred_16x16 (mb_t& mb, int comp);
+    void intra_pred_chroma(mb_t& mb, int comp);
 
 protected:
+    struct sets_t {
+        storable_picture* pic;
+        sps_t*            sps;
+        pps_t*            pps;
+        slice_t*          slice;
+    };
+
     class Intra4x4 {
     public:
-        Intra4x4(mb_t& mb, ColorPlane pl, int xO, int yO);
+        Intra4x4(const sets_t& sets, mb_t& mb, int comp, int xO, int yO);
 
         void vertical           (px_t* pred);
         void horizontal         (px_t* pred);
@@ -93,15 +100,12 @@ protected:
         bool available[4];
         px_t samples[9 * 9];
 
-        storable_picture* pic;
-        sps_t*            sps;
-        pps_t*            pps;
-        slice_t*          slice;
+        const sets_t& sets;
     };
 
     class Intra8x8 {
     public:
-        Intra8x8(mb_t& mb, ColorPlane pl, int xO, int yO);
+        Intra8x8(const sets_t& sets, mb_t& mb, int comp, int xO, int yO);
 
         void vertical           (px_t* pred);
         void horizontal         (px_t* pred);
@@ -124,15 +128,12 @@ protected:
         px_t samples_lf[17 * 17];
         px_t samples[17 * 17];
 
-        storable_picture* pic;
-        sps_t*            sps;
-        pps_t*            pps;
-        slice_t*          slice;
+        const sets_t& sets;
     };
 
     class Intra16x16 {
     public:
-        Intra16x16(mb_t& mb, ColorPlane pl, int xO, int yO);
+        Intra16x16(const sets_t& sets, mb_t& mb, int comp, int xO, int yO);
 
         void vertical           (px_t* pred);
         void horizontal         (px_t* pred);
@@ -147,15 +148,12 @@ protected:
         bool available[4];
         px_t samples[17 * 17];
 
-        storable_picture* pic;
-        sps_t*            sps;
-        pps_t*            pps;
-        slice_t*          slice;
+        const sets_t& sets;
     };
 
     class Chroma {
     public:
-        Chroma(mb_t& mb, ColorPlane pl, int xO, int yO);
+        Chroma(const sets_t& sets, mb_t& mb, int comp, int xO, int yO);
 
         void dc4x4              (px_t* pred, bool* available, int xO, int yO);
         void dc                 (px_t* pred);
@@ -171,46 +169,46 @@ protected:
         bool available[4];
         px_t samples[17 * 17];
 
+        const sets_t& sets;
+    };
+
+private:
+    sets_t sets;
+};
+
+class InterPrediction {
+public:
+    void        init(slice_t& slice);
+
+    void        get_block_luma(storable_picture* curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
+                    px_t block[16][16], int pl, mb_t& mb);
+
+    void        inter_pred(mb_t& mb, int comp, int pred_dir, int i, int j, int block_size_x, int block_size_y);
+
+protected:
+    struct sets_t {
         storable_picture* pic;
         sps_t*            sps;
         pps_t*            pps;
         slice_t*          slice;
     };
 
-private:
-    storable_picture* pic;
-    sps_t*            sps;
-    pps_t*            pps;
-    slice_t*          slice;
-};
-
-class InterPrediction {
-public:
-    InterPrediction();
-    ~InterPrediction();
-
-    void        init(slice_t& slice);
-
-    void        get_block_luma(storable_picture* curr_ref, int x_pos, int y_pos, int block_size_x, int block_size_y,
-                    px_t block[16][16], int shift_x, int maxold_x, int maxold_y, ColorPlane pl, mb_t* mb);
-
-    void        perform_mc(mb_t* mb, ColorPlane pl, int pred_dir, int i, int j, int block_size_x, int block_size_y);
-    void        motion_compensation(mb_t* mb);
-
-protected:
     void        get_block_chroma(storable_picture* curr_ref, int x_pos, int y_pos,
-                    int maxold_x, int maxold_y, int block_size_x, int vert_block_size,
-                    px_t block1[16][16], px_t block2[16][16], mb_t* mb);
+                    int block_size_x, int vert_block_size, int maxold_x, int maxold_y,
+                    px_t block1[16][16], px_t block2[16][16], mb_t& mb);
 
     void        mc_prediction(px_t* mb_pred,
                     px_t block[16][16], int block_size_y, int block_size_x,
-                    mb_t* mb, ColorPlane pl, short l0_refframe, int pred_dir);
+                    mb_t& mb, int pl, short l0_refframe, int pred_dir);
     void        bi_prediction(px_t* mb_pred, 
                     px_t block_l0[16][16], px_t block_l1[16][16], int block_size_y, int block_size_x,
-                    mb_t* mb, ColorPlane pl, short l0_refframe, short l1_refframe);
+                    mb_t& mb, int pl, short l0_refframe, short l1_refframe);
 
-    void        check_motion_vector_range(mb_t& mb, const mv_t *mv, slice_t *pSlice);
+    void        check_motion_vector_range(mb_t& mb, const mv_t *mv);
     int         CheckVertMV(mb_t *currMB, int vec_y, int block_size_y);
+
+private:
+    sets_t sets;
 };
 
 class Transform {
@@ -325,7 +323,7 @@ public:
     // called in erc_do_p.cpp
     void        get_block_luma(storable_picture *curr_ref, int x_pos, int y_pos,
                                int block_size_x, int block_size_y, px_t block[16][16],
-                               int shift_x, int maxold_x, int maxold_y, ColorPlane pl, mb_t* mb);
+                               int pl, mb_t& mb);
 
 protected:
     void        decode_one_component(mb_t& mb, ColorPlane curr_plane);

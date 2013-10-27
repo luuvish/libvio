@@ -846,10 +846,7 @@ void ercVariables_t::buildPredRegionYUV(storable_picture* pic, int* mv, int x, i
             int vec1_x = i4 * 4 * mv_mul + mv[0];
             int vec1_y = j4 * 4 * mv_mul + mv[1];
 
-            slice.decoder.get_block_luma(ref_pic,
-                vec1_x, vec1_y, 4, 4, tmp_block, pic->iLumaStride, pic->size_x - 1,
-                mb.mb_field_decoding_flag ? (pic->size_y >> 1) - 1 : pic->size_y - 1,
-                PLANE_Y, &mb);
+            slice.decoder.get_block_luma(ref_pic, vec1_x, vec1_y, 4, 4, tmp_block, PLANE_Y, mb);
 
             for (int ii = 0; ii < 4; ++ii) {
                 for (int jj = 0; jj < 16/4; ++jj)

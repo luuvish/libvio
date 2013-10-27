@@ -33,38 +33,127 @@ namespace h264 {
 
 void IntraPrediction::init(slice_t& slice)
 {
-    this->pic   = slice.dec_picture;
-    this->sps   = slice.active_sps;
-    this->pps   = slice.active_pps;
-    this->slice = &slice;
+    this->sets.pic   = slice.dec_picture;
+    this->sets.sps   = slice.active_sps;
+    this->sets.pps   = slice.active_pps;
+    this->sets.slice = &slice;
+}
+
+void IntraPrediction::intra_pred_4x4(mb_t& mb, int comp, int xO, int yO)
+{
+    Intra4x4 samples {this->sets, mb, comp, xO, yO};
+
+    px_t* pred = &this->sets.slice->mb_pred[comp][yO][xO];
+
+    int i4x4 = ((yO / 4) / 2) * 8 + ((yO / 4) % 2) * 2 + ((xO / 4) / 2) * 4 + ((xO / 4) % 2);
+    switch (mb.Intra4x4PredMode[i4x4]) {
+    case Intra_4x4_Vertical:
+        return samples.vertical(pred);
+    case Intra_4x4_Horizontal:
+        return samples.horizontal(pred);
+    case Intra_4x4_DC:
+        return samples.dc(pred);
+    case Intra_4x4_Diagonal_Down_Left:
+        return samples.diagonal_down_left(pred);
+    case Intra_4x4_Diagonal_Down_Right:
+        return samples.diagonal_down_right(pred);
+    case Intra_4x4_Vertical_Right:
+        return samples.vertical_right(pred);
+    case Intra_4x4_Horizontal_Down:
+        return samples.horizontal_down(pred);
+    case Intra_4x4_Vertical_Left:
+        return samples.vertical_left(pred);
+    case Intra_4x4_Horizontal_Up:
+        return samples.horizontal_up(pred);
+    }
+}
+
+void IntraPrediction::intra_pred_8x8(mb_t& mb, int comp, int xO, int yO)
+{
+    Intra8x8 samples {this->sets, mb, comp, xO, yO};
+
+    px_t* pred = &this->sets.slice->mb_pred[comp][yO][xO];
+
+    int i8x8 = (yO / 8) * 2 + (xO / 8);
+    switch (mb.Intra8x8PredMode[i8x8]) {
+    case Intra_8x8_Vertical:
+        return samples.vertical(pred);
+    case Intra_8x8_Horizontal:
+        return samples.horizontal(pred);
+    case Intra_8x8_DC:
+        return samples.dc(pred);
+    case Intra_8x8_Diagonal_Down_Left:
+        return samples.diagonal_down_left(pred);
+    case Intra_8x8_Diagonal_Down_Right:
+        return samples.diagonal_down_right(pred);
+    case Intra_8x8_Vertical_Right:
+        return samples.vertical_right(pred);
+    case Intra_8x8_Horizontal_Down:
+        return samples.horizontal_down(pred);
+    case Intra_8x8_Vertical_Left:
+        return samples.vertical_left(pred);
+    case Intra_8x8_Horizontal_Up:
+        return samples.horizontal_up(pred);
+    }
+}
+
+void IntraPrediction::intra_pred_16x16(mb_t& mb, int comp)
+{
+    Intra16x16 samples {this->sets, mb, comp, 0, 0};
+
+    px_t* pred = &this->sets.slice->mb_pred[comp][0][0];
+
+    switch (mb.Intra16x16PredMode) {
+    case Intra_16x16_Vertical:
+        return samples.vertical(pred);
+    case Intra_16x16_Horizontal:
+        return samples.horizontal(pred);
+    case Intra_16x16_DC:
+        return samples.dc(pred);
+    case Intra_16x16_Plane:
+        return samples.plane(pred);
+    }
+}
+
+void IntraPrediction::intra_pred_chroma(mb_t& mb, int comp)
+{
+    Chroma samples {this->sets, mb, comp, 0, 0};
+
+    px_t* pred = &this->sets.slice->mb_pred[comp][0][0];
+
+    switch (mb.intra_chroma_pred_mode) {
+    case Intra_Chroma_DC:
+        return samples.dc(pred);
+    case Intra_Chroma_Horizontal:
+        return samples.horizontal(pred);
+    case Intra_Chroma_Vertical:
+        return samples.vertical(pred);
+    case Intra_Chroma_Plane:
+        return samples.plane(pred);
+    }
 }
 
 
-IntraPrediction::Intra4x4::Intra4x4(mb_t& mb, ColorPlane pl, int xO, int yO)
+IntraPrediction::Intra4x4::Intra4x4(const sets_t& _sets, mb_t& mb, int comp, int xO, int yO) :
+    sets {_sets}
 {
-    this->pic   = mb.p_Slice->dec_picture;
-    this->sps   = mb.p_Slice->active_sps;
-    this->pps   = mb.p_Slice->active_pps;
-    this->slice = mb.p_Slice;
-
-    auto pic = this->slice->dec_picture;
-    px_t** img = pl ? pic->imgUV[pl - 1] : pic->imgY;
+    px_t** img = comp ? this->sets.pic->imgUV[comp - 1] : this->sets.pic->imgY;
 
     nb_t nbA[4];
     for (int i = 0; i < 4; ++i) {
-        nbA[i] = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO - 1, yO + i});
+        nbA[i] = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO - 1, yO + i});
         nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb.slice_nr ? nbA[i].mb : nullptr;
     }
-    nb_t nbB = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO    , yO - 1});
-    nb_t nbC = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO + 4, yO - 1});
-    nb_t nbD = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO - 1, yO - 1});
+    nb_t nbB = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO    , yO - 1});
+    nb_t nbC = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO + 4, yO - 1});
+    nb_t nbD = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO - 1, yO - 1});
     nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
     nbC.mb = nbC.mb && nbC.mb->slice_nr == mb.slice_nr ? nbC.mb : nullptr;
     nbD.mb = nbD.mb && nbD.mb->slice_nr == mb.slice_nr ? nbD.mb : nullptr;
 
     nbC.mb = nbC.mb && !(xO == 4 && (yO == 4 || yO == 12)) ? nbC.mb : nullptr;
 
-    if (this->pps->constrained_intra_pred_flag) {
+    if (this->sets.pps->constrained_intra_pred_flag) {
         available[0] = 1;
         for (int i = 0; i < 4; i++)
             available[0] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
@@ -136,7 +225,7 @@ void IntraPrediction::Intra4x4::dc(px_t* pred)
         }
         sum = (sum + round) >> shift;
     } else
-        sum = 1 << (this->sps->BitDepthY - 1);
+        sum = 1 << (this->sets.sps->BitDepthY - 1);
 
     for (int y = 0; y < 4; ++y) {
         for (int x = 0; x < 4; ++x)
@@ -267,31 +356,26 @@ inline px_t& IntraPrediction::Intra4x4::p(int x, int y)
 }
 
 
-IntraPrediction::Intra8x8::Intra8x8(mb_t& mb, ColorPlane pl, int xO, int yO)
+IntraPrediction::Intra8x8::Intra8x8(const sets_t& _sets, mb_t& mb, int comp, int xO, int yO) :
+    sets {_sets}
 {
-    this->pic   = mb.p_Slice->dec_picture;
-    this->sps   = mb.p_Slice->active_sps;
-    this->pps   = mb.p_Slice->active_pps;
-    this->slice = mb.p_Slice;
-
-    auto pic = this->slice->dec_picture;
-    px_t** img = pl ? pic->imgUV[pl - 1] : pic->imgY;
+    px_t** img = comp ? this->sets.pic->imgUV[comp - 1] : this->sets.pic->imgY;
 
     nb_t nbA[8];
     for (int i = 0; i < 8; ++i) {
-        nbA[i] = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO - 1, yO + i});
+        nbA[i] = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO - 1, yO + i});
         nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb.slice_nr ? nbA[i].mb : nullptr;
     }
-    nb_t nbB = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO    , yO - 1});
-    nb_t nbC = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO + 8, yO - 1});
-    nb_t nbD = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO - 1, yO - 1});
+    nb_t nbB = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO    , yO - 1});
+    nb_t nbC = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO + 8, yO - 1});
+    nb_t nbD = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO - 1, yO - 1});
     nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
     nbC.mb = nbC.mb && nbC.mb->slice_nr == mb.slice_nr ? nbC.mb : nullptr;
     nbD.mb = nbD.mb && nbD.mb->slice_nr == mb.slice_nr ? nbD.mb : nullptr;
 
     nbC.mb = nbC.mb && !(xO == 8 && yO == 8) ? nbC.mb : nullptr;
 
-    if (this->pps->constrained_intra_pred_flag) {
+    if (this->sets.pps->constrained_intra_pred_flag) {
         available[0] = 1;
         for (int i = 0; i < 8; ++i)
             available[0] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
@@ -401,7 +485,7 @@ void IntraPrediction::Intra8x8::dc(px_t* pred)
         }
         sum = (sum + round) >> shift;
     } else
-        sum = 1 << (this->sps->BitDepthY - 1);
+        sum = 1 << (this->sets.sps->BitDepthY - 1);
 
     for (int y = 0; y < 8; ++y) {
         for (int x = 0; x < 8; ++x)
@@ -537,27 +621,22 @@ inline px_t& IntraPrediction::Intra8x8::p(int x, int y)
 }
 
 
-IntraPrediction::Intra16x16::Intra16x16(mb_t& mb, ColorPlane pl, int xO, int yO)
+IntraPrediction::Intra16x16::Intra16x16(const sets_t& _sets, mb_t& mb, int comp, int xO, int yO) :
+    sets {_sets}
 {
-    this->pic   = mb.p_Slice->dec_picture;
-    this->sps   = mb.p_Slice->active_sps;
-    this->pps   = mb.p_Slice->active_pps;
-    this->slice = mb.p_Slice;
-
-    auto pic = this->slice->dec_picture;
-    px_t** img = pl ? pic->imgUV[pl - 1] : pic->imgY;
+    px_t** img = comp ? this->sets.pic->imgUV[comp - 1] : this->sets.pic->imgY;
 
     nb_t nbA[16];
     for (int i = 0; i < 16; ++i) {
-        nbA[i] = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO - 1, yO + i});
+        nbA[i] = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO - 1, yO + i});
         nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb.slice_nr ? nbA[i].mb : nullptr;
     }
-    nb_t nbB = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO    , yO - 1});
-    nb_t nbD = this->slice->neighbour.get_neighbour(this->slice, false, mb.mbAddrX, {xO - 1, yO - 1});
+    nb_t nbB = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO    , yO - 1});
+    nb_t nbD = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO - 1, yO - 1});
     nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
     nbD.mb = nbD.mb && nbD.mb->slice_nr == mb.slice_nr ? nbD.mb : nullptr;
 
-    if (this->pps->constrained_intra_pred_flag) {
+    if (this->sets.pps->constrained_intra_pred_flag) {
         available[0] = 1;
         for (int i = 0; i < 16; ++i)
             available[0] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
@@ -625,7 +704,7 @@ void IntraPrediction::Intra16x16::dc(px_t* pred)
         }
         sum = (sum + round) >> shift;
     } else
-        sum = 1 << (this->sps->BitDepthY - 1);
+        sum = 1 << (this->sets.sps->BitDepthY - 1);
 
     for (int y = 0; y < 16; ++y) {
         for (int x = 0; x < 16; ++x)
@@ -650,7 +729,7 @@ void IntraPrediction::Intra16x16::plane(px_t* pred)
 
     for (int y = 0; y < 16; ++y) {
         for (int x = 0; x < 16; ++x)
-            predL(x, y, pred) = clip3(0, (1 << this->sps->BitDepthY) - 1,
+            predL(x, y, pred) = clip3(0, (1 << this->sets.sps->BitDepthY) - 1,
                 (a + b * (x - 7) + c * (y - 7) + 16) >> 5);
     }
 }
@@ -666,33 +745,28 @@ inline px_t& IntraPrediction::Intra16x16::p(int x, int y)
 }
 
 
-IntraPrediction::Chroma::Chroma(mb_t& mb, ColorPlane pl, int xO, int yO)
+IntraPrediction::Chroma::Chroma(const sets_t& _sets, mb_t& mb, int comp, int xO, int yO) :
+    sets {_sets}
 {
-    this->pic   = mb.p_Slice->dec_picture;
-    this->sps   = mb.p_Slice->active_sps;
-    this->pps   = mb.p_Slice->active_pps;
-    this->slice = mb.p_Slice;
-
-    auto pic = this->slice->dec_picture;
-    px_t** img = pic->imgUV[pl - 1];
+    px_t** img = this->sets.pic->imgUV[comp - 1];
 
     nb_t nbA[16];
-    for (int i = 0; i < this->sps->MbHeightC; ++i) {
-        nbA[i] = this->slice->neighbour.get_neighbour(this->slice, true, mb.mbAddrX, {xO - 1, yO + i});
+    for (int i = 0; i < this->sets.sps->MbHeightC; ++i) {
+        nbA[i] = this->sets.slice->neighbour.get_neighbour(this->sets.slice, true, mb.mbAddrX, {xO - 1, yO + i});
         nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb.slice_nr ? nbA[i].mb : nullptr;
     }
-    nb_t nbB = this->slice->neighbour.get_neighbour(this->slice, true, mb.mbAddrX, {xO    , yO - 1});
-    nb_t nbD = this->slice->neighbour.get_neighbour(this->slice, true, mb.mbAddrX, {xO - 1, yO - 1});
+    nb_t nbB = this->sets.slice->neighbour.get_neighbour(this->sets.slice, true, mb.mbAddrX, {xO    , yO - 1});
+    nb_t nbD = this->sets.slice->neighbour.get_neighbour(this->sets.slice, true, mb.mbAddrX, {xO - 1, yO - 1});
     nbB.mb = nbB.mb && nbB.mb->slice_nr == mb.slice_nr ? nbB.mb : nullptr;
     nbD.mb = nbD.mb && nbD.mb->slice_nr == mb.slice_nr ? nbD.mb : nullptr;
 
-    if (this->pps->constrained_intra_pred_flag) {
+    if (this->sets.pps->constrained_intra_pred_flag) {
         available[0] = 1;
-        for (int i = 0; i < this->sps->MbHeightC / 2; ++i)
+        for (int i = 0; i < this->sets.sps->MbHeightC / 2; ++i)
             available[0] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
         available[1] = nbB.mb && nbB.mb->is_intra_block ? 1 : 0;
         available[2] = 1;
-        for (int i = this->sps->MbHeightC / 2; i < this->sps->MbHeightC; ++i)
+        for (int i = this->sets.sps->MbHeightC / 2; i < this->sets.sps->MbHeightC; ++i)
             available[2] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
         available[3] = nbD.mb && nbD.mb->is_intra_block ? 1 : 0;
     } else {
@@ -707,16 +781,16 @@ IntraPrediction::Chroma::Chroma(mb_t& mb, ColorPlane pl, int xO, int yO)
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
-        for (int y = 0; y < this->sps->MbHeightC / 2; ++y)
+        for (int y = 0; y < this->sets.sps->MbHeightC / 2; ++y)
             p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[2]) {
-        for (int y = this->sps->MbHeightC / 2; y < this->sps->MbHeightC; ++y)
+        for (int y = this->sets.sps->MbHeightC / 2; y < this->sets.sps->MbHeightC; ++y)
             p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
         px_t *pix = &img[nbB.y][nbB.x];
-        for (int x = 0; x < this->sps->MbWidthC; ++x)
+        for (int x = 0; x < this->sets.sps->MbWidthC; ++x)
             p(x, -1) = pix[x];
     }
 }
@@ -740,7 +814,7 @@ void IntraPrediction::Chroma::dc4x4(px_t* pred, bool* available, int xO, int yO)
         }
         sum = (sum + round) >> shift;
     } else
-        sum = 1 << (this->sps->BitDepthC - 1);
+        sum = 1 << (this->sets.sps->BitDepthC - 1);
 
     for (int y = 0; y < 4; ++y) {
         for (int x = 0; x < 4; ++x)
@@ -751,12 +825,12 @@ void IntraPrediction::Chroma::dc4x4(px_t* pred, bool* available, int xO, int yO)
 void IntraPrediction::Chroma::dc(px_t* pred)
 {
     for (int chroma4x4BlkIdx = 0;
-         chroma4x4BlkIdx < (1 << (this->sps->ChromaArrayType + 1));
+         chroma4x4BlkIdx < (1 << (this->sets.sps->ChromaArrayType + 1));
          ++chroma4x4BlkIdx) {
-        int xO = ((chroma4x4BlkIdx / 4) % (this->sps->MbWidthC / 8)) * 8 +
-                 ((chroma4x4BlkIdx % 4) % (this->sps->MbWidthC / 4)) * 4;
-        int yO = ((chroma4x4BlkIdx / 4) / (this->sps->MbWidthC / 8)) * 8 +
-                 ((chroma4x4BlkIdx % 4) / (this->sps->MbWidthC / 4)) * 4;
+        int xO = ((chroma4x4BlkIdx / 4) % (this->sets.sps->MbWidthC / 8)) * 8 +
+                 ((chroma4x4BlkIdx % 4) % (this->sets.sps->MbWidthC / 4)) * 4;
+        int yO = ((chroma4x4BlkIdx / 4) / (this->sets.sps->MbWidthC / 8)) * 8 +
+                 ((chroma4x4BlkIdx % 4) / (this->sets.sps->MbWidthC / 4)) * 4;
 
         bool avail[4] = { 0 };
         if ((xO == 0 && yO == 0) || (xO > 0 && yO > 0)) {
@@ -778,8 +852,8 @@ void IntraPrediction::Chroma::horizontal(px_t* pred)
 {
     assert(this->available[0]);
 
-    for (int y = 0; y < this->sps->MbHeightC; ++y) {
-        for (int x = 0; x < this->sps->MbWidthC; ++x)
+    for (int y = 0; y < this->sets.sps->MbHeightC; ++y) {
+        for (int x = 0; x < this->sets.sps->MbWidthC; ++x)
             predC(x, y, pred) = p(-1, y);
     }
 }
@@ -788,8 +862,8 @@ void IntraPrediction::Chroma::vertical(px_t* pred)
 {
     assert(this->available[1]);
 
-    for (int y = 0; y < this->sps->MbHeightC; ++y) {
-        for (int x = 0; x < this->sps->MbWidthC; ++x)
+    for (int y = 0; y < this->sets.sps->MbHeightC; ++y) {
+        for (int x = 0; x < this->sets.sps->MbWidthC; ++x)
             predC(x, y, pred) = p(x, -1);
     }
 }
@@ -798,8 +872,8 @@ void IntraPrediction::Chroma::plane(px_t* pred)
 {
     assert(this->available[3]);
 
-    int xCF = this->sps->ChromaArrayType == 3 ? 4 : 0;
-    int yCF = this->sps->ChromaArrayType != 1 ? 4 : 0;
+    int xCF = this->sets.sps->ChromaArrayType == 3 ? 4 : 0;
+    int yCF = this->sets.sps->ChromaArrayType != 1 ? 4 : 0;
 
     int H = 0;
     for (int x = 0; x < 4 + xCF; ++x)
@@ -808,13 +882,13 @@ void IntraPrediction::Chroma::plane(px_t* pred)
     for (int y = 0; y < 4 + yCF; ++y)
         V += (y + 1) * (p(-1, 4 + yCF + y) - p(-1, 2 + yCF - y));
 
-    int a = 16 * (p(-1, this->sps->MbHeightC - 1) + p(this->sps->MbWidthC - 1, -1));
-    int b = ((34 - 29 * (this->sps->ChromaArrayType == 3 ? 1 : 0)) * H + 32) >> 6;
-    int c = ((34 - 29 * (this->sps->ChromaArrayType != 1 ? 1 : 0)) * V + 32) >> 6;
+    int a = 16 * (p(-1, this->sets.sps->MbHeightC - 1) + p(this->sets.sps->MbWidthC - 1, -1));
+    int b = ((34 - 29 * (this->sets.sps->ChromaArrayType == 3 ? 1 : 0)) * H + 32) >> 6;
+    int c = ((34 - 29 * (this->sets.sps->ChromaArrayType != 1 ? 1 : 0)) * V + 32) >> 6;
 
-    for (int y = 0; y < this->sps->MbHeightC; ++y) {
-        for (int x = 0; x < this->sps->MbWidthC; ++x)
-            predC(x, y, pred) = clip3(0, (1 << this->sps->BitDepthC) - 1,
+    for (int y = 0; y < this->sets.sps->MbHeightC; ++y) {
+        for (int x = 0; x < this->sets.sps->MbWidthC; ++x)
+            predC(x, y, pred) = clip3(0, (1 << this->sets.sps->BitDepthC) - 1,
                 (a + b * (x - 3 - xCF) + c * (y - 3 - yCF) + 16) >> 5);
     }
 }
@@ -827,101 +901,6 @@ inline px_t& IntraPrediction::Chroma::predC(int x, int y, px_t* pred)
 inline px_t& IntraPrediction::Chroma::p(int x, int y)
 {
     return this->samples[(y + 1) * 17 + (x + 1)];
-}
-
-
-void IntraPrediction::intra_pred_4x4(mb_t& mb, ColorPlane pl, int xO, int yO)
-{
-    Intra4x4 samples {mb, pl, xO, yO};
-
-    px_t* pred = &mb.p_Slice->mb_pred[pl][yO][xO];
-
-    int i4x4 = ((yO / 4) / 2) * 8 + ((yO / 4) % 2) * 2 + ((xO / 4) / 2) * 4 + ((xO / 4) % 2);
-    switch (mb.Intra4x4PredMode[i4x4]) {
-    case Intra_4x4_Vertical:
-        return samples.vertical(pred);
-    case Intra_4x4_Horizontal:
-        return samples.horizontal(pred);
-    case Intra_4x4_DC:
-        return samples.dc(pred);
-    case Intra_4x4_Diagonal_Down_Left:
-        return samples.diagonal_down_left(pred);
-    case Intra_4x4_Diagonal_Down_Right:
-        return samples.diagonal_down_right(pred);
-    case Intra_4x4_Vertical_Right:
-        return samples.vertical_right(pred);
-    case Intra_4x4_Horizontal_Down:
-        return samples.horizontal_down(pred);
-    case Intra_4x4_Vertical_Left:
-        return samples.vertical_left(pred);
-    case Intra_4x4_Horizontal_Up:
-        return samples.horizontal_up(pred);
-    }
-}
-
-void IntraPrediction::intra_pred_8x8(mb_t& mb, ColorPlane pl, int xO, int yO)
-{
-    Intra8x8 samples {mb, pl, xO, yO};
-
-    px_t* pred = &mb.p_Slice->mb_pred[pl][yO][xO];
-
-    int i8x8 = (yO / 8) * 2 + (xO / 8);
-    switch (mb.Intra8x8PredMode[i8x8]) {
-    case Intra_8x8_Vertical:
-        return samples.vertical(pred);
-    case Intra_8x8_Horizontal:
-        return samples.horizontal(pred);
-    case Intra_8x8_DC:
-        return samples.dc(pred);
-    case Intra_8x8_Diagonal_Down_Left:
-        return samples.diagonal_down_left(pred);
-    case Intra_8x8_Diagonal_Down_Right:
-        return samples.diagonal_down_right(pred);
-    case Intra_8x8_Vertical_Right:
-        return samples.vertical_right(pred);
-    case Intra_8x8_Horizontal_Down:
-        return samples.horizontal_down(pred);
-    case Intra_8x8_Vertical_Left:
-        return samples.vertical_left(pred);
-    case Intra_8x8_Horizontal_Up:
-        return samples.horizontal_up(pred);
-    }
-}
-
-void IntraPrediction::intra_pred_16x16(mb_t& mb, ColorPlane pl)
-{
-    Intra16x16 samples {mb, pl, 0, 0};
-
-    px_t* pred = &mb.p_Slice->mb_pred[pl][0][0];
-
-    switch (mb.Intra16x16PredMode) {
-    case Intra_16x16_Vertical:
-        return samples.vertical(pred);
-    case Intra_16x16_Horizontal:
-        return samples.horizontal(pred);
-    case Intra_16x16_DC:
-        return samples.dc(pred);
-    case Intra_16x16_Plane:
-        return samples.plane(pred);
-    }
-}
-
-void IntraPrediction::intra_pred_chroma(mb_t& mb, ColorPlane pl)
-{
-    Chroma samples {mb, pl, 0, 0};
-
-    px_t* pred = &mb.p_Slice->mb_pred[pl][0][0];
-
-    switch (mb.intra_chroma_pred_mode) {
-    case Intra_Chroma_DC:
-        return samples.dc(pred);
-    case Intra_Chroma_Horizontal:
-        return samples.horizontal(pred);
-    case Intra_Chroma_Vertical:
-        return samples.vertical(pred);
-    case Intra_Chroma_Plane:
-        return samples.plane(pred);
-    }
 }
 
 
