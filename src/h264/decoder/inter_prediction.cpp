@@ -174,57 +174,55 @@ void InterPrediction::get_block_luma(
     px_t **cur_imgY = (this->sets.sps->separate_colour_plane_flag && shr.colour_plane_id > PLANE_Y) ?
                         curr_ref->imgUV[shr.colour_plane_id-1] : 
                         comp ? curr_ref->imgUV[comp - 1] : curr_ref->imgY;
-    int dx = (x_pos & 3);
-    int dy = (y_pos & 3);
-    x_pos >>= 2;
-    y_pos >>= 2;
-    x_pos = clip3(-18, maxold_x + 2, x_pos);
-    y_pos = clip3(-10, maxold_y + 2, y_pos);
+    int xFracL = (x_pos & 3);
+    int yFracL = (y_pos & 3);
+    int xIntL  = clip3(-18, maxold_x + 2, x_pos >> 2);
+    int yIntL  = clip3(-10, maxold_y + 2, y_pos >> 2);
 
     int tmp_res[16+5][16+5];
 
-    if (dx == 0 && dy == 0) {
-        for (int j = 0; j < block_size_y; ++j)
-            memcpy(&block[j][0], &cur_imgY[y_pos + j][x_pos], 16 * sizeof(px_t));
-    } else if (dx == 0 || dy == 0) {
-        if (dy == 0)
+    if (xFracL == 0 && yFracL == 0) {
+        for (int y = 0; y < block_size_y; y++)
+            memcpy(&block[y][0], &cur_imgY[yIntL + y][xIntL], 16 * sizeof(px_t));
+    } else if (xFracL == 0 || yFracL == 0) {
+        if (yFracL == 0)
             shift_x = 1;
 
-        int img_pos_x = x_pos - (dy == 0 ? 2 : 0);
-        int img_pos_y = y_pos - (dx == 0 ? 2 : 0);
-        int blk_pos_x = x_pos + (dx == 3 && dy == 0 ? 1 : 0);
-        int blk_pos_y = y_pos + (dx == 0 && dy == 3 ? 1 : 0);
+        int img_pos_x = xIntL - (yFracL == 0 ? 2 : 0);
+        int img_pos_y = yIntL - (xFracL == 0 ? 2 : 0);
+        int blk_pos_x = xIntL + (xFracL == 3 && yFracL == 0 ? 1 : 0);
+        int blk_pos_y = yIntL + (xFracL == 0 && yFracL == 3 ? 1 : 0);
 
-        for (int j = 0; j < block_size_y; ++j) {
-            for (int i = 0; i < block_size_x; ++i) {
-                px_t p0 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 0];
-                px_t p1 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 1];
-                px_t p2 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 2];
-                px_t p3 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 3];
-                px_t p4 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 4];
-                px_t p5 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 5];
+        for (int y = 0; y < block_size_y; y++) {
+            for (int x = 0; x < block_size_x; x++) {
+                px_t p0 = cur_imgY[img_pos_y + y][img_pos_x + x + shift_x * 0];
+                px_t p1 = cur_imgY[img_pos_y + y][img_pos_x + x + shift_x * 1];
+                px_t p2 = cur_imgY[img_pos_y + y][img_pos_x + x + shift_x * 2];
+                px_t p3 = cur_imgY[img_pos_y + y][img_pos_x + x + shift_x * 3];
+                px_t p4 = cur_imgY[img_pos_y + y][img_pos_x + x + shift_x * 4];
+                px_t p5 = cur_imgY[img_pos_y + y][img_pos_x + x + shift_x * 5];
                 int result = (p0 - 5 * p1 + 20 * p2 + 20 * p3 - 5 * p4 + p5);
-                block[j][i] = (px_t) clip1(max_imgpel_value, (result + 16) >> 5);
+                block[y][x] = (px_t) clip1(max_imgpel_value, (result + 16) >> 5);
 
-                if (dx == 1 || dx == 3 || dy == 1 || dy == 3) {
-                    px_t q0 = cur_imgY[blk_pos_y + j][blk_pos_x + i];
-                    block[j][i] = (px_t) ((block[j][i] + q0 + 1) >> 1);
+                if (xFracL == 1 || xFracL == 3 || yFracL == 1 || yFracL == 3) {
+                    px_t q0 = cur_imgY[blk_pos_y + y][blk_pos_x + x];
+                    block[y][x] = (px_t) ((block[y][x] + q0 + 1) >> 1);
                 }
             }
         }
-    } else if (dx == 2 || dy == 2) {
-        if (dx == 2)
+    } else if (xFracL == 2 || yFracL == 2) {
+        if (xFracL == 2)
             shift_x = 1;
-        int step_x = dx != 2 && dy == 2 ? 1 : 0;
-        int step_y = dx == 2 || dy != 2 ? 1 : 0;
+        int step_x = xFracL != 2 && yFracL == 2 ? 1 : 0;
+        int step_y = xFracL == 2 || yFracL != 2 ? 1 : 0;
 
-        int img_pos_x = x_pos - 2;
-        int img_pos_y = y_pos - 2;
-        int blk_pos_x = dy == 2 ? (dx == 3 ? 3 : 2) : 0;
-        int blk_pos_y = dx == 2 ? (dy == 3 ? 3 : 2) : 0;
+        int img_pos_x = xIntL - 2;
+        int img_pos_y = yIntL - 2;
+        int blk_pos_x = yFracL == 2 ? (xFracL == 3 ? 3 : 2) : 0;
+        int blk_pos_y = xFracL == 2 ? (yFracL == 3 ? 3 : 2) : 0;
 
-        for (int j = 0; j < block_size_y + (dx == 2 ? 5 : 0); ++j) {
-            for (int i = 0; i < block_size_x + (dy == 2 ? 5 : 0); ++i) {
+        for (int j = 0; j < block_size_y + (xFracL == 2 ? 5 : 0); ++j) {
+            for (int i = 0; i < block_size_x + (yFracL == 2 ? 5 : 0); ++i) {
                 px_t p0 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 0];
                 px_t p1 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 1];
                 px_t p2 = cur_imgY[img_pos_y + j][img_pos_x + i + shift_x * 2];
@@ -248,17 +246,17 @@ void InterPrediction::get_block_luma(
                 int result = (p0 - 5 * p1 + 20 * p2 + 20 * p3 - 5 * p4 + p5);
                 block[j][i] = (px_t) clip1(max_imgpel_value, (result + 512) >> 10);
 
-                if (dx == 1 || dx == 3 || dy == 1 || dy == 3) {
+                if (xFracL == 1 || xFracL == 3 || yFracL == 1 || yFracL == 3) {
                     px_t q0 = clip1(max_imgpel_value, (tmp_res[blk_pos_y + j][blk_pos_x + i] + 16) >> 5);
                     block[j][i] = (px_t) ((block[j][i] + q0 + 1) >> 1);
                 }
             }
         }
     } else {
-        int img_pos_x = x_pos - 2;
-        int img_pos_y = y_pos + (dy == 3 ? 1 : 0);
-        int blk_pos_x = x_pos + (dx == 3 ? 1 : 0);
-        int blk_pos_y = y_pos - 2;
+        int img_pos_x = xIntL - 2;
+        int img_pos_y = yIntL + (yFracL == 3 ? 1 : 0);
+        int blk_pos_x = xIntL + (xFracL == 3 ? 1 : 0);
+        int blk_pos_y = yIntL - 2;
 
         for (int j = 0; j < block_size_y; ++j) {
             for (int i = 0; i < block_size_x; ++i) {
@@ -292,79 +290,78 @@ void InterPrediction::get_block_luma(
 
 void InterPrediction::get_block_chroma(
     storable_picture* curr_ref, int x_pos, int y_pos,
-    int maxold_x, int maxold_y, int block_size_x, int block_size_y,
-    px_t block1[16][16], px_t block2[16][16], mb_t& mb)
+    int maxold_x, int maxold_y, int partWidthC, int partHeightC,
+    px_t block1[16][16], int comp, mb_t& mb)
 {
-    slice_t* slice = mb.p_Slice;
-    sps_t* sps = slice->active_sps;
-    px_t no_ref_value = (px_t)(1 << (sps->BitDepthC - 1));
+    px_t** imgUV = curr_ref->imgUV[comp - 1];
 
-    int shiftpel_x = sps->chroma_format_idc == CHROMA_FORMAT_400 ? 0 :
-                     sps->chroma_format_idc == CHROMA_FORMAT_444 ? 2 : 3;
-    int shiftpel_y = sps->chroma_format_idc == CHROMA_FORMAT_400 ? 0 :
-                     sps->chroma_format_idc == CHROMA_FORMAT_420 ? 3 : 2;
+    px_t no_ref_value = (px_t)(1 << (this->sets.sps->BitDepthC - 1));
+
+    if (this->sets.sps->chroma_format_idc == CHROMA_FORMAT_420) {
+        slice_t& slice = *this->sets.slice;
+        shr_t& shr = slice.header;
+
+        if (!shr.MbaffFrameFlag && shr.field_pic_flag) {
+            if (shr.structure != curr_ref->slice.structure)
+                y_pos += (!shr.bottom_field_flag ? -2 : 2);
+        }
+        if (shr.MbaffFrameFlag && mb.mb_field_decoding_flag) {
+            if (mb.mbAddrX % 2 == 0 && curr_ref->slice.structure == BOTTOM_FIELD)
+                y_pos -= 2;
+            if (mb.mbAddrX % 2 == 1 && curr_ref->slice.structure == TOP_FIELD)
+                y_pos += 2;
+        }
+    }
+
+    int mvCX[2] = {x_pos, y_pos};
+
+    int shiftpel_x = this->sets.sps->chroma_format_idc == CHROMA_FORMAT_444 ? 2 : 3;
+    int shiftpel_y = this->sets.sps->chroma_format_idc == CHROMA_FORMAT_420 ? 3 : 2;
     int total_scale = shiftpel_x + shiftpel_y;
 
-    int subpel_x = sps->chroma_format_idc == CHROMA_FORMAT_400 ? 0 :
-                   sps->chroma_format_idc == CHROMA_FORMAT_444 ? 3 : 7;
-    int subpel_y = sps->chroma_format_idc == CHROMA_FORMAT_400 ? 0 :
-                   sps->chroma_format_idc == CHROMA_FORMAT_420 ? 7 : 3;
+    int subpel_x = this->sets.sps->chroma_format_idc == CHROMA_FORMAT_444 ? 3 : 7;
+    int subpel_y = this->sets.sps->chroma_format_idc == CHROMA_FORMAT_420 ? 7 : 3;
 
     int iChromaPadX = MCBUF_CHROMA_PAD_X;
     int iChromaPadY = MCBUF_CHROMA_PAD_Y;
-    if (sps->chroma_format_idc == CHROMA_FORMAT_422)
+    if (this->sets.sps->chroma_format_idc == CHROMA_FORMAT_422)
         iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
-    else if (sps->chroma_format_idc == CHROMA_FORMAT_444) {
+    else if (this->sets.sps->chroma_format_idc == CHROMA_FORMAT_444) {
         iChromaPadX = MCBUF_LUMA_PAD_X;
         iChromaPadY = MCBUF_LUMA_PAD_Y;
     }
 
+    assert(partWidthC <= iChromaPadX && partHeightC <= iChromaPadY);
+
     if (curr_ref->no_ref) {
-        memset(block1, no_ref_value, block_size_y * block_size_x * sizeof(px_t));
-        memset(block2, no_ref_value, block_size_y * block_size_x * sizeof(px_t));
+        memset(block1, no_ref_value, partHeightC * partWidthC * sizeof(px_t));
         return;
     }
 
-    short dx = (short) (x_pos & subpel_x);
-    short dy = (short) (y_pos & subpel_y);
-    x_pos = x_pos >> shiftpel_x;
-    y_pos = y_pos >> shiftpel_y;
-    //clip MV;
-    assert(block_size_y <= iChromaPadY && block_size_x <= iChromaPadX);
-    x_pos = clip3(-iChromaPadX, maxold_x, x_pos); //16
-    y_pos = clip3(-iChromaPadY, maxold_y, y_pos); //8
+    int xIntC  = clip3(-iChromaPadX, maxold_x, mvCX[0] >> shiftpel_x); //16
+    int yIntC  = clip3(-iChromaPadY, maxold_y, mvCX[1] >> shiftpel_y); //8
+    int xFracC = (mvCX[0] & subpel_x);
+    int yFracC = (mvCX[1] & subpel_y);
 
-    if (dx == 0 && dy == 0) {
-        for (int j = 0; j < block_size_y; ++j) {
-            memcpy(&block1[j][0], &curr_ref->imgUV[0][y_pos + j][x_pos], 16 * sizeof(px_t));
-            memcpy(&block2[j][0], &curr_ref->imgUV[1][y_pos + j][x_pos], 16 * sizeof(px_t));
-        }
+    if (xFracC == 0 && yFracC == 0) {
+        for (int y = 0; y < partHeightC; y++)
+            memcpy(&block1[y][0], &imgUV[yIntC + y][xIntC], 16 * sizeof(px_t));
     } else {
-        short dxcur = (short) (subpel_x + 1 - dx);
-        short dycur = (short) (subpel_y + 1 - dy);
-        short w00 = dxcur * dycur;
-        short w01 = dxcur * dy;
-        short w10 = dx * dycur;
-        short w11 = dx * dy;
+        int dxcur = (subpel_x + 1 - xFracC);
+        int dycur = (subpel_y + 1 - yFracC);
+        int w00 = dxcur * dycur;
+        int w01 = dxcur * yFracC;
+        int w10 = xFracC * dycur;
+        int w11 = xFracC * yFracC;
 
-        for (int j = 0; j < block_size_y; ++j) {
-            for (int i = 0; i < block_size_x; ++i) {
-                px_t p0 = curr_ref->imgUV[0][y_pos + j + 0][x_pos + i + 0];
-                px_t p1 = curr_ref->imgUV[0][y_pos + j + 1][x_pos + i + 0];
-                px_t p2 = curr_ref->imgUV[0][y_pos + j + 0][x_pos + i + 1];
-                px_t p3 = curr_ref->imgUV[0][y_pos + j + 1][x_pos + i + 1];
+        for (int y = 0; y < partHeightC; y++) {
+            for (int x = 0; x < partWidthC; x++) {
+                px_t p0 = imgUV[yIntC + y + 0][xIntC + x + 0];
+                px_t p1 = imgUV[yIntC + y + 1][xIntC + x + 0];
+                px_t p2 = imgUV[yIntC + y + 0][xIntC + x + 1];
+                px_t p3 = imgUV[yIntC + y + 1][xIntC + x + 1];
                 int result = (w00 * p0 + w01 * p1 + w10 * p2 + w11 * p3);
-                block1[j][i] = (px_t) RSHIFT_RND_SF(result, total_scale);
-            }
-        }
-        for (int j = 0; j < block_size_y; ++j) {
-            for (int i = 0; i < block_size_x; ++i) {
-                px_t p0 = curr_ref->imgUV[1][y_pos + j + 0][x_pos + i + 0];
-                px_t p1 = curr_ref->imgUV[1][y_pos + j + 1][x_pos + i + 0];
-                px_t p2 = curr_ref->imgUV[1][y_pos + j + 0][x_pos + i + 1];
-                px_t p3 = curr_ref->imgUV[1][y_pos + j + 1][x_pos + i + 1];
-                int result = (w00 * p0 + w01 * p1 + w10 * p2 + w11 * p3);
-                block2[j][i] = (px_t) RSHIFT_RND_SF(result, total_scale);
+                block1[y][x] = (px_t) RSHIFT_RND_SF(result, total_scale);
             }
         }
     }
@@ -408,25 +405,6 @@ int InterPrediction::CheckVertMV(mb_t *currMB, int vec_y, int block_size_y)
         return 1;
     else
         return 0;
-}
-
-static int chroma_vector_adjustment(mb_t& mb, storable_picture* RefPic)
-{
-    slice_t& slice = *mb.p_Slice;
-    shr_t& shr = slice.header;
-
-    if (!shr.MbaffFrameFlag && shr.field_pic_flag) {
-        if (shr.structure != RefPic->slice.structure)
-            return !shr.bottom_field_flag ? -2 : 2;
-    }
-    if (shr.MbaffFrameFlag && mb.mb_field_decoding_flag) {
-        if (mb.mbAddrX % 2 == 0 && RefPic->slice.structure == BOTTOM_FIELD)
-            return -2;
-        if (mb.mbAddrX % 2 == 1 && RefPic->slice.structure == TOP_FIELD)
-            return 2;
-    }
-
-    return 0;
 }
 
 void InterPrediction::inter_pred(mb_t& mb, int comp, int pred_dir, int i, int j, int block_size_x, int block_size_y)
@@ -487,13 +465,9 @@ void InterPrediction::inter_pred(mb_t& mb, int comp, int pred_dir, int i, int j,
     }
 
     if (pred_dir != 2)
-        mc_prediction(&this->sets.slice->mb_pred[comp][j * 4][i * 4],
-                      tmp_block_l0, block_size_y, block_size_x,
-                      mb, comp, ref_idx_l0, pred_dir); 
+        mc_prediction(&this->sets.slice->mb_pred[comp][j * 4][i * 4], tmp_block_l0, block_size_y, block_size_x, mb, comp, ref_idx_l0, pred_dir);
     else
-        bi_prediction(&this->sets.slice->mb_pred[comp][j * 4][i * 4],
-                      tmp_block_l0, tmp_block_l1, block_size_y, block_size_x,
-                      mb, comp, ref_idx_l0, ref_idx_l1);
+        bi_prediction(&this->sets.slice->mb_pred[comp][j * 4][i * 4], tmp_block_l0, tmp_block_l1, block_size_y, block_size_x, mb, comp, ref_idx_l0, ref_idx_l1);
 
     if (this->sets.sps->chroma_format_idc != CHROMA_FORMAT_400 && this->sets.sps->chroma_format_idc != CHROMA_FORMAT_444) {
         int maxold_x = this->sets.pic->size_x_cr - 1;
@@ -501,47 +475,22 @@ void InterPrediction::inter_pred(mb_t& mb, int comp, int pred_dir, int i, int j,
 
         int ioff_cr = this->sets.sps->MbWidthC  == 16 ? i * 4 : i * 2;
         int joff_cr = this->sets.sps->MbHeightC == 16 ? j * 4 : j * 2;
-        int block_size_x_cr = this->sets.sps->MbWidthC  == 16 ? block_size_x : block_size_x >> 1;
-        int block_size_y_cr = this->sets.sps->MbHeightC == 16 ? block_size_y : block_size_y >> 1;
+        int partWidthC  = this->sets.sps->MbWidthC  == 16 ? block_size_x : block_size_x >> 1;
+        int partHeightC = this->sets.sps->MbHeightC == 16 ? block_size_y : block_size_y >> 1;
 
-        int vec2_y_cr, vec1_y_cr;
-        if (pred_dir != 2) {
-            if (this->sets.sps->chroma_format_idc == 1)
-                vec1_y_cr = vec1_y + vio::h264::chroma_vector_adjustment(mb, RefPicList0);
-            else
-                vec1_y_cr = vec1_y;
-        } else {
-            if (this->sets.sps->chroma_format_idc == 1) {
-                vec1_y_cr = vec1_y + vio::h264::chroma_vector_adjustment(mb, RefPicList0);
-                vec2_y_cr = vec2_y + vio::h264::chroma_vector_adjustment(mb, RefPicList1);
-            } else {
-                vec1_y_cr = vec1_y;
-                vec2_y_cr = vec2_y;
-            }
+        get_block_chroma(RefPicList0, vec1_x, vec1_y, maxold_x, maxold_y, partWidthC, partHeightC, tmp_block_l0, PLANE_U, mb);
+        get_block_chroma(RefPicList0, vec1_x, vec1_y, maxold_x, maxold_y, partWidthC, partHeightC, tmp_block_l2, PLANE_V, mb);
+        if (pred_dir == 2) {
+            get_block_chroma(RefPicList1, vec2_x, vec2_y, maxold_x, maxold_y, partWidthC, partHeightC, tmp_block_l1, PLANE_U, mb);
+            get_block_chroma(RefPicList1, vec2_x, vec2_y, maxold_x, maxold_y, partWidthC, partHeightC, tmp_block_l3, PLANE_V, mb);
         }
 
-        get_block_chroma(RefPicList0, vec1_x, vec1_y_cr,
-                         maxold_x, maxold_y, block_size_x_cr, block_size_y_cr,
-                         tmp_block_l0, tmp_block_l2, mb);
-        if (pred_dir == 2)
-            get_block_chroma(RefPicList1, vec2_x, vec2_y_cr,
-                             maxold_x, maxold_y, block_size_x_cr, block_size_y_cr,
-                             tmp_block_l1, tmp_block_l3, mb);
-
         if (pred_dir != 2) {
-            mc_prediction(&this->sets.slice->mb_pred[1][joff_cr][ioff_cr],
-                          tmp_block_l0, block_size_y_cr, block_size_x_cr,
-                          mb, PLANE_U, ref_idx_l0, pred_dir);
-            mc_prediction(&this->sets.slice->mb_pred[2][joff_cr][ioff_cr],
-                          tmp_block_l2, block_size_y_cr, block_size_x_cr,
-                          mb, PLANE_V, ref_idx_l0, pred_dir);
+            mc_prediction(&this->sets.slice->mb_pred[1][joff_cr][ioff_cr], tmp_block_l0, partHeightC, partWidthC, mb, PLANE_U, ref_idx_l0, pred_dir);
+            mc_prediction(&this->sets.slice->mb_pred[2][joff_cr][ioff_cr], tmp_block_l2, partHeightC, partWidthC, mb, PLANE_V, ref_idx_l0, pred_dir);
         } else {
-            bi_prediction(&this->sets.slice->mb_pred[1][joff_cr][ioff_cr],
-                          tmp_block_l0, tmp_block_l1, block_size_y_cr, block_size_x_cr,
-                          mb, PLANE_U, ref_idx_l0, ref_idx_l1);
-            bi_prediction(&this->sets.slice->mb_pred[2][joff_cr][ioff_cr],
-                          tmp_block_l2, tmp_block_l3, block_size_y_cr, block_size_x_cr,
-                          mb, PLANE_V, ref_idx_l0, ref_idx_l1);
+            bi_prediction(&this->sets.slice->mb_pred[1][joff_cr][ioff_cr], tmp_block_l0, tmp_block_l1, partHeightC, partWidthC, mb, PLANE_U, ref_idx_l0, ref_idx_l1);
+            bi_prediction(&this->sets.slice->mb_pred[2][joff_cr][ioff_cr], tmp_block_l2, tmp_block_l3, partHeightC, partWidthC, mb, PLANE_V, ref_idx_l0, ref_idx_l1);
         }
     }
 }

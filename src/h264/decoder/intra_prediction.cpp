@@ -140,7 +140,7 @@ IntraPrediction::Intra4x4::Intra4x4(const sets_t& _sets, mb_t& mb, int comp, int
     px_t** img = comp ? this->sets.pic->imgUV[comp - 1] : this->sets.pic->imgY;
 
     nb_t nbA[4];
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 4; i++) {
         nbA[i] = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO - 1, yO + i});
         nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb.slice_nr ? nbA[i].mb : nullptr;
     }
@@ -172,12 +172,12 @@ IntraPrediction::Intra4x4::Intra4x4(const sets_t& _sets, mb_t& mb, int comp, int
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
-        for (int y = 0; y < 4; ++y)
+        for (int y = 0; y < 4; y++)
             p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
         px_t *pix = &img[nbB.y][nbB.x];
-        for (int x = 0; x < 4; ++x)
+        for (int x = 0; x < 4; x++)
             p(x, -1) = pix[x];
         pix = &img[nbC.y][nbC.x - 4];
         for (int x = 4; x < 8; x++)
@@ -190,8 +190,8 @@ void IntraPrediction::Intra4x4::vertical(px_t* pred)
 {
     assert(this->available[1]);
 
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x)
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++)
             pred4x4L(x, y, pred) = p(x, -1);
     }
 }
@@ -200,8 +200,8 @@ void IntraPrediction::Intra4x4::horizontal(px_t* pred)
 {
     assert(this->available[0]);
 
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x)
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++)
             pred4x4L(x, y, pred) = p(-1, y);
     }
 }
@@ -216,19 +216,19 @@ void IntraPrediction::Intra4x4::dc(px_t* pred)
         int round = 0 + (availA ? 2 : 0) + (availB ? 2 : 0);
         int shift = 1 + (availA ? 1 : 0) + (availB ? 1 : 0);
         if (availA) {
-            for (int y = 0; y < 4; ++y)
+            for (int y = 0; y < 4; y++)
                 sum += p(-1, y);
         }
         if (availB) {
-            for (int x = 0; x < 4; ++x)
+            for (int x = 0; x < 4; x++)
                 sum += p(x, -1);
         }
         sum = (sum + round) >> shift;
     } else
         sum = 1 << (this->sets.sps->BitDepthY - 1);
 
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x)
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++)
             pred4x4L(x, y, pred) = sum;
     }
 }
@@ -237,8 +237,8 @@ void IntraPrediction::Intra4x4::diagonal_down_left(px_t* pred)
 {
     assert(this->available[1]);
 
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x) {
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++) {
             if (x == 3 && y == 3)
                 pred4x4L(x, y, pred) = (p(x + y, -1) + 3 * p(x + y + 1, -1) + 2) >> 2;
             else
@@ -252,8 +252,8 @@ void IntraPrediction::Intra4x4::diagonal_down_right(px_t* pred)
 {
     assert(this->available[3]);
 
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x) {
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++) {
             if (x > y)
                 pred4x4L(x, y, pred) =
                     (p(x - y - 2, -1) + 2 * p(x - y - 1, -1) + p(x - y, -1) + 2) >> 2;
@@ -270,8 +270,8 @@ void IntraPrediction::Intra4x4::vertical_right(px_t* pred)
 {
     assert(this->available[3]);
 
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x) {
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++) {
             int zVR = 2 * x - y;
             if (zVR >= 0 && (zVR % 2) == 0)
                 pred4x4L(x, y, pred) = (p(x - (y >> 1) - 1, -1) + p(x - (y >> 1), -1) + 1) >> 1;
@@ -291,8 +291,8 @@ void IntraPrediction::Intra4x4::horizontal_down(px_t* pred)
 {
     assert(this->available[3]);
 
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x) {
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++) {
             int zHD = 2 * y - x;
             if (zHD >= 0 && (zHD % 2) == 0)
                 pred4x4L(x, y, pred) = (p(-1, y - (x >> 1) - 1) + p(-1, y - (x >> 1)) + 1) >> 1;
@@ -312,8 +312,8 @@ void IntraPrediction::Intra4x4::vertical_left(px_t* pred)
 {
     assert(this->available[1]);
 
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x) {
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++) {
             if ((y % 2) == 0)
                 pred4x4L(x, y, pred) = (p(x + (y >> 1), -1) + p(x + (y >> 1) + 1, -1) + 1) >> 1;
             else // (y % 2) == 1
@@ -329,8 +329,8 @@ void IntraPrediction::Intra4x4::horizontal_up(px_t* pred)
 
     int max = 4;
     int mHU = (max - 1) * 2 - 1;
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x) {
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++) {
             int zHU = x + 2 * y;
             if (zHU < mHU && (zHU % 2) == 0)
                 pred4x4L(x, y, pred) = (p(-1, y + (x >> 1)) + p(-1, y + (x >> 1) + 1) + 1) >> 1;
@@ -362,7 +362,7 @@ IntraPrediction::Intra8x8::Intra8x8(const sets_t& _sets, mb_t& mb, int comp, int
     px_t** img = comp ? this->sets.pic->imgUV[comp - 1] : this->sets.pic->imgY;
 
     nb_t nbA[8];
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 8; i++) {
         nbA[i] = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO - 1, yO + i});
         nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb.slice_nr ? nbA[i].mb : nullptr;
     }
@@ -377,7 +377,7 @@ IntraPrediction::Intra8x8::Intra8x8(const sets_t& _sets, mb_t& mb, int comp, int
 
     if (this->sets.pps->constrained_intra_pred_flag) {
         available[0] = 1;
-        for (int i = 0; i < 8; ++i)
+        for (int i = 0; i < 8; i++)
             available[0] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
         available[1] = nbB.mb && nbB.mb->is_intra_block ? 1 : 0;
         available[2] = nbC.mb && nbC.mb->is_intra_block ? 1 : 0;
@@ -394,15 +394,15 @@ IntraPrediction::Intra8x8::Intra8x8(const sets_t& _sets, mb_t& mb, int comp, int
         po(-1, -1) = pix[0];
     }
     if (available[0]) {
-        for (int y = 0; y < 8; ++y)
+        for (int y = 0; y < 8; y++)
             po(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
         px_t *pix = &img[nbB.y][nbB.x];
-        for (int x = 0; x < 8; ++x)
+        for (int x = 0; x < 8; x++)
             po(x, -1) = pix[x];
         pix = &img[nbC.y][nbC.x - 8];
-        for (int x = 8; x < 16; ++x)
+        for (int x = 8; x < 16; x++)
             po(x, -1) = available[2] ? pix[x] : po(7, -1);
         available[2] = available[1];
     }
@@ -421,7 +421,7 @@ void IntraPrediction::Intra8x8::filtering()
             p(0, -1) = (po(-1, -1) + 2 * po(0, -1) + po(1, -1) + 2) >> 2;
         else
             p(0, -1) = (3 * po(0, -1) + po(1, -1) + 2) >> 2;
-        for (int x = 1; x < 15; ++x)
+        for (int x = 1; x < 15; x++)
             p(x, -1) = (po(x - 1, -1) + 2 * po(x, -1) + po(x + 1, -1) + 2) >> 2;
         p(15, -1) = (po(14, -1) + 3 * po(15, -1) + 2) >> 2;
     }
@@ -440,7 +440,7 @@ void IntraPrediction::Intra8x8::filtering()
             p(-1, 0) = (po(-1, -1) + 2 * po(-1, 0) + po(-1, 1) + 2) >> 2;
         else
             p(-1, 0) = (3 * po(-1, 0) + po(-1, 1) + 2) >> 2;
-        for (int y = 1; y < 7; ++y)
+        for (int y = 1; y < 7; y++)
             p(-1, y) = (po(-1, y - 1) + 2 * po(-1, y) + po(-1, y + 1) + 2) >> 2;
         p(-1, 7) = (po(-1, 6) + 3 * po(-1, 7) + 2) >> 2;
     }
@@ -450,8 +450,8 @@ void IntraPrediction::Intra8x8::vertical(px_t* pred)
 {
     assert(this->available[1]);
 
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x)
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++)
             pred8x8L(x, y, pred) = p(x, -1);
     }
 }
@@ -460,8 +460,8 @@ void IntraPrediction::Intra8x8::horizontal(px_t* pred)
 {
     assert(this->available[0]);
 
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x)
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++)
             pred8x8L(x, y, pred) = p(-1, y);
     }
 }
@@ -476,19 +476,19 @@ void IntraPrediction::Intra8x8::dc(px_t* pred)
         int round = 0 + (availA ? 4 : 0) + (availB ? 4 : 0);
         int shift = 2 + (availA ? 1 : 0) + (availB ? 1 : 0);
         if (availA) {
-            for (int y = 0; y < 8; ++y)
+            for (int y = 0; y < 8; y++)
                 sum += p(-1, y);
         }
         if (availB) {
-            for (int x = 0; x < 8; ++x)
+            for (int x = 0; x < 8; x++)
                 sum += p(x, -1);
         }
         sum = (sum + round) >> shift;
     } else
         sum = 1 << (this->sets.sps->BitDepthY - 1);
 
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x)
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++)
             pred8x8L(x, y, pred) = sum;
     }
 }
@@ -497,8 +497,8 @@ void IntraPrediction::Intra8x8::diagonal_down_left(px_t* pred)
 {
     assert(this->available[1]);
 
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x) {
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
             if (x == 7 && y == 7)
                 pred8x8L(x, y, pred) = (p(x + y, -1) + 3 * p(x + y + 1, -1) + 2) >> 2;
             else
@@ -512,8 +512,8 @@ void IntraPrediction::Intra8x8::diagonal_down_right(px_t* pred)
 {
     assert(this->available[3]);
 
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x) {
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
             if (x > y)
                 pred8x8L(x, y, pred) =
                     (p(x - y - 2, -1) + 2 * p(x - y - 1, -1) + p(x - y, -1) + 2) >> 2;
@@ -530,8 +530,8 @@ void IntraPrediction::Intra8x8::vertical_right(px_t* pred)
 {
     assert(this->available[3]);
 
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x) {
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
             int zVR = 2 * x - y;
             if (zVR >= 0 && (zVR % 2) == 0)
                 pred8x8L(x, y, pred) = (p(x - (y >> 1) - 1, -1) + p(x - (y >> 1), -1) + 1) >> 1;
@@ -551,8 +551,8 @@ void IntraPrediction::Intra8x8::horizontal_down(px_t* pred)
 {
     assert(this->available[3]);
 
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x) {
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
             int zHD = 2 * y - x;
             if (zHD >= 0 && (zHD % 2) == 0)
                 pred8x8L(x, y, pred) = (p(-1, y - (x >> 1) - 1) + p(-1, y - (x >> 1)) + 1) >> 1;
@@ -572,8 +572,8 @@ void IntraPrediction::Intra8x8::vertical_left(px_t* pred)
 {
     assert(this->available[1]);
 
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x) {
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
             if ((y % 2) == 0)
                 pred8x8L(x, y, pred) = (p(x + (y >> 1), -1) + p(x + (y >> 1) + 1, -1) + 1) >> 1;
             else // (y % 2) == 1
@@ -589,8 +589,8 @@ void IntraPrediction::Intra8x8::horizontal_up(px_t* pred)
 
     int max = 8;
     int mHU = (max - 1) * 2 - 1;
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x) {
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
             int zHU = x + 2 * y;
             if (zHU < mHU && (zHU % 2) == 0)
                 pred8x8L(x, y, pred) = (p(-1, y + (x >> 1)) + p(-1, y + (x >> 1) + 1) + 1) >> 1;
@@ -627,7 +627,7 @@ IntraPrediction::Intra16x16::Intra16x16(const sets_t& _sets, mb_t& mb, int comp,
     px_t** img = comp ? this->sets.pic->imgUV[comp - 1] : this->sets.pic->imgY;
 
     nb_t nbA[16];
-    for (int i = 0; i < 16; ++i) {
+    for (int i = 0; i < 16; i++) {
         nbA[i] = this->sets.slice->neighbour.get_neighbour(this->sets.slice, false, mb.mbAddrX, {xO - 1, yO + i});
         nbA[i].mb = nbA[i].mb && nbA[i].mb->slice_nr == mb.slice_nr ? nbA[i].mb : nullptr;
     }
@@ -638,7 +638,7 @@ IntraPrediction::Intra16x16::Intra16x16(const sets_t& _sets, mb_t& mb, int comp,
 
     if (this->sets.pps->constrained_intra_pred_flag) {
         available[0] = 1;
-        for (int i = 0; i < 16; ++i)
+        for (int i = 0; i < 16; i++)
             available[0] &= nbA[i].mb && nbA[i].mb->is_intra_block ? 1 : 0;
         available[1] = nbB.mb && nbB.mb->is_intra_block ? 1 : 0;
         available[2] = 0;
@@ -655,12 +655,12 @@ IntraPrediction::Intra16x16::Intra16x16(const sets_t& _sets, mb_t& mb, int comp,
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
-        for (int y = 0; y < 16; ++y)
+        for (int y = 0; y < 16; y++)
             p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
         px_t *pix = &img[nbB.y][nbB.x];
-        for (int x = 0; x < 16; ++x)
+        for (int x = 0; x < 16; x++)
             p(x, -1) = pix[x];
     }
 }
@@ -669,8 +669,8 @@ void IntraPrediction::Intra16x16::vertical(px_t* pred)
 {
     assert(this->available[1]);
 
-    for (int y = 0; y < 16; ++y) {
-        for (int x = 0; x < 16; ++x)
+    for (int y = 0; y < 16; y++) {
+        for (int x = 0; x < 16; x++)
             predL(x, y, pred) = p(x, -1);
     }
 }
@@ -679,8 +679,8 @@ void IntraPrediction::Intra16x16::horizontal(px_t* pred)
 {
     assert(this->available[0]);
 
-    for (int y = 0; y < 16; ++y) {
-        for (int x = 0; x < 16; ++x)
+    for (int y = 0; y < 16; y++) {
+        for (int x = 0; x < 16; x++)
             predL(x, y, pred) = p(-1, y);
     }
 }
@@ -695,19 +695,19 @@ void IntraPrediction::Intra16x16::dc(px_t* pred)
         int round = 0 + (availA ? 8 : 0) + (availB ? 8 : 0);
         int shift = 3 + (availA ? 1 : 0) + (availB ? 1 : 0);
         if (availA) {
-            for (int y = 0; y < 16; ++y)
+            for (int y = 0; y < 16; y++)
                 sum += p(-1, y);
         }
         if (availB) {
-            for (int x = 0; x < 16; ++x)
+            for (int x = 0; x < 16; x++)
                 sum += p(x, -1);
         }
         sum = (sum + round) >> shift;
     } else
         sum = 1 << (this->sets.sps->BitDepthY - 1);
 
-    for (int y = 0; y < 16; ++y) {
-        for (int x = 0; x < 16; ++x)
+    for (int y = 0; y < 16; y++) {
+        for (int x = 0; x < 16; x++)
             predL(x, y, pred) = sum;
     }
 }
@@ -717,18 +717,18 @@ void IntraPrediction::Intra16x16::plane(px_t* pred)
     assert(this->available[3]);
 
     int H = 0;
-    for (int x = 0; x < 8; ++x)
+    for (int x = 0; x < 8; x++)
         H += (x + 1) * (p(8 + x, -1) - p(6 - x, -1));
     int V = 0;
-    for (int y = 0; y < 8; ++y)
+    for (int y = 0; y < 8; y++)
         V += (y + 1) * (p(-1, 8 + y) - p(-1, 6 - y));
 
     int a = 16 * (p(-1, 15) + p(15, -1));
     int b = (5 * H + 32) >> 6;
     int c = (5 * V + 32) >> 6;
 
-    for (int y = 0; y < 16; ++y) {
-        for (int x = 0; x < 16; ++x)
+    for (int y = 0; y < 16; y++) {
+        for (int x = 0; x < 16; x++)
             predL(x, y, pred) = clip3(0, (1 << this->sets.sps->BitDepthY) - 1,
                 (a + b * (x - 7) + c * (y - 7) + 16) >> 5);
     }
@@ -781,16 +781,16 @@ IntraPrediction::Chroma::Chroma(const sets_t& _sets, mb_t& mb, int comp, int xO,
         p(-1, -1) = pix[0];
     }
     if (available[0]) {
-        for (int y = 0; y < this->sets.sps->MbHeightC / 2; ++y)
+        for (int y = 0; y < this->sets.sps->MbHeightC / 2; y++)
             p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[2]) {
-        for (int y = this->sets.sps->MbHeightC / 2; y < this->sets.sps->MbHeightC; ++y)
+        for (int y = this->sets.sps->MbHeightC / 2; y < this->sets.sps->MbHeightC; y++)
             p(-1, y) = img[nbA[y].y][nbA[y].x];
     }
     if (available[1]) {
         px_t *pix = &img[nbB.y][nbB.x];
-        for (int x = 0; x < this->sets.sps->MbWidthC; ++x)
+        for (int x = 0; x < this->sets.sps->MbWidthC; x++)
             p(x, -1) = pix[x];
     }
 }
@@ -805,19 +805,19 @@ void IntraPrediction::Chroma::dc4x4(px_t* pred, bool* available, int xO, int yO)
         int round = 0 + (availA ? 2 : 0) + (availB ? 2 : 0);
         int shift = 1 + (availA ? 1 : 0) + (availB ? 1 : 0);
         if (availA) {
-            for (int y = 0; y < 4; ++y)
+            for (int y = 0; y < 4; y++)
                 sum += p(-1, y + yO);
         }
         if (availB) {
-            for (int x = 0; x < 4; ++x)
+            for (int x = 0; x < 4; x++)
                 sum += p(x + xO, -1);
         }
         sum = (sum + round) >> shift;
     } else
         sum = 1 << (this->sets.sps->BitDepthC - 1);
 
-    for (int y = 0; y < 4; ++y) {
-        for (int x = 0; x < 4; ++x)
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++)
             predC(x + xO, y + yO, pred) = sum;
     }
 }
@@ -852,8 +852,8 @@ void IntraPrediction::Chroma::horizontal(px_t* pred)
 {
     assert(this->available[0]);
 
-    for (int y = 0; y < this->sets.sps->MbHeightC; ++y) {
-        for (int x = 0; x < this->sets.sps->MbWidthC; ++x)
+    for (int y = 0; y < this->sets.sps->MbHeightC; y++) {
+        for (int x = 0; x < this->sets.sps->MbWidthC; x++)
             predC(x, y, pred) = p(-1, y);
     }
 }
@@ -862,8 +862,8 @@ void IntraPrediction::Chroma::vertical(px_t* pred)
 {
     assert(this->available[1]);
 
-    for (int y = 0; y < this->sets.sps->MbHeightC; ++y) {
-        for (int x = 0; x < this->sets.sps->MbWidthC; ++x)
+    for (int y = 0; y < this->sets.sps->MbHeightC; y++) {
+        for (int x = 0; x < this->sets.sps->MbWidthC; x++)
             predC(x, y, pred) = p(x, -1);
     }
 }
@@ -876,18 +876,18 @@ void IntraPrediction::Chroma::plane(px_t* pred)
     int yCF = this->sets.sps->ChromaArrayType != 1 ? 4 : 0;
 
     int H = 0;
-    for (int x = 0; x < 4 + xCF; ++x)
+    for (int x = 0; x < 4 + xCF; x++)
         H += (x + 1) * (p(4 + xCF + x, -1) - p(2 + xCF - x, -1));
     int V = 0;
-    for (int y = 0; y < 4 + yCF; ++y)
+    for (int y = 0; y < 4 + yCF; y++)
         V += (y + 1) * (p(-1, 4 + yCF + y) - p(-1, 2 + yCF - y));
 
     int a = 16 * (p(-1, this->sets.sps->MbHeightC - 1) + p(this->sets.sps->MbWidthC - 1, -1));
     int b = ((34 - 29 * (this->sets.sps->ChromaArrayType == 3 ? 1 : 0)) * H + 32) >> 6;
     int c = ((34 - 29 * (this->sets.sps->ChromaArrayType != 1 ? 1 : 0)) * V + 32) >> 6;
 
-    for (int y = 0; y < this->sets.sps->MbHeightC; ++y) {
-        for (int x = 0; x < this->sets.sps->MbWidthC; ++x)
+    for (int y = 0; y < this->sets.sps->MbHeightC; y++) {
+        for (int x = 0; x < this->sets.sps->MbWidthC; x++)
             predC(x, y, pred) = clip3(0, (1 << this->sets.sps->BitDepthC) - 1,
                 (a + b * (x - 3 - xCF) + c * (y - 3 - yCF) + 16) >> 5);
     }
