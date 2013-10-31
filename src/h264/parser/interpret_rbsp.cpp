@@ -653,13 +653,13 @@ void InterpreterRbsp::slice_header(slice_t& slice)
             shr.bottom_field_flag = this->u(1, "SH: bottom_field_flag");
     }
 
-    shr.MbaffFrameFlag     = sps.mb_adaptive_frame_field_flag && !shr.field_pic_flag;
-    shr.PicHeightInMbs     = sps.FrameHeightInMbs / (1 + shr.field_pic_flag);
-    shr.PicHeightInSampleL = shr.PicHeightInMbs * 16;
-    shr.PicHeightInSampleC = shr.PicHeightInMbs * sps.MbHeightC;
-    shr.PicSizeInMbs       = sps.PicWidthInMbs * shr.PicHeightInMbs;
-    shr.MaxPicNum          = sps.MaxFrameNum * (1 + shr.field_pic_flag);
-    shr.CurrPicNum         = shr.frame_num * (1 + shr.field_pic_flag) + shr.field_pic_flag;
+    shr.MbaffFrameFlag      = sps.mb_adaptive_frame_field_flag && !shr.field_pic_flag;
+    shr.PicHeightInMbs      = sps.FrameHeightInMbs / (1 + shr.field_pic_flag);
+    shr.PicHeightInSamplesL = shr.PicHeightInMbs * 16;
+    shr.PicHeightInSamplesC = shr.PicHeightInMbs * sps.MbHeightC;
+    shr.PicSizeInMbs        = sps.PicWidthInMbs * shr.PicHeightInMbs;
+    shr.MaxPicNum           = sps.MaxFrameNum * (1 + shr.field_pic_flag);
+    shr.CurrPicNum          = shr.frame_num * (1 + shr.field_pic_flag) + shr.field_pic_flag;
 
     if (slice.IdrPicFlag || (slice.mvc_extension_flag && !slice.non_idr_flag))
         shr.idr_pic_id = this->ue("SH: idr_pic_id");

@@ -291,78 +291,82 @@ void InterPrediction::get_block_luma(
 void InterPrediction::get_block_chroma(
     storable_picture* curr_ref, int x_pos, int y_pos,
     int maxold_x, int maxold_y, int partWidthC, int partHeightC,
-    px_t block1[16][16], int comp, mb_t& mb)
+    px_t predPartLXC[16][16], int comp, mb_t& mb)
 {
     px_t** imgUV = curr_ref->imgUV[comp - 1];
 
     px_t no_ref_value = (px_t)(1 << (this->sets.sps->BitDepthC - 1));
 
-    if (this->sets.sps->chroma_format_idc == CHROMA_FORMAT_420) {
+    int mvLX[2] = {x_pos, y_pos};
+
+    if (this->sets.sps->ChromaArrayType == 1) {
         slice_t& slice = *this->sets.slice;
         shr_t& shr = slice.header;
 
         if (!shr.MbaffFrameFlag && shr.field_pic_flag) {
             if (shr.structure != curr_ref->slice.structure)
-                y_pos += (!shr.bottom_field_flag ? -2 : 2);
+                mvLX[1] += (!shr.bottom_field_flag ? -2 : 2);
         }
         if (shr.MbaffFrameFlag && mb.mb_field_decoding_flag) {
             if (mb.mbAddrX % 2 == 0 && curr_ref->slice.structure == BOTTOM_FIELD)
-                y_pos -= 2;
+                mvLX[1] -= 2;
             if (mb.mbAddrX % 2 == 1 && curr_ref->slice.structure == TOP_FIELD)
-                y_pos += 2;
+                mvLX[1] += 2;
         }
     }
 
-    int mvCX[2] = {x_pos, y_pos};
-
-    int shiftpel_x = this->sets.sps->chroma_format_idc == CHROMA_FORMAT_444 ? 2 : 3;
-    int shiftpel_y = this->sets.sps->chroma_format_idc == CHROMA_FORMAT_420 ? 3 : 2;
-    int total_scale = shiftpel_x + shiftpel_y;
-
-    int subpel_x = this->sets.sps->chroma_format_idc == CHROMA_FORMAT_444 ? 3 : 7;
-    int subpel_y = this->sets.sps->chroma_format_idc == CHROMA_FORMAT_420 ? 7 : 3;
+    int mvCX[2] = {mvLX[0], mvLX[1]};
 
     int iChromaPadX = MCBUF_CHROMA_PAD_X;
-    int iChromaPadY = MCBUF_CHROMA_PAD_Y;
-    if (this->sets.sps->chroma_format_idc == CHROMA_FORMAT_422)
-        iChromaPadY = MCBUF_CHROMA_PAD_Y * 2;
-    else if (this->sets.sps->chroma_format_idc == CHROMA_FORMAT_444) {
-        iChromaPadX = MCBUF_LUMA_PAD_X;
-        iChromaPadY = MCBUF_LUMA_PAD_Y;
-    }
+    int iChromaPadY = MCBUF_CHROMA_PAD_Y * (this->sets.sps->ChromaArrayType == 2 ? 2 : 1);
 
     assert(partWidthC <= iChromaPadX && partHeightC <= iChromaPadY);
 
     if (curr_ref->no_ref) {
-        memset(block1, no_ref_value, partHeightC * partWidthC * sizeof(px_t));
+        memset(predPartLXC, no_ref_value, partHeightC * partWidthC * sizeof(px_t));
         return;
     }
 
-    int xIntC  = clip3(-iChromaPadX, maxold_x, mvCX[0] >> shiftpel_x); //16
-    int yIntC  = clip3(-iChromaPadY, maxold_y, mvCX[1] >> shiftpel_y); //8
-    int xFracC = (mvCX[0] & subpel_x);
-    int yFracC = (mvCX[1] & subpel_y);
+    int shiftpel_y = this->sets.sps->ChromaArrayType == 1 ? 3 : 2;
+    int xAL    = clip3(-iChromaPadX, maxold_x, mvCX[0] >> 3); //16
+    int yAL    = clip3(-iChromaPadY, maxold_y, mvCX[1] >> shiftpel_y); //8
+    //int xAL = mvCX[0] >> 3;
+    //int yAL = mvCX[1] >> shiftpel_y;
+    int xFracC = (mvCX[0] & 7);
+    int yFracC = (this->sets.sps->ChromaArrayType == 1) ? (mvCX[1] & 7) : (mvCX[1] & 3) << 1;
 
     if (xFracC == 0 && yFracC == 0) {
-        for (int y = 0; y < partHeightC; y++)
-            memcpy(&block1[y][0], &imgUV[yIntC + y][xIntC], 16 * sizeof(px_t));
-    } else {
-        int dxcur = (subpel_x + 1 - xFracC);
-        int dycur = (subpel_y + 1 - yFracC);
-        int w00 = dxcur * dycur;
-        int w01 = dxcur * yFracC;
-        int w10 = xFracC * dycur;
-        int w11 = xFracC * yFracC;
+        for (int yC = 0; yC < partHeightC; yC++)
+            memcpy(&predPartLXC[yC][0], &imgUV[yAL + yC][xAL], 16 * sizeof(px_t));
+        return;
+    }
 
-        for (int y = 0; y < partHeightC; y++) {
-            for (int x = 0; x < partWidthC; x++) {
-                px_t p0 = imgUV[yIntC + y + 0][xIntC + x + 0];
-                px_t p1 = imgUV[yIntC + y + 1][xIntC + x + 0];
-                px_t p2 = imgUV[yIntC + y + 0][xIntC + x + 1];
-                px_t p3 = imgUV[yIntC + y + 1][xIntC + x + 1];
-                int result = (w00 * p0 + w01 * p1 + w10 * p2 + w11 * p3);
-                block1[y][x] = (px_t) RSHIFT_RND_SF(result, total_scale);
-            }
+    uint32_t PicWidthInSamplesC  = this->sets.sps->PicWidthInSamplesC;
+    uint32_t PicHeightInSamplesC = this->sets.slice->header.PicHeightInSamplesC;
+    uint32_t refPicHeightEffectiveC =
+        !this->sets.slice->header.MbaffFrameFlag || !mb.mb_field_decoding_flag ?
+        PicHeightInSamplesC : PicHeightInSamplesC / 2;
+
+    for (int yC = 0; yC < partHeightC; yC++) {
+        for (int xC = 0; xC < partWidthC; xC++) {
+            int xIntC = xAL + xC;
+            int yIntC = yAL + yC;
+            int xAC = clip3<int>(0, PicWidthInSamplesC - 1, xIntC);
+            int xBC = clip3<int>(0, PicWidthInSamplesC - 1, xIntC + 1);
+            int xCC = clip3<int>(0, PicWidthInSamplesC - 1, xIntC);
+            int xDC = clip3<int>(0, PicWidthInSamplesC - 1, xIntC + 1);
+            int yAC = clip3<int>(0, refPicHeightEffectiveC - 1, yIntC);
+            int yBC = clip3<int>(0, refPicHeightEffectiveC - 1, yIntC);
+            int yCC = clip3<int>(0, refPicHeightEffectiveC - 1, yIntC + 1);
+            int yDC = clip3<int>(0, refPicHeightEffectiveC - 1, yIntC + 1);
+            px_t A = imgUV[yAC][xAC];
+            px_t B = imgUV[yBC][xBC];
+            px_t C = imgUV[yCC][xCC];
+            px_t D = imgUV[yDC][xDC];
+            predPartLXC[yC][xC] = ((8 - xFracC) * (8 - yFracC) * A +
+                                   xFracC * (8 - yFracC) * B +
+                                   (8 - xFracC) * yFracC * C +
+                                   xFracC * yFracC * D + 32) >> 6;
         }
     }
 }

@@ -99,8 +99,8 @@ struct slice_header_t {
     PictureStructure    structure;
     bool        MbaffFrameFlag;
     uint32_t    PicHeightInMbs;
-    uint32_t    PicHeightInSampleL;
-    uint32_t    PicHeightInSampleC;
+    uint32_t    PicHeightInSamplesL;
+    uint32_t    PicHeightInSamplesC;
     uint32_t    PicSizeInMbs;
     uint32_t    MaxPicNum;
     uint32_t    CurrPicNum;
