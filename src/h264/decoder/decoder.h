@@ -193,9 +193,8 @@ protected:
         slice_t*          slice;
     };
 
-    void        get_block_chroma(storable_picture* curr_ref, int x_pos, int y_pos,
-                    int block_size_x, int vert_block_size, int maxold_x, int maxold_y,
-                    px_t block1[16][16], int comp, mb_t& mb);
+    void        get_block_chroma(storable_picture* curr_ref, int mvLX[2],
+                    int partWidthC, int partHeightC, px_t predPartLXC[16][16], int comp, mb_t& mb);
 
     void        mc_prediction(px_t* mb_pred,
                     px_t block[16][16], int block_size_y, int block_size_x,
