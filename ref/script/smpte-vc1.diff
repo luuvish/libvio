@@ -1,0 +1,191 @@
+diff -urwN ./decoder/decoder.dsp ../VC-1-SourceCode-2008-fix/decoder/decoder.dsp
+--- ./decoder/decoder.dsp	2004-11-25 04:28:26.000000000 +0900
++++ ../VC-1-SourceCode-2008-fix/decoder/decoder.dsp	2008-12-18 01:02:36.000000000 +0900
+@@ -42,7 +42,7 @@
+ # PROP Ignore_Export_Lib 0
+ # PROP Target_Dir ""
+ # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
+-# ADD CPP /nologo /W4 /GX /O2 /I "..\shared" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FR /YX /FD /c
++# ADD CPP /nologo /W4 /GX /O2 /I "..\shared" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D "CNM" /FR /YX /FD /c
+ # ADD BASE RSC /l 0x809 /d "NDEBUG"
+ # ADD RSC /l 0x809 /d "NDEBUG"
+ BSC32=bscmake.exe
+@@ -65,7 +65,7 @@
+ # PROP Intermediate_Dir "Debug"
+ # PROP Target_Dir ""
+ # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /GZ /c
+-# ADD CPP /nologo /W4 /Gm /GX /ZI /Od /I "..\shared" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FR /YX /FD /GZ /c
++# ADD CPP /nologo /W4 /Gm /GX /ZI /Od /I "..\shared" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /D "CNM" /FR /YX /FD /GZ /c
+ # ADD BASE RSC /l 0x809 /d "_DEBUG"
+ # ADD RSC /l 0x809 /d "_DEBUG"
+ BSC32=bscmake.exe
+diff -urwN ./decoder/vc1dec.c ../VC-1-SourceCode-2008-fix/decoder/vc1dec.c
+--- ./decoder/vc1dec.c	2006-01-22 18:00:26.000000000 +0900
++++ ../VC-1-SourceCode-2008-fix/decoder/vc1dec.c	2008-12-18 00:57:06.000000000 +0900
+@@ -717,7 +717,11 @@
+         eResult = vc1HRD_RemoveBits(&pState->sSeqParams.sHrdInitialState, Bits);
+         if(vc1_ResultOK != eResult)
+         {
++#ifdef CNM
++            DEBUG1(vc1DEBUG_HRD, "HRD: Buffer underflow, bit count = %d\n", Bits);
++#else
+             WARN("HRD: Buffer underflow, bit count = %d\n", Bits);
++#endif
+         }
+         COVERAGE("ANNEX C");
+ 
+diff -urwN ./decoder/vc1dec3dh.c ../VC-1-SourceCode-2008-fix/decoder/vc1dec3dh.c
+--- ./decoder/vc1dec3dh.c	2004-12-03 14:16:38.000000000 +0900
++++ ../VC-1-SourceCode-2008-fix/decoder/vc1dec3dh.c	2013-05-21 07:08:38.000000000 +0900
+@@ -644,8 +644,12 @@
+                 }
+                 else
+                 {
++#ifdef CNM
++                    DEBUG0(vc1DEBUG_CMP, "DecodeACRunLevel: AC coef array overrun\n");
++#else
+                     FATAL("DecodeACRunLevel: AC coef array overrun\n");
+                     return(vc1_ResultACRunLevelDecodeFailed);
++#endif
+                 }
+                 CurrPosition = CurrPosition + Run + 1;
+ 
+diff -urwN ./makedefs ../VC-1-SourceCode-2008-fix/makedefs
+--- ./makedefs	2004-02-02 03:38:46.000000000 +0900
++++ ../VC-1-SourceCode-2008-fix/makedefs	2013-05-21 07:16:21.000000000 +0900
+@@ -23,7 +23,7 @@
+ #       standard use (e.g. isspace(ch))
+ CFLAGS_G = -pedantic -Wall -Wno-long-long -Wno-char-subscripts
+ # Debug set
+-CFLAGS_F = -g $(CFLAGS_G) $(CFLAGS)
++CFLAGS_F = -g $(CFLAGS_G) $(CFLAGS) -DCNM
+ # Release set
+ #CFLAGS_F = -DNDEBUG $(CFLAGS_G) $(CFLAGS)
+ 
+diff -urwN ./shared/vc1gentab.c ../VC-1-SourceCode-2008-fix/shared/vc1gentab.c
+--- ./shared/vc1gentab.c	2004-12-03 14:16:40.000000000 +0900
++++ ../VC-1-SourceCode-2008-fix/shared/vc1gentab.c	2008-12-18 00:59:46.000000000 +0900
+@@ -103,6 +103,30 @@
+ 
+ const vc1_sLevelLimit vc1GENTAB_LevelLimits[4][8] = 
+ {
++#ifdef CNM
++    {   /* Simple Profile */
++        { 491520,16384,135000,16500, vc1_MVRange64_32    }, /* Low    Level */
++        { 491520,16384,135000,16500, vc1_MVRange64_32    }, /* Medium Level */
++        {      0,    0,     0,    0, vc1_MVRange64_32    },
++    },
++    {   /* Main Profile */
++        { 491520,16384,135000,16500, vc1_MVRange128_64   }, /* Low    level */
++        { 491520,16384,135000,16500, vc1_MVRange512_128  }, /* Medium Level */
++        { 491520,16384,135000,16500, vc1_MVRange1024_256 }, /* High   Level */
++        {      0,    0,     0,    0, vc1_MVRange64_32    },
++    },
++    {   /* Reserved Profile */
++        {      0,    0,     0,    0, vc1_MVRange64_32    },
++    },
++    {   /* Advanced Profile */
++        { 491520,16384,135000,16500, vc1_MVRange128_64   }, /* Level 0 */
++        { 491520,16384,135000,16500, vc1_MVRange512_128  }, /* Level 1 */
++        { 491520,16384,135000,16500, vc1_MVRange512_128  }, /* Level 2 */
++        { 491520,16384,135000,16500, vc1_MVRange1024_256 }, /* Level 3 */
++        { 491520,16384,135000,16500, vc1_MVRange1024_256 }, /* Level 4 */
++        {      0,    0,     0,    0, vc1_MVRange64_32    },
++    }
++#else
+     {   /* Simple Profile */
+         {   1485,   99,    96,   20, vc1_MVRange64_32    }, /* Low    Level */
+         {   5940,  396,   384,   77, vc1_MVRange64_32    }, /* Medium Level */
+@@ -125,6 +149,7 @@
+         { 491520,16384,135000,16500, vc1_MVRange1024_256 }, /* Level 4 */
+         {      0,    0,     0,    0, vc1_MVRange64_32    },
+     }
++#endif
+ };
+ 
+ /*
+diff -urwN ./shared/vc1hrd.c ../VC-1-SourceCode-2008-fix/shared/vc1hrd.c
+--- ./shared/vc1hrd.c	2004-12-03 14:16:40.000000000 +0900
++++ ../VC-1-SourceCode-2008-fix/shared/vc1hrd.c	2008-12-18 00:59:56.000000000 +0900
+@@ -113,7 +113,11 @@
+ 
+         if (Fullness < Bits)
+         {
++#ifdef CNM
++            DEBUG2(vc1DEBUG_HRD, "Hypothetical Reference Decoder Underflow i=%d F=%d\n", i, Fullness);
++#else
+             WARN("Hypothetical Reference Decoder Underflow i=%d F=%d\n", i, Fullness);
++#endif
+             eResult = vc1_ResultHrdUnderflow;
+             Fullness = 0;
+         }
+diff -urwN ./shared/vc1iquant.c ../VC-1-SourceCode-2008-fix/shared/vc1iquant.c
+--- ./shared/vc1iquant.c	2004-12-03 14:16:40.000000000 +0900
++++ ../VC-1-SourceCode-2008-fix/shared/vc1iquant.c	2008-12-18 01:00:18.000000000 +0900
+@@ -263,8 +263,14 @@
+ 
+     COVERAGE("8.1.1.9");
+     DCStepSize = (HWD16)vc1PREDDCAC_DCStepSize(PQuant);
+-
++#ifdef CNM
++#define CLIP12(a)  ( ((a) < -2048) ? -2048 : ((a) > 2047 ? 2047 : (a)) )
++    DCCoeffQ = ((HWD16)(DCCoeffQ * DCStepSize));
++    return (HWD16) CLIP12(DCCoeffQ);
++#undef CLIP12
++#else
+     return((HWD16)(DCCoeffQ * DCStepSize));
++#endif
+ }
+ 
+ 
+@@ -310,6 +316,11 @@
+             if(0 != TCoefs[i])
+             {
+                 pOut[i] = (HWD16)(TCoefs[i] * (2 * MQuant + HalfStep));
++#ifdef CNM
++#define CLIP12(a)  ( ((a) < -2048) ? -2048 : ((a) > 2047 ? 2047 : (a)) )
++                pOut[i] = (HWD16) CLIP12(pOut[i]);
++#undef CLIP12
++#endif
+             }
+             else
+             {
+@@ -324,6 +335,11 @@
+             if(0 != TCoefs[i])
+             {
+                 pOut[i] = (HWD16)(TCoefs[i] * (2 * MQuant + HalfStep) + SIGN(TCoefs[i]) * MQuant);
++#ifdef CNM
++#define CLIP12(a)  ( ((a) < -2048) ? -2048 : ((a) > 2047 ? 2047 : (a)) )
++                pOut[i] = (HWD16) CLIP12(pOut[i]);
++#undef CLIP12
++#endif
+             }
+             else
+             {
+diff -urwN ./shared/vc1itrans.c ../VC-1-SourceCode-2008-fix/shared/vc1itrans.c
+--- ./shared/vc1itrans.c	2005-05-24 15:09:24.000000000 +0900
++++ ../VC-1-SourceCode-2008-fix/shared/vc1itrans.c	2008-12-18 01:00:28.000000000 +0900
+@@ -133,6 +133,11 @@
+                 acc += pD[j*8+k]*pT[k*M+i];
+             }
+             pE[j*8+i] = (HWD16) ((acc + 4) >> 3);
++#ifdef CNM
++#define CLIP13(a)  ( ((a) < -4096) ? -4096 : ((a) > 4095 ? 4095 : (a)) )
++            pE[j*8+i] = (HWD16) CLIP13(pE[j*8+i]);
++#undef CLIP13
++#endif
+         }
+     }
+ 
+@@ -151,6 +156,11 @@
+                 acc += pE[i+k*8]*pT[k*N+j];
+             }
+             pR[i+j*8] = (HWD16) ((acc + pC[j] + 64) >> 7);
++#ifdef CNM
++#define CLIP10(a)  ( ((a) <  -512) ?  -512 : ((a) >  511 ?  511 : (a)) )
++            pR[i+j*8] = (HWD16) CLIP10(pR[i+j*8]);
++#undef CLIP10
++#endif
+         }
+     }
+ }
