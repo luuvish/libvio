@@ -29,17 +29,17 @@ from os.path import join, dirname
 
 path.append(join(dirname(__file__), '..'))
 
-from tools import Globber
-from tools.model import ModelExecutor
-from tools.model.allegro_h264 import AllegroH264
-from tools.model.coda960 import Coda960
-from tools.model.ffmpeg import FFmpeg
-from tools.model.hm_14_0 import HM
-from tools.model.jm_18_6 import JM
-from tools.model.libvpx import LibVpx
-from tools.model.smpte_vc1 import SMPTEVc1
-from tools.model.violib import VioLib
-from tools.model.wmfdecode import WmfDecode
+from scripts import Globber
+from scripts.model import ModelExecutor
+from scripts.model.allegro_h264 import AllegroH264
+from scripts.model.coda960 import Coda960
+from scripts.model.ffmpeg import FFmpeg
+from scripts.model.hm_14_0 import HM
+from scripts.model.jm_18_6 import JM
+from scripts.model.libvpx import LibVpx
+from scripts.model.smpte_vc1 import SMPTEVc1
+from scripts.model.violib import VioLib
+from scripts.model.wmfdecode import WmfDecode
 
 
 models = (AllegroH264, Coda960, FFmpeg, HM, JM, LibVpx, SMPTEVc1, VioLib, WmfDecode)
@@ -57,7 +57,8 @@ class Command(object):
         self.models    = []
         self.codecs    = []
         self.actions   = []
-        self.digest_byframes = False
+        self.encode_by_option = False
+        self.digest_by_frames = False
 
         for executor in largs:
             if not (issubclass(executor, ModelExecutor) or isinstance(executor, ModelExecutor)):
@@ -71,11 +72,17 @@ class Command(object):
                 if codec not in self.codecs:
                     self.codecs.append(codec)
             for action in executor.actions:
+                if action == 'encode':
+                    self.encode_by_option = True
                 if action == 'digest_by_frames':
                     self.digest_by_frames = True
                     action = 'digest'
                 if action not in self.actions:
                     self.actions.append(action)
+
+        self.models.sort()
+        self.codecs.sort()
+        self.actions.sort()
 
     def parse(self, *largs):
         from argparse import ArgumentParser
@@ -92,8 +99,14 @@ class Command(object):
         if len(self.actions) > 1:
             parser.add_argument('-a', '--action', help='action',
                     dest='action', action='store', choices=self.actions)
-        if self.digest_by_frames:
-            parser.add_argument('-f', '--frames', help='digest by frames',
+
+        if self.encode_by_option:
+            parser.add_argument('-x', '--width', help='encoded picture width',
+                    dest='width', action='store', type=int, default=0)
+            parser.add_argument('-y', '--height', help='encoded picture height',
+                    dest='height', action='store', type=int, default=0)
+        if self.encode_by_option or self.digest_by_frames:
+            parser.add_argument('-f', '--frames', help='frames',
                     dest='frames', action='store', type=int, default=0)
 
         parser.add_argument('files', help='input filenames',
@@ -111,6 +124,8 @@ class Command(object):
         model  = options.get('model', self.models[0] if len(self.models) == 1 else None)
         codec  = options.get('codec', self.codecs[0] if len(self.codecs) == 1 else None)
         action = options.get('action', self.actions[0] if len(self.actions) == 1 else None)
+        width  = options.get('width', 0)
+        height = options.get('height', 0)
         frames = options.get('frames', 0)
         files  = options.get('files', [])
 
@@ -120,15 +135,17 @@ class Command(object):
 
         globber = Globber(stdout=None).bind(executor)
 
-        if frames > 0:
-            if action != 'digest':
-                raise Exception('frames option must be set on only digest action')
-            if len(files) != 1 or len(glob(files[0])) != 1:
-                raise Exception('frames option must be set on only one file')
-            return globber.digest_by_frames(files[0], frames)
+        if action == 'encode' and (width <= 0 or height <= 0 or frames <= 0):
+            raise Exception('encode option must be set width, height, frames option')
+        if action == 'digest' and frames > 0:
+            action = 'digest_by_frames'
 
         method = getattr(globber, action)
         for file in files:
+            if action == 'encode':
+                file = (file, {'width':width, 'height':height, 'frames':frames})
+            if action == 'digest_by_frames':
+                file = (file, frames)
             method(file)
 
 

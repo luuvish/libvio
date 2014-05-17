@@ -72,7 +72,7 @@ class Executor(object):
         if not exists(target):
             raise Exception('decode error: %s' % basename(source))
 
-    def encode(self, source, target):
+    def encode(self, source, target, option):
         from subprocess import call
 
         execute = self.execute()

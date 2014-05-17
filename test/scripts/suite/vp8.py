@@ -23,7 +23,7 @@
 ================================================================================
 '''
 
-__all__ = ('models', 'cases')
+__all__ = ('models', 'suites')
 
 __version__ = '2.0.0'
 
@@ -38,9 +38,20 @@ root = normpath(join(dirname(__file__), '../..'))
 
 models = (Coda960, FFmpeg, LibVpx)
 
-cases = (
+suites = (
     {
-        'case'  : 'libvpx-vp8-digest',
+        'suite' : 'decode-vp8-libvpx',
+        'model' : 'libvpx',
+        'codec' : 'vp8',
+        'action': 'decode',
+        'stdout': 'vp8-libvpx.log',
+        'srcdir': join(root, 'streams/vp8'),
+        'outdir': join(root, 'images/vp8'),
+        'includes': ('*.ivf', ),
+        'excludes': ()
+    },
+    {
+        'suite' : 'digest-vp8-libvpx',
         'model' : 'libvpx',
         'codec' : 'vp8',
         'action': 'digest',
@@ -51,7 +62,7 @@ cases = (
         'excludes': ()
     },
     {
-        'case'  : 'libvpx-vp8-compare',
+        'suite' : 'compare-vp8-libvpx',
         'model' : 'libvpx',
         'codec' : 'vp8',
         'action': 'compare',
@@ -62,7 +73,7 @@ cases = (
         'excludes': ()
     },
     {
-        'case'  : 'coda960-vp8-compare',
+        'suite' : 'compare-vp8-coda960',
         'model' : 'coda960',
         'codec' : 'vp8',
         'action': 'compare',

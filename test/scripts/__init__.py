@@ -14,7 +14,7 @@
 
 ================================================================================
 
- File      : tools.py
+ File      : globber.py
  Author(s) : Luuvish
  Version   : 2.0
  Revision  :
@@ -81,7 +81,7 @@ class Globber(object):
 
     def bind(self, executor):
 
-        def decode(executor, source, target):
+        def decode(executor, source, target, option=None):
             outname, outext = splitext(target)
             target = outname + '.yuv'
             try:
@@ -90,16 +90,16 @@ class Globber(object):
             except Exception as e:
                 self.error('# %s\n' % e.message)
 
-        def encode(executor, source, target):
+        def encode(executor, source, target, option=None):
             outname, outext = splitext(target)
             target = outname + '.' + executor.ext
             try:
                 self.error('encode -i %s -o %s\n' % (basename(source), basename(target)))
-                executor.encode(source, target)
+                executor.encode(source, target, option)
             except Exception as e:
                 self.error('# %s\n' % e.message)
 
-        def digest(executor, source, target):
+        def digest(executor, source, target, option=None):
             outname, outext = splitext(target)
             target = outname + '.yuv.md5'
             try:
@@ -109,14 +109,7 @@ class Globber(object):
             except Exception as e:
                 self.error('# %s\n' % e.message)
 
-        def digest_by_frames(executor, source, frames):
-            if source in self.excludes:
-                return
-
-            source = normpath(join(self.srcdir, source))
-            target = normpath(join(self.outdir, source))
-            target = basename(target) if self.outdir == '.' else target
-
+        def digest_by_frames(executor, source, target, frames):
             outname, outext = splitext(target)
             target = outname + '.yuv.md5'
             try:
@@ -126,7 +119,7 @@ class Globber(object):
             except Exception as e:
                 self.error('# %s\n' % e.message)
 
-        def compare(executor, source, target):
+        def compare(executor, source, target, option=None):
             outname, outext = splitext(target)
             target = outname + '.yuv.md5'
             try:
@@ -143,11 +136,16 @@ class Globber(object):
         def globber(method, executor, *largs):
             method = partial(method, executor)
             sources = largs if len(largs) > 0 else self.includes
-            for file in sources:
-                for source, target in self.glob(file):
-                    method(source, target)
+            for s in sources:
+                (source, option) = (s[0], s[1]) if type(s) is tuple or type(s) is list else (s, None)
+                for source, target in self.glob(source):
+                    method(source, target, option)
 
-        actions = {'decode':decode, 'encode':encode, 'digest':digest, 'compare':compare}
+        actions = {
+            'decode': decode, 'encode': encode,
+            'digest': digest, 'digest_by_frames': digest_by_frames,
+            'compare': compare
+        }
 
         for action, method in actions.iteritems():
             if not isinstance(executor, ModelExecutor):
@@ -157,14 +155,6 @@ class Globber(object):
             else:
                 method = partial(noslot, executor)
             setattr(self, action, method)
-
-        if not isinstance(executor, ModelExecutor):
-            method = digest_by_frames
-        elif 'digest_by_frames' in executor.actions:
-            method = partial(digest_by_frames, executor)
-        else:
-            method = partial(noslot, executor)
-        setattr(self, 'digest_by_frames', method)
 
         return self
 

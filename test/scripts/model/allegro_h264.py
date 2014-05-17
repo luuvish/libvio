@@ -28,10 +28,10 @@ __all__ = ('AllegroH264', )
 
 __version__ = '2.0.0'
 
-from .jm_18_6 import JM
+from . import ModelExecutor
 
 
-class AllegroH264(JM):
+class AllegroH264(ModelExecutor):
 
     model   = 'allegro-h264'
     codecs  = ('h264', )
@@ -65,5 +65,32 @@ This is a file containing input parameters to the JVT H.264/AVC decoder.
 The text line following each parameter is discarded by the decoder.
 '''
 
+    def execute(self):
+        return self._execute
+
     def options(self, source, target):
         return [source]
+
+    def decode(self, source, target):
+        from subprocess import call
+        from os import remove
+        from os.path import splitext, basename
+
+        srcname, srcext = splitext(basename(source))
+        outname, outext = splitext(basename(target))
+        optname = srcname + '.opt'
+        with open(optname, 'wt') as f:
+            f.write(self._config % (source, target, outname+'.rec'))
+
+        execute = self.execute()
+        options = self.options(optname, target)
+
+        self.mkdir(target)
+
+        try:
+            call([execute] + options, stdout=self.stdout, stderr=self.stderr)
+            remove(optname)
+            remove('dataDec.txt')
+            remove('log.dec')
+        except:
+            raise Exception('decode error: %s' % basename(source))

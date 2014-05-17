@@ -23,7 +23,7 @@
 ================================================================================
 '''
 
-__all__ = ('models', 'cases')
+__all__ = ('models', 'suites')
 
 __version__ = '2.0.0'
 
@@ -37,16 +37,27 @@ root = normpath(join(dirname(__file__), '../..'))
 
 models = (FFmpeg, LibVpx)
 
-cases = (
+suites = (
     {
-        'case'  : 'libvpx-vp9-digest',
+        'suite' : 'decode-vp9-libvpx',
+        'model' : 'libvpx',
+        'codec' : 'vp9',
+        'action': 'decode',
+        'stdout': 'vp9-libvpx.log',
+        'srcdir': join(root, 'streams/vp9'),
+        'outdir': join(root, 'images/vp9'),
+        'includes': ('*.ivf', '*.webm'),
+        'excludes': ('vp91-2-04-yv444.webm', )
+    },
+    {
+        'suite' : 'digest-vp9-libvpx',
         'model' : 'libvpx',
         'codec' : 'vp9',
         'action': 'digest',
         'stdout': 'vp9-libvpx.log',
         'srcdir': join(root, 'streams/vp9'),
         'outdir': join(root, 'digests/vp9'),
-        'includes': ('*.ivf', ),
-        'excludes': ()
-    },
+        'includes': ('*.ivf', '*.webm'),
+        'excludes': ('vp91-2-04-yv444.webm', )
+    }
 )

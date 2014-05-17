@@ -15,7 +15,7 @@
 
 ================================================================================
 
- File      : testcase.py
+ File      : testsuite.py
  Author(s) : Luuvish
  Version   : 2.0
  Revision  :
@@ -30,35 +30,35 @@ from os.path import join, dirname
 
 path.append(join(dirname(__file__), '..'))
 
-from tools import Globber
-from tools.model import ModelExecutor
-from tools.case import h264, hevc, vc1, vp8, vp9
+from scripts import Globber
+from scripts.model import ModelExecutor
+from scripts.suite import h264, hevc, vc1, vp8, vp9
 
 
 codecs = (h264, hevc, vc1, vp8, vp9)
 models = (model for codec in codecs for model in codec.models)
-cases  = (case for codec in codecs for case in codec.cases)
+suites = (suite for codec in codecs for suite in codec.suites)
 
 
-class TestCase(object):
+class TestSuite(object):
 
-    program     = 'testcase.py'
-    description = 'shell command helper for testcase of video codecs'
+    program     = 'testsuite.py'
+    description = 'shell command helper for testsuite of video codecs'
     epilog      = 'Copyright (C) 2014 Thumb \'o Cat luuvish (luuvsih@gmail.com)'
 
     def __init__(self, *largs):
 
-        self.executors = {}
-        self.models    = []
-        self.testcases = {}
-        self.cases     = []
+        self.executors  = {}
+        self.models     = []
+        self.testsuites = {}
+        self.suites     = []
 
         for arg in largs:
             if type(arg) is dict:
-                case = arg['case']
-                if case not in self.testcases:
-                    self.testcases[case] = arg
-                    self.cases.append(case)
+                suite = arg['suite']
+                if suite not in self.testsuites:
+                    self.testsuites[suite] = arg
+                    self.suites.append(suite)
             elif issubclass(arg, ModelExecutor):
                 model = arg.model
                 if model not in self.models:
@@ -66,7 +66,7 @@ class TestCase(object):
                     self.models.append(model)
 
         self.models.sort()
-        self.cases.sort()
+        self.suites.sort()
 
     def parse(self, *largs):
         from argparse import ArgumentParser
@@ -74,8 +74,8 @@ class TestCase(object):
         parser = ArgumentParser(prog=self.program,
                 description=self.description, epilog=self.epilog)
 
-        parser.add_argument('case', help='test case',
-                action='store', choices=self.cases)
+        parser.add_argument('suite', help='test suite',
+                action='store', choices=self.suites)
         parser.print_help = self.help
 
         parser.parse_args(args=largs, namespace=self)
@@ -84,11 +84,11 @@ class TestCase(object):
 
     def help(self):
         message = '''\
-usage: %s [-h] testcases...
+usage: %s [-h] testsuites...
 
 %s
 
-positional arguments:   testcases
+positional arguments:   testsuites
 
 %s
 
@@ -97,27 +97,27 @@ optionsal arguments:
 
 %s
 '''
-        stderr.write(message % (self.program, self.description, '\n'.join(self.cases), self.epilog))
+        stderr.write(message % (self.program, self.description, '\n'.join(self.suites), self.epilog))
 
     def main(self, *largs):
+        import time
 
         options = self.parse(*(largs[1:] if len(largs) > 1 else ['-h']))
 
-        case = options.get('case')
-
-        testcase = self.testcases[case]
-        model  = testcase.get('model')
-        codec  = testcase.get('codec')
-        action = testcase.get('action')
+        suite  = options.get('suite')
+        testsuite = self.testsuites[suite]
+        model  = testsuite.get('model')
+        codec  = testsuite.get('codec')
+        action = testsuite.get('action')
 
         if model is None:
-            raise Exception('testcase model is none')
+            raise Exception('testsuite model is none')
         if codec is None:
-            raise Exception('testcase codec is none')
+            raise Exception('testsuite codec is none')
         if action is None:
-            raise Exception('testcase action is none')
+            raise Exception('testsuite action is none')
 
-        logout = open('.testcase.log', 'wt')
+        logout = open('.testsuite.log', 'wt')
 
         executor = model
         if type(executor) is str:
@@ -127,22 +127,28 @@ optionsal arguments:
         executor = executor(codec, stdout=logout, stderr=logout)
 
         globber = Globber(**{
-            'stdout': testcase.get('stdout', stdout),
-            'stderr': testcase.get('stderr', stderr),
-            'srcdir': testcase.get('srcdir', '.'),
-            'outdir': testcase.get('outdir', '.'),
-            'includes': testcase.get('includes', []),
-            'excludes': testcase.get('excludes', [])
+            'stdout': testsuite.get('stdout', stdout),
+            'stderr': testsuite.get('stderr', stderr),
+            'srcdir': testsuite.get('srcdir', '.'),
+            'outdir': testsuite.get('outdir', '.'),
+            'includes': testsuite.get('includes', []),
+            'excludes': testsuite.get('excludes', [])
         }).bind(executor)
+
+        start = time.time()
 
         method = getattr(globber, action)
         method()
 
-        remove('.testcase.log')
+        end = time.time()
+        duration = time.gmtime(end - start)
+        globber.write('complete in %s.\n' % time.strftime('%H:%M:%Ss', duration))
+
+        remove('.testsuite.log')
 
 
 if __name__ == '__main__':
     try:
-        TestCase(*(list(models) + list(cases))).main(*argv)
+        TestSuite(*(list(models) + list(suites))).main(*argv)
     except Exception as e:
         stderr.write('%s\n' % e.message)

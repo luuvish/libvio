@@ -5,8 +5,9 @@ src/h264/dependencies
 src/h264/objects
 test/digests/
 test/images/
-test/reports/**/*.log
+test/reports/*/*.log
 test/streams/
-test/tools/model/ldecod_Allegro.exe
-test/tools/model/wmfdecode_vc.exe
-test/tools/**/*.pyc
+test/scripts/model/ldecod_Allegro.exe
+test/scripts/model/wmfdecode_vc.exe
+test/scripts/*.pyc
+test/scripts/*/*.pyc

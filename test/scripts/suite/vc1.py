@@ -23,7 +23,7 @@
 ================================================================================
 '''
 
-__all__ = ('models', 'cases')
+__all__ = ('models', 'suites')
 
 __version__ = '2.0.0'
 
@@ -39,9 +39,9 @@ root = normpath(join(dirname(__file__), '../..'))
 
 models = (Coda960, FFmpeg, SMPTEVc1, WmfDecode)
 
-cases = (
+suites = (
     {
-        'case'  : 'wmfdecode-vc1-decode',
+        'suite' : 'decode-vc1-wmfdecode',
         'model' : 'wmfdecode',
         'codec' : 'vc1',
         'action': 'decode',
@@ -59,7 +59,7 @@ cases = (
         'excludes': ()
     },
     {
-        'case'  : 'smpte-vc1-decode',
+        'suite' : 'decode-vc1-smpte',
         'model' : 'smpte-vc1',
         'codec' : 'vc1',
         'action': 'decode',
@@ -77,7 +77,7 @@ cases = (
         'excludes': ()
     },
     {
-        'case'  : 'coda960-vc1-compare',
+        'suite' : 'compare-vc1-coda960',
         'model' : 'coda960',
         'codec' : 'vc1',
         'action': 'compare',

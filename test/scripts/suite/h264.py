@@ -23,7 +23,7 @@
 ================================================================================
 '''
 
-__all__ = ('models', 'cases')
+__all__ = ('models', 'suites')
 
 __version__ = '2.0.0'
 
@@ -40,9 +40,20 @@ root = normpath(join(dirname(__file__), '../..'))
 
 models = (AllegroH264, Coda960, FFmpeg, JM, VioLib)
 
-cases = (
+suites = (
     {
-        'case'  : 'allegro-h264-decode',
+        'suite' : 'encode-h264-jm-18.6',
+        'model' : 'jm-18.6',
+        'codec' : 'h264',
+        'action': 'encode',
+        'stdout': 'h264-jm-18.6.log',
+        'srcdir': join(root, 'images/yuv'),
+        'outdir': join(root, 'streams/h264'),
+        'includes': (('phantom.yuv', {'width':1920, 'height':1080, 'frames':600}), ),
+        'excludes': ()
+    },
+    {
+        'suite' : 'decode-h264-allegro',
         'model' : 'allegro-h264',
         'codec' : 'h264',
         'action': 'decode',
@@ -62,7 +73,7 @@ cases = (
         )
     },
     {
-        'case'  : 'coda960-h264-compare',
+        'suite' : 'compare-h264-coda960',
         'model' : 'coda960',
         'codec' : 'h264',
         'action': 'compare',
@@ -84,7 +95,7 @@ cases = (
         )
     },
     {
-        'case'  : 'jm-18.6-h264-compare',
+        'suite' : 'compare-h264-jm-18.6',
         'model' : 'jm-18.6',
         'codec' : 'h264',
         'action': 'compare',
@@ -103,7 +114,7 @@ cases = (
         )
     },
     {
-        'case'  : 'violib-h264-compare',
+        'suite' : 'compare-h264-violib',
         'model' : 'violib',
         'codec' : 'h264',
         'action': 'compare',

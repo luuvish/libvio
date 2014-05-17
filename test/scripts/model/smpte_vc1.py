@@ -79,6 +79,8 @@ Output YUV     : %s
         execute = self.execute()
         options = self.options(optname, target)
 
+        self.mkdir(target)
+
         try:
             call([execute] + options, stdout=self.stdout, stderr=self.stderr)
             remove(optname)

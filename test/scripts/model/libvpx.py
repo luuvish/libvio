@@ -67,10 +67,12 @@ class LibVpx(ModelExecutor):
         execute = self.execute()
         options = self.defaults['digest'] + self.options(source, '%s-%%wx%%h-%%4.i420' % outname)
 
+        if target is not None:
+            self.mkdir(target)
+
         try:
-            f = open(output, 'wt')
-            call([execute] + options, stdout=f, stderr=self.stderr)
-            f.close()
+            with open(output, 'wt') as f:
+                call([execute] + options, stdout=f, stderr=self.stderr)
         except Exception as e:
             raise e
         if not exists(output):
@@ -80,5 +82,10 @@ class LibVpx(ModelExecutor):
         with open(output, 'rt') as f:
             lines = [line.rstrip().split()[0].lower() for line in f]
         remove(output)
+
+        if target is not None:
+            with open(target, 'wt') as f:
+                for line in lines:
+                    f.write('%s\n' % line)
 
         return lines
