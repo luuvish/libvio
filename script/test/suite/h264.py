@@ -113,7 +113,7 @@ suites = (
         )
     },
     {
-        'suite' : 'compare-h264-violib',
+        'suite' : 'compare-h264-libvio',
         'model' : 'libvio',
         'codec' : 'h264',
         'action': 'compare',

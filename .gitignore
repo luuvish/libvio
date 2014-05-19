@@ -1,7 +1,6 @@
 bin/
+build/
 script/**/*.pyc
-src/h264/dependencies
-src/h264/objects
 test/
 tool/3rd-party
 tool/tarball

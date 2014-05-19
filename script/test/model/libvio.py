@@ -35,12 +35,12 @@ class LibVio(ModelExecutor):
 
     model   = 'libvio'
     codecs  = ('h264', )
-    actions = ('decode', 'digest', 'digest_by_frames', 'compare')
+    actions = ('decode', 'digest_by_frames', 'compare')
 
     def __init__(self, codec, **kwargs):
         from os.path import join
 
-        super(VioLib, self).__init__(codec, **kwargs)
+        super(LibVio, self).__init__(codec, **kwargs)
 
         binary = 'bin/libvio'
 
@@ -57,15 +57,7 @@ class LibVio(ModelExecutor):
     def decode(self, source, target):
         from os import remove
 
-        super(VioLib, self).decode(source, target)
-
-        remove('dataDec.txt')
-        remove('log.dec')
-
-    def digest(self, source, target=None):
-        from os import remove
-
-        super(VioLib, self).digest(source, target, frames)
+        super(LibVio, self).decode(source, target)
 
         remove('dataDec.txt')
         remove('log.dec')

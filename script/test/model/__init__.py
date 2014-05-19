@@ -167,7 +167,7 @@ class Executor(object):
             if 'digest' in self.actions:
                 lines = self.digest(source, None)
             else:
-                lines = self.digest_by_frames(source, None, nline)
+                lines = self.digest_by_frames(source, None, nhash)
         except Exception as e:
             raise e
         nline = len(lines)
