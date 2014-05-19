@@ -23,12 +23,14 @@
 ================================================================================
 '''
 
-__all__ = ('ModelExecutor', )
+__all__ = ('rootpath', 'ModelExecutor')
 
 __version__ = '2.0.0'
 
 from sys import stdout, stderr
-from os.path import exists, splitext, basename
+from os.path import join, normpath, dirname, exists, splitext, basename
+
+rootpath = normpath(join(dirname(__file__), '../../..'))
 
 
 class Executor(object):
@@ -51,7 +53,6 @@ class Executor(object):
 
     def mkdir(self, target):
         from os import makedirs
-        from os.path import normpath, dirname
 
         outdir = normpath(dirname(target))
         if not exists(outdir):
@@ -190,14 +191,14 @@ class ModelExecutor(Executor):
         super(ModelExecutor, self).__init__(**kwargs)
 
         if codec not in self.codecs:
-            raise Exception('codec must be one of %s' % self.codecs)
+            raise Exception('codec must be one of %s' % list(self.codecs))
 
         for action in Executor.actions:
             if action not in self.actions:
                 setattr(self, action, self.noslot)
 
     def noslot(self, *largs, **kwargs):
-        raise Exception('action must be one of %s' % self.actions)
+        raise Exception('action must be one of %s' % list(self.actions))
 
     def bind(self, globber):
         from .. import Globber

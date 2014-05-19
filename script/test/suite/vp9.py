@@ -27,13 +27,12 @@ __all__ = ('models', 'suites')
 
 __version__ = '2.0.0'
 
-from os.path import normpath, join, dirname
+from os.path import join
 
+from . import rootpath
 from ..model.ffmpeg import FFmpeg
 from ..model.libvpx import LibVpx
 
-
-root = normpath(join(dirname(__file__), '../..'))
 
 models = (FFmpeg, LibVpx)
 
@@ -44,8 +43,8 @@ suites = (
         'codec' : 'vp9',
         'action': 'decode',
         'stdout': 'vp9-libvpx.log',
-        'srcdir': join(root, 'streams/vp9'),
-        'outdir': join(root, 'images/vp9'),
+        'srcdir': join(rootpath, 'test/stream/vp9'),
+        'outdir': join(rootpath, 'test/image/vp9'),
         'includes': ('*.ivf', '*.webm'),
         'excludes': ('vp91-2-04-yv444.webm', )
     },
@@ -55,8 +54,19 @@ suites = (
         'codec' : 'vp9',
         'action': 'digest',
         'stdout': 'vp9-libvpx.log',
-        'srcdir': join(root, 'streams/vp9'),
-        'outdir': join(root, 'digests/vp9'),
+        'srcdir': join(rootpath, 'test/stream/vp9'),
+        'outdir': join(rootpath, 'test/digest/vp9'),
+        'includes': ('*.ivf', '*.webm'),
+        'excludes': ('vp91-2-04-yv444.webm', )
+    },
+    {
+        'suite' : 'compare-vp9-libvpx',
+        'model' : 'libvpx',
+        'codec' : 'vp9',
+        'action': 'compare',
+        'stdout': 'vp9-libvpx.log',
+        'srcdir': join(rootpath, 'test/stream/vp9'),
+        'outdir': join(rootpath, 'test/digest/vp9'),
         'includes': ('*.ivf', '*.webm'),
         'excludes': ('vp91-2-04-yv444.webm', )
     }

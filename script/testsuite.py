@@ -26,13 +26,13 @@
 
 from sys import path, argv, stdout, stderr
 from os import remove
-from os.path import join, dirname
+from os.path import dirname
 
-path.append(join(dirname(__file__), '..'))
+path.append(dirname(__file__))
 
-from scripts import Globber
-from scripts.model import ModelExecutor
-from scripts.suite import h264, hevc, vc1, vp8, vp9
+from test.globber import Globber
+from test.model import ModelExecutor
+from test.suite import h264, hevc, vc1, vp8, vp9
 
 
 codecs = (h264, hevc, vc1, vp8, vp9)

@@ -28,7 +28,7 @@ __all__ = ('AllegroH264', )
 
 __version__ = '2.0.0'
 
-from . import ModelExecutor
+from . import rootpath, ModelExecutor
 
 
 class AllegroH264(ModelExecutor):
@@ -38,11 +38,13 @@ class AllegroH264(ModelExecutor):
     actions = ('decode', 'digest_by_frames', 'compare')
 
     def __init__(self, codec='h264', **kwargs):
-        from os.path import join, normpath, dirname
+        from os.path import join
 
         super(AllegroH264, self).__init__(codec, **kwargs)
 
-        self._execute = normpath(join(dirname(__file__), 'ldecod_Allegro.exe'))
+        binary = 'tool/tarball/ldecod_Allegro.exe'
+
+        self._execute = join(rootpath, binary)
 
         self._config = '''\
 %s                       ........H.264/AVC coded bitstream

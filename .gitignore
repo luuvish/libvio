@@ -1,13 +1,7 @@
 bin/
-ref/dist/
-ref/source/
+script/**/*.pyc
 src/h264/dependencies
 src/h264/objects
-test/digests/
-test/images/
-test/reports/*/*.log
-test/streams/
-test/scripts/model/ldecod_Allegro.exe
-test/scripts/model/wmfdecode_vc.exe
-test/scripts/*.pyc
-test/scripts/*/*.pyc
+test/
+tool/3rd-party
+tool/tarball

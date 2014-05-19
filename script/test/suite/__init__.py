@@ -14,38 +14,19 @@
 
 ================================================================================
 
- File      : wmfdecode.py
+ File      : suite.py
  Author(s) : Luuvish
  Version   : 2.0
  Revision  :
-     1.0 May 20, 2013    first release
      2.0 May 12, 2014    Executor classify
 
 ================================================================================
 '''
 
-__all__ = ('WmfDecode', )
+__all__ = ('rootpath', )
 
 __version__ = '2.0.0'
 
-from . import ModelExecutor
+from os.path import join, normpath, dirname
 
-
-class WmfDecode(ModelExecutor):
-
-    model   = 'wmf-decode'
-    codecs  = ('vp1', )
-    actions = ('decode', 'digest_by_frames', 'compare')
-
-    def __init__(self, codec='vc1', **kwargs):
-        from os.path import join, normpath, dirname
-
-        super(WmfDecoder, self).__init__(codec, **kwargs)
-
-        self._execute = normpath(join(dirname(__file__), 'wmfdecode_vc.exe'))
-
-    def execute(self):
-        return self._execute
-
-    def options(self, source, target):
-        return ['-v', 'IYUV_WMV', '-cut1stframe', '1', '-ignoreaudio', '1', '-i', source, '-o', target]
+rootpath = normpath(join(dirname(__file__), '../../..'))

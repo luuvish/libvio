@@ -14,48 +14,58 @@
 
 ================================================================================
 
- File      : coda960.py
+ File      : libvio.py
  Author(s) : Luuvish
  Version   : 2.0
  Revision  :
-     1.0 May 19, 2013    first release
+     1.0 Aug 28, 2013    first release
      2.0 May 12, 2014    Executor classify
 
 ================================================================================
 '''
 
-__all__ = ('Coda960', )
+__all__ = ('LibVio', )
 
 __version__ = '2.0.0'
 
-from . import ModelExecutor
+from . import rootpath, ModelExecutor
 
 
-class Coda960(ModelExecutor):
+class LibVio(ModelExecutor):
 
-    model   = 'coda960'
-    codecs  = ('h264', 'vc1', 'vp8')
+    model   = 'libvio'
+    codecs  = ('h264', )
     actions = ('decode', 'digest', 'digest_by_frames', 'compare')
 
     def __init__(self, codec, **kwargs):
-        from os.path import join, normpath, dirname
+        from os.path import join
 
-        super(Coda960, self).__init__(codec, **kwargs)
+        super(VioLib, self).__init__(codec, **kwargs)
 
-        root     = normpath(join(dirname(__file__), '../../..'))
-        binary   = 'ref/dist/coda960-v1.0.0/design/ref_c/bin/darwin'
-        binaries = {'h264':'avcdecoder', 'vc1':'vc1decoder', 'vp8':'vpxdecoder'}
-        executes = {k: join(root, binary, v) for k, v in binaries.iteritems()}
+        binary = 'bin/libvio'
 
-        self._execute = executes[codec]
+        self._execute = join(rootpath, binary)
 
         self.defaults['digest'] += ['-5']
-        if codec == 'vp8':
-            self.defaults['decode'] += ['--std', '2']
-            self.defaults['digest'] += ['--std', '2']
 
     def execute(self):
         return self._execute
 
     def options(self, source, target):
         return ['-i', source, '-o', target]
+
+    def decode(self, source, target):
+        from os import remove
+
+        super(VioLib, self).decode(source, target)
+
+        remove('dataDec.txt')
+        remove('log.dec')
+
+    def digest(self, source, target=None):
+        from os import remove
+
+        super(VioLib, self).digest(source, target, frames)
+
+        remove('dataDec.txt')
+        remove('log.dec')

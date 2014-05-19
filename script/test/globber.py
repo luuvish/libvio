@@ -131,7 +131,7 @@ class Globber(object):
                 self.error('       # failed: %s\n' % e.message)
 
         def noslot(executor, *largs, **kwargs):
-            raise Exception('action must be one of %s' % executor.actions)
+            raise Exception('action must be one of %s' % list(executor.actions))
 
         def globber(method, executor, *largs):
             method = partial(method, executor)

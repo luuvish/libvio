@@ -27,18 +27,17 @@ __all__ = ('models', 'suites')
 
 __version__ = '2.0.0'
 
-from os.path import normpath, join, dirname
+from os.path import join
 
+from . import rootpath
 from ..model.allegro_h264 import AllegroH264
 from ..model.coda960 import Coda960
 from ..model.ffmpeg import FFmpeg
 from ..model.jm_18_6 import JM
-from ..model.violib import VioLib
+from ..model.libvio import LibVio
 
 
-root = normpath(join(dirname(__file__), '../..'))
-
-models = (AllegroH264, Coda960, FFmpeg, JM, VioLib)
+models = (AllegroH264, Coda960, FFmpeg, JM, LibVio)
 
 suites = (
     {
@@ -47,8 +46,8 @@ suites = (
         'codec' : 'h264',
         'action': 'encode',
         'stdout': 'h264-jm-18.6.log',
-        'srcdir': join(root, 'images/yuv'),
-        'outdir': join(root, 'streams/h264'),
+        'srcdir': join(rootpath, 'test/image/yuv'),
+        'outdir': join(rootpath, 'test/stream/h264'),
         'includes': (('phantom.yuv', {'width':1920, 'height':1080, 'frames':600}), ),
         'excludes': ()
     },
@@ -58,8 +57,8 @@ suites = (
         'codec' : 'h264',
         'action': 'decode',
         'stdout': 'h264-allegro.log',
-        'srcdir': join(root, 'streams/h264'),
-        'outdir': join(root, 'images/h264'),
+        'srcdir': join(rootpath, 'test/stream/h264'),
+        'outdir': join(rootpath, 'test/image/h264'),
         'includes': (
             'jvt/bp/*',
             'jvt/mp/*',
@@ -78,8 +77,8 @@ suites = (
         'codec' : 'h264',
         'action': 'compare',
         'stdout': 'h264-coda960.log',
-        'srcdir': join(root, 'streams/h264'),
-        'outdir': join(root, 'digests/h264'),
+        'srcdir': join(rootpath, 'test/stream/h264'),
+        'outdir': join(rootpath, 'test/digest/h264'),
         'includes': (
             'jvt/bp/*',
             'jvt/mp/*',
@@ -100,8 +99,8 @@ suites = (
         'codec' : 'h264',
         'action': 'compare',
         'stdout': 'h264-jm-18.6.log',
-        'srcdir': join(root, 'streams/h264'),
-        'outdir': join(root, 'digests/h264'),
+        'srcdir': join(rootpath, 'test/stream/h264'),
+        'outdir': join(rootpath, 'test/digest/h264'),
         'includes': (
             'jvt/bp/*',
             'jvt/mp/*',
@@ -115,12 +114,12 @@ suites = (
     },
     {
         'suite' : 'compare-h264-violib',
-        'model' : 'violib',
+        'model' : 'libvio',
         'codec' : 'h264',
         'action': 'compare',
-        'stdout': 'h264-violib.log',
-        'srcdir': join(root, 'streams/h264'),
-        'outdir': join(root, 'digests/h264'),
+        'stdout': 'h264-libvio.log',
+        'srcdir': join(rootpath, 'test/stream/h264'),
+        'outdir': join(rootpath, 'test/digest/h264'),
         'includes': (
             'jvt/bp/*',
             'jvt/mp/*',

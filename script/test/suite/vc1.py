@@ -27,15 +27,14 @@ __all__ = ('models', 'suites')
 
 __version__ = '2.0.0'
 
-from os.path import normpath, join, dirname
+from os.path import join
 
+from . import rootpath
 from ..model.coda960 import Coda960
 from ..model.ffmpeg import FFmpeg
 from ..model.smpte_vc1 import SMPTEVc1
 from ..model.wmfdecode import WmfDecode
 
-
-root = normpath(join(dirname(__file__), '../..'))
 
 models = (Coda960, FFmpeg, SMPTEVc1, WmfDecode)
 
@@ -46,8 +45,8 @@ suites = (
         'codec' : 'vc1',
         'action': 'decode',
         'stdout': 'vc1-wmfdecode.log',
-        'srcdir': join(root, 'streams/vc1'),
-        'outdir': join(root, 'images/vc1'),
+        'srcdir': join(rootpath, 'test/stream/vc1'),
+        'outdir': join(rootpath, 'test/image/vc1'),
         'includes': (
             'artificial6/*_Main_Progressive_*',
             'artificial7/*',
@@ -64,8 +63,26 @@ suites = (
         'codec' : 'vc1',
         'action': 'decode',
         'stdout': 'vc1-smpte.log',
-        'srcdir': join(root, 'streams/vc1'),
-        'outdir': join(root, 'images/vc1'),
+        'srcdir': join(rootpath, 'test/stream/vc1'),
+        'outdir': join(rootpath, 'test/image/vc1'),
+        'includes': (
+            'artificial6/*_Main_Progressive_*',
+            'artificial7/*',
+            'smpte-vc1/*',
+            'conf-vc1/*',
+            'conf-wmv9/*',
+            'stress/*'
+        ),
+        'excludes': ()
+    },
+    {
+        'suite' : 'digest-vc1-coda960',
+        'model' : 'coda960',
+        'codec' : 'vc1',
+        'action': 'digest',
+        'stdout': 'vc1-coda960.log',
+        'srcdir': join(rootpath, 'test/stream/vc1'),
+        'outdir': join(rootpath, 'test/digest/vc1'),
         'includes': (
             'artificial6/*_Main_Progressive_*',
             'artificial7/*',
@@ -82,8 +99,8 @@ suites = (
         'codec' : 'vc1',
         'action': 'compare',
         'stdout': 'vc1-coda960.log',
-        'srcdir': join(root, 'streams/vc1'),
-        'outdir': join(root, 'digests/vc1'),
+        'srcdir': join(rootpath, 'test/stream/vc1'),
+        'outdir': join(rootpath, 'test/digest/vc1'),
         'includes': (
             'artificial6/*_Main_Progressive_*',
             'artificial7/*',

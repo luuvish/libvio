@@ -28,24 +28,23 @@ __all__ = ('SMPTEVc1', )
 
 __version__ = '2.0.0'
 
-from . import ModelExecutor
+from . import rootpath, ModelExecutor
 
 
 class SMPTEVc1(ModelExecutor):
 
     model   = 'smpte-vc1'
-    codecs  = ('vp1', )
+    codecs  = ('vc1', )
     actions = ('decode', 'digest_by_frames', 'compare')
 
     def __init__(self, codec='vc1', **kwargs):
-        from os.path import join, normpath, dirname
+        from os.path import join
 
         super(SMPTEVc1, self).__init__(codec, **kwargs)
 
-        root   = normpath(join(dirname(__file__), '../../..'))
-        binary = 'ref/dist/smpte-vc1/decoder/decoder'
+        binary = 'tool/3rd-party/smpte-vc1-2008/decoder/decoder'
 
-        self._execute = join(root, binary)
+        self._execute = join(rootpath, binary)
 
         self._config = '''\
 # Options for SMPTE VC-1 reference decoder.

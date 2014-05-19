@@ -28,7 +28,7 @@ __all__ = ('HM', )
 
 __version__ = '2.0.0'
 
-from . import ModelExecutor
+from . import rootpath, ModelExecutor
 
 
 class HM(ModelExecutor):
@@ -40,18 +40,17 @@ class HM(ModelExecutor):
     ext     = '265'
 
     def __init__(self, codec='hevc', **kwargs):
-        from os.path import join, normpath, dirname
+        from os.path import join
 
         super(HM, self).__init__(codec, **kwargs)
 
-        root   = normpath(join(dirname(__file__), '../../..'))
-        decode = 'ref/dist/hm-14.0/bin/TAppDecoderStatic'
-        encode = 'ref/dist/hm-14.0/bin/TAppEncoderStatic'
-        config = 'ref/dist/hm-14.0/cfg/encoder_randomaccess_main.cfg'
+        decode = 'tool/3rd-party/hm-14.0/bin/TAppDecoderStatic'
+        encode = 'tool/3rd-party/hm-14.0/bin/TAppEncoderStatic'
+        config = 'tool/3rd-party/hm-14.0/cfg/encoder_randomaccess_main.cfg'
 
-        self._decode = join(root, decode)
-        self._encode = join(root, encode)
-        self._config = join(root, config)
+        self._decode = join(rootpath, decode)
+        self._encode = join(rootpath, encode)
+        self._config = join(rootpath, config)
 
     def execute(self):
         return self._decode

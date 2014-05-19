@@ -14,43 +14,47 @@
 
 ================================================================================
 
- File      : ffmpeg.py
+ File      : coda960.py
  Author(s) : Luuvish
  Version   : 2.0
  Revision  :
-     1.0 Aug 28, 2013    first release
+     1.0 May 19, 2013    first release
      2.0 May 12, 2014    Executor classify
 
 ================================================================================
 '''
 
-__all__ = ('FFmpeg', )
+__all__ = ('Coda960', )
 
 __version__ = '2.0.0'
 
-from . import ModelExecutor
+from . import rootpath, ModelExecutor
 
 
-class FFmpeg(ModelExecutor):
+class Coda960(ModelExecutor):
 
-    model   = 'ffmpeg'
-    codecs  = ('h264', 'hevc', 'vc1', 'vp8', 'vp9')
-    actions = ('decode', 'digest_by_frames', 'compare')
+    model   = 'coda960'
+    codecs  = ('h264', 'vc1', 'vp8')
+    actions = ('decode', 'digest', 'digest_by_frames', 'compare')
 
     def __init__(self, codec, **kwargs):
-        from os.path import join, normpath, dirname
+        from os.path import join
 
-        super(FFmpeg, self).__init__(codec, **kwargs)
+        super(Coda960, self).__init__(codec, **kwargs)
 
-        root   = normpath(join(dirname(__file__), '../../..'))
-        binary = 'ref/dist/ffmpeg-2.2.1.bin/dist/bin/ffmpeg'
+        binary   = 'tool/3rd-party/coda960-v1.0.0/design/ref_c/bin/darwin'
+        binaries = {'h264':'avcdecoder', 'vc1':'vc1decoder', 'vp8':'vpxdecoder'}
+        executes = {k: join(rootpath, binary, v) for k, v in binaries.iteritems()}
 
-        self._execute = join(root, binary)
+        self._execute = executes[codec]
 
-        self.defaults['decode'] += ['-codec', codec]
+        self.defaults['digest'] += ['-5']
+        if codec == 'vp8':
+            self.defaults['decode'] += ['--std', '2']
+            self.defaults['digest'] += ['--std', '2']
 
     def execute(self):
         return self._execute
 
     def options(self, source, target):
-        return ['-i', source, target]
+        return ['-i', source, '-o', target]

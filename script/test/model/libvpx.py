@@ -28,7 +28,7 @@ __all__ = ('LibVpx', )
 
 __version__ = '2.0.0'
 
-from . import ModelExecutor
+from . import rootpath, ModelExecutor
 
 
 class LibVpx(ModelExecutor):
@@ -38,14 +38,13 @@ class LibVpx(ModelExecutor):
     actions = ('decode', 'digest', 'digest_by_frames', 'compare')
 
     def __init__(self, codec, **kwargs):
-        from os.path import join, normpath, dirname
+        from os.path import join
 
         super(LibVpx, self).__init__(codec, **kwargs)
 
-        root   = normpath(join(dirname(__file__), '../../..'))
-        binary = 'ref/dist/libvpx-1.3.0.bin/dist/bin/vpxdec'
+        binary = 'tool/3rd-party/libvpx-1.3.0.bin/dist/bin/vpxdec'
 
-        self._execute = join(root, binary)
+        self._execute = join(rootpath, binary)
 
         self.defaults['decode'] += ['--codec=' + codec, '--i420']
         self.defaults['digest'] += ['--codec=' + codec, '--i420', '--md5']

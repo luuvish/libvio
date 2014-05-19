@@ -14,15 +14,42 @@
 
 ================================================================================
 
- File      : suite.py
+ File      : ffmpeg.py
  Author(s) : Luuvish
  Version   : 2.0
  Revision  :
+     1.0 Aug 28, 2013    first release
      2.0 May 12, 2014    Executor classify
 
 ================================================================================
 '''
 
-__all__ = ()
+__all__ = ('FFmpeg', )
 
 __version__ = '2.0.0'
+
+from . import rootpath, ModelExecutor
+
+
+class FFmpeg(ModelExecutor):
+
+    model   = 'ffmpeg'
+    codecs  = ('h264', 'hevc', 'vc1', 'vp8', 'vp9')
+    actions = ('decode', 'digest_by_frames', 'compare')
+
+    def __init__(self, codec, **kwargs):
+        from os.path import join
+
+        super(FFmpeg, self).__init__(codec, **kwargs)
+
+        binary = 'tool/3rd-party/ffmpeg-2.2.1.bin/dist/bin/ffmpeg'
+
+        self._execute = join(rootpath, binary)
+
+        self.defaults['decode'] += ['-codec', codec]
+
+    def execute(self):
+        return self._execute
+
+    def options(self, source, target):
+        return ['-i', source, target]

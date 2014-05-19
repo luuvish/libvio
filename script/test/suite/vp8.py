@@ -27,14 +27,13 @@ __all__ = ('models', 'suites')
 
 __version__ = '2.0.0'
 
-from os.path import normpath, join, dirname
+from os.path import join
 
+from . import rootpath
 from ..model.coda960 import Coda960
 from ..model.ffmpeg import FFmpeg
 from ..model.libvpx import LibVpx
 
-
-root = normpath(join(dirname(__file__), '../..'))
 
 models = (Coda960, FFmpeg, LibVpx)
 
@@ -45,8 +44,8 @@ suites = (
         'codec' : 'vp8',
         'action': 'decode',
         'stdout': 'vp8-libvpx.log',
-        'srcdir': join(root, 'streams/vp8'),
-        'outdir': join(root, 'images/vp8'),
+        'srcdir': join(rootpath, 'test/stream/vp8'),
+        'outdir': join(rootpath, 'test/image/vp8'),
         'includes': ('*.ivf', ),
         'excludes': ()
     },
@@ -56,8 +55,8 @@ suites = (
         'codec' : 'vp8',
         'action': 'digest',
         'stdout': 'vp8-libvpx.log',
-        'srcdir': join(root, 'streams/vp8'),
-        'outdir': join(root, 'digests/vp8'),
+        'srcdir': join(rootpath, 'test/stream/vp8'),
+        'outdir': join(rootpath, 'test/digest/vp8'),
         'includes': ('*.ivf', ),
         'excludes': ()
     },
@@ -67,8 +66,8 @@ suites = (
         'codec' : 'vp8',
         'action': 'compare',
         'stdout': 'vp8-libvpx.log',
-        'srcdir': join(root, 'streams/vp8'),
-        'outdir': join(root, 'digests/vp8'),
+        'srcdir': join(rootpath, 'test/stream/vp8'),
+        'outdir': join(rootpath, 'test/digest/vp8'),
         'includes': ('*.ivf', ),
         'excludes': ()
     },
@@ -78,8 +77,8 @@ suites = (
         'codec' : 'vp8',
         'action': 'compare',
         'stdout': 'vp8-coda960.log',
-        'srcdir': join(root, 'streams/vp8'),
-        'outdir': join(root, 'digests/vp8'),
+        'srcdir': join(rootpath, 'test/stream/vp8'),
+        'outdir': join(rootpath, 'test/digest/vp8'),
         'includes': ('*.ivf', ),
         'excludes': ()
     }

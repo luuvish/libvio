@@ -27,8 +27,9 @@ __all__ = ('models', 'suites')
 
 __version__ = '2.0.0'
 
-from os.path import normpath, join, dirname
+from os.path import join
 
+from . import rootpath
 from ..model.ffmpeg import FFmpeg
 from ..model.hm_14_0 import HM
 
@@ -73,8 +74,6 @@ bbc = (('bbc/' + profile + '/' + stream[0], stream[1])
 )
 
 
-root = normpath(join(dirname(__file__), '../..'))
-
 models = (FFmpeg, HM)
 
 suites = (
@@ -84,8 +83,8 @@ suites = (
         'codec' : 'hevc',
         'action': 'encode',
         'stdout': 'hevc-hm-14.0.log',
-        'srcdir': join(root, 'images/yuv'),
-        'outdir': join(root, 'streams/hevc'),
+        'srcdir': join(rootpath, 'test/image/yuv'),
+        'outdir': join(rootpath, 'test/stream/hevc'),
         'includes': (('phantom.yuv', {'width':1920, 'height':1080, 'frames':600}), ),
         'excludes': ()
     },
@@ -95,8 +94,8 @@ suites = (
         'codec' : 'hevc',
         'action': 'decode',
         'stdout': 'hevc-hm-14.0.log',
-        'srcdir': join(root, 'streams/hevc'),
-        'outdir': join(root, 'images/hevc'),
+        'srcdir': join(rootpath, 'test/stream/hevc'),
+        'outdir': join(rootpath, 'test/image/hevc'),
         'includes': bbc,
         'excludes': ()
     },
@@ -106,8 +105,8 @@ suites = (
         'codec' : 'hevc',
         'action': 'digest_by_frames',
         'stdout': 'hevc-hm-14.0.log',
-        'srcdir': join(root, 'streams/hevc'),
-        'outdir': join(root, 'digests/hevc'),
+        'srcdir': join(rootpath, 'test/stream/hevc'),
+        'outdir': join(rootpath, 'test/digest/hevc'),
         'includes': bbc,
         'excludes': ()
     },
@@ -117,8 +116,8 @@ suites = (
         'codec' : 'hevc',
         'action': 'compare',
         'stdout': 'hevc-hm-14.0.log',
-        'srcdir': join(root, 'streams/hevc'),
-        'outdir': join(root, 'digests/hevc'),
+        'srcdir': join(rootpath, 'test/stream/hevc'),
+        'outdir': join(rootpath, 'test/digest/hevc'),
         'includes': bbc,
         'excludes': ()
     },
@@ -128,8 +127,8 @@ suites = (
         'codec' : 'hevc',
         'action': 'compare',
         'stdout': 'hevc-ffmpeg.log',
-        'srcdir': join(root, 'streams/hevc'),
-        'outdir': join(root, 'digests/hevc'),
+        'srcdir': join(rootpath, 'test/stream/hevc'),
+        'outdir': join(rootpath, 'test/digest/hevc'),
         'includes': bbc,
         'excludes': ()
     }

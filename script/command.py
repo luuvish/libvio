@@ -25,24 +25,24 @@
 '''
 
 from sys import path, argv, stderr
-from os.path import join, dirname
+from os.path import dirname
 
-path.append(join(dirname(__file__), '..'))
+path.append(dirname(__file__))
 
-from scripts import Globber
-from scripts.model import ModelExecutor
-from scripts.model.allegro_h264 import AllegroH264
-from scripts.model.coda960 import Coda960
-from scripts.model.ffmpeg import FFmpeg
-from scripts.model.hm_14_0 import HM
-from scripts.model.jm_18_6 import JM
-from scripts.model.libvpx import LibVpx
-from scripts.model.smpte_vc1 import SMPTEVc1
-from scripts.model.violib import VioLib
-from scripts.model.wmfdecode import WmfDecode
+from test.globber import Globber
+from test.model import ModelExecutor
+from test.model.allegro_h264 import AllegroH264
+from test.model.coda960 import Coda960
+from test.model.ffmpeg import FFmpeg
+from test.model.hm_14_0 import HM
+from test.model.jm_18_6 import JM
+from test.model.libvio import LibVio
+from test.model.libvpx import LibVpx
+from test.model.smpte_vc1 import SMPTEVc1
+from test.model.wmfdecode import WmfDecode
 
 
-models = (AllegroH264, Coda960, FFmpeg, HM, JM, LibVpx, SMPTEVc1, VioLib, WmfDecode)
+models = (AllegroH264, Coda960, FFmpeg, HM, JM, LibVio, LibVpx, SMPTEVc1, WmfDecode)
 
 
 class Command(object):

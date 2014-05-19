@@ -28,7 +28,7 @@ __all__ = ('JM', )
 
 __version__ = '2.0.0'
 
-from . import ModelExecutor
+from . import rootpath, ModelExecutor
 
 
 class JM(ModelExecutor):
@@ -40,20 +40,19 @@ class JM(ModelExecutor):
     ext     = '264'
 
     def __init__(self, codec='h264', **kwargs):
-        from os.path import join, normpath, dirname
+        from os.path import join
 
         super(JM, self).__init__(codec, **kwargs)
 
-        root   = normpath(join(dirname(__file__), '../../..'))
-        decode = 'ref/dist/jm-18.6/bin/ldecod.exe'
-        encode = 'ref/dist/jm-18.6/bin/lencod.exe'
-        cfgdec = 'ref/dist/jm-18.6/bin/decoder.cfg'
-        cfgenc = 'ref/dist/jm-18.6/bin/HM-like/encoder_JM_RA_B_HE.cfg'
+        decode = 'tool/3rd-party/jm-18.6/bin/ldecod.exe'
+        encode = 'tool/3rd-party/jm-18.6/bin/lencod.exe'
+        cfgdec = 'tool/3rd-party/jm-18.6/bin/decoder.cfg'
+        cfgenc = 'tool/3rd-party/jm-18.6/bin/HM-like/encoder_JM_RA_B_HE.cfg'
 
-        self._decode = join(root, decode)
-        self._encode = join(root, encode)
-        self._cfgdec = join(root, cfgdec)
-        self._cfgenc = join(root, cfgenc)
+        self._decode = join(rootpath, decode)
+        self._encode = join(rootpath, encode)
+        self._cfgdec = join(rootpath, cfgdec)
+        self._cfgenc = join(rootpath, cfgenc)
 
     def execute(self):
         return self._decode
