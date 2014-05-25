@@ -4,10 +4,10 @@
  *   This confidential and proprietary software may be used only
  *  as authorized by a licensing agreement from Thumb o'Cat Inc.
  *  In the event of publication, the following notice is applicable:
- * 
+ *
  *       Copyright (C) 2013 - 2013 Thumb o'Cat
  *                     All right reserved.
- * 
+ *
  *   The entire notice above must be reproduced on all authorized copies.
  *
  * ===========================================================================
@@ -26,7 +26,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "memalloc.h" 
+#include "memalloc.h"
 #include "bitstream.h"
 #include "sets.h"
 
@@ -93,7 +93,7 @@ static int NALUtoRBSP(nal_unit_t& nal)
     for (int i = nalUnitHeaderBytes; i < nal.num_bytes_in_nal_unit; ++i) {
         //starting from begin_bytepos to avoid header information
         //in NAL unit, 0x000000, 0x000001 or 0x000002 shall not occur at any byte-aligned position
-        if (count == 2 && nal.rbsp_byte[i] < 0x03) 
+        if (count == 2 && nal.rbsp_byte[i] < 0x03)
             return nal.num_bytes_in_rbsp = -1;
         if (count == 2 && nal.rbsp_byte[i] == 0x03) {
             //check the 4th byte after 0x000003, except when cabac_zero_word is used, in which case the last three bytes of this NAL unit must be 0x000003
@@ -129,7 +129,7 @@ struct annex_b_t {
     uint8_t*    rdbuf_data;
 
     int32_t     nextstartcodebytes;
-    uint8_t*    Buf;  
+    uint8_t*    Buf;
 
                 annex_b_t(uint32_t max_size);
                 ~annex_b_t();
@@ -149,6 +149,9 @@ struct annex_b_t {
 
 annex_b_t::annex_b_t(uint32_t max_size)
 {
+    this->is_eof = false;
+    this->iobuf_size = 0;
+    this->iobuf_data = nullptr;
     this->Buf = new uint8_t[max_size];
 }
 
@@ -246,7 +249,7 @@ uint32_t annex_b_t::get_nalu(nal_unit_t& nal)
         }
 
         pos++;
-        *pBuf++ = this->getfbyte();    
+        *pBuf++ = this->getfbyte();
         info3 = this->FindStartCode(pBuf - 4, 3);
         if (!info3) {
             info2 = this->FindStartCode(pBuf - 3, 2);
@@ -341,7 +344,7 @@ void bitstream_t::close()
     switch (this->FileFormat) {
     case type::RTP:
         close_rtp(&this->BitStreamFile);
-        break;   
+        break;
     case type::ANNEX_B:
     default:
         this->annex_b->close();
@@ -358,7 +361,7 @@ bitstream_t& bitstream_t::operator>>(nal_unit_t& nal)
     switch (this->FileFormat) {
     case type::RTP:
         ret = get_nalu_from_rtp(nal, this->BitStreamFile);
-        break;   
+        break;
     case type::ANNEX_B:
     default:
         ret = this->annex_b->get_nalu(nal);
